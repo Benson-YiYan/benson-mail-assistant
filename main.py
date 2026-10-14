@@ -1,0 +1,81 @@
+"""GUI entrypoint. --self-test never loads real account settings."""
+import argparse
+import json
+from pathlib import Path
+import sys
+import tempfile
+import traceback
+
+def self_test(result_path,screenshot):
+    result={'ok':False,'checks':[]}
+    try:
+        from benson_mail import platform_windows as platform
+        from benson_mail.ui import Application
+        from benson_mail.core import Service
+        import tkinter as tk
+        from PIL import ImageGrab
+        from email.message import EmailMessage
+        from datetime import datetime,timezone
+        with tempfile.TemporaryDirectory(prefix='BensonMail-test-') as temporary:
+            directory=Path(temporary); account='synthetic@example.invalid'; secret='SYNTHETIC-NOT-A-CREDENTIAL'
+            platform.save_secret(directory/'secret.bin',account,secret)
+            assert platform.load_secret(directory/'secret.bin',account)==secret
+            result['checks'].append('current-user DPAPI round trip')
+            assert platform.documents_dir().is_absolute(); result['checks'].append('Windows Documents known folder')
+            name='BensonMail-SelfTest'
+            try:
+                platform.set_autostart(True,name); assert platform.has_autostart(name)
+                platform.set_autostart(False,name); assert not platform.has_autostart(name)
+            finally: platform.set_autostart(False,name)
+            result['checks'].append('startup register and cleanup')
+            m=EmailMessage(); m['Subject']='模拟来信：合同检查'; m['From']='demo@example.invalid'; m.set_content('请周五检查附件并回复。')
+            class FakeMailbox:
+                messages={}
+                def snapshot(self): return 'synthetic',[*self.messages]
+                def fetch(self,uid): return m.as_bytes(),datetime(2026,10,14,1,2,tzinfo=timezone.utc)
+            box=FakeMailbox(); calls=[]
+            def analyze(message,stop):
+                calls.append(message)
+                return '1 新邮件提醒\n模拟来信\n2 发件人\ndemo@example.invalid\n3 中文摘要\n请检查合同。\n4 具体待办及截止时间\n周五检查，具体日期待确认。\n5 附件实际内容\n无附件。\n6 建议回复\n收到，我将检查后回复。'
+            config={'account':account,'output_dir':str(directory/'中文报告'),'codex_command':[]}
+            events=[]; service=Service(config,secret,directory/'state',events.append,mailbox=box,analyzer=analyze)
+            service.check_once(); service.check_once(); assert not calls
+            box.messages[1]=True; service.check_once(); service.check_once(); assert len(calls)==1
+            files=list((directory/'中文报告').glob('*/*.txt')); assert len(files)==1; assert all(section in files[0].read_text(encoding='utf-8') for section in ('新邮件提醒','发件人','中文摘要','具体待办','附件实际内容','建议回复'))
+            result['checks'].append('synthetic baseline, empty check, six sections, Unicode export, deduplication')
+            root=tk.Tk(); app=Application(root,directory/'ui',config,self_test=True)
+            app.events.put({'status':'运行中','detail':'模拟新来信已整理，真实邮件与授权码未用于测试。'}); app.drain(); root.update()
+            assert app.status.get()=='运行中'; app.events.put({'status':'已暂停'}); app.drain(); root.update(); assert app.toggle.cget('text')=='开始监听'
+            app.on_close(); root.update(); assert root.state()=='withdrawn'; app.restore(); root.update()
+            if screenshot:
+                root.update(); x=root.winfo_rootx(); y=root.winfo_rooty(); width=root.winfo_width(); height=root.winfo_height()
+                Path(screenshot).parent.mkdir(parents=True,exist_ok=True); ImageGrab.grab(bbox=(x,y,x+width,y+height)).save(screenshot)
+            app.exit(); result['checks'].append('actual Tk window, queue, status, close/restore/exit, screenshot')
+            result['ok']=True
+    except Exception:
+        result['error']=traceback.format_exc()
+    Path(result_path).parent.mkdir(parents=True,exist_ok=True)
+    Path(result_path).write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+    return 0 if result['ok'] else 1
+
+def main():
+    parser=argparse.ArgumentParser(); parser.add_argument('--self-test'); parser.add_argument('--screenshot'); parser.add_argument('--background',action='store_true'); args=parser.parse_args()
+    if args.self_test: return self_test(args.self_test,args.screenshot)
+    import tkinter as tk
+    from tkinter import messagebox
+    from benson_mail import platform_windows as platform
+    from benson_mail.ui import Application
+    root=tk.Tk(); root.withdraw()
+    if sys.platform!='win32': messagebox.showerror('需要 Windows','正式运行支持 Windows 10/11 x64。',parent=root); root.destroy(); return 1
+    instance=platform.SingleInstance()
+    if instance.already_running:
+        messagebox.showinfo('已经运行','邮件小秘书已经运行，请在右下角托盘点击蓝色信封打开。',parent=root); root.destroy(); instance.close(); return 0
+    try:
+        app=Application(root,platform.app_dir()); root.deiconify()
+        if args.background and app.tray: root.withdraw()
+        if app.config.get('enabled'): root.after(500,app.toggle_service)
+        root.mainloop()
+    finally: instance.close()
+    return 0
+
+if __name__=='__main__': sys.exit(main())
