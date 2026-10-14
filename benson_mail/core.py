@@ -27,6 +27,62 @@ def save_json(path, value):
     temporary.write_text(json.dumps(value, ensure_ascii=False), encoding='utf-8')
     os.replace(temporary, path)
 
+def xlsx_text(archive):
+    """Resolve cell values without evaluating formulas or opening external links."""
+    budget = 0
+    namespace = {'s': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
+    def read_xml(name):
+        nonlocal budget
+        info = archive.getinfo(name)
+        budget += info.file_size
+        if info.file_size > MAX_ATTACHMENT or budget > MAX_ATTACHMENT:
+            raise ValueError('expanded workbook too large')
+        return ElementTree.fromstring(archive.read(name))
+    def text_of(node):
+        return ''.join(item.text or '' for item in node.findall('.//s:t', namespace))
+    shared = []
+    if 'xl/sharedStrings.xml' in archive.namelist():
+        shared = [text_of(item) for item in read_xml('xl/sharedStrings.xml').findall('s:si', namespace)]
+    sheet_names = {}
+    if 'xl/workbook.xml' in archive.namelist() and 'xl/_rels/workbook.xml.rels' in archive.namelist():
+        import posixpath
+        relationships = read_xml('xl/_rels/workbook.xml.rels')
+        targets = {}
+        for relation in relationships:
+            if relation.get('TargetMode') == 'External': continue
+            target = relation.get('Target', '')
+            path = posixpath.normpath(target.lstrip('/') if target.startswith('/') else 'xl/' + target)
+            if path.startswith('xl/worksheets/'):
+                targets[relation.get('Id')] = path
+        workbook = read_xml('xl/workbook.xml')
+        for sheet in workbook.findall('s:sheets/s:sheet', namespace):
+            identifier = sheet.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
+            if identifier in targets: sheet_names[targets[identifier]] = sheet.get('name', targets[identifier])
+    names = sorted(name for name in archive.namelist() if re.fullmatch(r'xl/worksheets/[^/]+\.xml', name))
+    parts = ['【Excel 读取说明：按工作表、行和单元格显示；不计算公式。数字保留原值，日期/金额样式、图片和图表未还原。】']
+    for name in names:
+        sheet = read_xml(name)
+        parts.append('工作表：' + sheet_names.get(name, name))
+        for row in sheet.findall('s:sheetData/s:row', namespace):
+            values = []
+            for cell in row.findall('s:c', namespace):
+                reference = cell.get('r', '?')
+                kind = cell.get('t', 'n')
+                value = cell.find('s:v', namespace)
+                raw = value.text or '' if value is not None else ''
+                if kind == 's':
+                    try: raw = shared[int(raw)] if int(raw) >= 0 else '【无效共享字符串索引】'
+                    except (ValueError, IndexError): raw = '【无效共享字符串索引】'
+                elif kind == 'inlineStr': raw = text_of(cell)
+                elif kind == 'b': raw = 'TRUE' if raw == '1' else 'FALSE'
+                elif kind == 'e': raw = '【Excel 错误：' + raw + '】'
+                if cell.find('s:f', namespace) is not None:
+                    raw = (raw + '【公式缓存值，未重新计算】') if value is not None else '【公式未计算，文件没有缓存值】'
+                values.append(reference + '=' + (raw or '【空白】'))
+            parts.append('行 ' + row.get('r', '?') + '：' + ' | '.join(values))
+            if sum(len(part) for part in parts) > 100000: return limited('\n'.join(parts))
+    return limited('\n'.join(parts))
+
 def attachment_text(name, data):
     if len(data) > MAX_ATTACHMENT: return '【未读取：附件超过 20 MB】'
     suffix = Path(name).suffix.lower()
@@ -38,6 +94,7 @@ def attachment_text(name, data):
             return '【未读取：无法识别文字编码】'
         if suffix in ('.docx','.xlsx','.pptx'):
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                if suffix == '.xlsx': return xlsx_text(archive)
                 entries = [n for n in archive.namelist() if re.match(r'(word/document|word/header\d+|word/footer\d+|xl/sharedStrings|xl/worksheets/sheet\d+|ppt/slides/slide\d+)\.xml$',n)]
                 parts=[]; size=0
                 for name in entries:
@@ -163,6 +220,7 @@ class Service:
         self.config=dict(config); self.secret=secret; self.root=Path(root); self.callback=callback; self.mailbox=mailbox
         self.root.mkdir(parents=True,exist_ok=True)
         identity=hashlib.sha256((config['account'].lower()+'|'+config.get('host','imap.163.com')).encode()).hexdigest()[:24]
+        self.identity=identity
         self.state_path=self.root/(identity+'.json'); self.state=json.loads(self.state_path.read_text(encoding='utf-8')) if self.state_path.exists() else {}
         self.analyzer=analyzer or CodexAnalyzer(config['codex_command'],self.root)
         self.cancel=threading.Event(); self.thread=None
@@ -189,6 +247,9 @@ class Service:
                 job=pending[key]
                 if 'message' not in job:
                     job['message']=extract_message(*box.fetch(int(key))); self.persist()
+                if not job.get('new_notified'):
+                    job['new_notified']=True; self.persist()
+                    self.callback({'notification':{'id':f'{self.identity}:{validity}:{key}:new','title':'收到新邮件','message':job['message']['subject']+'\n正在整理中文报告。'}})
                 if 'answer' not in job:
                     self.callback({'status':'正在分析','detail':job['message']['subject']})
                     answer=self.analyzer(job['message'],self.cancel)
@@ -198,7 +259,14 @@ class Service:
                 if 'target' not in job:
                     job['target']=str(export_report(self.config['output_dir'],job['message'],None,key)); self.persist()
                 path=export_report(self.config['output_dir'],job['message'],job['answer'],key,target=job['target'])
-                del pending[key]; self.persist(); self.callback({'status':'运行中','report':str(path),'detail':'新邮件报告已保存'})
+                completed=self.state.setdefault('completed_notifications',[])
+                notice_id=f'{self.identity}:{validity}:{key}:complete'
+                notify=notice_id not in completed
+                if notify: completed.append(notice_id); self.state['completed_notifications']=completed[-200:]
+                del pending[key]; self.persist()
+                event={'status':'运行中','report':str(path),'detail':'新邮件报告已保存'}
+                if notify: event['notification']={'id':notice_id,'title':'邮件报告已完成','message':job['message']['subject']+'\n双击最近报告查看，或打开邮件文件夹。'}
+                self.callback(event)
         finally:
             if owned: box.close()
     def run(self):

@@ -114,3 +114,12 @@ class SingleInstance:
         self.already_running=kernel.GetLastError()==183
     def close(self):
         if self.handle: ctypes.windll.kernel32.CloseHandle(self.handle); self.handle=None
+
+
+def work_area():
+    """Usable primary desktop excluding the taskbar."""
+    require_windows()
+    rectangle=wintypes.RECT()
+    if not ctypes.windll.user32.SystemParametersInfoW(48,0,ctypes.byref(rectangle),0):
+        raise OSError('无法读取 Windows 桌面工作区域')
+    return rectangle.left,rectangle.top,rectangle.right,rectangle.bottom

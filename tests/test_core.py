@@ -76,3 +76,30 @@ class CoreTests(unittest.TestCase):
     def test_attachment_content(self):
         m=EmailMessage(); m.set_content('正文'); m.add_attachment('附件内容'.encode(), maintype='text',subtype='plain',filename='测试.txt')
         result=extract_message(m.as_bytes(),datetime.now(timezone.utc)); self.assertIn('附件内容',result['attachments'][0]['text'])
+
+class SpreadsheetTests(unittest.TestCase):
+    def test_shared_inline_sparse_numeric_formula_and_workbook_names(self):
+        import io,zipfile
+        from benson_mail.core import attachment_text
+        data=io.BytesIO()
+        ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+        with zipfile.ZipFile(data,'w') as archive:
+            archive.writestr('xl/sharedStrings.xml',f'<sst xmlns="{ns}"><si><t>客户</t></si><si><r><t>张</t></r><r><t>女士</t></r></si></sst>')
+            archive.writestr('xl/workbook.xml',f'<workbook xmlns="{ns}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="合同清单" sheetId="1" r:id="rId1"/></sheets></workbook>')
+            archive.writestr('xl/_rels/workbook.xml.rels','<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>')
+            archive.writestr('xl/worksheets/sheet1.xml',f'''<worksheet xmlns="{ns}"><sheetData>
+            <row r="1"><c r="A1" t="s"><v>0</v></c><c r="C1" t="inlineStr"><is><t>金额</t></is></c></row>
+            <row r="2"><c r="A2" t="s"><v>1</v></c><c r="C2"><v>1200.50</v></c><c r="D2"><f>C2*2</f><v>2401</v></c><c r="E2"><f>NOW()</f></c><c r="F2" t="b"><v>1</v></c></row>
+            <row r="3"><c r="A3" t="s"><v>999</v></c></row></sheetData></worksheet>''')
+        text=attachment_text('客户.xlsx',data.getvalue())
+        for expected in ('工作表：合同清单','行 1：A1=客户 | C1=金额','行 2：A2=张女士 | C2=1200.50','D2=2401【公式缓存值','E2=【公式未计算','F2=TRUE','无效共享字符串索引','日期/金额样式'):
+            self.assertIn(expected,text)
+    def test_expanded_zip_bound(self):
+        import io,zipfile
+        from unittest.mock import patch
+        from benson_mail.core import attachment_text
+        data=io.BytesIO()
+        with zipfile.ZipFile(data,'w',compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('xl/sharedStrings.xml','x'*4096)
+        with patch('benson_mail.core.MAX_ATTACHMENT',1024):
+            self.assertIn('未读取',attachment_text('big.xlsx',data.getvalue()))

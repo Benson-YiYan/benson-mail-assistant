@@ -7,7 +7,7 @@ import tempfile
 import traceback
 
 def self_test(result_path,screenshot):
-    result={'ok':False,'checks':[]}
+    result={'ok':False,'checks':[]}; app=None
     try:
         from benson_mail import platform_windows as platform
         from benson_mail.ui import Application
@@ -44,16 +44,35 @@ def self_test(result_path,screenshot):
             files=list((directory/'中文报告').glob('*/*.txt')); assert len(files)==1; assert all(section in files[0].read_text(encoding='utf-8') for section in ('新邮件提醒','发件人','中文摘要','具体待办','附件实际内容','建议回复'))
             result['checks'].append('synthetic baseline, empty check, six sections, Unicode export, deduplication')
             root=tk.Tk(); app=Application(root,directory/'ui',config,self_test=True)
+            app.create_tray()
+            import time
+            deadline=time.monotonic()+10
+            while not app.tray_ready.is_set() and time.monotonic()<deadline:
+                root.update(); time.sleep(.05)
+            assert app.tray is not None and app.tray_ready.is_set(), 'Windows tray failed to start'
+            assert app.tray.visible, 'Windows tray icon is not visible'
+            for event in events: app.events.put(event)
+            app.drain(); root.update()
+            assert len(app.notified)==2, 'New and completed notifications must both dispatch'
+            app.tray.remove_notification()
+            result['checks'].append('real Windows pystray startup, visibility, notify/remove APIs and queue dispatch')
             app.events.put({'status':'运行中','detail':'模拟新来信已整理，真实邮件与授权码未用于测试。'}); app.drain(); root.update()
             assert app.status.get()=='运行中'; app.events.put({'status':'已暂停'}); app.drain(); root.update(); assert app.toggle.cget('text')=='开始监听'
             app.on_close(); root.update(); assert root.state()=='withdrawn'; app.restore(); root.update()
             if screenshot:
                 root.update(); x=root.winfo_rootx(); y=root.winfo_rooty(); width=root.winfo_width(); height=root.winfo_height()
+                left,top,right,bottom=platform.work_area()
+                assert x>=left and y>=top and x+width<=right and y+height<=bottom, 'Window does not fit desktop work area'
                 Path(screenshot).parent.mkdir(parents=True,exist_ok=True); ImageGrab.grab(bbox=(x,y,x+width,y+height)).save(screenshot)
-            app.exit(); result['checks'].append('actual Tk window, queue, status, close/restore/exit, screenshot')
+            app.exit(); app=None; result['checks'].append('actual Tk window, queue, status, close/restore/exit, screenshot')
             result['ok']=True
     except Exception:
         result['error']=traceback.format_exc()
+    finally:
+        if app is not None:
+            if app.tray: app.tray.stop()
+            try: app.root.destroy()
+            except Exception: pass
     Path(result_path).parent.mkdir(parents=True,exist_ok=True)
     Path(result_path).write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
     return 0 if result['ok'] else 1

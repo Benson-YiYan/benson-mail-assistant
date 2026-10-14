@@ -12,8 +12,12 @@ class Application:
     def __init__(self,root,directory,config=None,self_test=False):
         self.root=root; self.directory=Path(directory); self.directory.mkdir(parents=True,exist_ok=True); self.self_test=self_test
         self.config=config or (json.loads((self.directory/'config.json').read_text(encoding='utf-8')) if (self.directory/'config.json').exists() else {})
-        self.events=queue.Queue(); self.service=None; self.tray=None; self.exiting=False; self.secret=''
-        root.title('Benson 邮件小秘书'); root.geometry('780x630'); root.minsize(700,560)
+        self.events=queue.Queue(); self.service=None; self.tray=None; self.exiting=False; self.secret=''; self.notified=set(); self.tray_ready=threading.Event()
+        root.title('Benson 邮件小秘书')
+        if os.name=='nt': left,top,right,bottom=platform.work_area()
+        else: left,top,right,bottom=0,0,root.winfo_screenwidth(),root.winfo_screenheight()
+        width=min(780,max(400,right-left-40)); height=min(630,max(400,bottom-top-80))
+        root.geometry(f'{width}x{height}+{left+20}+{top+20}'); root.minsize(min(700,width),min(560,height))
         style=ttk.Style(root); style.theme_use('clam'); style.configure('TLabel',font=('Microsoft YaHei UI',10)); style.configure('TButton',font=('Microsoft YaHei UI',10),padding=7)
         frame=ttk.Frame(root,padding=22); frame.pack(fill='both',expand=True)
         ttk.Label(frame,text='邮件小秘书',font=('Microsoft YaHei UI',22,'bold')).pack(anchor='w')
@@ -104,6 +108,7 @@ class Application:
             if event.get('status')=='已暂停':
                 self.toggle.configure(text='开始监听',state='normal'); self.config['enabled']=False
                 if not self.self_test: save_json(self.directory/'config.json',self.config)
+            if 'notification' in event: self.notify(event['notification'])
             if 'report' in event: self.refresh_reports()
         if not self.exiting: self.root.after(100,self.drain)
     def refresh_reports(self):
@@ -123,8 +128,19 @@ class Application:
             image=Image.new('RGB',(64,64),'#2058a5'); draw=ImageDraw.Draw(image); draw.rectangle((12,20,52,45),outline='white',width=3); draw.line((12,20,32,35,52,20),fill='white',width=3)
             def action(name): return lambda icon,item:self.events.put({'action':name})
             self.tray=pystray.Icon('BensonMail',image,'邮件小秘书',pystray.Menu(pystray.MenuItem('打开窗口',action('restore'),default=True),pystray.MenuItem('开始／暂停',action('toggle')),pystray.MenuItem('退出',action('exit'))))
-            self.tray.run_detached()
+            def setup(icon):
+                icon.visible=True
+                self.tray_ready.set()
+            self.tray.run_detached(setup)
         except Exception: self.tray=None
+    def notify(self,notice):
+        if notice['id'] in self.notified: return
+        self.notified.add(notice['id'])
+        if self.tray and self.tray_ready.is_set():
+            try: self.tray.notify(notice['message'][:240],notice['title'])
+            except Exception:
+                if getattr(self,'self_test',False): raise
+                self.detail.set('报告照常保存；系统通知不可用，请查看最近报告。')
     def restore(self): self.root.deiconify(); self.root.lift(); self.root.focus_force()
     def on_close(self):
         if self.tray: self.root.withdraw()
