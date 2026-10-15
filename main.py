@@ -77,6 +77,9 @@ def self_test(result_path,screenshot):
                 root.update(); x=root.winfo_rootx(); y=root.winfo_rooty(); width=root.winfo_width(); height=root.winfo_height()
                 left,top,right,bottom=platform.work_area()
                 assert x>=left and y>=top and x+width<=right and y+height<=bottom, 'Window does not fit desktop work area'
+                for control in (app.toggle,app.check_button):
+                    assert control.winfo_rooty()+control.winfo_height()<=y+height, 'Action button clipped below window'
+                    assert control.winfo_rootx()+control.winfo_width()<=x+width, 'Action button clipped at window edge'
                 Path(screenshot).parent.mkdir(parents=True,exist_ok=True); ImageGrab.grab(bbox=(x,y,x+width,y+height)).save(screenshot)
             app.exit(); app=None; result['checks'].append('actual Tk window, queue, status, close/restore/exit, screenshot')
             result['ok']=True
