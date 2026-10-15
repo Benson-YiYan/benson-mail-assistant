@@ -224,10 +224,17 @@ class Service:
         self.state_path=self.root/(identity+'.json'); self.state=json.loads(self.state_path.read_text(encoding='utf-8')) if self.state_path.exists() else {}
         self.analyzer=analyzer or CodexAnalyzer(config['codex_command'],self.root)
         self.cancel=threading.Event(); self.thread=None
+        self.wake=threading.Event(); self.check_requested=False
     def start(self):
         if self.thread and self.thread.is_alive(): return
         self.cancel.clear(); self.thread=threading.Thread(target=self.run,daemon=True); self.thread.start()
-    def stop(self): self.cancel.set()
+    def stop(self): self.cancel.set(); self.wake.set()
+    def request_check(self):
+        if self.check_requested: return
+        self.check_requested=True; self.wake.set()
+    def set_interval(self,seconds):
+        self.config['interval']=seconds
+        self.wake.set()
     def join(self,timeout=None):
         if self.thread: self.thread.join(timeout)
     def persist(self): save_json(self.state_path,self.state)
@@ -259,6 +266,7 @@ class Service:
                 if 'target' not in job:
                     job['target']=str(export_report(self.config['output_dir'],job['message'],None,key)); self.persist()
                 path=export_report(self.config['output_dir'],job['message'],job['answer'],key,target=job['target'])
+                save_json(path.with_suffix('.mail.json'),job['message'])
                 completed=self.state.setdefault('completed_notifications',[])
                 notice_id=f'{self.identity}:{validity}:{key}:complete'
                 notify=notice_id not in completed
@@ -271,9 +279,14 @@ class Service:
             if owned: box.close()
     def run(self):
         while not self.cancel.is_set():
-            try: self.check_once(); self.callback({'status':'运行中','detail':'等待新邮件；空检查不调用 AI'})
+            self.wake.clear()
+            try:
+                self.callback({'status':'正在检查','detail':'正在连接邮箱…'})
+                self.check_once()
+                self.callback({'status':'运行中','detail':'检查完成；等待新邮件，空检查不调用 AI','check_done':True})
             except Exception as error:
                 # Never expose raw server errors or credentials in UI/logs.
-                self.callback({'status':'需要检查','detail':'连接或分析失败。请测试连接；未完成邮件会自动重试。'})
-            self.cancel.wait(self.config.get('interval',60))
+                self.callback({'status':'需要检查','detail':'连接或分析失败。请测试连接；未完成邮件会自动重试。','check_done':True})
+            self.check_requested=False
+            self.wake.wait(self.config.get('interval',60))
         self.callback({'status':'已暂停','detail':'下次开始时会补查暂停期间的新邮件'})

@@ -53,6 +53,20 @@ def self_test(result_path,screenshot):
             assert app.tray.visible, 'Windows tray icon is not visible'
             for event in events: app.events.put(event)
             app.drain(); root.update()
+            app.refresh_reports(); root.update()
+            rows=app.reports.get_children()
+            assert len(rows)==1
+            assert app.reports.item(rows[0],'values')[0]=='模拟来信：合同检查'
+            assert app.reports.item(rows[0],'values')[2]=='2026-10-14 09:02'
+            app.search.set('不存在的测试词'); root.update(); assert not app.reports.get_children()
+            app.reset_filters(); root.update(); assert len(app.reports.get_children())==1
+            app.interval.set('25'); app.apply_interval(); root.update()
+            assert '每25秒' in app.detail.get()
+            app.show_onboarding(); root.update()
+            dialogs=[w for w in root.winfo_children() if isinstance(w,tk.Toplevel)]
+            assert len(dialogs)==1 and dialogs[0].winfo_viewable()
+            dialogs[0].destroy()
+            result['checks'].append('separate original subject/time, local search/reset, editable interval and first-run account dialog')
             assert len(app.notified)==2, 'New and completed notifications must both dispatch'
             app.tray.remove_notification()
             result['checks'].append('real Windows pystray startup, visibility, notify/remove APIs and queue dispatch')
