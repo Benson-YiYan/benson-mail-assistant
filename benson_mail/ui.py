@@ -47,9 +47,9 @@ class Application:
             page.bind('<Configure>',lambda _:canvas.configure(scrollregion=canvas.bbox('all')))
             canvas.bind('<Configure>',lambda event:canvas.itemconfigure(window,width=event.width))
             notebook.add(shell,text=title)
-            return page,canvas
-        settings_page,self.mail_canvas=settings_tab('邮箱与设置')
-        ai_page,self.ai_canvas=settings_tab('AI 服务')
+            return page,canvas,shell
+        settings_page,self.mail_canvas,_=settings_tab('邮箱与设置')
+        ai_page,self.ai_canvas,ai_shell=settings_tab('AI 服务')
         form=ttk.Frame(settings_page); form.pack(fill='x')
         self.account=tk.StringVar(value=self.config.get('account','')); self.password=tk.StringVar(); self.output=tk.StringVar(value=self.config.get('output_dir','')); self.command=self.config.get('codex_command',[])
         for row,(label,var) in enumerate([('163 邮箱地址',self.account),('POP3/IMAP/SMTP 授权码',self.password),('报告保存文件夹',self.output)]):
@@ -68,9 +68,10 @@ class Application:
         for label,var,masked in [('基础地址（服务商提供的 /v1 地址）',self.api_base,False),('模型名',self.api_model,False),('API Key（留空保留此地址已保存的 Key）',self.api_key,True)]:
             ttk.Label(ai_panel,text=label).pack(anchor='w',pady=(6,2))
             ttk.Entry(ai_panel,textvariable=var,show='●' if masked else '').pack(fill='x')
-        ai_controls=ttk.Frame(ai_panel); ai_controls.pack(fill='x',pady=8)
-        ttk.Button(ai_controls,text='保存 AI 设置',command=self.save_ai_settings).pack(side='left')
-        ttk.Button(ai_controls,text='测试 AI 连接',command=self.test_ai_connection).pack(side='left',padx=8)
+        ai_controls=ttk.Frame(ai_shell,padding=6)
+        ai_controls.pack(side='bottom',fill='x',before=self.ai_canvas)
+        self.ai_save_button=ttk.Button(ai_controls,text='保存 AI 设置',command=self.save_ai_settings); self.ai_save_button.pack(side='left')
+        self.ai_test_button=ttk.Button(ai_controls,text='测试 AI 连接',command=self.test_ai_connection); self.ai_test_button.pack(side='left',padx=8)
         ttk.Label(ai_panel,textvariable=self.ai_detail,wraplength=345).pack(anchor='w')
         ttk.Label(ai_panel,text='API Key 由 Windows 当前用户加密保存，不写入普通设置。\n无新邮件不调用 AI；手动测试连接可能消耗少量 Token。',wraplength=345).pack(anchor='w',pady=6)
         ttk.Button(ai_panel,text='选择 Codex 程序（仅 Codex 模式需要）',command=self.choose_codex).pack(anchor='w',pady=6)
@@ -106,13 +107,13 @@ class Application:
         ttk.Label(days,text='至').pack(side='left'); ttk.Entry(days,textvariable=self.end_day,width=12).pack(side='left',padx=6)
         ttk.Button(days,text='重置',command=self.reset_filters).pack(side='right')
         ttk.Label(reports_page,text='日期格式 YYYY-MM-DD，留空不限 · 北京时间').pack(anchor='w',pady=(0,6))
-        self.reports=ttk.Treeview(reports_page,columns=('subject','sender','time'),show='headings',height=5)
+        report_list=ttk.Frame(reports_page); report_list.pack(fill='both',expand=True)
+        self.reports=ttk.Treeview(report_list,columns=('subject','sender','time'),show='headings',height=5)
         for name,label,column_width in [('subject','邮件主题',280),('sender','发件人',160),('time','收到时间（北京）',155)]:
             self.reports.heading(name,text=label); self.reports.column(name,width=column_width,minwidth=60)
-        report_list=ttk.Frame(reports_page); report_list.pack(fill='both',expand=True)
         report_scroll=ttk.Scrollbar(report_list,orient='vertical',command=self.reports.yview)
         self.reports.configure(yscrollcommand=report_scroll.set)
-        report_scroll.pack(side='right',fill='y'); self.reports.pack(in_=report_list,fill='both',expand=True)
+        report_scroll.pack(side='right',fill='y'); self.reports.pack(side='left',fill='both',expand=True)
         self.reports.bind('<Double-1>',self.open_report); self.report_paths=[]
         for var in (self.search,self.sender_filter,self.start_day,self.end_day,self.attachment_filter): var.trace_add('write',lambda *_:self.refresh_reports())
         root.protocol('WM_DELETE_WINDOW',self.on_close); root.after(100,self.drain)
