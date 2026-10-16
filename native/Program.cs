@@ -52,7 +52,7 @@ internal static class Program
     }
 }
 
-sealed class MailApp : Application
+public sealed partial class MailApp : Application
 {
     MainWindow? window;
     public MailApp()
@@ -69,7 +69,7 @@ sealed class MailApp : Application
                 Environment.Exit(1);
             }
         };
-        Resources.MergedDictionaries.Add(new XamlControlsResources());
+        InitializeComponent();
         Program.Trace("Control resources");
     }
     protected override void OnLaunched(LaunchActivatedEventArgs args)
