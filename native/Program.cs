@@ -403,7 +403,16 @@ sealed class MainWindow : Window
         if (ev.TryGetProperty("check_done", out _)) check.IsEnabled = true;
         if (ev.TryGetProperty("report", out _)) _ = Guard(Refresh);
         if (ev.TryGetProperty("notification", out var notice) && notified.Add(notice.GetProperty("id").GetString()!))
-            tray.ShowBalloonTip(5000, notice.GetProperty("title").GetString(), notice.GetProperty("message").GetString(), Forms.ToolTipIcon.Info);
+        {
+            try
+            {
+                var title = notice.GetProperty("title").GetString() ?? "邮件小秘书";
+                var message = notice.GetProperty("message").GetString() ?? "收到新邮件";
+                tray.ShowBalloonTip(5000, title[..Math.Min(title.Length, 63)],
+                    message[..Math.Min(message.Length, 240)], Forms.ToolTipIcon.Info);
+            }
+            catch { detail.Text = "邮件报告照常保存；系统通知暂不可用，请查看报告列表。"; }
+        }
     }
     async Task Initialize()
     {

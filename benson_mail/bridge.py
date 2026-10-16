@@ -227,5 +227,6 @@ def run(launcher=None, fixture=None):
                 emit({'id': request.get('id'), 'ok': False, 'error': detail})
     finally:
         if controller.service:
+            controller.shutting_down = True
             controller.service.stop()
             controller.service.join()
