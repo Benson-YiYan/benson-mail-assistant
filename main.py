@@ -143,6 +143,15 @@ def self_test(result_path,screenshot):
     return 0 if result['ok'] else 1
 
 def main():
+    if '--bridge' in sys.argv:
+        parser=argparse.ArgumentParser()
+        parser.add_argument('--bridge',action='store_true')
+        parser.add_argument('--launcher')
+        parser.add_argument('--fixture')
+        args=parser.parse_args()
+        from benson_mail.bridge import run
+        run(args.launcher,args.fixture)
+        return 0
     from benson_mail.app_icon import set_process_identity
     set_process_identity(Path(sys.executable).name.startswith('Uninstall-BensonMail-'))
     if Path(sys.executable).name.startswith('Uninstall-BensonMail-'):

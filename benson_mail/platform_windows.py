@@ -43,13 +43,14 @@ def save_secret(path,account,secret):
 
 def load_secret(path,account): return crypt(path.read_bytes(),account,True).decode()
 
-def startup_command():
+def startup_command(launcher=None):
+    if launcher: return subprocess.list2cmdline([str(launcher),'--background'])
     return subprocess.list2cmdline([sys.executable]+([] if getattr(sys,'frozen',False) else [str(Path(__file__).resolve().parent.parent/'main.py')])+['--background'])
 
-def set_autostart(enabled,name=APP_NAME):
+def set_autostart(enabled,name=APP_NAME,launcher=None):
     require_windows(); import winreg
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER,r'Software\Microsoft\Windows\CurrentVersion\Run') as key:
-        if enabled: winreg.SetValueEx(key,name,0,winreg.REG_SZ,startup_command())
+        if enabled: winreg.SetValueEx(key,name,0,winreg.REG_SZ,startup_command(launcher))
         else:
             try: winreg.DeleteValue(key,name)
             except FileNotFoundError: pass
