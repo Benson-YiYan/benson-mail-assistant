@@ -12,6 +12,14 @@ def self_test(result_path,screenshot):
         from benson_mail import platform_windows as platform
         from benson_mail.ui import Application
         from benson_mail.core import Service, APIAnalyzer, ANALYSIS_PROMPT
+        from benson_mail.ai_api import tls_context
+        import ssl
+        import certifi
+        context = tls_context()
+        assert context.check_hostname and context.verify_mode == ssl.CERT_REQUIRED
+        assert Path(certifi.where()).is_file()
+        assert Path(certifi.where()).stat().st_size > 100000
+        result['checks'].append('bundled CA roots and native TLS context with hostname and certificate verification enabled')
         import tkinter as tk
         from PIL import ImageGrab
         from email.message import EmailMessage
@@ -135,10 +143,10 @@ def self_test(result_path,screenshot):
     return 0 if result['ok'] else 1
 
 def main():
+    from benson_mail.app_icon import set_process_identity
+    set_process_identity(Path(sys.executable).name.startswith('Uninstall-BensonMail-'))
     if Path(sys.executable).name.startswith('Uninstall-BensonMail-'):
-        from benson_mail.uninstall import main as uninstall
-        if len(sys.argv) == 3 and sys.argv[1] == '--uninstall-ui-test':
-            return uninstall(test_result=sys.argv[2])
+        from benson_mail.uninstall import cli as uninstall
         return uninstall()
     parser=argparse.ArgumentParser(); parser.add_argument('--self-test'); parser.add_argument('--screenshot'); parser.add_argument('--background',action='store_true'); args=parser.parse_args()
     if args.self_test: return self_test(args.self_test,args.screenshot)

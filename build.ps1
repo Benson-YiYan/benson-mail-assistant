@@ -1,5 +1,7 @@
 $ErrorActionPreference = 'Stop'
-python -m PyInstaller --noconfirm --clean --onedir --windowed --name BensonMail --collect-all pystray --collect-all pypdf main.py
+python script/make_icon.py
+if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed' }
+python -m PyInstaller --noconfirm --clean --onedir --windowed --name BensonMail --icon assets/mail.ico --add-data "assets;assets" --collect-all pystray --collect-all pypdf --collect-all certifi --collect-all truststore main.py
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed' }
 Copy-Item README.md dist/BensonMail/使用说明.md
 $chinaZone = [TimeZoneInfo]::FindSystemTimeZoneById('China Standard Time')

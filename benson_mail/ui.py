@@ -12,6 +12,8 @@ from .ai_api import complete, identity
 
 class Application:
     def __init__(self,root,directory,config=None,self_test=False):
+        from .app_icon import apply_window_icon
+        apply_window_icon(root)
         self.root=root; self.directory=Path(directory); self.directory.mkdir(parents=True,exist_ok=True); self.self_test=self_test
         self.config=config or (json.loads((self.directory/'config.json').read_text(encoding='utf-8')) if (self.directory/'config.json').exists() else {})
         self.events=queue.Queue(); self.service=None; self.tray=None; self.exiting=False; self.secret=''; self.api_secret=''; self.notified=set(); self.tray_ready=threading.Event()
@@ -312,8 +314,8 @@ class Application:
     def create_tray(self):
         try:
             import pystray
-            from PIL import Image,ImageDraw
-            image=Image.new('RGB',(64,64),'#2058a5'); draw=ImageDraw.Draw(image); draw.rectangle((12,20,52,45),outline='white',width=3); draw.line((12,20,32,35,52,20),fill='white',width=3)
+            from .app_icon import icon_image
+            image=icon_image(64)
             def action(name): return lambda icon,item:self.events.put({'action':name})
             self.tray=pystray.Icon('BensonMail',image,'邮件小秘书',pystray.Menu(pystray.MenuItem('打开窗口',action('restore'),default=True),pystray.MenuItem('开始／暂停',action('toggle')),pystray.MenuItem('退出',action('exit'))))
             def setup(icon):

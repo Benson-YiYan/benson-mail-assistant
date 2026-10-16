@@ -3,11 +3,26 @@ import json
 import re
 import socket
 import ssl
+import sys
+import certifi
 import urllib.error
 import urllib.parse
 import urllib.request
 
 MAX_RESPONSE = 4 * 1024 * 1024
+
+def tls_context():
+    """Use native Windows chain building plus bundled public trust roots."""
+    if sys.platform == 'win32':
+        import truststore
+        context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    else:
+        context = ssl.create_default_context()
+    context.load_verify_locations(cafile=certifi.where())
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.check_hostname = True
+    context.verify_mode = ssl.CERT_REQUIRED
+    return context
 
 def connection_error(error, key):
     reason = error.reason if isinstance(error, urllib.error.URLError) else error
@@ -59,7 +74,10 @@ def complete(base, model, key, messages, stop=None):
         'Authorization': 'Bearer ' + key.strip(), 'Content-Type': 'application/json',
         'Accept': 'application/json', 'User-Agent': 'BensonMail/1.1'}, method='POST')
     try:
-        with urllib.request.build_opener(NoRedirect()).open(request, timeout=120) as response:
+        handlers = [NoRedirect()]
+        if url.startswith('https://'):
+            handlers.append(urllib.request.HTTPSHandler(context=tls_context()))
+        with urllib.request.build_opener(*handlers).open(request, timeout=120) as response:
             raw = response.read(MAX_RESPONSE + 1)
         if len(raw) > MAX_RESPONSE:
             raise RuntimeError('AI 返回内容过大，邮件保留待重试。')

@@ -1,11 +1,10 @@
-import base64
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
-from benson_mail.uninstall import report_files, remove_reports, delete_command
+from benson_mail.uninstall import report_files, remove_reports, installation, copy_runtime, cleanup_installation
 
 
 class UninstallTests(unittest.TestCase):
@@ -36,23 +35,48 @@ class UninstallTests(unittest.TestCase):
     def test_refuses_arbitrary_program_directory(self):
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaises(ValueError):
-                delete_command(temporary, 1)
+                installation(temporary)
             program = Path(temporary) / 'BensonMail-202610161600'
             program.mkdir()
             with self.assertRaises(ValueError):
-                delete_command(program, 1)
+                installation(program)
+
+    def test_stage_runtime_outside_installation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            program = Path(temporary) / 'BensonMail-202610161600'
+            (program / '_internal').mkdir(parents=True)
+            (program / '_internal/python.dll').write_bytes(b'synthetic')
+            name = 'Uninstall-BensonMail-202610161600.exe'
+            (program / name).write_bytes(b'synthetic-helper')
+            staged = copy_runtime(program, name)
+            try:
+                self.assertFalse(staged.is_relative_to(program.resolve()))
+                self.assertEqual(staged.read_bytes(), b'synthetic-helper')
+                self.assertTrue((staged.parent / '_internal/python.dll').is_file())
+            finally:
+                import shutil
+                shutil.rmtree(staged.parent)
 
     @unittest.skipUnless(sys.platform == 'win32', 'Windows deletion helper')
-    def test_actual_deferred_program_deletion(self):
+    def test_native_cleanup_without_powershell(self):
         with tempfile.TemporaryDirectory(prefix="卸载测试 '& ") as temporary:
             program = Path(temporary) / 'BensonMail-202610161600'
             (program / '_internal').mkdir(parents=True)
             (program / 'Uninstall-BensonMail-202610161600.exe').write_bytes(b'synthetic')
             keep = Path(temporary) / '保留.txt'
             keep.write_text('keep')
-            script = delete_command(program, 2147483647, notify=False)
-            encoded = base64.b64encode(script.encode('utf-16le')).decode('ascii')
-            subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded],
-                           check=True, capture_output=True, timeout=20)
+            data = Path(temporary) / 'user-data'
+            data.mkdir()
+            (data / 'secret.bin').write_bytes(b'synthetic-encrypted')
+            from benson_mail import platform_windows as platform
+            name = 'BensonMail-UninstallUnitTest'
+            platform.set_autostart(True, name)
+            try:
+                cleanup_installation(program, data, False, lambda _: None,
+                                     registry_name=name, shortcut_places=[])
+                self.assertFalse(platform.has_autostart(name))
+            finally:
+                platform.set_autostart(False, name)
             self.assertFalse(program.exists())
+            self.assertFalse(data.exists())
             self.assertTrue(keep.exists())
