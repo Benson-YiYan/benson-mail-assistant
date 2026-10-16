@@ -88,6 +88,7 @@ sealed class Bridge : IDisposable
     readonly object gate = new();
     readonly SemaphoreSlim writes = new(1);
     long sequence;
+    volatile bool shuttingDown;
     public event Action<JsonElement>? Event;
     public Bridge(string? fixture)
     {
@@ -133,12 +134,14 @@ sealed class Bridge : IDisposable
                 foreach (var source in pending.Values) source.TrySetException(e);
                 pending.Clear();
             }
+            if (shuttingDown) return;
             using var error = JsonDocument.Parse(JsonSerializer.Serialize(new { status = "后台已停止", detail = e.Message }));
             Event?.Invoke(error.RootElement.Clone());
         }
     }
     public async Task<JsonElement> Call(string command, object? data = null)
     {
+        if (command == "shutdown") shuttingDown = true;
         var id = Interlocked.Increment(ref sequence);
         var source = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (gate) pending.Add(id, source);
@@ -240,7 +243,7 @@ sealed class MainWindow : Window
         searchTimer.Interval = TimeSpan.FromMilliseconds(200);
         searchTimer.IsRepeating = false;
         searchTimer.Tick += async (_, _) => await Guard(Refresh);
-        bridge.Event += ev => DispatcherQueue.TryEnqueue(() => HandleEvent(ev));
+        bridge.Event += ev => DispatcherQueue.TryEnqueue(() => { if (!exitRequested) HandleEvent(ev); });
         layout.Loaded += async (_, _) => await Initialize();
     }
     static TextBlock Note(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Opacity = .7, FontSize = 12 };
@@ -253,7 +256,7 @@ sealed class MainWindow : Window
     Button Action(string text, Func<Task> action)
     {
         var button = new Button { Content = text };
-        button.Click += async (_, _) => { button.IsEnabled = false; try { await action(); } catch (Exception e) { detail.Text = e.Message; } finally { button.IsEnabled = true; } };
+        button.Click += async (_, _) => { button.IsEnabled = false; try { await action(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; } finally { if (!exitRequested) button.IsEnabled = true; } };
         return button;
     }
     static StackPanel Row(params UIElement[] children)
@@ -299,7 +302,7 @@ sealed class MainWindow : Window
         check.Click += async (_, _) => await Guard(async () =>
         {
             check.IsEnabled = false;
-            try { await Call("check"); } catch { check.IsEnabled = true; throw; }
+            try { await Call("check"); } catch { if (!exitRequested) check.IsEnabled = true; throw; }
         });
         var bottom = Stack(Row(interval, Action("应用间隔", async () =>
         {
@@ -357,17 +360,17 @@ sealed class MainWindow : Window
             await Call(stopping ? "pause" : "start");
             if (!stopping) { running = true; status.Text = "运行中"; toggle.Content = "暂停监听"; }
         }
-        finally { toggle.IsEnabled = true; }
+        finally { if (!exitRequested) toggle.IsEnabled = true; }
     }
     async Task Guard(Func<Task> work)
     {
-        try { await work(); } catch (Exception e) { detail.Text = e.Message; }
+        try { await work(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; }
     }
     async Task<JsonElement> Call(string name, object? data = null)
     {
         detail.Text = "正在处理…";
         var result = await bridge.Call(name, data);
-        if (result.ValueKind == JsonValueKind.String) detail.Text = result.GetString() ?? "";
+        if (!exitRequested && result.ValueKind == JsonValueKind.String) detail.Text = result.GetString() ?? "";
         return result;
     }
     async Task SaveMail()
@@ -499,12 +502,16 @@ sealed class MainWindow : Window
     {
         if (exiting || exitRequested) return;
         exitRequested = true;
+        searchTimer.Stop();
+        Program.Trace("Stopping worker");
         detail.Text = "正在停止后台，请稍候…";
         toggle.IsEnabled = check.IsEnabled = false;
         try { await bridge.Call("shutdown"); }
         catch (Exception e) { detail.Text = e.Message; }
+        Program.Trace("Disposing tray and worker pipes");
         exiting = true; tray.Visible = false; tray.Dispose(); bridge.Dispose();
-        Close();
+        Program.Trace("Exiting application");
+        Application.Current.Exit();
     }
     async Task SelfTest()
     {
