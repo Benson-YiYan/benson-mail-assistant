@@ -4,6 +4,7 @@ import tempfile
 import unittest
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 from benson_mail.bridge import Controller
 
@@ -81,3 +82,16 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual([reply['id'] for reply in replies], [1, 2, 3, 4])
         self.assertFalse(replies[1]['ok'])
         self.assertEqual(replies[2]['result'][0]['title'], '模拟合同检查')
+
+    def test_status_events_and_settings_can_persist_together(self):
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            def status_events():
+                for _ in range(25):
+                    self.controller.event({'status': '已暂停'})
+            future = pool.submit(status_events)
+            for seconds in range(10, 35):
+                self.controller.command('interval', {'seconds': seconds})
+            future.result()
+        config = json.loads(self.controller.path.read_text(encoding='utf-8'))
+        self.assertEqual(config['interval'], 34)
+        self.assertFalse(config['enabled'])

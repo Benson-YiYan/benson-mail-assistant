@@ -24,9 +24,11 @@ class Controller:
         self.launcher = launcher
         self.service = None
         self.shutting_down = False
+        self.config_lock = threading.Lock()
 
     def persist(self):
-        save_json(self.path, self.config)
+        with self.config_lock:
+            save_json(self.path, dict(self.config))
 
     def active(self):
         return bool(self.service and self.service.thread and self.service.thread.is_alive())
