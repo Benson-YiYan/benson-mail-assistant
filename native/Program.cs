@@ -264,7 +264,7 @@ sealed class MainWindow : Window
     }
     static ScrollViewer Scroll(UIElement child) => new() { Content = child,
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
-    static Grid SettingsPage(UIElement content, UIElement actions)
+    static Grid SettingsPage(UIElement content, FrameworkElement actions)
     {
         var page = new Grid { RowSpacing = 10 };
         page.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -544,7 +544,7 @@ sealed class MainWindow : Window
             Check(reports.Items.Count == 0, "Sender filter");
             sender.Text = ""; await ReportsReady(1);
             var content = await bridge.Call("read_report", new { report.path });
-            preview.Text = content.GetString();
+            preview.Text = content.GetString() ?? "";
             Check(preview.Text.Contains("建议回复") && preview.Text.Contains("附件实际内容"), "Full report preview");
             await bridge.Call("interval", new { seconds = 35 });
             var config = await bridge.Call("config");
