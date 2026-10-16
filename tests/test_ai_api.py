@@ -7,10 +7,32 @@ import threading
 import tempfile
 from pathlib import Path
 import unittest
+from unittest.mock import patch
+import socket
+import ssl
+import urllib.error
 from benson_mail.ai_api import complete, endpoint
 from benson_mail.core import APIAnalyzer, ANALYSIS_PROMPT, Service
 
 class APITests(unittest.TestCase):
+    def test_connection_errors_are_specific_and_redacted(self):
+        cases = [
+            (socket.gaierror(11001, 'getaddrinfo failed'), 'DNS'),
+            (ssl.SSLCertVerificationError(1, 'certificate verify failed'), '证书'),
+            (TimeoutError('timed out'), '120 秒'),
+            (ConnectionRefusedError(10061, 'connection refused'), '拒绝连接'),
+            (OSError('proxy synthetic-secret https://host/?token=hidden'), '连接失败'),
+        ]
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                with patch('urllib.request.OpenerDirector.open', side_effect=urllib.error.URLError(reason)):
+                    with self.assertRaises(RuntimeError) as error:
+                        complete(self.base, 'model', 'synthetic-secret', [])
+                text = str(error.exception)
+                self.assertIn(expected, text)
+                self.assertIn(type(reason).__name__, text)
+                self.assertNotIn('synthetic-secret', text)
+                self.assertNotIn('token=hidden', text)
     def setUp(self):
         self.requests=[]; self.status=200; self.finish='stop'; self.redirect=False
         owner=self

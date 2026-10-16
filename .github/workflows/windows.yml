@@ -32,7 +32,8 @@ jobs:
         run: |
           $result = Join-Path $PWD 'evidence/packaged-result.json'
           $screen = Join-Path $PWD 'evidence/packaged-screen.png'
-          $process = Start-Process -FilePath dist/BensonMail/BensonMail.exe -ArgumentList @('--self-test', "`"$result`"", '--screenshot', "`"$screen`"") -PassThru
+          $exe = (Get-ChildItem dist -Recurse -Filter 'BensonMail-*.exe' | Select-Object -First 1).FullName
+          $process = Start-Process -FilePath $exe -ArgumentList @('--self-test', "`"$result`"", '--screenshot', "`"$screen`"") -PassThru
           if (!$process.WaitForExit(120000)) { Stop-Process -Id $process.Id -Force; throw 'Packaged EXE timed out' }
           if ($process.ExitCode -ne 0) { throw "Packaged EXE failed: $($process.ExitCode)" }
           if (!(Test-Path $result)) { throw 'Missing packaged self-test evidence' }
@@ -42,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BensonMail-Windows-x64
-          path: dist/BensonMail-Windows-x64.zip
+          path: dist/BensonMail-Windows-x64-*.zip
           if-no-files-found: error
       - name: Upload test evidence
         if: always()

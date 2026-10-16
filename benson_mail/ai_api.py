@@ -1,10 +1,32 @@
 """Minimal OpenAI-compatible chat client. Never logs keys or response bodies."""
 import json
+import re
+import socket
+import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
 
 MAX_RESPONSE = 4 * 1024 * 1024
+
+def connection_error(error, key):
+    reason = error.reason if isinstance(error, urllib.error.URLError) else error
+    if isinstance(reason, ssl.SSLCertVerificationError):
+        hint = 'TLS 证书验证失败，请检查电脑时间、代理或服务商证书'
+    elif isinstance(reason, socket.gaierror):
+        hint = 'DNS 解析失败，请检查域名和 DNS 设置'
+    elif isinstance(reason, (TimeoutError, socket.timeout)):
+        hint = '连接或读取超时（最长等待 120 秒）'
+    elif isinstance(reason, ConnectionRefusedError):
+        hint = '服务器或代理拒绝连接，请检查地址、端口及代理是否运行'
+    else:
+        hint = '连接失败，请检查网络、代理和基础地址'
+    detail = str(reason).replace(key.strip(), '[已隐藏密钥]')
+    detail = re.sub(r'https?://\S+', '[地址已隐藏]', detail)
+    detail = re.sub(r'(?i)(bearer\s+|(?:api[_-]?key|token|authorization)\s*[=:]\s*)\S+',
+                    r'\1[已隐藏]', detail)
+    detail = ' '.join(detail.split())[:500]
+    return 'AI 接口%s。\n具体原因：%s: %s' % (hint, type(reason).__name__, detail)
 
 def endpoint(base):
     base = base.strip().rstrip('/')
@@ -48,8 +70,8 @@ def complete(base, model, key, messages, stop=None):
         hints = {401: 'API Key 无效或已过期', 403: 'API Key 没有权限',
                  404: '基础地址或模型名不正确', 429: '额度不足或请求过于频繁'}
         raise RuntimeError('AI 接口错误（HTTP %s）：%s。' % (code, hints.get(code, '请检查服务商状态和接口配置'))) from None
-    except (urllib.error.URLError, TimeoutError, OSError):
-        raise RuntimeError('AI 接口连接失败或超时，请检查基础地址和网络。') from None
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        raise RuntimeError(connection_error(error, key)) from None
     except (ValueError, UnicodeError):
         raise RuntimeError('AI 接口返回的不是有效 JSON，请检查基础地址。') from None
     if stop is not None and stop.is_set():

@@ -3,7 +3,7 @@
 ## 妈妈的使用说明
 
 1. 把 ZIP 完整解压到您方便的位置。不要只拖出 EXE；旁边的 `_internal` 文件夹也需要保留。
-2. 双击 `BensonMail.exe`。无需安装 Python，也不用打开终端。程序尚未签名，Windows 可能显示发布者未知；请先确认安装包由 Benson 提供。
+2. 双击 `BensonMail-202610161600.exe`。无需安装 Python，也不用打开终端。程序尚未签名，Windows 可能显示发布者未知；请先确认安装包由 Benson 提供。
 3. 在 163 网页邮箱的设置中开启 IMAP，获取**客户端授权码**。填写邮箱与授权码，不要填写网页登录密码。
 4. 选择报告保存文件夹。默认是 Windows 实际“文档”文件夹下的“邮件”，支持 OneDrive 重定向。
 5. 左侧“AI 服务”选择 API，填写基础地址（服务商提供的 `/v1` 地址）、API Key、模型名，点击“保存 AI 设置”。支持 OpenAI 兼容的 Chat Completions 接口，自动补全 `/chat/completions`；此模式无需安装 Codex。可手动“测试 AI 连接”，测试会发送简短消息，可能消耗少量 Token。修改 AI 配置前先暂停监听，等当前工作结束。
