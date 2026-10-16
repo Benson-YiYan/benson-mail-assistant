@@ -193,7 +193,7 @@ sealed class MainWindow : Window
     readonly string? testResult;
     readonly string? fixture;
     readonly HashSet<string> notified = new();
-    bool initialized, running, exiting;
+    bool initialized, running, exiting, exitRequested;
     long reportGeneration, previewGeneration;
 
     public MainWindow()
@@ -223,6 +223,7 @@ sealed class MainWindow : Window
             Visible = true, ContextMenuStrip = new Forms.ContextMenuStrip()
         };
         tray.ContextMenuStrip.Items.Add("打开窗口", null, (_, _) => DispatcherQueue.TryEnqueue(Restore));
+        tray.ContextMenuStrip.Items.Add("开始／暂停监听", null, (_, _) => DispatcherQueue.TryEnqueue(async () => await Guard(ToggleService)));
         tray.ContextMenuStrip.Items.Add("退出邮件小秘书", null, (_, _) => DispatcherQueue.TryEnqueue(async () => await Exit()));
         tray.DoubleClick += (_, _) => DispatcherQueue.TryEnqueue(Restore);
         tray.BalloonTipClicked += (_, _) => DispatcherQueue.TryEnqueue(Restore);
@@ -276,16 +277,7 @@ sealed class MainWindow : Window
             Row(Action("查找 Codex", async () => await Call("codex")), Action("浏览……", PickCodex)),
             Note("六项总结提示词保持原样。来信和可读取的附件文字会交给所选 AI。无新邮件不调用 AI；测试连接会发送少量文字。"))) });
         Grid.SetRow(tabs, 1); pane.Children.Add(tabs);
-        toggle.Click += async (_, _) => await Guard(async () =>
-        {
-            toggle.IsEnabled = false;
-            try
-            {
-                await Call(running ? "pause" : "start");
-                if (!running) { running = true; status.Text = "运行中"; toggle.Content = "暂停监听"; }
-            }
-            finally { toggle.IsEnabled = true; }
-        });
+        toggle.Click += async (_, _) => await Guard(ToggleService);
         check.Click += async (_, _) => await Guard(async () =>
         {
             check.IsEnabled = false;
@@ -334,6 +326,18 @@ sealed class MainWindow : Window
         layout.Children.Add(pane);
     }
     static void Open(string path) => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+    async Task ToggleService()
+    {
+        if (!toggle.IsEnabled) return;
+        var stopping = running;
+        toggle.IsEnabled = false;
+        try
+        {
+            await Call(stopping ? "pause" : "start");
+            if (!stopping) { running = true; status.Text = "运行中"; toggle.Content = "暂停监听"; }
+        }
+        finally { toggle.IsEnabled = true; }
+    }
     async Task Guard(Func<Task> work)
     {
         try { await work(); } catch (Exception e) { detail.Text = e.Message; }
@@ -444,7 +448,7 @@ sealed class MainWindow : Window
             if (testResult != null) { File.WriteAllText(testResult, JsonSerializer.Serialize(new { ok = false, error = e.ToString() })); await Exit(); }
         }
     }
-    async Task Onboard()
+    async Task Onboard(bool testing = false)
     {
         var address = new TextBox { Header = "163 邮箱地址", Text = account.Text };
         var secret = new PasswordBox { Header = "POP3/IMAP/SMTP 授权码" };
@@ -459,12 +463,20 @@ sealed class MainWindow : Window
             catch (Exception ex) { e.Cancel = true; error.Text = ex.Message; }
             finally { deferral.Complete(); }
         };
-        await dialog.ShowAsync();
+        var showing = dialog.ShowAsync();
+        if (testing)
+        {
+            await Task.Delay(400);
+            if (!dialog.IsLoaded) throw new InvalidOperationException("First-run account dialog did not render");
+            dialog.Hide();
+        }
+        await showing;
     }
     void Restore() { AppWindow.Show(); Activate(); }
     async Task Exit()
     {
-        if (exiting) return;
+        if (exiting || exitRequested) return;
+        exitRequested = true;
         detail.Text = "正在停止后台，请稍候…";
         toggle.IsEnabled = check.IsEnabled = false;
         try { await bridge.Call("shutdown"); }
@@ -522,7 +534,11 @@ sealed class MainWindow : Window
                 graphics.CopyFromScreen(bounds.X, bounds.Y, 0, 0, image.Size);
                 image.Save(Program.Args[screenArg + 1], System.Drawing.Imaging.ImageFormat.Png);
             }
-            Check(layout.ActualWidth > 0 && preview.ActualHeight > 100, "Native window and report preview rendered");
+            Check(layout.ActualWidth > 0 && preview.ActualHeight > 100 && reports.ActualHeight > 100,
+                "Native window, report list and preview rendered");
+            Check(from.ActualHeight < 100 && to.ActualHeight < 100, "Date filters stay compact until opened");
+            await Onboard(true);
+            checks.Add("First-run native account dialog renders");
             File.WriteAllText(testResult!, JsonSerializer.Serialize(new { ok = true, checks }, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception e) { File.WriteAllText(testResult!, JsonSerializer.Serialize(new { ok = false, checks, error = e.ToString() })); }
