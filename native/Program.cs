@@ -29,6 +29,7 @@ internal static class Program
     {
         Args = args;
         Trace("Main");
+        Forms.WindowsFormsSynchronizationContext.AutoInstall = false;
         WinRT.ComWrappersSupport.InitializeComWrappers();
         using var mutex = new Mutex(false, @"Local\BensonMail-" + Environment.UserName, out var created);
         if (!created) { Forms.MessageBox.Show("邮件小秘书已经运行，请点击任务栏右下角的信封。"); return; }
@@ -256,7 +257,7 @@ sealed class MainWindow : Window
     Button Action(string text, Func<Task> action)
     {
         var button = new Button { Content = text };
-        button.Click += async (_, _) => { button.IsEnabled = false; try { await action(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; } finally { if (!exitRequested) button.IsEnabled = true; } };
+        button.Click += async (_, _) => { if (exitRequested) return; button.IsEnabled = false; try { await action(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; } finally { if (!exitRequested) button.IsEnabled = true; } };
         return button;
     }
     static StackPanel Row(params UIElement[] children)
@@ -340,12 +341,12 @@ sealed class MainWindow : Window
             if (reports.SelectedItem is Report report)
             {
                 var result = await bridge.Call("read_report", new { path = report.path });
-                if (generation == previewGeneration) preview.Text = result.GetString() ?? "";
+                if (!exitRequested && generation == previewGeneration) preview.Text = result.GetString() ?? "";
             }
         });
         search.TextChanged += (_, _) =>
         {
-            if (initialized) { searchTimer.Stop(); searchTimer.Start(); }
+            if (initialized && !exitRequested) { searchTimer.Stop(); searchTimer.Start(); }
         };
         layout.Children.Add(pane);
     }
@@ -364,6 +365,7 @@ sealed class MainWindow : Window
     }
     async Task Guard(Func<Task> work)
     {
+        if (exitRequested) return;
         try { await work(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; }
     }
     async Task<JsonElement> Call(string name, object? data = null)
@@ -391,7 +393,7 @@ sealed class MainWindow : Window
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         picker.FileTypeFilter.Add("*");
         var picked = await picker.PickSingleFolderAsync();
-        if (picked != null) folder.Text = picked.Path;
+        if (picked != null && !exitRequested) folder.Text = picked.Path;
     }
     async Task PickCodex()
     {
@@ -399,17 +401,18 @@ sealed class MainWindow : Window
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         picker.FileTypeFilter.Add(".exe"); picker.FileTypeFilter.Add(".cmd");
         var picked = await picker.PickSingleFileAsync();
-        if (picked != null) await Call("codex", new { path = picked.Path });
+        if (picked != null && !exitRequested) await Call("codex", new { path = picked.Path });
     }
     async Task Refresh()
     {
+        if (exitRequested) return;
         searchTimer.Stop();
         var generation = ++reportGeneration;
         var selected = (reports.SelectedItem as Report)?.path;
         var result = await bridge.Call("reports", new { query = search.Text, sender = sender.Text,
             start = from.Date?.ToString("yyyy-MM-dd") ?? "", end = to.Date?.ToString("yyyy-MM-dd") ?? "",
             attachments = attachment.SelectedItem?.ToString() ?? "全部" });
-        if (generation != reportGeneration) return;
+        if (exitRequested || generation != reportGeneration) return;
         reports.Items.Clear();
         foreach (var row in result.EnumerateArray())
         {
@@ -450,6 +453,7 @@ sealed class MainWindow : Window
         try
         {
             var config = await bridge.Call("config");
+            if (exitRequested) return;
             string Text(string key) => config.TryGetProperty(key, out var value) ? value.GetString() ?? "" : "";
             account.Text = Text("account"); folder.Text = Text("output_dir"); apiBase.Text = Text("api_base"); model.Text = Text("api_model");
             provider.SelectedIndex = Text("ai_provider") == "codex" ? 1 : 0;
@@ -496,6 +500,8 @@ sealed class MainWindow : Window
             dialog.Hide();
         }
         await showing;
+        // Return through the dispatcher after the native dialog callback unwinds.
+        await Task.Yield();
     }
     void Restore() { AppWindow.Show(); Activate(); }
     async Task Exit()
