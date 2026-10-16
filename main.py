@@ -135,6 +135,11 @@ def self_test(result_path,screenshot):
     return 0 if result['ok'] else 1
 
 def main():
+    if Path(sys.executable).name.startswith('Uninstall-BensonMail-'):
+        from benson_mail.uninstall import main as uninstall
+        if len(sys.argv) == 3 and sys.argv[1] == '--uninstall-ui-test':
+            return uninstall(test_result=sys.argv[2])
+        return uninstall()
     parser=argparse.ArgumentParser(); parser.add_argument('--self-test'); parser.add_argument('--screenshot'); parser.add_argument('--background',action='store_true'); args=parser.parse_args()
     if args.self_test: return self_test(args.self_test,args.screenshot)
     import tkinter as tk
