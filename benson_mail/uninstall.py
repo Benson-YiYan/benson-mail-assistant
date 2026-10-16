@@ -112,7 +112,7 @@ def remove_shortcuts(folder, places=None):
                 shortcut = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER,
                                                       shell.IID_IShellLink)
                 shortcut.QueryInterface(pythoncom.IID_IPersistFile).Load(str(link))
-                target = shortcut.GetPath(shellcon.SLGP_RAWPATH)[0]
+                target = shortcut.GetPath(shell.SLGP_RAWPATH)[0]
                 if target and Path(target).resolve().parent == Path(folder).resolve():
                     link.unlink()
     finally:
