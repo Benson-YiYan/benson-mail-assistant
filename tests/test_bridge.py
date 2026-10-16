@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import subprocess
+import sys
 from unittest.mock import patch
 from benson_mail.bridge import Controller
 
@@ -63,3 +65,19 @@ class BridgeTests(unittest.TestCase):
         with patch.object(self.controller, 'active', return_value=True):
             with self.assertRaises(ValueError):
                 self.controller.command('save_ai', {'ai_provider': 'codex'})
+
+    def test_pipe_protocol_with_fixture_and_error_recovery(self):
+        requests = [
+            {'id': 1, 'command': 'config'},
+            {'id': 2, 'command': 'interval', 'data': {'seconds': 0}},
+            {'id': 3, 'command': 'reports', 'data': {'query': '合同.pdf'}},
+            {'id': 4, 'command': 'shutdown'}]
+        process = subprocess.run([sys.executable, 'main.py', '--bridge', '--fixture', str(self.root)],
+            input='\n'.join(json.dumps(request) for request in requests) + '\n',
+            encoding='utf-8', capture_output=True, timeout=15,
+            cwd=Path(__file__).resolve().parent.parent)
+        self.assertEqual(process.returncode, 0, process.stderr)
+        replies = [json.loads(line) for line in process.stdout.splitlines()]
+        self.assertEqual([reply['id'] for reply in replies], [1, 2, 3, 4])
+        self.assertFalse(replies[1]['ok'])
+        self.assertEqual(replies[2]['result'][0]['title'], '模拟合同检查')

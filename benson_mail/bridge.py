@@ -23,6 +23,7 @@ class Controller:
         self.emit = emit
         self.launcher = launcher
         self.service = None
+        self.shutting_down = False
 
     def persist(self):
         save_json(self.path, self.config)
@@ -47,13 +48,15 @@ class Controller:
         return platform.load_secret(path, identity(self.config['api_base'])) if path.exists() else ''
 
     def event(self, event):
-        if event.get('status') == '已暂停':
+        if event.get('status') == '已暂停' and not self.shutting_down:
             self.config['enabled'] = False
             self.persist()
         self.emit({'event': event})
 
     def command(self, name, data):
         if name == 'config':
+            if self.launcher and self.config.get('autostart'):
+                platform.set_autostart(True, launcher=self.launcher)
             return {**self.config, 'running': self.active(),
                     'output_dir': self.config.get('output_dir') or str(platform.documents_dir() / '邮件'),
                     'has_mail_secret': (self.root / 'secret.bin').exists()}
@@ -150,11 +153,13 @@ class Controller:
             self.service.start()
             return '已开始监听。'
         if name in ('pause', 'shutdown'):
+            self.shutting_down = name == 'shutdown'
             if self.service:
                 self.service.stop()
                 if name == 'shutdown':
                     self.service.join()
-            self.config['enabled'] = False
+            if name == 'pause':
+                self.config['enabled'] = False
             self.persist()
             return '正在停止…' if self.active() else '已暂停'
         if name == 'check':

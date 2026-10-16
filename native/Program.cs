@@ -47,6 +47,10 @@ internal static class Program
 sealed class MailApp : Application
 {
     MainWindow? window;
+    public MailApp()
+    {
+        Resources.MergedDictionaries.Add(new XamlControlsResources());
+    }
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         window = new MainWindow();
@@ -437,6 +441,16 @@ sealed class MainWindow : Window
         void Check(bool ok, string label) { if (!ok) throw new InvalidOperationException(label); checks.Add(label); }
         try
         {
+            var localRuntime = false;
+            var localWinUI = false;
+            foreach (ProcessModule module in Process.GetCurrentProcess().Modules)
+            {
+                if (module.ModuleName.Equals("coreclr.dll", StringComparison.OrdinalIgnoreCase))
+                    localRuntime = module.FileName.StartsWith(AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase);
+                if (module.ModuleName.Equals("Microsoft.UI.Xaml.dll", StringComparison.OrdinalIgnoreCase))
+                    localWinUI = module.FileName.StartsWith(AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase);
+            }
+            Check(localRuntime && localWinUI, "Uses bundled .NET and WinUI runtimes");
             Check(reports.Items.Count == 1, "Native WinUI 3 window receives synthetic reports through packaged worker");
             var report = (Report)reports.Items[0];
             Check(report.title == "模拟合同检查" && report.time == "2026-10-17 09:15", "Subject and received time are separate");

@@ -13,3 +13,5 @@ state/
 *.tmp
 self-test*.json
 screenshots/
+native/bin/
+native/obj/
