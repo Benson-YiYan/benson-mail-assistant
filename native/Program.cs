@@ -538,7 +538,7 @@ sealed class MainWindow : Window
             Check(reports.Items.Count == 0, "Search excludes unmatched reports");
             search.Text = ""; attachment.SelectedIndex = 2; await ReportsReady(0);
             Check(reports.Items.Count == 0, "Attachment filter");
-            attachment.SelectedIndex = 0; from.Date = new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.FromHours(8)); await ReportsReady(0);
+            attachment.SelectedIndex = 0; from.Date = new DateTimeOffset(new DateTime(2026, 10, 18, 12, 0, 0)); await ReportsReady(0);
             Check(reports.Items.Count == 0, "Compact date picker filter");
             from.Date = null; sender.Text = "missing"; await ReportsReady(0);
             Check(reports.Items.Count == 0, "Sender filter");

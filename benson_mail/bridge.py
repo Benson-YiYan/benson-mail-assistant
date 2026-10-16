@@ -140,6 +140,8 @@ class Controller:
             return 'AI 连接正常。'
         if name == 'start':
             if self.active():
+                if self.service.cancel.is_set():
+                    raise ValueError('监听正在停止，请稍候再开始。')
                 return '监听已在运行。'
             secret = self.secret()
             if not secret or not self.config.get('output_dir'):

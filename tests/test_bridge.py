@@ -5,7 +5,7 @@ import unittest
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from benson_mail.bridge import Controller
 
 
@@ -66,6 +66,13 @@ class BridgeTests(unittest.TestCase):
         with patch.object(self.controller, 'active', return_value=True):
             with self.assertRaises(ValueError):
                 self.controller.command('save_ai', {'ai_provider': 'codex'})
+
+    def test_start_waits_for_previous_worker_to_stop(self):
+        self.controller.service = Mock()
+        self.controller.service.thread.is_alive.return_value = True
+        self.controller.service.cancel.is_set.return_value = True
+        with self.assertRaisesRegex(ValueError, '正在停止'):
+            self.controller.command('start', {})
 
     def test_pipe_protocol_with_fixture_and_error_recovery(self):
         requests = [
