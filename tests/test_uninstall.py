@@ -19,7 +19,7 @@ class UninstallTests(unittest.TestCase):
             meta = report.with_suffix('.mail.json')
             meta.write_text(json.dumps({'subject': '测试', 'sender': 'demo', 'received': '2026-10-16'}))
             other = day / '我的合同.txt'
-            other.write_text('保留')
+            other.write_text('保留', encoding='utf-8')
             outside = root / 'other'
             outside.mkdir()
             try:
