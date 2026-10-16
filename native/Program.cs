@@ -18,10 +18,17 @@ namespace BensonMail;
 internal static class Program
 {
     internal static string[] Args = Array.Empty<string>();
+    internal static void Trace(string stage)
+    {
+        var index = Array.IndexOf(Args, "--self-test");
+        if (index >= 0 && index + 1 < Args.Length)
+            File.AppendAllText(Args[index + 1] + ".startup.txt", stage + Environment.NewLine);
+    }
     [STAThread]
     static void Main(string[] args)
     {
         Args = args;
+        Trace("Main");
         WinRT.ComWrappersSupport.InitializeComWrappers();
         using var mutex = new Mutex(false, @"Local\BensonMail-" + Environment.UserName, out var created);
         if (!created) { Forms.MessageBox.Show("邮件小秘书已经运行，请点击任务栏右下角的信封。"); return; }
@@ -29,6 +36,7 @@ internal static class Program
         {
             Application.Start(initialization =>
             {
+                Trace("Application.Start");
                 SynchronizationContext.SetSynchronizationContext(
                     new Microsoft.UI.Dispatching.DispatcherQueueSynchronizationContext(
                         Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread()));
@@ -49,12 +57,27 @@ sealed class MailApp : Application
     MainWindow? window;
     public MailApp()
     {
+        Program.Trace("App constructor");
+        UnhandledException += (_, e) =>
+        {
+            Program.Trace("Unhandled: " + e.Exception);
+            var index = Array.IndexOf(Program.Args, "--self-test");
+            if (index >= 0)
+            {
+                File.WriteAllText(Program.Args[index + 1], JsonSerializer.Serialize(new { ok = false, error = e.Exception.ToString() }));
+                e.Handled = true;
+                Environment.Exit(1);
+            }
+        };
         Resources.MergedDictionaries.Add(new XamlControlsResources());
+        Program.Trace("Control resources");
     }
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        Program.Trace("OnLaunched");
         window = new MainWindow();
         window.Activate();
+        Program.Trace("Activated");
     }
 }
 
@@ -175,6 +198,7 @@ sealed class MainWindow : Window
 
     public MainWindow()
     {
+        Program.Trace("Window constructor");
         Title = "邮件小秘书";
         var args = Program.Args;
         var testIndex = Array.IndexOf(args, "--self-test");
@@ -190,7 +214,9 @@ sealed class MainWindow : Window
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(375) });
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         BuildLeft();
+        Program.Trace("Left controls");
         BuildRight();
+        Program.Trace("Right controls");
         tray = new Forms.NotifyIcon
         {
             Text = "邮件小秘书", Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico")),
@@ -205,6 +231,7 @@ sealed class MainWindow : Window
             if (!exiting) { e.Cancel = true; AppWindow.Hide(); }
         };
         bridge = new Bridge(fixture);
+        Program.Trace("Worker started");
         bridge.Event += ev => DispatcherQueue.TryEnqueue(() => HandleEvent(ev));
         layout.Loaded += async (_, _) => await Initialize();
     }
@@ -380,6 +407,7 @@ sealed class MainWindow : Window
     }
     async Task Initialize()
     {
+        Program.Trace("Layout loaded");
         if (initialized) return;
         try
         {
