@@ -62,12 +62,13 @@ class Application:
         ttk.Label(settings_page,text='在163邮箱设置中启用 IMAP 并生成授权码；不要填写邮箱登录密码。\n授权码由 Windows 当前用户加密保存，留空保留已保存的授权码。',wraplength=345).pack(anchor='w',pady=6)
         ttk.Button(settings_page,text='保存邮箱设置',command=self.save_settings).pack(anchor='w')
         ai_panel=ttk.Frame(ai_page); ai_panel.pack(fill='x')
-        ttk.Label(ai_panel,text='提示词及六项要求保持原样').pack(anchor='w',pady=(0,6))
         ttk.Radiobutton(ai_panel,text='API（无需安装 Codex）',variable=self.ai_provider,value='api').pack(anchor='w')
         ttk.Radiobutton(ai_panel,text='Codex（使用已安装并登录的应用）',variable=self.ai_provider,value='codex',command=lambda:threading.Thread(target=self.find_codex,daemon=True).start()).pack(anchor='w')
         for label,var,masked in [('基础地址（服务商提供的 /v1 地址）',self.api_base,False),('模型名',self.api_model,False),('API Key（留空保留此地址已保存的 Key）',self.api_key,True)]:
-            ttk.Label(ai_panel,text=label).pack(anchor='w',pady=(6,2))
-            ttk.Entry(ai_panel,textvariable=var,show='●' if masked else '').pack(fill='x')
+            ttk.Label(ai_panel,text=label).pack(anchor='w',pady=(2,1))
+            entry=ttk.Entry(ai_panel,textvariable=var,show='●' if masked else ''); entry.pack(fill='x')
+            if masked: self.api_key_entry=entry
+        ttk.Label(ai_panel,text='提示词及六项要求保持原样').pack(anchor='w',pady=6)
         ai_controls=ttk.Frame(ai_shell,padding=6)
         ai_controls.pack(side='bottom',fill='x',before=self.ai_canvas)
         self.ai_save_button=ttk.Button(ai_controls,text='保存 AI 设置',command=self.save_ai_settings); self.ai_save_button.pack(side='left')
@@ -114,6 +115,13 @@ class Application:
         report_scroll=ttk.Scrollbar(report_list,orient='vertical',command=self.reports.yview)
         self.reports.configure(yscrollcommand=report_scroll.set)
         report_scroll.pack(side='right',fill='y'); self.reports.pack(side='left',fill='both',expand=True)
+        def resize_columns(event):
+            usable=max(180,event.width-report_scroll.winfo_reqwidth()-4)
+            stamp=max(120,int(usable*.28)); sender=max(100,int(usable*.28))
+            self.reports.column('time',width=stamp)
+            self.reports.column('sender',width=sender)
+            self.reports.column('subject',width=max(60,usable-stamp-sender))
+        report_list.bind('<Configure>',resize_columns)
         self.reports.bind('<Double-1>',self.open_report); self.report_paths=[]
         for var in (self.search,self.sender_filter,self.start_day,self.end_day,self.attachment_filter): var.trace_add('write',lambda *_:self.refresh_reports())
         root.protocol('WM_DELETE_WINDOW',self.on_close); root.after(100,self.drain)

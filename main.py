@@ -111,12 +111,15 @@ def self_test(result_path,screenshot):
                 app.notebook.select(1); root.update()
                 assert app.ai_save_button.winfo_rooty()+app.ai_save_button.winfo_height()<=y+height, 'AI save button clipped'
                 assert app.ai_test_button.winfo_rooty()+app.ai_test_button.winfo_height()<=y+height, 'AI test button clipped'
+                assert app.api_key_entry.winfo_rooty()+app.api_key_entry.winfo_height()<=app.ai_canvas.winfo_rooty()+app.ai_canvas.winfo_height(), 'API key input clipped below settings viewport'
                 # The first report must actually be visible, not hidden by a sibling frame.
                 first_row=app.reports.bbox(app.reports.get_children()[0])
                 assert first_row, 'First report row has no visible bounding box'
                 row_x=app.reports.winfo_rootx()+first_row[0]+10
                 row_y=app.reports.winfo_rooty()+first_row[1]+first_row[3]//2
                 assert root.winfo_containing(row_x,row_y)==app.reports, 'Report table covered by another widget'
+                time_cell=app.reports.bbox(app.reports.get_children()[0],'time')
+                assert time_cell[0]+time_cell[2]<=app.reports.winfo_width(), 'Receipt time column clipped'
                 ImageGrab.grab(bbox=(x,y,x+width,y+height)).save(str(Path(screenshot).with_name(Path(screenshot).stem+'-settings.png')))
             app.exit(); app=None; result['checks'].append('actual Tk window, full-height right report pane, visible actions, close/restore/exit, screenshot')
             result['ok']=True
