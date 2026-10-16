@@ -12,7 +12,8 @@ sys.path.insert(0, str(root))
 from benson_mail import platform_windows as platform
 
 import pefile
-import win32com.client
+import pythoncom
+from win32com.shell import shell
 
 program = Path(sys.argv[1]).resolve()
 result = Path(sys.argv[2]).resolve()
@@ -42,15 +43,16 @@ try:
     (data / 'secret.bin').write_bytes(b'SYNTHETIC-ENCRYPTED-FIXTURE')
     shortcuts = fixture / 'shortcuts'
     shortcuts.mkdir()
-    shell = win32com.client.Dispatch('WScript.Shell')
     owned = shortcuts / '邮件小秘书.lnk'
-    link = shell.CreateShortcut(str(owned))
-    link.TargetPath = str(next(copied.glob('BensonMail-*.exe')))
-    link.Save()
+    link = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER,
+                                     shell.IID_IShellLink)
+    link.SetPath(str(next(copied.glob('BensonMail-*.exe'))))
+    link.QueryInterface(pythoncom.IID_IPersistFile).Save(str(owned), 1)
     other = shortcuts / '其他文件.lnk'
-    link = shell.CreateShortcut(str(other))
-    link.TargetPath = str(unrelated)
-    link.Save()
+    link = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER,
+                                     shell.IID_IShellLink)
+    link.SetPath(str(unrelated))
+    link.QueryInterface(pythoncom.IID_IPersistFile).Save(str(other), 1)
     platform.set_autostart(True, startup_name)
     uninstaller = next(copied.glob('Uninstall-BensonMail-*.exe'))
     process = subprocess.Popen([str(uninstaller), '--e2e-test', str(result), '--delete-reports'],

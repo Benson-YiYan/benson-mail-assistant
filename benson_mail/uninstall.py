@@ -96,12 +96,12 @@ def wait_for_parent(pid):
 def remove_shortcuts(folder, places=None):
     """Resolve .lnk targets through native COM, without launching PowerShell."""
     import pythoncom
-    import win32com.client
+    from win32com.shell import shell, shellcon
     pythoncom.CoInitialize()
     try:
-        shell = win32com.client.Dispatch('WScript.Shell')
         if places is None:
-            places = [shell.SpecialFolders(name) for name in ('Desktop', 'StartMenu', 'Startup')]
+            places = [shell.SHGetFolderPath(0, value, None, 0) for value in (
+                shellcon.CSIDL_DESKTOPDIRECTORY, shellcon.CSIDL_STARTMENU, shellcon.CSIDL_STARTUP)]
             places.append(str(Path(os.environ['APPDATA']) / 'Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar'))
         for place in set(map(str, places)):
             if not place or not Path(place).is_dir():
@@ -109,7 +109,10 @@ def remove_shortcuts(folder, places=None):
             for link in Path(place).rglob('*.lnk'):
                 if link.is_symlink():
                     continue
-                target = shell.CreateShortcut(str(link)).TargetPath
+                shortcut = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER,
+                                                      shell.IID_IShellLink)
+                shortcut.QueryInterface(pythoncom.IID_IPersistFile).Load(str(link))
+                target = shortcut.GetPath(shellcon.SLGP_RAWPATH)[0]
                 if target and Path(target).resolve().parent == Path(folder).resolve():
                     link.unlink()
     finally:
