@@ -177,11 +177,11 @@ sealed class MainWindow : Window
     readonly TextBox apiBase = new() { Header = "基础地址", PlaceholderText = "https://服务商地址/v1" };
     readonly TextBox model = new() { Header = "模型名", PlaceholderText = "填写服务商提供的模型名" };
     readonly PasswordBox apiKey = new() { Header = "API Key", PlaceholderText = "留空保留此地址已保存的 Key" };
-    readonly TextBox interval = new() { Text = "60", Width = 85, Header = "检查间隔（秒）" };
+    readonly TextBox interval = new() { Text = "60", Width = 130, Header = "自定义间隔（秒）" };
     readonly TextBox search = new() { PlaceholderText = "搜索正文、发件人、附件名", HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly TextBox sender = new() { Header = "发件人", PlaceholderText = "姓名或邮箱" };
-    readonly CalendarDatePicker from = new() { Header = "起始日期", PlaceholderText = "不限", HorizontalAlignment = HorizontalAlignment.Stretch };
-    readonly CalendarDatePicker to = new() { Header = "结束日期", PlaceholderText = "不限", HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly CalendarDatePicker from = new() { Header = "起始日期", PlaceholderText = "不限", MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly CalendarDatePicker to = new() { Header = "结束日期", PlaceholderText = "不限", MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ComboBox attachment = new() { Header = "附件", HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ListView reports = new() { SelectionMode = ListViewSelectionMode.Single };
     readonly TextBox preview = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
@@ -190,9 +190,12 @@ sealed class MainWindow : Window
     readonly Button check = new() { Content = "立即检查" };
     readonly Forms.NotifyIcon tray;
     readonly Bridge bridge;
+    readonly Microsoft.UI.Dispatching.DispatcherQueueTimer searchTimer;
     readonly string? testResult;
     readonly string? fixture;
     readonly HashSet<string> notified = new();
+    Pivot tabs = null!;
+    Button mailSaveButton = null!, aiSaveButton = null!;
     bool initialized, running, exiting, exitRequested;
     long reportGeneration, previewGeneration;
 
@@ -233,6 +236,10 @@ sealed class MainWindow : Window
         };
         bridge = new Bridge(fixture);
         Program.Trace("Worker started");
+        searchTimer = DispatcherQueue.CreateTimer();
+        searchTimer.Interval = TimeSpan.FromMilliseconds(200);
+        searchTimer.IsRepeating = false;
+        searchTimer.Tick += async (_, _) => await Guard(Refresh);
         bridge.Event += ev => DispatcherQueue.TryEnqueue(() => HandleEvent(ev));
         layout.Loaded += async (_, _) => await Initialize();
     }
@@ -257,6 +264,15 @@ sealed class MainWindow : Window
     }
     static ScrollViewer Scroll(UIElement child) => new() { Content = child,
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+    static Grid SettingsPage(UIElement content, UIElement actions)
+    {
+        var page = new Grid { RowSpacing = 10 };
+        page.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        page.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        page.Children.Add(Scroll(content));
+        Grid.SetRow(actions, 1); page.Children.Add(actions);
+        return page;
+    }
     void BuildLeft()
     {
         var pane = new Grid { RowSpacing = 14 };
@@ -266,16 +282,18 @@ sealed class MainWindow : Window
         pane.Children.Add(Stack(new TextBlock { Text = "邮件小秘书", FontSize = 30,
             FontWeight = Microsoft.UI.Text.FontWeights.Bold }, Note("新来信自动整理，您决定如何回复。"), status, detail));
         provider.Items.Add("API · 无需安装 Codex"); provider.Items.Add("Codex · 已安装并登录");
-        var tabs = new Pivot();
-        tabs.Items.Add(new PivotItem { Header = "邮箱", Content = Scroll(Stack(account, mailSecret,
+        tabs = new Pivot();
+        mailSaveButton = Action("保存邮箱设置", SaveMail);
+        aiSaveButton = Action("保存 AI 设置", SaveAI);
+        tabs.Items.Add(new PivotItem { Header = "邮箱", Content = SettingsPage(Stack(account, mailSecret,
             Note("在163邮箱设置中启用 IMAP。填写授权码，不是邮箱登录密码。"), folder,
-            Action("浏览……", PickFolder), startup, Action("保存邮箱设置", SaveMail),
-            Action("测试邮箱连接", async () => { await SaveMail(); await Call("test_mail"); }),
-            Note("授权码由当前 Windows 用户加密保存。不会自动回复，也不会标记邮件已读。"))) });
-        tabs.Items.Add(new PivotItem { Header = "AI 服务", Content = Scroll(Stack(provider, apiBase, model, apiKey,
-            Action("保存 AI 设置", SaveAI), Action("测试 AI 连接", async () => { await SaveAI(); await Call("test_ai"); }),
+            Action("浏览……", PickFolder), startup,
+            Note("授权码由当前 Windows 用户加密保存。不会自动回复，也不会标记邮件已读。")),
+            Row(mailSaveButton, Action("测试邮箱连接", async () => { await SaveMail(); await Call("test_mail"); }))) });
+        tabs.Items.Add(new PivotItem { Header = "AI 服务", Content = SettingsPage(Stack(provider, apiBase, model, apiKey,
             Row(Action("查找 Codex", async () => await Call("codex")), Action("浏览……", PickCodex)),
-            Note("六项总结提示词保持原样。来信和可读取的附件文字会交给所选 AI。无新邮件不调用 AI；测试连接会发送少量文字。"))) });
+            Note("六项总结提示词保持原样。来信和可读取的附件文字会交给所选 AI。无新邮件不调用 AI；测试连接会发送少量文字。")),
+            Row(aiSaveButton, Action("测试 AI 连接", async () => { await SaveAI(); await Call("test_ai"); }))) });
         Grid.SetRow(tabs, 1); pane.Children.Add(tabs);
         toggle.Click += async (_, _) => await Guard(ToggleService);
         check.Click += async (_, _) => await Guard(async () =>
@@ -322,7 +340,10 @@ sealed class MainWindow : Window
                 if (generation == previewGeneration) preview.Text = result.GetString() ?? "";
             }
         });
-        search.TextChanged += async (_, _) => { if (initialized) await Guard(Refresh); };
+        search.TextChanged += (_, _) =>
+        {
+            if (initialized) { searchTimer.Stop(); searchTimer.Start(); }
+        };
         layout.Children.Add(pane);
     }
     static void Open(string path) => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
@@ -379,6 +400,7 @@ sealed class MainWindow : Window
     }
     async Task Refresh()
     {
+        searchTimer.Stop();
         var generation = ++reportGeneration;
         var selected = (reports.SelectedItem as Report)?.path;
         var result = await bridge.Call("reports", new { query = search.Text, sender = sender.Text,
@@ -488,6 +510,13 @@ sealed class MainWindow : Window
     {
         var checks = new List<string>();
         void Check(bool ok, string label) { if (!ok) throw new InvalidOperationException(label); checks.Add(label); }
+        async Task ReportsReady(int count)
+        {
+            await Refresh();
+            var deadline = DateTime.UtcNow.AddSeconds(3);
+            while (reports.Items.Count != count && DateTime.UtcNow < deadline)
+                await Task.Delay(25);
+        }
         try
         {
             var localRuntime = false;
@@ -503,17 +532,17 @@ sealed class MainWindow : Window
             Check(reports.Items.Count == 1, "Native WinUI 3 window receives synthetic reports through packaged worker");
             var report = (Report)reports.Items[0];
             Check(report.title == "模拟合同检查" && report.time == "2026-10-17 09:15", "Subject and received time are separate");
-            search.Text = "合同.pdf"; await Refresh();
+            search.Text = "合同.pdf"; await ReportsReady(1);
             Check(reports.Items.Count == 1, "Attachment filename search");
-            search.Text = "不存在"; await Refresh();
+            search.Text = "不存在"; await ReportsReady(0);
             Check(reports.Items.Count == 0, "Search excludes unmatched reports");
-            search.Text = ""; attachment.SelectedIndex = 2; await Refresh();
+            search.Text = ""; attachment.SelectedIndex = 2; await ReportsReady(0);
             Check(reports.Items.Count == 0, "Attachment filter");
-            attachment.SelectedIndex = 0; from.Date = new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.FromHours(8)); await Refresh();
+            attachment.SelectedIndex = 0; from.Date = new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.FromHours(8)); await ReportsReady(0);
             Check(reports.Items.Count == 0, "Compact date picker filter");
-            from.Date = null; sender.Text = "missing"; await Refresh();
+            from.Date = null; sender.Text = "missing"; await ReportsReady(0);
             Check(reports.Items.Count == 0, "Sender filter");
-            sender.Text = ""; await Refresh();
+            sender.Text = ""; await ReportsReady(1);
             var content = await bridge.Call("read_report", new { report.path });
             preview.Text = content.GetString();
             Check(preview.Text.Contains("建议回复") && preview.Text.Contains("附件实际内容"), "Full report preview");
@@ -525,18 +554,35 @@ sealed class MainWindow : Window
             AppWindow.Hide(); Restore();
             Check(tray.Visible, "Envelope tray icon and window restore");
             await Task.Delay(1000);
-            var bounds = AppWindow.Position; var size = AppWindow.Size;
             var screenArg = Array.IndexOf(Program.Args, "--screenshot");
-            if (screenArg >= 0)
+            void Capture(string path)
             {
+                var bounds = AppWindow.Position; var size = AppWindow.Size;
                 using var image = new System.Drawing.Bitmap(size.Width, size.Height);
                 using var graphics = System.Drawing.Graphics.FromImage(image);
                 graphics.CopyFromScreen(bounds.X, bounds.Y, 0, 0, image.Size);
-                image.Save(Program.Args[screenArg + 1], System.Drawing.Imaging.ImageFormat.Png);
+                image.Save(path, System.Drawing.Imaging.ImageFormat.Png);
             }
+            if (screenArg >= 0) Capture(Program.Args[screenArg + 1]);
             Check(layout.ActualWidth > 0 && preview.ActualHeight > 100 && reports.ActualHeight > 100,
                 "Native window, report list and preview rendered");
             Check(from.ActualHeight < 100 && to.ActualHeight < 100, "Date filters stay compact until opened");
+            bool Visible(Button button)
+            {
+                var point = button.TransformToVisual(layout).TransformPoint(new Windows.Foundation.Point(0, 0));
+                return button.ActualHeight > 0 && point.Y >= 0 && point.Y + button.ActualHeight <= layout.ActualHeight;
+            }
+            Check(Visible(mailSaveButton), "Mail save button visible without scrolling");
+            tabs.SelectedIndex = 1;
+            await Task.Delay(400);
+            layout.UpdateLayout();
+            Check(Visible(aiSaveButton), "AI save button visible without scrolling");
+            if (screenArg >= 0)
+            {
+                var path = Program.Args[screenArg + 1];
+                Capture(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "-settings.png"));
+            }
+            tabs.SelectedIndex = 0;
             await Onboard(true);
             checks.Add("First-run native account dialog renders");
             File.WriteAllText(testResult!, JsonSerializer.Serialize(new { ok = true, checks }, new JsonSerializerOptions { WriteIndented = true }));
