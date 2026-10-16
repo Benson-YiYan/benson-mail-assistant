@@ -11,7 +11,7 @@ def self_test(result_path,screenshot):
     try:
         from benson_mail import platform_windows as platform
         from benson_mail.ui import Application
-        from benson_mail.core import Service
+        from benson_mail.core import Service, APIAnalyzer, ANALYSIS_PROMPT
         import tkinter as tk
         from PIL import ImageGrab
         from email.message import EmailMessage
@@ -67,6 +67,30 @@ def self_test(result_path,screenshot):
             assert len(dialogs)==1 and dialogs[0].winfo_viewable()
             dialogs[0].destroy()
             result['checks'].append('separate original subject/time, local search/reset, editable interval and first-run account dialog')
+            from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+            import threading
+            api_requests=[]
+            class APIHandler(BaseHTTPRequestHandler):
+                def log_message(self,*_): pass
+                def do_POST(self):
+                    api_requests.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
+                    self.send_response(200); self.end_headers()
+                    self.wfile.write(json.dumps({'choices':[{'message':{'content':'1 提醒\n2 发件人\n3 摘要\n4 待办\n5 附件\n6 回复'}}]}).encode())
+            api_server=ThreadingHTTPServer(('127.0.0.1',0),APIHandler)
+            api_thread=threading.Thread(target=api_server.serve_forever,daemon=True); api_thread.start()
+            try:
+                app.ai_provider.set('api'); app.api_base.set('http://127.0.0.1:%d/v1'%api_server.server_port)
+                app.api_model.set('synthetic-model'); app.api_key.set('SYNTHETIC-API-KEY')
+                assert app.save_ai_settings(),app.ai_detail.get()
+                assert app.api_key.get()==''
+                assert 'SYNTHETIC-API-KEY' not in (app.directory/'config.json').read_text()
+                assert 'SYNTHETIC-API-KEY' not in app.api_key_path(app.api_base.get()+'/chat/completions').read_bytes().decode(errors='ignore')
+                assert '6 回复' in APIAnalyzer(app.config,app.api_secret)({'subject':'synthetic'},threading.Event())
+                assert api_requests[0]['messages'][0]['content']==ANALYSIS_PROMPT+json.dumps({'subject':'synthetic'},ensure_ascii=False)
+                assert app.command==[], 'API self-test must not require Codex'
+            finally:
+                api_server.shutdown(); api_server.server_close(); api_thread.join()
+            result['checks'].append('API settings DPAPI encryption, no plaintext key, packaged HTTP call and original prompt without Codex')
             assert len(app.notified)==2, 'New and completed notifications must both dispatch'
             app.tray.remove_notification()
             result['checks'].append('real Windows pystray startup, visibility, notify/remove APIs and queue dispatch')
@@ -80,8 +104,13 @@ def self_test(result_path,screenshot):
                 for control in (app.toggle,app.check_button):
                     assert control.winfo_rooty()+control.winfo_height()<=y+height, 'Action button clipped below window'
                     assert control.winfo_rootx()+control.winfo_width()<=x+width, 'Action button clipped at window edge'
+                assert app.report_container.winfo_height()>=height*.9, 'Reports must occupy full window height'
+                assert app.report_container.winfo_rootx()>x+width*.3, 'Reports must be in the right pane'
+                assert app.reports.winfo_height()>=height*.55, 'Report list is too short'
                 Path(screenshot).parent.mkdir(parents=True,exist_ok=True); ImageGrab.grab(bbox=(x,y,x+width,y+height)).save(screenshot)
-            app.exit(); app=None; result['checks'].append('actual Tk window, queue, status, close/restore/exit, screenshot')
+                app.notebook.select(1); root.update()
+                ImageGrab.grab(bbox=(x,y,x+width,y+height)).save(str(Path(screenshot).with_name(Path(screenshot).stem+'-settings.png')))
+            app.exit(); app=None; result['checks'].append('actual Tk window, full-height right report pane, visible actions, close/restore/exit, screenshot')
             result['ok']=True
     except Exception:
         result['error']=traceback.format_exc()
