@@ -76,7 +76,7 @@ class WindowsTests(unittest.TestCase):
             marker = root / 'desktop-shortcut.json'
             marker.write_text(json.dumps({'launcher': str(first.resolve())}))
             self.assertTrue(platform.ensure_portable_shortcuts(first, marker, desktop, programs))
-            recorded = json.loads(marker.read_text())
+            recorded = json.loads(marker.read_text(encoding='utf-8'))
             self.assertEqual(len(recorded['links']), 4)
             self.assertEqual(len(list(desktop.glob('*.lnk'))), 3)
             self.assertEqual(len(list(programs.glob('*.lnk'))), 2)
@@ -86,7 +86,7 @@ class WindowsTests(unittest.TestCase):
             self.assertTrue(platform.ensure_portable_shortcuts(second, marker, desktop, programs))
             pythoncom.CoInitialize()
             try:
-                for index, path in enumerate(json.loads(marker.read_text())['links']):
+                for index, path in enumerate(json.loads(marker.read_text(encoding='utf-8'))['links']):
                     link = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER, shell.IID_IShellLink)
                     link.QueryInterface(pythoncom.IID_IPersistFile).Load(path)
                     expected = second if index % 2 == 0 else platform.matching_uninstaller(second)
