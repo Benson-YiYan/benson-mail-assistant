@@ -19,6 +19,22 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Dependencies
         run: python -m pip install -r requirements.txt "trustme>=1.2,<2"
+      - name: Installer compiler preflight with a tiny payload
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force evidence | Out-Null
+          $tiny = Join-Path $env:RUNNER_TEMP 'BensonMail-installer-preflight-payload'
+          New-Item -ItemType Directory -Force (Join-Path $tiny '_internal') | Out-Null
+          foreach ($name in @('BensonMail-200001010000.exe', 'Uninstall-BensonMail-200001010000.exe', 'MailWorker.exe')) {
+            Set-Content -LiteralPath (Join-Path $tiny $name) -Value 'synthetic compiler preflight only' -Encoding ascii
+          }
+          try {
+            ./script/build_installer.ps1 -PackageDir $tiny -Version '200001010000' 2>&1 | Tee-Object evidence/installer-preflight.txt
+            if ($LASTEXITCODE -ne 0) { throw 'Installer compiler preflight failed' }
+          } finally {
+            Remove-Item -LiteralPath $tiny -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -LiteralPath 'dist/BensonMail-Windows-x64-Setup-200001010000.exe' -Force -ErrorAction SilentlyContinue
+          }
       - name: Configure screenshot font smoothing
         run: ./script/configure_test_desktop.ps1
       - name: Unit tests

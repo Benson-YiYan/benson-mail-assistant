@@ -32,8 +32,6 @@ AppMutex=Local\BensonMail-{username}
 Compression=lzma2/normal
 SolidCompression=yes
 WizardStyle=modern dynamic windows11
-WizardFontName=Segoe UI
-WizardFontSize=10
 WizardSizePercent=115,115
 ShowLanguageDialog=auto
 LanguageDetectionMethod=uilanguage
@@ -44,6 +42,10 @@ DisableReadyPage=no
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+
+[LangOptions]
+DialogFontName=Segoe UI
+DialogFontSize=10
 
 [CustomMessages]
 english.AppName=Mail Secretary
