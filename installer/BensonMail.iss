@@ -84,10 +84,10 @@ Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 Source: "installed.json"; DestDir: "{app}"; DestName: ".benson-installed.json"; Flags: ignoreversion
 
 [Icons]
-Name: "{code:ShortcutName|desktopapp}"; Filename: "{app}\BensonMail-{#AppVersion}.exe"; WorkingDir: "{app}"; Tasks: desktopapp
-Name: "{code:ShortcutName|desktopuninstall}"; Filename: "{app}\Uninstall-BensonMail-{#AppVersion}.exe"; WorkingDir: "{app}"; Tasks: desktopuninstall
-Name: "{code:ShortcutName|startapp}"; Filename: "{app}\BensonMail-{#AppVersion}.exe"; WorkingDir: "{app}"; Tasks: startapp
-Name: "{code:ShortcutName|startuninstall}"; Filename: "{app}\Uninstall-BensonMail-{#AppVersion}.exe"; WorkingDir: "{app}"; Tasks: startuninstall
+Name: "{userdesktop}\{code:ShortcutName|desktopapp}"; Filename: "{app}\BensonMail-{#AppVersion}.exe"; WorkingDir: "{app}"; Tasks: desktopapp
+Name: "{userdesktop}\{code:ShortcutName|desktopuninstall}"; Filename: "{app}\Uninstall-BensonMail-{#AppVersion}.exe"; WorkingDir: "{app}"; Tasks: desktopuninstall
+Name: "{userprograms}\{code:ShortcutName|startapp}"; Filename: "{app}\BensonMail-{#AppVersion}.exe"; WorkingDir: "{app}"; Tasks: startapp
+Name: "{userprograms}\{code:ShortcutName|startuninstall}"; Filename: "{app}\Uninstall-BensonMail-{#AppVersion}.exe"; WorkingDir: "{app}"; Tasks: startuninstall
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\BensonMail"; ValueType: string; ValueName: "DisplayName"; ValueData: "{cm:AppName}"
@@ -199,7 +199,7 @@ begin
   repeat
     Candidate := AddBackslash(Directory) + LabelText;
     if Number > 1 then Candidate := Candidate + ' (' + IntToStr(Number) + ')';
-    Result := Candidate;
+    Result := ExtractFileName(Candidate);
     { Never overwrite another application's shortcut, even when its name matches. }
     if not FileExists(Candidate + '.lnk') then Exit;
     if IsOurShortcut(Candidate + '.lnk') then Exit;
