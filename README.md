@@ -46,3 +46,9 @@ Windows 构建需要 .NET 8 SDK，运行 `./build.ps1`。GitHub Actions 在 Wind
 使用已安装版本的 headless --json 接口与保存的凭据，每封邮件使用新会话，临时工作目录和覆盖配置不改变用户的配置。禁用命令执行与文件工具，原有六项提示词保持不变。会话记录按 Harness 自身规则保存在 Harness 中。无新邮件时不启动 Harness、不调用 AI。测试连接会发送少量测试文字。
 
 需安装支持 headless --json 的 Harness 版本；未检测到或版本不兼容时显示提示。Harness 自身的登录及配置由其管理，邮件小秘书卸载不会移除 Harness。
+
+## 中文 / English
+
+首次启动按系统语言选择中文或英文（非中文系统用英文），可在设置切换，立即生效并记住。新报告的六项分析与解释使用所选语言；建议回复按来信语言写，历史报告不变。切换语言不调用 AI。
+
+On first launch, Chinese system languages select Chinese; all others select English. Change the language in Settings. The choice is applied immediately and remembered. New six-section reports and explanations use that language; reply drafts follow the incoming message language. Existing reports are unchanged. Changing language does not call AI.

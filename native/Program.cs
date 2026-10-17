@@ -30,11 +30,12 @@ internal static class Program
     static void Main(string[] args)
     {
         Args = args;
+        L.Initialize();
         Trace("Main");
         Forms.WindowsFormsSynchronizationContext.AutoInstall = false;
         WinRT.ComWrappersSupport.InitializeComWrappers();
         using var mutex = new Mutex(false, Uninstall ? null : @"Local\BensonMail-" + Environment.UserName, out var created);
-        if (!created) { Forms.MessageBox.Show("邮件小秘书已经运行，请点击任务栏右下角的信封。"); return; }
+        if (!created) { Forms.MessageBox.Show(L.T("邮件小秘书已经运行，请点击任务栏右下角的信封。")); return; }
         try
         {
             Application.Start(initialization =>
@@ -50,7 +51,7 @@ internal static class Program
         {
             var path = Path.Combine(Path.GetTempPath(), "BensonMail-startup-error.txt");
             File.WriteAllText(path, e.ToString());
-            Forms.MessageBox.Show("启动失败，错误详情已保存至：" + path);
+            Forms.MessageBox.Show(L.T("启动失败，错误详情已保存至：") + path);
         }
     }
 }
@@ -108,7 +109,7 @@ sealed class Bridge : IDisposable
         start.ArgumentList.Add("--launcher");
         start.ArgumentList.Add(Environment.ProcessPath!);
         if (fixture != null) { start.ArgumentList.Add("--fixture"); start.ArgumentList.Add(fixture); }
-        process = Process.Start(start) ?? throw new InvalidOperationException("后台启动失败。");
+        process = Process.Start(start) ?? throw new InvalidOperationException(L.T("后台启动失败。"));
         _ = Task.Run(Read);
         // Drain stderr without logging sensitive payloads.
         _ = process.StandardError.ReadToEndAsync();
@@ -129,7 +130,7 @@ sealed class Bridge : IDisposable
                     source?.TrySetResult(root.GetProperty("result").Clone());
                 else source?.TrySetException(new InvalidOperationException(root.GetProperty("error").GetString()));
             }
-            throw new IOException("邮件后台已退出，请重新打开程序。");
+            throw new IOException(L.T("邮件后台已退出，请重新打开程序。"));
         }
         catch (Exception e)
         {
@@ -139,7 +140,7 @@ sealed class Bridge : IDisposable
                 pending.Clear();
             }
             if (shuttingDown) return;
-            using var error = JsonDocument.Parse(JsonSerializer.Serialize(new { status = "后台已停止", detail = e.Message }));
+            using var error = JsonDocument.Parse(JsonSerializer.Serialize(new { status = L.T("后台已停止"), detail = e.Message }));
             Event?.Invoke(error.RootElement.Clone());
         }
     }
@@ -178,53 +179,55 @@ public sealed class Report
         this.path = path; this.title = title; this.sender = sender;
         this.time = time; this.attachments = attachments;
     }
-    public override string ToString() => title + "\n" + sender + "  ·  " + time + (attachments == true ? "  ·  有附件" : "");
+    public override string ToString() => title + "\n" + sender + "  ·  " + time + (attachments == true ? L.T("  ·  有附件") : "");
 }
 
 sealed class MainWindow : Window
 {
-    readonly Grid layout = new() { UseLayoutRounding = true, Language = "zh-CN" };
+    readonly ComboBox languageChoice = new() { Header = L.T("界面语言"), HorizontalAlignment = HorizontalAlignment.Stretch };
+    bool changingLanguage;
+    readonly Grid layout = new() { UseLayoutRounding = true, Language = L.Locale };
     readonly ListView navigation = new() { SelectionMode = ListViewSelectionMode.Single,
         BorderThickness = new Thickness(0), Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
     readonly Grid pages = new() { Padding = new Thickness(24, 12, 24, 20) };
     readonly Grid reportPage = new() { RowSpacing = 16 };
     readonly Grid mailPage = new();
     readonly Grid aiPage = new();
-    readonly TextBlock pageTitle = new() { Text = "邮件报告", FontSize = 28, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+    readonly TextBlock pageTitle = new() { Text = L.T("邮件报告"), FontSize = 28, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
     readonly TextBlock reportCount = new() { Opacity = .65, VerticalAlignment = VerticalAlignment.Center };
-    readonly TextBlock status = new() { Text = "已暂停", FontSize = 23, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-    readonly TextBlock detail = new() { Text = "正在加载设置…", TextWrapping = TextWrapping.Wrap };
-    readonly TextBox account = new() { Header = "邮箱地址", PlaceholderText = "name@example.com" };
-    readonly PasswordBox mailSecret = new() { Header = "密码／授权码／OAuth2 访问令牌", PlaceholderText = "连接信息未变时可留空保留" };
-    readonly ComboBox mailProvider = new() { Header = "邮箱服务商", HorizontalAlignment = HorizontalAlignment.Stretch };
-    readonly TextBox mailHost = new() { Header = "IMAP 收件服务器", Text = "imap.163.com" };
-    readonly TextBox mailPort = new() { Header = "端口", Text = "993" };
-    readonly ComboBox mailSecurity = new() { Header = "连接加密", HorizontalAlignment = HorizontalAlignment.Stretch };
-    readonly ComboBox mailAuth = new() { Header = "登录方式", HorizontalAlignment = HorizontalAlignment.Stretch };
-    readonly TextBox mailUsername = new() { Header = "登录用户名（可选）", PlaceholderText = "留空使用邮箱地址" };
-    readonly TextBox mailFolder = new() { Header = "邮件文件夹", Text = "INBOX" };
+    readonly TextBlock status = new() { Text = L.T("已暂停"), FontSize = 23, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+    readonly TextBlock detail = new() { Text = L.T("正在加载设置…"), TextWrapping = TextWrapping.Wrap };
+    readonly TextBox account = new() { Header = L.T("邮箱地址"), PlaceholderText = "name@example.com" };
+    readonly PasswordBox mailSecret = new() { Header = L.T("密码／授权码／OAuth2 访问令牌"), PlaceholderText = L.T("连接信息未变时可留空保留") };
+    readonly ComboBox mailProvider = new() { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly TextBox mailHost = new() { Header = L.T("IMAP 收件服务器"), Text = "imap.163.com" };
+    readonly TextBox mailPort = new() { Header = L.T("端口"), Text = "993" };
+    readonly ComboBox mailSecurity = new() { Header = L.T("连接加密"), HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly ComboBox mailAuth = new() { Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly TextBox mailUsername = new() { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址") };
+    readonly TextBox mailFolder = new() { Header = L.T("邮件文件夹"), Text = "INBOX" };
     readonly List<JsonElement> mailPresets = new();
-    readonly ComboBox savedMailboxes = new() { Header = "已添加的邮箱", HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly ComboBox savedMailboxes = new() { Header = L.T("已添加的邮箱"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly List<JsonElement> mailboxProfiles = new();
     bool loadingMailboxes;
-    readonly TextBox folder = new() { Header = "报告保存文件夹" };
-    readonly ToggleSwitch startup = new() { Header = "登录 Windows 后自动启动", OnContent = "开启", OffContent = "关闭" };
-    readonly ComboBox provider = new() { Header = "分析方式", HorizontalAlignment = HorizontalAlignment.Stretch };
-    readonly TextBox harnessPath = new() { Header = "DeepSeek Harness 启动器", PlaceholderText = "dsh.cmd / dsh.exe 路径；留空自动查找" };
-    readonly TextBox apiBase = new() { Header = "基础地址", PlaceholderText = "https://服务商地址/v1" };
-    readonly TextBox model = new() { Header = "模型名", PlaceholderText = "填写服务商提供的模型名" };
-    readonly PasswordBox apiKey = new() { Header = "API Key", PlaceholderText = "留空保留此地址已保存的 Key" };
-    readonly TextBox interval = new() { Text = "60", Width = 130, Header = "自定义间隔（秒）" };
-    readonly TextBox search = new() { PlaceholderText = "搜索正文、发件人、附件名", HorizontalAlignment = HorizontalAlignment.Stretch };
-    readonly TextBox sender = new() { Header = "发件人", PlaceholderText = "姓名或邮箱" };
-    readonly CalendarDatePicker from = new() { Header = "起始日期", PlaceholderText = "不限", MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
-    readonly CalendarDatePicker to = new() { Header = "结束日期", PlaceholderText = "不限", MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
-    readonly ComboBox attachment = new() { Header = "附件", HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly TextBox folder = new() { Header = L.T("报告保存文件夹") };
+    readonly ToggleSwitch startup = new() { Header = L.T("登录 Windows 后自动启动"), OnContent = L.T("开启"), OffContent = L.T("关闭") };
+    readonly ComboBox provider = new() { Header = L.T("分析方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly TextBox harnessPath = new() { Header = L.T("DeepSeek Harness 启动器"), PlaceholderText = L.T("dsh.cmd / dsh.exe 路径；留空自动查找") };
+    readonly TextBox apiBase = new() { Header = L.T("基础地址"), PlaceholderText = L.T("https://服务商地址/v1") };
+    readonly TextBox model = new() { Header = L.T("模型名"), PlaceholderText = L.T("填写服务商提供的模型名") };
+    readonly PasswordBox apiKey = new() { Header = "API Key", PlaceholderText = L.T("留空保留此地址已保存的 Key") };
+    readonly TextBox interval = new() { Text = "60", Width = 130, Header = L.T("自定义间隔（秒）") };
+    readonly TextBox search = new() { PlaceholderText = L.T("搜索正文、发件人、附件名"), HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly TextBox sender = new() { Header = L.T("发件人"), PlaceholderText = L.T("姓名或邮箱") };
+    readonly CalendarDatePicker from = new() { Header = L.T("起始日期"), PlaceholderText = L.T("不限"), MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly CalendarDatePicker to = new() { Header = L.T("结束日期"), PlaceholderText = L.T("不限"), MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly ComboBox attachment = new() { Header = L.T("附件"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ListView reports = new() { SelectionMode = ListViewSelectionMode.Single };
     readonly TextBox preview = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
-        PlaceholderText = "选择一封邮件，查看六项报告。", VerticalAlignment = VerticalAlignment.Stretch };
-    readonly Button toggle = new() { Content = "开始监听", CornerRadius = new CornerRadius(4) };
-    readonly Button check = new() { Content = "立即检查", CornerRadius = new CornerRadius(4) };
+        PlaceholderText = L.T("选择一封邮件，查看六项报告。"), VerticalAlignment = VerticalAlignment.Stretch };
+    readonly Button toggle = new() { Content = L.T("开始监听"), CornerRadius = new CornerRadius(4) };
+    readonly Button check = new() { Content = L.T("立即检查"), CornerRadius = new CornerRadius(4) };
     readonly Forms.NotifyIcon tray;
     readonly Bridge bridge;
     readonly Microsoft.UI.Dispatching.DispatcherQueueTimer searchTimer;
@@ -234,14 +237,14 @@ sealed class MainWindow : Window
     Button mailSaveButton = null!, aiSaveButton = null!;
     Button filterButton = null!;
     Flyout filters = null!;
-    bool initialized, running, exiting, exitRequested;
+    bool initialized, running, exiting, exitRequested, detailIsUserSubject;
     long reportGeneration, previewGeneration;
     Report? SelectedReport => (reports.SelectedItem as ListViewItem)?.Tag as Report;
 
     public MainWindow()
     {
         Program.Trace("Window constructor");
-        Title = "邮件小秘书";
+        Title = L.T("邮件小秘书");
         var args = Program.Args;
         var testIndex = Array.IndexOf(args, "--self-test");
         testResult = testIndex >= 0 && testIndex + 1 < args.Length ? args[testIndex + 1] : null;
@@ -259,7 +262,7 @@ sealed class MainWindow : Window
         {
             ExtendsContentIntoTitleBar = true;
             var caption = new Grid { Height = 40, Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
-            caption.Children.Add(new TextBlock { Text = "邮件小秘书", FontFamily = MailTypography.Font, FontSize = 12,
+            caption.Children.Add(new TextBlock { Text = L.T("邮件小秘书"), FontFamily = MailTypography.Font, FontSize = 12,
                 Margin = new Thickness(20, 0, 150, 0), VerticalAlignment = VerticalAlignment.Center });
             frame.Children.Add(caption);
             SetTitleBar(caption);
@@ -269,7 +272,7 @@ sealed class MainWindow : Window
         }
         Grid.SetRow(layout, 1); frame.Children.Add(layout);
         Content = new ContentControl { Content = frame, FontFamily = MailTypography.Font, FontSize = 14,
-            Language = "zh-CN", UseLayoutRounding = true, IsTabStop = false,
+            Language = L.Locale, UseLayoutRounding = true, IsTabStop = false,
             HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch };
         BuildLeft();
         Program.Trace("Left controls");
@@ -290,12 +293,12 @@ sealed class MainWindow : Window
             control.FontFamily = MailTypography.Font;
         tray = new Forms.NotifyIcon
         {
-            Text = "邮件小秘书", Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico")),
+            Text = L.T("邮件小秘书"), Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico")),
             Visible = true, ContextMenuStrip = new Forms.ContextMenuStrip()
         };
-        tray.ContextMenuStrip.Items.Add("打开窗口", null, (_, _) => DispatcherQueue.TryEnqueue(Restore));
-        tray.ContextMenuStrip.Items.Add("开始／暂停监听", null, (_, _) => DispatcherQueue.TryEnqueue(async () => await Guard(ToggleService)));
-        tray.ContextMenuStrip.Items.Add("退出邮件小秘书", null, (_, _) => DispatcherQueue.TryEnqueue(async () => await Exit()));
+        tray.ContextMenuStrip.Items.Add(L.T("打开窗口"), null, (_, _) => DispatcherQueue.TryEnqueue(Restore));
+        tray.ContextMenuStrip.Items.Add(L.T("开始／暂停监听"), null, (_, _) => DispatcherQueue.TryEnqueue(async () => await Guard(ToggleService)));
+        tray.ContextMenuStrip.Items.Add(L.T("退出邮件小秘书"), null, (_, _) => DispatcherQueue.TryEnqueue(async () => await Exit()));
         tray.DoubleClick += (_, _) => DispatcherQueue.TryEnqueue(Restore);
         tray.BalloonTipClicked += (_, _) => DispatcherQueue.TryEnqueue(Restore);
         AppWindow.Closing += (_, e) =>
@@ -309,6 +312,8 @@ sealed class MainWindow : Window
         searchTimer.IsRepeating = false;
         searchTimer.Tick += async (_, _) => await Guard(Refresh);
         bridge.Event += ev => DispatcherQueue.TryEnqueue(() => { if (!exitRequested) HandleEvent(ev); });
+        L.Apply(Content as UIElement, reports, savedMailboxes);
+        L.Apply(filters.Content as UIElement);
         layout.Loaded += async (_, _) => await Initialize();
     }
     static TextBlock Note(string text) => new() { FontFamily = MailTypography.Font, Text = text, TextWrapping = TextWrapping.Wrap, Opacity = .7, FontSize = 12 };
@@ -339,7 +344,7 @@ sealed class MainWindow : Window
     {
         var button = new Button { FontFamily = MailTypography.Font, Content = text };
         Secondary(button);
-        button.Click += async (_, _) => { if (exitRequested) return; button.IsEnabled = false; try { await action(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; } finally { if (!exitRequested) button.IsEnabled = true; } };
+        button.Click += async (_, _) => { if (exitRequested) return; button.IsEnabled = false; try { await action(); } catch (Exception e) { if (!exitRequested) detail.Text = L.T(e.Message); } finally { if (!exitRequested) button.IsEnabled = true; } };
         return button;
     }
     static StackPanel Row(params UIElement[] children)
@@ -391,7 +396,7 @@ sealed class MainWindow : Window
         reportPage.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
         mailPage.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
         aiPage.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
-        pageTitle.Text = index == 0 ? "邮件报告" : index == 1 ? "邮箱与检查" : "AI 服务";
+        pageTitle.Text = index == 0 ? L.T("邮件报告") : index == 1 ? L.T("邮箱与检查") : L.T("AI 服务");
     }
     void BuildLeft()
     {
@@ -410,9 +415,9 @@ sealed class MainWindow : Window
         NavigationColors();
         navigation.ActualThemeChanged += (_, _) => NavigationColors();
         var brand = Row(new SymbolIcon(Symbol.Mail) { Margin = new Thickness(4, 0, 0, 0) },
-            new TextBlock { FontFamily = MailTypography.Font, Text = "邮件小秘书", FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            new TextBlock { FontFamily = MailTypography.Font, Text = L.T("邮件小秘书"), FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center });
-        foreach (var (label, symbol) in new[] { ("邮件报告", Symbol.Mail), ("邮箱与检查", Symbol.Setting), ("AI 服务", Symbol.Message) })
+        foreach (var (label, symbol) in new[] { (L.T("邮件报告"), Symbol.Mail), (L.T("邮箱与检查"), Symbol.Setting), (L.T("AI 服务"), Symbol.Message) })
         {
             var indicator = new Border { Width = 3, Height = 18, CornerRadius = new CornerRadius(2),
                 Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 95, 184)),
@@ -424,10 +429,10 @@ sealed class MainWindow : Window
             navigation.SelectionChanged += (_, _) => indicator.Opacity = item.IsSelected ? 1 : 0;
             navigation.Items.Add(item);
         }
-        var footer = Stack(Action("打开报告文件夹", () =>
+        var footer = Stack(Action(L.T("打开报告文件夹"), () =>
         {
             Directory.CreateDirectory(folder.Text); Open(folder.Text); return Task.CompletedTask;
-        }), Action("退出邮件小秘书", Exit), Note("无新邮件，不调用 AI。"));
+        }), Action(L.T("退出邮件小秘书"), Exit), Note(L.T("无新邮件，不调用 AI。")));
         navigation.SelectionChanged += (_, _) =>
         {
             if (navigation.SelectedIndex >= 0) ShowPage(navigation.SelectedIndex);
@@ -462,75 +467,82 @@ sealed class MainWindow : Window
         layout.Children.Add(sidebar);
         var main = new Border { Child = shell, Padding = new Thickness(28, 16, 24, 20) };
         Grid.SetColumn(main, 1); layout.Children.Add(main);
-        provider.Items.Add("API · 无需安装 Codex"); provider.Items.Add("Codex · 已安装并登录"); provider.Items.Add("DeepSeek Harness · 使用已安装的应用");
+        provider.Items.Add(L.T("API · 无需安装 Codex")); provider.Items.Add(L.T("Codex · 已安装并登录")); provider.Items.Add(L.T("DeepSeek Harness · 使用已安装的应用"));
         provider.SelectionChanged += (_, _) => {
             var api = provider.SelectedIndex == 0;
             apiBase.Visibility = model.Visibility = apiKey.Visibility = api ? Visibility.Visible : Visibility.Collapsed;
             harnessPath.Visibility = provider.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
         };
         mailSecurity.Items.Add("SSL/TLS"); mailSecurity.Items.Add("STARTTLS"); mailSecurity.SelectedIndex = 0;
-        mailAuth.Items.Add("密码／客户端授权码"); mailAuth.Items.Add("OAuth2 访问令牌"); mailAuth.SelectedIndex = 0;
+        mailAuth.Items.Add(L.T("密码／客户端授权码")); mailAuth.Items.Add(L.T("OAuth2 访问令牌")); mailAuth.SelectedIndex = 0;
         mailProvider.SelectionChanged += (_, _) =>
         {
-            if (mailProvider.SelectedIndex < 0 || mailProvider.SelectedIndex >= mailPresets.Count) return;
+            if (changingLanguage || mailProvider.SelectedIndex < 0 || mailProvider.SelectedIndex >= mailPresets.Count) return;
             var preset = mailPresets[mailProvider.SelectedIndex];
             if (preset.GetProperty("id").GetString() == "custom") return;
             mailHost.Text = preset.GetProperty("host").GetString() ?? "";
             mailPort.Text = "993"; mailSecurity.SelectedIndex = 0;
             mailAuth.SelectedIndex = preset.TryGetProperty("mail_auth", out var auth) && auth.GetString() == "oauth2" ? 1 : 0;
         };
-        mailSaveButton = Action("保存邮箱设置", SaveMail);
-        aiSaveButton = Action("保存 AI 设置", SaveAI);
+        mailSaveButton = Action(L.T("保存邮箱设置"), SaveMail);
+        aiSaveButton = Action(L.T("保存 AI 设置"), SaveAI);
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
         var advanced = Stack(mailUsername, mailFolder, mailAuth); advanced.Visibility = Visibility.Collapsed;
         savedMailboxes.SelectionChanged += async (_, _) =>
         {
-            if (loadingMailboxes || savedMailboxes.SelectedIndex < 0) return;
+            if (changingLanguage || loadingMailboxes || savedMailboxes.SelectedIndex < 0) return;
             await Guard(async () => {
                 await Call("select_mail", new { id = mailboxProfiles[savedMailboxes.SelectedIndex].GetProperty("id").GetString() });
                 await ReloadMailboxes();
             });
         };
         mailPage.Children.Add(SettingsPage(Stack(
-            Card(Stack(Heading("管理邮箱"), savedMailboxes,
-                Row(Action("添加邮箱", async () => {
+            Card(Stack(languageChoice, Note(L.T("语言更改立即生效，下次打开时保留。")))),
+            Card(Stack(Heading(L.T("管理邮箱")), savedMailboxes,
+                Row(Action(L.T("添加邮箱"), async () => {
                     await Call("select_mail", new { id = "" }); await ReloadMailboxes();
-                }), Action("启用／暂停此邮箱", async () => {
-                    if (savedMailboxes.SelectedIndex < 0) throw new InvalidOperationException("请先选择已添加的邮箱。");
+                }), Action(L.T("启用／暂停此邮箱"), async () => {
+                    if (savedMailboxes.SelectedIndex < 0) throw new InvalidOperationException(L.T("请先选择已添加的邮箱。"));
                     var profile = mailboxProfiles[savedMailboxes.SelectedIndex];
                     await Call("mail_enabled", new { id = profile.GetProperty("id").GetString(),
                         enabled = !(profile.TryGetProperty("monitor_enabled", out var flag) && flag.GetBoolean()) });
                     await ReloadMailboxes();
-                }), Action("移除此邮箱", async () => {
+                }), Action(L.T("移除此邮箱"), async () => {
                     if (savedMailboxes.SelectedIndex < 0) return;
                     var profile = mailboxProfiles[savedMailboxes.SelectedIndex];
-                    var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = "移除此邮箱？",
-                        Content = "停止此邮箱监听并移出列表，已生成的报告保留。", PrimaryButtonText = "移除", CloseButtonText = "取消" };
+                    var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("移除此邮箱？"),
+                        Content = L.T("停止此邮箱监听并移出列表，已生成的报告保留。"), PrimaryButtonText = L.T("移除"), CloseButtonText = L.T("取消") };
                     if (await dialog.ShowAsync() == ContentDialogResult.Primary) {
                         await Call("remove_mail", new { id = profile.GetProperty("id").GetString() }); await ReloadMailboxes();
                     }
-                })), Note("可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。"))),
-            Card(Stack(Heading("邮箱连接"), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
-                Action("高级连接选项", () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
-                Note("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。"))),
-            Card(Stack(Heading("报告与后台运行"), folder, Action("浏览……", PickFolder), startup,
-                Row(interval, Action("应用间隔", async () =>
+                })), Note(L.T("可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。")))),
+            Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
+                Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
+                Note(L.T("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。")))),
+            Card(Stack(Heading(L.T("报告与后台运行")), folder, Action(L.T("浏览……"), PickFolder), startup,
+                Row(interval, Action(L.T("应用间隔"), async () =>
                 {
-                    if (!int.TryParse(interval.Text, out var seconds)) throw new InvalidOperationException("请填写整数秒数。");
+                    if (!int.TryParse(interval.Text, out var seconds)) throw new InvalidOperationException(L.T("请填写整数秒数。"));
                     await Call("interval", new { seconds });
                 }))))),
-            Row(mailSaveButton, Action("测试邮箱连接", async () => { await SaveMail(); await Call("test_mail"); }))));
-        aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading("选择您喜欢的 AI"), provider, apiBase, model, apiKey, harnessPath,
-            Row(Action("检测 Harness", async () => { var found = await Call("harness_detect", new { path = harnessPath.Text }); harnessPath.Text = found.GetString() ?? ""; }), Action("浏览 Harness……", PickHarness)),
-            Row(Action("查找 Codex", async () => await Call("codex")), Action("浏览……", PickCodex)),
-            Note("来信及可读取的附件文字交给所选 AI，整理为六项报告。Harness 使用用户已安装的应用及其登录、模型配置，不捆绑或下载运行时。请先在 Harness 中配置；测试连接会发送少量文字。")))),
-            Row(aiSaveButton, Action("测试 AI 连接", async () => { await SaveAI(); await Call("test_ai"); }))));
+            Row(mailSaveButton, Action(L.T("测试邮箱连接"), async () => { await SaveMail(); await Call("test_mail"); }))));
+        aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading(L.T("选择您喜欢的 AI")), provider, apiBase, model, apiKey, harnessPath,
+            Row(Action(L.T("检测 Harness"), async () => { var found = await Call("harness_detect", new { path = harnessPath.Text }); harnessPath.Text = found.GetString() ?? ""; }), Action(L.T("浏览 Harness……"), PickHarness)),
+            Row(Action(L.T("查找 Codex"), async () => await Call("codex")), Action(L.T("浏览……"), PickCodex)),
+            Note(L.T("来信及可读取的附件文字交给所选 AI，整理为六项报告。Harness 使用用户已安装的应用及其登录、模型配置，不捆绑或下载运行时。请先在 Harness 中配置；测试连接会发送少量文字。"))))),
+            Row(aiSaveButton, Action(L.T("测试 AI 连接"), async () => { await SaveAI(); await Call("test_ai"); }))));
         toggle.Click += async (_, _) => await Guard(ToggleService);
         check.Click += async (_, _) => await Guard(async () =>
         {
             check.IsEnabled = false;
             try { await Call("check"); } catch { if (!exitRequested) check.IsEnabled = true; throw; }
         });
+        languageChoice.Items.Add("中文"); languageChoice.Items.Add("English");
+        languageChoice.SelectedIndex = L.Code == "zh" ? 0 : 1;
+        languageChoice.SelectionChanged += async (_, _) => {
+            if (changingLanguage || !initialized) return;
+            await Guard(async () => await ChangeLanguage(languageChoice.SelectedIndex == 0 ? "zh" : "en"));
+        };
         ShowPage(0);
     }
     void BuildRight()
@@ -538,13 +550,13 @@ sealed class MainWindow : Window
         var pane = reportPage;
         pane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         pane.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        attachment.Items.Add("全部"); attachment.Items.Add("有附件"); attachment.Items.Add("无附件"); attachment.SelectedIndex = 0;
+        attachment.Items.Add(L.T("全部")); attachment.Items.Add(L.T("有附件")); attachment.Items.Add(L.T("无附件")); attachment.SelectedIndex = 0;
         var dates = new Grid { ColumnSpacing = 8 };
         for (int i = 0; i < 4; i++) dates.ColumnDefinitions.Add(new ColumnDefinition());
         dates.Children.Add(sender); Grid.SetColumn(from, 1); dates.Children.Add(from);
         Grid.SetColumn(to, 2); dates.Children.Add(to); Grid.SetColumn(attachment, 3); dates.Children.Add(attachment);
-        filters = new Flyout { Content = Stack(new TextBlock { FontFamily = MailTypography.Font, Text = "筛选邮件", FontSize = 18 }, dates,
-            Row(Action("应用筛选", async () => { await Refresh(); if (!exitRequested) filters.Hide(); }), Action("重置", async () =>
+        filters = new Flyout { Content = Stack(new TextBlock { FontFamily = MailTypography.Font, Text = L.T("筛选邮件"), FontSize = 18 }, dates,
+            Row(Action(L.T("应用筛选"), async () => { await Refresh(); if (!exitRequested) filters.Hide(); }), Action(L.T("重置"), async () =>
             { search.Text = sender.Text = ""; from.Date = to.Date = null; attachment.SelectedIndex = 0; await Refresh(); }),
             reportCount)) };
         dates.Width = 600;
@@ -554,11 +566,11 @@ sealed class MainWindow : Window
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.Children.Add(search);
         filterButton = new Button { FontFamily = MailTypography.Font, Content = Row(new SymbolIcon(Symbol.Filter) { Width = 16 },
-            new TextBlock { FontFamily = MailTypography.Font, Text = "筛选" }),
+            new TextBlock { FontFamily = MailTypography.Font, Text = L.T("筛选") }),
             Flyout = filters };
         Secondary(filterButton);
         Grid.SetColumn(filterButton, 1); toolbar.Children.Add(filterButton);
-        var refreshButton = Action("刷新", Refresh); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
+        var refreshButton = Action(L.T("刷新"), Refresh); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
         pane.Children.Add(toolbar);
         var reading = new Grid { ColumnSpacing = 12 };
         reading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
@@ -568,7 +580,7 @@ sealed class MainWindow : Window
         var article = new Grid { RowSpacing = 12 };
         article.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         article.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        article.Children.Add(Row(Heading("邮件报告"), Action("打开 TXT", () =>
+        article.Children.Add(Row(Heading(L.T("邮件报告")), Action(L.T("打开 TXT"), () =>
             { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; })));
         preview.BorderThickness = new Thickness(0);
         preview.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
@@ -601,25 +613,25 @@ sealed class MainWindow : Window
         try
         {
             await Call(stopping ? "pause" : "start");
-            if (!stopping) { running = true; status.Text = "运行中"; toggle.Content = "暂停监听"; }
+            if (!stopping) { running = true; status.Text = L.T("运行中"); toggle.Content = L.T("暂停监听"); }
         }
         finally { if (!exitRequested) toggle.IsEnabled = true; }
     }
     async Task Guard(Func<Task> work)
     {
         if (exitRequested) return;
-        try { await work(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; }
+        try { await work(); } catch (Exception e) { if (!exitRequested) detail.Text = L.T(e.Message); }
     }
     async Task<JsonElement> Call(string name, object? data = null)
     {
-        detail.Text = "正在处理…";
+        detail.Text = L.T("正在处理…");
         var result = await bridge.Call(name, data);
-        if (!exitRequested && result.ValueKind == JsonValueKind.String) detail.Text = result.GetString() ?? "";
+        if (!exitRequested && result.ValueKind == JsonValueKind.String) detail.Text = L.T(result.GetString());
         return result;
     }
     async Task SaveMail()
     {
-        if (!int.TryParse(mailPort.Text, out var port)) throw new InvalidOperationException("请输入有效的 IMAP 端口。");
+        if (!int.TryParse(mailPort.Text, out var port)) throw new InvalidOperationException(L.T("请输入有效的 IMAP 端口。"));
         await Call("save_mail", new { account = account.Text, secret = mailSecret.Password,
             output_dir = folder.Text, autostart = startup.IsOn,
             mail_provider = mailProvider.SelectedIndex >= 0 ? mailPresets[mailProvider.SelectedIndex].GetProperty("id").GetString() : "custom",
@@ -666,7 +678,7 @@ sealed class MainWindow : Window
         var selected = SelectedReport?.path;
         var result = await bridge.Call("reports", new { query = search.Text, sender = sender.Text,
             start = from.Date?.ToString("yyyy-MM-dd") ?? "", end = to.Date?.ToString("yyyy-MM-dd") ?? "",
-            attachments = attachment.SelectedItem?.ToString() ?? "全部" });
+            attachments = attachment.SelectedIndex == 1 ? "有附件" : attachment.SelectedIndex == 2 ? "无附件" : "全部" });
         if (exitRequested || generation != reportGeneration) return;
         reports.Items.Clear();
         foreach (var row in result.EnumerateArray())
@@ -685,29 +697,37 @@ sealed class MainWindow : Window
             reports.Items.Add(item);
             if (report.path == selected) reports.SelectedItem = item;
         }
-        reportCount.Text = $"{reports.Items.Count} 封邮件";
+        reportCount.Text = L.T($"{reports.Items.Count} 封邮件");
     }
     void HandleEvent(JsonElement ev)
     {
         if (ev.TryGetProperty("status", out var state))
         {
-            status.Text = state.GetString();
-            if (status.Text == "已暂停") { running = false; toggle.Content = "开始监听"; check.IsEnabled = true; }
-            else if (status.Text is "正在检查" or "正在分析") check.IsEnabled = false;
+            var rawStatus = state.GetString();
+            status.Text = L.T(rawStatus);
+            if (rawStatus == "已暂停") { running = false; toggle.Content = L.T("开始监听"); check.IsEnabled = true; }
+            else if (rawStatus is "正在检查" or "正在分析") check.IsEnabled = false;
         }
-        if (ev.TryGetProperty("detail", out var text)) detail.Text = text.GetString();
+        if (ev.TryGetProperty("detail", out var text)) {
+            var raw = text.GetString() ?? "";
+            var analyzing = ev.TryGetProperty("status", out var current) && current.GetString() == "正在分析";
+            detailIsUserSubject = analyzing;
+            if (analyzing) detail.Text = raw;
+            else { var separator = raw.IndexOf(" · ", StringComparison.Ordinal);
+                detail.Text = separator < 0 ? L.T(raw) : raw[..(separator + 3)] + L.T(raw[(separator + 3)..]); }
+        }
         if (ev.TryGetProperty("check_done", out _)) check.IsEnabled = true;
         if (ev.TryGetProperty("report", out _)) _ = Guard(Refresh);
         if (ev.TryGetProperty("notification", out var notice) && notified.Add(notice.GetProperty("id").GetString()!))
         {
             try
             {
-                var title = notice.GetProperty("title").GetString() ?? "邮件小秘书";
-                var message = notice.GetProperty("message").GetString() ?? "收到新邮件";
+                var title = L.T(notice.GetProperty("title").GetString() ?? "邮件小秘书");
+                var message = L.T(notice.GetProperty("message").GetString() ?? "收到新邮件");
                 tray.ShowBalloonTip(5000, title[..Math.Min(title.Length, 63)],
                     message[..Math.Min(message.Length, 240)], Forms.ToolTipIcon.Info);
             }
-            catch { detail.Text = "邮件报告照常保存；系统通知暂不可用，请查看报告列表。"; }
+            catch { detail.Text = L.T("邮件报告照常保存；系统通知暂不可用，请查看报告列表。"); }
         }
     }
     async Task Initialize()
@@ -717,12 +737,13 @@ sealed class MainWindow : Window
         try
         {
             var config = await bridge.Call("config");
+            await bridge.Call("save_language", new { ui_language = L.Code });
             var presets = await bridge.Call("mail_presets");
             if (exitRequested) return;
             foreach (var preset in presets.EnumerateArray())
             {
                 mailPresets.Add(preset.Clone());
-                mailProvider.Items.Add(preset.GetProperty("name").GetString());
+                mailProvider.Items.Add(L.T(preset.GetProperty("name").GetString()));
             }
             navigation.SelectedIndex = 0;
             string Text(string key) => config.TryGetProperty(key, out var value) ? value.GetString() ?? "" : "";
@@ -740,37 +761,37 @@ sealed class MainWindow : Window
             startup.IsOn = config.TryGetProperty("autostart", out var auto) && auto.GetBoolean();
             await ReloadMailboxes();
             initialized = true;
-            detail.Text = "无新邮件不调用 AI。关闭窗口后会继续在托盘运行。";
+            detail.Text = L.T("无新邮件不调用 AI。关闭窗口后会继续在托盘运行。");
             await Refresh();
             if (testResult != null) { await SelfTest(); return; }
             if (!config.GetProperty("has_mail_secret").GetBoolean() || account.Text.Length == 0)
                 await Onboard();
             else if (config.TryGetProperty("enabled", out var enabled) && enabled.GetBoolean())
             {
-                await Call("start"); running = true; toggle.Content = "暂停监听"; status.Text = "运行中";
+                await Call("start"); running = true; toggle.Content = L.T("暂停监听"); status.Text = L.T("运行中");
             }
             if (Array.IndexOf(Program.Args, "--background") >= 0) AppWindow.Hide();
         }
         catch (Exception e)
         {
-            detail.Text = e.Message;
+            detail.Text = L.T(e.Message);
             if (testResult != null) { File.WriteAllText(testResult, JsonSerializer.Serialize(new { ok = false, error = e.ToString() })); await Exit(); }
         }
     }
     async Task Onboard(bool testing = false)
     {
-        var address = new TextBox { FontFamily = MailTypography.Font, Header = "邮箱地址", Text = account.Text };
-        var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = "密码／授权码／OAuth2 访问令牌" };
-        var presetChoice = new ComboBox { Header = "邮箱服务商", HorizontalAlignment = HorizontalAlignment.Stretch };
-        var host = new TextBox { Header = "IMAP 收件服务器", Text = mailHost.Text };
-        var port = new TextBox { Header = "端口", Text = mailPort.Text };
-        var username = new TextBox { Header = "登录用户名（可选）", PlaceholderText = "留空使用邮箱地址", Text = mailUsername.Text };
-        var mailboxFolder = new TextBox { Header = "邮件文件夹", Text = mailFolder.Text };
-        var encryption = new ComboBox { Header = "连接加密", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var address = new TextBox { FontFamily = MailTypography.Font, Header = L.T("邮箱地址"), Text = account.Text };
+        var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = L.T("密码／授权码／OAuth2 访问令牌") };
+        var presetChoice = new ComboBox { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var host = new TextBox { Header = L.T("IMAP 收件服务器"), Text = mailHost.Text };
+        var port = new TextBox { Header = L.T("端口"), Text = mailPort.Text };
+        var username = new TextBox { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址"), Text = mailUsername.Text };
+        var mailboxFolder = new TextBox { Header = L.T("邮件文件夹"), Text = mailFolder.Text };
+        var encryption = new ComboBox { Header = L.T("连接加密"), HorizontalAlignment = HorizontalAlignment.Stretch };
         encryption.Items.Add("SSL/TLS"); encryption.Items.Add("STARTTLS"); encryption.SelectedIndex = mailSecurity.SelectedIndex;
-        var authentication = new ComboBox { Header = "登录方式", HorizontalAlignment = HorizontalAlignment.Stretch };
-        authentication.Items.Add("密码／客户端授权码"); authentication.Items.Add("OAuth2 访问令牌"); authentication.SelectedIndex = mailAuth.SelectedIndex;
-        foreach (var preset in mailPresets) presetChoice.Items.Add(preset.GetProperty("name").GetString());
+        var authentication = new ComboBox { Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        authentication.Items.Add(L.T("密码／客户端授权码")); authentication.Items.Add(L.T("OAuth2 访问令牌")); authentication.SelectedIndex = mailAuth.SelectedIndex;
+        foreach (var preset in mailPresets) presetChoice.Items.Add(L.T(preset.GetProperty("name").GetString()));
         presetChoice.SelectedIndex = mailProvider.SelectedIndex;
         presetChoice.SelectionChanged += (_, _) =>
         {
@@ -782,11 +803,11 @@ sealed class MainWindow : Window
         };
         var error = Note("");
         var advanced = Stack(username, mailboxFolder, authentication); advanced.Visibility = Visibility.Collapsed;
-        var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = "欢迎使用邮件小秘书",
-            PrimaryButtonText = "保存邮箱", CloseButtonText = "稍后填写",
+        var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T("欢迎使用邮件小秘书"),
+            PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T("稍后填写"),
             Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), secret,
-                Action("高级连接选项", () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
-                Note("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。"), error) } };
+                Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
+                Note(L.T("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。")), error) } };
         dialog.PrimaryButtonClick += async (_, e) =>
         {
             var deferral = e.GetDeferral();
@@ -798,7 +819,7 @@ sealed class MainWindow : Window
                 mailAuth.SelectedIndex = authentication.SelectedIndex;
                 await SaveMail();
             }
-            catch (Exception ex) { e.Cancel = true; error.Text = ex.Message; }
+            catch (Exception ex) { e.Cancel = true; error.Text = L.T(ex.Message); }
             finally { deferral.Complete(); }
         };
         var showing = dialog.ShowAsync();
@@ -830,7 +851,7 @@ sealed class MainWindow : Window
                 var index = mailboxProfiles.Count; mailboxProfiles.Add(profile.Clone());
                 var enabled = !profile.TryGetProperty("monitor_enabled", out var flag) || flag.GetBoolean();
                 var mailboxFolder = profile.TryGetProperty("mail_folder", out var mf) ? mf.GetString() : "INBOX";
-                savedMailboxes.Items.Add(profile.GetProperty("account").GetString() + " · " + mailboxFolder + (enabled ? " · 已启用" : " · 已暂停"));
+                savedMailboxes.Items.Add(profile.GetProperty("account").GetString() + " · " + mailboxFolder + (enabled ? L.T(" · 已启用") : L.T(" · 已暂停")));
                 if (profile.GetProperty("id").GetString() == Text("selected_mailbox_id")) selected = index;
             }
             savedMailboxes.SelectedIndex = selected;
@@ -845,6 +866,30 @@ sealed class MainWindow : Window
         }
         finally { loadingMailboxes = false; }
     }
+    async Task ChangeLanguage(string code)
+    {
+        await bridge.Call("save_language", new { ui_language = code });
+        L.Select(code);
+        changingLanguage = true;
+        try {
+            L.Apply(Content as UIElement, reports, savedMailboxes, detail);
+            if (!detailIsUserSubject) detail.Text = L.T(detail.Text);
+            L.Apply(filters.Content as UIElement);
+            Title = L.T("邮件小秘书"); tray.Text = Title;
+            foreach (System.Windows.Forms.ToolStripItem item in tray.ContextMenuStrip!.Items) item.Text = L.T(item.Text);
+            languageChoice.SelectedIndex = code == "zh" ? 0 : 1;
+            // Account names are user content; translate only the app's enabled/paused suffix.
+            var selected = savedMailboxes.SelectedIndex;
+            for (var i = 0; i < mailboxProfiles.Count; i++) {
+                var profile = mailboxProfiles[i];
+                var enabled = !profile.TryGetProperty("monitor_enabled", out var flag) || flag.GetBoolean();
+                var name = profile.GetProperty("account").GetString();
+                var mailFolderName = profile.TryGetProperty("mail_folder", out var mf) ? mf.GetString() : "INBOX";
+                savedMailboxes.Items[i] = name + " · " + mailFolderName + L.T(enabled ? " · 已启用" : " · 已暂停");
+            }
+            savedMailboxes.SelectedIndex = selected;
+        } finally { changingLanguage = false; }
+    }
     void Restore() { AppWindow.Show(); Activate(); }
     async Task Exit()
     {
@@ -852,10 +897,10 @@ sealed class MainWindow : Window
         exitRequested = true;
         searchTimer.Stop();
         Program.Trace("Stopping worker");
-        detail.Text = "正在停止后台，请稍候…";
+        detail.Text = L.T("正在停止后台，请稍候…");
         toggle.IsEnabled = check.IsEnabled = false;
         try { await bridge.Call("shutdown"); }
-        catch (Exception e) { detail.Text = e.Message; }
+        catch (Exception e) { detail.Text = L.T(e.Message); }
         Program.Trace("Disposing tray and worker pipes");
         exiting = true; tray.Visible = false; tray.Dispose(); bridge.Dispose();
         Program.Trace("Exiting application");
@@ -992,6 +1037,24 @@ sealed class MainWindow : Window
                 var path = Program.Args[screenArg + 1];
                 Capture(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "-settings.png"));
             }
+            navigation.SelectedIndex = 0;
+            Check(L.Detect("zh-Hant-TW") == "zh" && L.Detect("zh-CN") == "zh" && L.Detect("es-MX") == "en" && L.Detect("en-US") == "en", "Chinese system languages select Chinese; all others select English");
+            var rawPreview = preview.Text; var rawAccount = account.Text; var rawHost = mailHost.Text;
+            var rawModel = model.Text; var rawFolder = folder.Text; var wasRunning = running;
+            await ChangeLanguage("en");
+            Check(Title == "Mail Secretary" && account.Header?.ToString() == "Email address" && languageChoice.Header?.ToString() == "Interface language", "English labels applied immediately");
+            Check(preview.Text == rawPreview && account.Text == rawAccount && mailHost.Text == rawHost && model.Text == rawModel && folder.Text == rawFolder && running == wasRunning, "Language change preserves report text, inputs and monitoring state");
+            config = await bridge.Call("config");
+            Check(config.GetProperty("ui_language").GetString() == "en", "Selected report and interface language persisted through bridge");
+            using (var pausedEvent = JsonDocument.Parse("{\"status\":\"已暂停\"}")) HandleEvent(pausedEvent.RootElement);
+            Check(status.Text == "Paused" && check.IsEnabled, "Translated display preserves raw protocol status handling");
+            await ReportsReady(1);
+            Check(((Report)((ListViewItem)reports.Items[0]).Tag).title == "模拟合同检查", "English interface preserves original Chinese email subject");
+            navigation.SelectedIndex = 1; await Task.Delay(300);
+            if (screenArg >= 0) Capture(Path.Combine(Path.GetDirectoryName(Program.Args[screenArg + 1])!, "native-english-settings.png"));
+            await Onboard(true);
+            await ChangeLanguage("zh");
+            Check(Title == "邮件小秘书" && account.Header?.ToString() == "邮箱地址", "Switching back to Chinese restores labels");
             navigation.SelectedIndex = 0;
             Program.Trace("Opening first-run dialog");
             await Onboard(true);

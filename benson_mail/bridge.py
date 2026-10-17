@@ -123,6 +123,17 @@ class Controller:
                     'selected_mailbox_id': mailbox_id(self.config) if self.config.get('account') else '',
                     'output_dir': self.config.get('output_dir') or str(platform.documents_dir() / '邮件'),
                     'has_mail_secret': bool(self.config.get('account')) and self.secret_path().exists()}
+        if name == 'save_language':
+            language = data.get('ui_language')
+            if language not in ('zh', 'en'):
+                raise ValueError('Invalid interface language')
+            self.config['ui_language'] = language
+            self.persist()
+            for service in self.all_services():
+                service.config['ui_language'] = language
+                if hasattr(service.analyzer, 'config'):
+                    service.analyzer.config['ui_language'] = language
+            return language
         if name == 'mail_presets':
             return PRESETS
         if name == 'select_mail':
@@ -362,7 +373,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail'):
+                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_language'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})

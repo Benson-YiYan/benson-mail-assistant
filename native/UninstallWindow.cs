@@ -15,14 +15,14 @@ namespace BensonMail;
 sealed class UninstallWindow : Window
 {
     readonly Grid root = new() { Padding = new Thickness(28, 12, 28, 24), RowSpacing = 20 };
-    readonly ToggleSwitch preserve = new() { Header = "保留邮箱及 AI 配置，下次重装不用再配置", OnContent = "保留", OffContent = "不保留" };
-    readonly ToggleSwitch deleteReports = new() { Header = "同时删除已生成的邮件报告", OnContent = "删除", OffContent = "保留报告" };
-    readonly TextBlock detail = Text("正在读取卸载信息…");
+    readonly ToggleSwitch preserve = new() { Header = L.T("保留邮箱及 AI 配置，下次重装不用再配置"), OnContent = L.T("保留"), OffContent = L.T("不保留") };
+    readonly ToggleSwitch deleteReports = new() { Header = L.T("同时删除已生成的邮件报告"), OnContent = L.T("删除"), OffContent = L.T("保留报告") };
+    readonly TextBlock detail = Text(L.T("正在读取卸载信息…"));
     readonly TextBlock locations = Text("");
     readonly TextBlock reports = Text("");
-    readonly TextBlock progress = Text("正在准备…");
-    readonly Button remove = new() { Content = "卸载", MinWidth = 110 };
-    readonly Button close = new() { Content = "取消", MinWidth = 110 };
+    readonly TextBlock progress = Text(L.T("正在准备…"));
+    readonly Button remove = new() { Content = L.T("卸载"), MinWidth = 110 };
+    readonly Button close = new() { Content = L.T("取消"), MinWidth = 110 };
     readonly string target;
     readonly string? fixtureResult = Argument("--fixture-result") ?? Argument("--e2e-test");
     readonly string? uiResult = Argument("--uninstall-ui-test");
@@ -61,7 +61,7 @@ sealed class UninstallWindow : Window
     {
         Program.Trace("Uninstall window constructor");
         target = Path.GetFullPath(Argument("--uninstall-worker") ?? AppContext.BaseDirectory);
-        Title = "卸载邮件小秘书";
+        Title = L.T("卸载邮件小秘书");
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico"));
         SystemBackdrop = new MicaBackdrop();
         var area = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
@@ -70,7 +70,7 @@ sealed class UninstallWindow : Window
         AppWindow.Move(new PointInt32(area.X + Math.Max(0, (area.Width - width) / 2),
                                      area.Y + Math.Max(0, (area.Height - height) / 2)));
         var caption = new Grid { Height = 40, Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
-        caption.Children.Add(new TextBlock { Text = "邮件小秘书", FontFamily = MailTypography.Font, FontSize = 12,
+        caption.Children.Add(new TextBlock { Text = L.T("邮件小秘书"), FontFamily = MailTypography.Font, FontSize = 12,
             Margin = new Thickness(0, 0, 150, 0), VerticalAlignment = VerticalAlignment.Center });
         if (AppWindowTitleBar.IsCustomizationSupported())
         {
@@ -82,15 +82,15 @@ sealed class UninstallWindow : Window
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.Children.Add(caption);
-        var heading = Text("卸载邮件小秘书"); heading.FontSize = 28; heading.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-        var subheading = Text("卸载前，请先从任务栏右下角的信封菜单退出邮件小秘书。");
+        var heading = Text(L.T("卸载邮件小秘书")); heading.FontSize = 28; heading.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+        var subheading = Text(L.T("卸载前，请先从任务栏右下角的信封菜单退出邮件小秘书。"));
         subheading.Opacity = .7;
         preserve.FontFamily = deleteReports.FontFamily = MailTypography.Font;
         preserve.IsOn = Array.IndexOf(Program.Args, "--keep-configuration") >= 0;
         deleteReports.IsOn = Array.IndexOf(Program.Args, "--delete-reports") >= 0;
-        var configNote = Text("保留账号列表、服务器、AI 设置及加密密钥，供本机同一 Windows 用户重装后继续使用。");
+        var configNote = Text(L.T("保留账号列表、服务器、AI 设置及加密密钥，供本机同一 Windows 用户重装后继续使用。"));
         configNote.Opacity = .7; configNote.FontSize = 12;
-        var cacheNote = Text("缓存和收信进度会清除，重装后重新记录收信起点。自启动项及本次安装的快捷方式会移除。");
+        var cacheNote = Text(L.T("缓存和收信进度会清除，重装后重新记录收信起点。自启动项及本次安装的快捷方式会移除。"));
         cacheNote.Opacity = .7; cacheNote.FontSize = 12;
         reports.FontSize = 12; reports.Opacity = .7; locations.FontSize = 12; locations.Opacity = .7;
         var content = Stack(heading, subheading, Card(Stack(preserve, configNote, cacheNote)),
@@ -103,6 +103,7 @@ sealed class UninstallWindow : Window
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10,
             HorizontalAlignment = HorizontalAlignment.Right };
         actions.Children.Add(remove); actions.Children.Add(close); Grid.SetRow(actions, 2); root.Children.Add(actions);
+        L.Apply(root);
         Content = root;
         Program.Trace("Uninstall controls created");
         remove.IsEnabled = false;
@@ -128,20 +129,20 @@ sealed class UninstallWindow : Window
     }
     async Task<JsonElement> RunWorker(ProcessStartInfo start)
     {
-        using var process = Process.Start(start) ?? throw new IOException("无法启动卸载组件。");
+        using var process = Process.Start(start) ?? throw new IOException(L.T("无法启动卸载组件。"));
         var errors = process.StandardError.ReadToEndAsync();
         JsonElement result = default;
         string? failure = null;
         while (await process.StandardOutput.ReadLineAsync() is string line)
         {
             using var message = JsonDocument.Parse(line);
-            if (message.RootElement.TryGetProperty("progress", out var text)) detail.Text = text.GetString();
+            if (message.RootElement.TryGetProperty("progress", out var text)) detail.Text = L.T(text.GetString());
             if (message.RootElement.TryGetProperty("result", out var value)) result = value.Clone();
             if (message.RootElement.TryGetProperty("error", out var error)) failure = error.GetString();
         }
         await process.WaitForExitAsync(); await errors;
         if (process.ExitCode != 0 || failure != null || result.ValueKind == JsonValueKind.Undefined)
-            throw new IOException(failure ?? "卸载组件未能完成，请关闭占用文件的程序后重试。");
+            throw new IOException(failure ?? L.T("卸载组件未能完成，请关闭占用文件的程序后重试。"));
         return result;
     }
     async Task Initialize()
@@ -150,9 +151,9 @@ sealed class UninstallWindow : Window
         Program.Trace("Uninstall layout loaded");
         try {
             if (uiResult != null) {
-                locations.Text = "程序目录：模拟安装目录"; reports.Text = "默认保留报告；勾选后才删除可识别的报告及索引。";
-                detail.Text = "卸载会通过独立组件执行，进度显示在此处。";
-                progress.Text = "准备就绪"; remove.IsEnabled = true;
+                locations.Text = L.T("程序目录：模拟安装目录"); reports.Text = L.T("默认保留报告；勾选后才删除可识别的报告及索引。");
+                detail.Text = L.T("卸载会通过独立组件执行，进度显示在此处。");
+                progress.Text = L.T("准备就绪"); remove.IsEnabled = true;
                 await Task.Delay(500);
                 Program.Trace("Uninstall UI test capture");
                 var bounds = AppWindow.Position; var size = AppWindow.Size;
@@ -171,11 +172,11 @@ sealed class UninstallWindow : Window
             }
             var info = await RunWorker(Worker("info"));
             data = info.GetProperty("data").GetString() ?? "";
-            locations.Text = "程序目录：" + target + "\n数据目录：" + data;
-            reports.Text = "报告目录：" + (info.GetProperty("reports").GetString() is string r && r.Length > 0 ? r : "未配置")
-                + "\n仅删除可识别的报告和邮件索引，保留其他文件及自选根目录。";
-            progress.Text = "准备就绪"; remove.IsEnabled = true;
-            detail.Text = "准备就绪。可选择保留配置，方便下次安装。";
+            locations.Text = L.T("程序目录：") + target + L.T("\n数据目录：") + data;
+            reports.Text = L.T("报告目录：") + (info.GetProperty("reports").GetString() is string r && r.Length > 0 ? r : L.T("未配置"))
+                + L.T("\n仅删除可识别的报告和邮件索引，保留其他文件及自选根目录。");
+            progress.Text = L.T("准备就绪"); remove.IsEnabled = true;
+            detail.Text = L.T("准备就绪。可选择保留配置，方便下次安装。");
             if (staged) await Cleanup();
             else if (fixtureResult != null) await Start();
         }
@@ -184,16 +185,16 @@ sealed class UninstallWindow : Window
     void SetBusy()
     {
         busy = true; remove.IsEnabled = close.IsEnabled = preserve.IsEnabled = deleteReports.IsEnabled = false;
-        progress.Text = "处理中，请稍候…";
+        progress.Text = L.T("处理中，请稍候…");
     }
     async Task Start()
     {
         try {
             if (fixtureResult == null) {
-                var dialog = new ContentDialog { XamlRoot = root.XamlRoot, Title = "确认卸载？",
-                    Content = (preserve.IsOn == true ? "保留邮箱及 AI 配置，移除程序和缓存。" : "移除程序、配置、加密密钥和缓存。")
-                        + (deleteReports.IsOn == true ? "\n同时删除已选的邮件报告。" : "\n已生成的邮件报告保留。"),
-                    PrimaryButtonText = "卸载", CloseButtonText = "取消", DefaultButton = ContentDialogButton.Close };
+                var dialog = new ContentDialog { XamlRoot = root.XamlRoot, Title = L.T("确认卸载？"),
+                    Content = (preserve.IsOn == true ? L.T("保留邮箱及 AI 配置，移除程序和缓存。") : L.T("移除程序、配置、加密密钥和缓存。"))
+                        + (deleteReports.IsOn == true ? L.T("\n同时删除已选的邮件报告。") : L.T("\n已生成的邮件报告保留。")),
+                    PrimaryButtonText = L.T("卸载"), CloseButtonText = L.T("取消"), DefaultButton = ContentDialogButton.Close };
                 if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
             }
             SetBusy();
@@ -203,12 +204,13 @@ sealed class UninstallWindow : Window
             var helper = new ProcessStartInfo(prepared.GetProperty("helper").GetString()!) {
                 UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetTempPath()
             };
+            helper.ArgumentList.Add("--ui-language"); helper.ArgumentList.Add(L.Code);
             helper.ArgumentList.Add("--uninstall-worker"); helper.ArgumentList.Add(target);
             helper.ArgumentList.Add("--parent-pid"); helper.ArgumentList.Add(Environment.ProcessId.ToString());
             if (preserve.IsOn == true) helper.ArgumentList.Add("--keep-configuration");
             if (deleteReports.IsOn == true) helper.ArgumentList.Add("--delete-reports");
             if (fixtureResult != null) { helper.ArgumentList.Add("--fixture-result"); helper.ArgumentList.Add(fixtureResult); }
-            using var process = Process.Start(helper) ?? throw new IOException("无法打开独立卸载窗口。");
+            using var process = Process.Start(helper) ?? throw new IOException(L.T("无法打开独立卸载窗口。"));
             busy = false;
             Application.Current.Exit();
         }
@@ -221,9 +223,9 @@ sealed class UninstallWindow : Window
             var start = Worker("cleanup"); start.ArgumentList.Add("--parent-pid");
             start.ArgumentList.Add(Argument("--parent-pid") ?? "0");
             await RunWorker(start);
-            busy = false; finished = true; progress.Text = "已完成";
-            detail.Text = preserve.IsOn == true ? "卸载完成。邮箱及 AI 配置已保留，下次重装可继续使用。" : "卸载完成。程序、配置、加密密钥和缓存已清理。";
-            remove.Content = "完成"; remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
+            busy = false; finished = true; progress.Text = L.T("已完成");
+            detail.Text = preserve.IsOn == true ? L.T("卸载完成。邮箱及 AI 配置已保留，下次重装可继续使用。") : L.T("卸载完成。程序、配置、加密密钥和缓存已清理。");
+            remove.Content = L.T("完成"); remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
             WriteFixture(true, null);
             if (fixtureResult != null) { await Task.Delay(150); Finish(); }
         }
@@ -231,9 +233,9 @@ sealed class UninstallWindow : Window
     }
     void Failed(Exception error)
     {
-        busy = false; finished = true; progress.Text = "未能完成";
-        detail.Text = "卸载未完成：" + error.Message;
-        remove.Content = "关闭"; remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
+        busy = false; finished = true; progress.Text = L.T("未能完成");
+        detail.Text = L.T("卸载未完成：") + L.T(error.Message);
+        remove.Content = L.Code == "en" ? "Close" : "关闭"; remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
         WriteFixture(false, error.Message);
         if (uiResult != null) { File.WriteAllText(uiResult, JsonSerializer.Serialize(new { ok = false, error = error.ToString() })); Finish(); }
         else if (fixtureResult != null) Finish();
