@@ -53,7 +53,12 @@ jobs:
           $uninstallResult = Join-Path $PWD 'evidence/uninstall-result.json'
           $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('--uninstall-ui-test', "`"$uninstallResult`"") -PassThru
           if (!$uninstallProcess.WaitForExit(30000)) { Stop-Process -Id $uninstallProcess.Id -Force; throw 'Uninstaller UI test timed out' }
-          if ($uninstallProcess.ExitCode -ne 0) { throw 'Uninstaller UI test failed' }
+          if ($uninstallProcess.ExitCode -ne 0) {
+            Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-5)} -ErrorAction SilentlyContinue |
+              Select-Object -First 8 TimeCreated,ProviderName,Message |
+              ConvertTo-Json -Depth 3 | Set-Content evidence/uninstall-crash-events.json
+            throw "Uninstaller UI test failed: $($uninstallProcess.ExitCode)"
+          }
           if (!(Get-Content $uninstallResult -Raw | ConvertFrom-Json).ok) { throw 'Uninstaller UI result failed' }
           $programDir = Split-Path $exe
           python script/check_packaged_uninstall.py "$programDir" evidence/uninstall-e2e-result.json

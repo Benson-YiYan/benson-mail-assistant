@@ -22,6 +22,7 @@ internal static class Program
     internal static void Trace(string stage)
     {
         var index = Array.IndexOf(Args, "--self-test");
+        if (index < 0) index = Array.IndexOf(Args, "--uninstall-ui-test");
         if (index >= 0 && index + 1 < Args.Length)
             File.AppendAllText(Args[index + 1] + ".startup.txt", stage + Environment.NewLine);
     }
@@ -64,6 +65,7 @@ public sealed partial class MailApp : Application
         {
             Program.Trace("Unhandled: " + e.Exception);
             var index = Array.IndexOf(Program.Args, "--self-test");
+            if (index < 0) index = Array.IndexOf(Program.Args, "--uninstall-ui-test");
             if (index >= 0)
             {
                 File.WriteAllText(Program.Args[index + 1], JsonSerializer.Serialize(new { ok = false, error = e.Exception.ToString() }));

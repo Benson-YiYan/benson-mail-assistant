@@ -59,6 +59,7 @@ sealed class UninstallWindow : Window
     }
     public UninstallWindow()
     {
+        Program.Trace("Uninstall window constructor");
         target = Path.GetFullPath(Argument("--uninstall-worker") ?? AppContext.BaseDirectory);
         Title = "卸载邮件小秘书";
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico"));
@@ -102,6 +103,7 @@ sealed class UninstallWindow : Window
             HorizontalAlignment = HorizontalAlignment.Right };
         actions.Children.Add(remove); actions.Children.Add(close); Grid.SetRow(actions, 2); root.Children.Add(actions);
         Content = root;
+        Program.Trace("Uninstall controls created");
         remove.IsEnabled = false;
         remove.Click += async (_, _) => { if (finished) Finish(); else await Start(); };
         close.Click += (_, _) => Finish();
@@ -144,12 +146,14 @@ sealed class UninstallWindow : Window
     async Task Initialize()
     {
         if (loaded) return; loaded = true;
+        Program.Trace("Uninstall layout loaded");
         try {
             if (uiResult != null) {
                 locations.Text = "程序目录：模拟安装目录"; reports.Text = "默认保留报告；勾选后才删除可识别的报告及索引。";
                 detail.Text = "卸载会通过独立组件执行，进度显示在此处。";
                 progress.IsIndeterminate = false; remove.IsEnabled = true;
                 await Task.Delay(500);
+                Program.Trace("Uninstall UI test capture");
                 var bounds = AppWindow.Position; var size = AppWindow.Size;
                 using var image = new System.Drawing.Bitmap(size.Width, size.Height);
                 using var graphics = System.Drawing.Graphics.FromImage(image);
