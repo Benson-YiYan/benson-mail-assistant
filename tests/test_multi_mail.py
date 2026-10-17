@@ -28,6 +28,45 @@ class FakeService:
 
 
 class MultipleMailTests(unittest.TestCase):
+    def test_two_mailboxes_same_uid_and_subject_export_without_overwrite(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from datetime import datetime, timezone
+        from email.message import EmailMessage
+        import threading
+        from benson_mail.core import Service
+        barrier = threading.Barrier(2)
+        class Box:
+            uids = [1]
+            def __init__(self, account): self.account = account
+            def snapshot(self): return 'same-validity', self.uids
+            def fetch(self, uid):
+                mail = EmailMessage()
+                mail['From'] = self.account
+                mail['Subject'] = '相同标题'
+                mail.set_content('synthetic')
+                return mail.as_bytes(), datetime(2026, 10, 17, 1, 0, tzinfo=timezone.utc)
+        def analyze(message, _):
+            barrier.wait(timeout=5)
+            return '六项模拟报告 ' + message['sender']
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            services = []
+            for account in ('first@example.invalid', 'second@example.invalid'):
+                box = Box(account)
+                service = Service({'account': account, 'output_dir': str(root / 'reports')},
+                                  'synthetic', root / 'state', lambda _: None, mailbox=box, analyzer=analyze)
+                service.check_once()
+                box.uids = [1, 2]
+                services.append(service)
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                for future in [pool.submit(s.check_once) for s in services]:
+                    future.result()
+            paths = list((root / 'reports').glob('*/*.txt'))
+            self.assertEqual(len(paths), 2)
+            self.assertEqual({p.read_text().split()[-1] for p in paths},
+                             {'first@example.invalid', 'second@example.invalid'})
+            self.assertEqual(len(list((root / 'state').glob('*.json'))), 2)
+
     def test_add_two_accounts_restart_toggle_and_check_without_mixing(self):
         with tempfile.TemporaryDirectory() as temporary, \
              patch('benson_mail.bridge.platform.save_secret', side_effect=lambda p, *_: p.write_bytes(b'encrypted')), \

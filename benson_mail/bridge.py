@@ -23,6 +23,8 @@ class Controller:
         self.config = json.loads(self.path.read_text(encoding='utf-8')) if self.path.exists() else {}
         self.config.setdefault('ai_provider', 'codex' if self.config.get('codex_command') else 'api')
         self.config.setdefault('interval', 60)
+        if not self.config.get('account') and self.config.get('mailboxes'):
+            self.config.update({k: self.config['mailboxes'][0][k] for k in MAIL_FIELDS if k in self.config['mailboxes'][0]})
         self.emit = emit
         self.launcher = launcher
         self.service = None
@@ -183,7 +185,8 @@ class Controller:
             platform.set_autostart(bool(data.get('autostart')), launcher=self.launcher)
             self.config.update(**connection, output_dir=output,
                                autostart=bool(data.get('autostart')))
-            saved = {**{k: self.config[k] for k in MAIL_FIELDS if k in self.config}, 'monitor_enabled': True}
+            was_enabled = next((p.get('monitor_enabled', True) for p in profiles if mailbox_id(p) == previous_id), True)
+            saved = {**{k: self.config[k] for k in MAIL_FIELDS if k in self.config}, 'monitor_enabled': was_enabled}
             self.config['mailboxes'] = [p for p in profiles if mailbox_id(p) != previous_id] + [saved]
             self.persist()
             return '邮箱设置已保存。'

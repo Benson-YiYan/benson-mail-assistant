@@ -788,6 +788,12 @@ sealed class MainWindow : Window
         {
             await Task.Delay(400);
             if (!dialog.IsLoaded) throw new InvalidOperationException("First-run account dialog did not render");
+            presetChoice.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "custom");
+            host.Text = "imap.first-run.example.invalid"; port.Text = "1993";
+            if (presetChoice.SelectedIndex < 0 || !host.IsLoaded || !port.IsLoaded ||
+                host.Text != "imap.first-run.example.invalid")
+                throw new InvalidOperationException("First-run custom mailbox configuration unavailable");
+            Program.Trace("Passed: First-run provider picker includes custom IMAP and editable server/port");
             dialog.Hide();
         }
         await showing;

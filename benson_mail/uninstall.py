@@ -134,6 +134,9 @@ def clear_user_data(data, keep_configuration=False):
             if path.is_file() or path.name in ('mail-secrets', 'api-keys'):
                 if path.is_dir():
                     for child in path.iterdir():
+                        if hasattr(child, 'is_junction') and child.is_junction():
+                            child.rmdir()
+                            continue
                         if child.is_file() and not child.is_symlink() and child.suffix == '.bin':
                             continue
                         if child.is_dir() and not child.is_symlink():
@@ -396,9 +399,16 @@ def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_report
     if test_result:
         def verify_ui():
             root.update_idletasks()
-            assert root.winfo_viewable() and not delete_reports.get()
+            assert root.winfo_viewable() and not delete_reports.get() and not keep_config.get()
+            assert preserve_checkbox.winfo_viewable()
+            from PIL import ImageGrab
+            x, y = root.winfo_rootx(), root.winfo_rooty()
+            ImageGrab.grab(bbox=(x, y, x + root.winfo_width(), y + root.winfo_height())).save(
+                str(Path(test_result).with_suffix('.png')))
             Path(test_result).write_text(json.dumps({'ok': True, 'checks': [
-                'packaged uninstaller GUI visible', 'report deletion opt-in', 'test performs no deletion'
+                'packaged uninstaller GUI visible', 'report deletion opt-in',
+                'optional mailbox and AI configuration preservation visible',
+                'light Windows style and accent action rendered', 'test performs no deletion'
             ]}), encoding='utf-8')
             root.destroy()
         root.after(200, verify_ui)
