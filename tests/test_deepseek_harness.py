@@ -27,3 +27,15 @@ class HarnessTests(unittest.TestCase):
                 complete(messages=[{'role': 'user', 'content': 'synthetic-email'}])
             self.assertNotIn('synthetic-secret', str(error.exception))
             self.assertNotIn('synthetic-email', str(error.exception))
+
+    @unittest.skipUnless(__import__('os').name == 'nt', 'Windows cmd launcher')
+    def test_windows_installed_cmd_path_with_spaces_and_ampersand(self):
+        import sys, tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory(prefix='BensonMail CLI & test ') as temporary:
+            root = Path(temporary)
+            fixture = root / 'fixture.py'
+            fixture.write_text('import sys,json; assert sys.stdin.buffer.read().decode("utf-8") == "synthetic input"; print(json.dumps({"type":"final","text":"OK"}))', encoding='utf-8')
+            launcher = root / 'dsh.cmd'
+            launcher.write_text('@echo off\n"' + sys.executable + '" "' + str(fixture) + '" %*\n', encoding='utf-8')
+            self.assertEqual(complete(messages=[{'role':'user','content':'synthetic input'}], cli_path=str(launcher)), 'OK')
