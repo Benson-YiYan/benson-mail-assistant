@@ -79,6 +79,39 @@ try:
                            'temporary helper removes itself after exit']
     result.write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding='utf-8')
     process.wait(timeout=10)
+    # Reinstall the package copy, preserve real current-user DPAPI ciphertext, then reopen it.
+    shutil.copytree(program, copied)
+    data.mkdir()
+    config = {'account': 'synthetic@example.invalid', 'host': 'imap.example.invalid',
+              'output_dir': str(reports), 'api_base': 'https://example.invalid/v1', 'api_model': 'fixture'}
+    (data / 'config.json').write_text(json.dumps(config), encoding='utf-8')
+    platform.save_secret(data / 'secret.bin', config['account'], 'SYNTHETIC-MAIL-CODE')
+    api_dir = data / 'api-keys'
+    api_dir.mkdir()
+    platform.save_secret(api_dir / 'fixture.bin', config['api_base'], 'SYNTHETIC-AI-KEY')
+    (data / 'state').mkdir()
+    (data / 'state/mail.json').write_text('SYNTHETIC-CACHED-BODY')
+    preserved = result.with_name(result.stem + '-preserved.json')
+    process = subprocess.Popen([str(next(copied.glob('Uninstall-BensonMail-*.exe'))),
+                                '--e2e-test', str(preserved), '--keep-configuration'],
+                               cwd=tempfile.gettempdir())
+    deadline = time.monotonic() + 150
+    while time.monotonic() < deadline and not preserved.exists():
+        time.sleep(.2)
+    assert preserved.exists(), 'Preserve configuration uninstall timed out'
+    assert json.loads(preserved.read_text(encoding='utf-8'))['ok']
+    assert not copied.exists() and data.exists() and not (data / 'state').exists()
+    assert json.loads((data / 'config.json').read_text(encoding='utf-8')) == config
+    assert platform.load_secret(data / 'secret.bin', config['account']) == 'SYNTHETIC-MAIL-CODE'
+    assert platform.load_secret(api_dir / 'fixture.bin', config['api_base']) == 'SYNTHETIC-AI-KEY'
+    assert unrelated.exists()
+    # Controller uses exactly this same directory on a subsequent installation.
+    from benson_mail.bridge import Controller
+    reinstalled = Controller(data, lambda _: None)
+    assert reinstalled.secret() == 'SYNTHETIC-MAIL-CODE'
+    evidence['checks'].append('optional preservation reopens mailbox and AI configuration with decryptable DPAPI credentials; cached mail removed')
+    result.write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding='utf-8')
+    process.wait(timeout=10)
 finally:
     platform.set_autostart(False, startup_name)
     shutil.rmtree(fixture, ignore_errors=True)

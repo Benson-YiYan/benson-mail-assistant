@@ -201,6 +201,9 @@ sealed class MainWindow : Window
     readonly TextBox mailUsername = new() { Header = "登录用户名（可选）", PlaceholderText = "留空使用邮箱地址" };
     readonly TextBox mailFolder = new() { Header = "邮件文件夹", Text = "INBOX" };
     readonly List<JsonElement> mailPresets = new();
+    readonly ComboBox savedMailboxes = new() { Header = "已添加的邮箱", HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly List<JsonElement> mailboxProfiles = new();
+    bool loadingMailboxes;
     readonly TextBox folder = new() { Header = "报告保存文件夹" };
     readonly ToggleSwitch startup = new() { Header = "登录 Windows 后自动启动", OnContent = "开启", OffContent = "关闭" };
     readonly ComboBox provider = new() { Header = "分析方式", HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -470,10 +473,36 @@ sealed class MainWindow : Window
         mailSaveButton = Action("保存邮箱设置", SaveMail);
         aiSaveButton = Action("保存 AI 设置", SaveAI);
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        var advanced = Stack(mailUsername, mailFolder, mailAuth); advanced.Visibility = Visibility.Collapsed;
+        savedMailboxes.SelectionChanged += async (_, _) =>
+        {
+            if (loadingMailboxes || savedMailboxes.SelectedIndex < 0) return;
+            await Guard(async () => {
+                await Call("select_mail", new { id = mailboxProfiles[savedMailboxes.SelectedIndex].GetProperty("id").GetString() });
+                await ReloadMailboxes();
+            });
+        };
         mailPage.Children.Add(SettingsPage(Stack(
+            Card(Stack(Heading("管理邮箱"), savedMailboxes,
+                Row(Action("添加邮箱", async () => {
+                    await Call("select_mail", new { id = "" }); await ReloadMailboxes();
+                }), Action("启用／暂停此邮箱", async () => {
+                    if (savedMailboxes.SelectedIndex < 0) throw new InvalidOperationException("请先选择已添加的邮箱。");
+                    var profile = mailboxProfiles[savedMailboxes.SelectedIndex];
+                    await Call("mail_enabled", new { id = profile.GetProperty("id").GetString(),
+                        enabled = !(profile.TryGetProperty("monitor_enabled", out var flag) && flag.GetBoolean()) });
+                    await ReloadMailboxes();
+                }), Action("移除此邮箱", async () => {
+                    if (savedMailboxes.SelectedIndex < 0) return;
+                    var profile = mailboxProfiles[savedMailboxes.SelectedIndex];
+                    var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = "移除此邮箱？",
+                        Content = "停止此邮箱监听并移出列表，已生成的报告保留。", PrimaryButtonText = "移除", CloseButtonText = "取消" };
+                    if (await dialog.ShowAsync() == ContentDialogResult.Primary) {
+                        await Call("remove_mail", new { id = profile.GetProperty("id").GetString() }); await ReloadMailboxes();
+                    }
+                })), Note("可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。"))),
             Card(Stack(Heading("邮箱连接"), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
-                new Expander { Header = "高级连接选项", HorizontalAlignment = HorizontalAlignment.Stretch,
-                    Content = Stack(mailUsername, mailFolder, mailAuth) },
+                Action("高级连接选项", () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。"))),
             Card(Stack(Heading("报告与后台运行"), folder, Action("浏览……", PickFolder), startup,
                 Row(interval, Action("应用间隔", async () =>
@@ -587,6 +616,7 @@ sealed class MainWindow : Window
             host = mailHost.Text, port, security = mailSecurity.SelectedIndex == 1 ? "starttls" : "ssl",
             username = mailUsername.Text, mail_folder = mailFolder.Text, mail_auth = mailAuth.SelectedIndex == 1 ? "oauth2" : "password" });
         mailSecret.Password = "";
+        await ReloadMailboxes();
     }
     async Task SaveAI()
     {
@@ -690,6 +720,7 @@ sealed class MainWindow : Window
             provider.SelectedIndex = Text("ai_provider") == "codex" ? 1 : 0;
             interval.Text = config.GetProperty("interval").ToString();
             startup.IsOn = config.TryGetProperty("autostart", out var auto) && auto.GetBoolean();
+            await ReloadMailboxes();
             initialized = true;
             detail.Text = "无新邮件不调用 AI。关闭窗口后会继续在托盘运行。";
             await Refresh();
@@ -732,10 +763,11 @@ sealed class MainWindow : Window
             authentication.SelectedIndex = preset.TryGetProperty("mail_auth", out var auth) && auth.GetString() == "oauth2" ? 1 : 0;
         };
         var error = Note("");
+        var advanced = Stack(username, mailboxFolder, authentication); advanced.Visibility = Visibility.Collapsed;
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = "欢迎使用邮件小秘书",
             PrimaryButtonText = "保存邮箱", CloseButtonText = "稍后填写",
             Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), secret,
-                new Expander { Header = "高级连接选项", Content = Stack(username, mailboxFolder, authentication) },
+                Action("高级连接选项", () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。"), error) } };
         dialog.PrimaryButtonClick += async (_, e) =>
         {
@@ -762,6 +794,33 @@ sealed class MainWindow : Window
         // Return through the dispatcher after the native dialog callback unwinds.
         await Task.Yield();
     }
+    async Task ReloadMailboxes()
+    {
+        var config = await bridge.Call("config");
+        loadingMailboxes = true;
+        try {
+            mailboxProfiles.Clear(); savedMailboxes.Items.Clear();
+            string Text(string key) => config.TryGetProperty(key, out var value) ? value.GetString() ?? "" : "";
+            var selected = -1;
+            foreach (var profile in config.GetProperty("mailboxes").EnumerateArray()) {
+                var index = mailboxProfiles.Count; mailboxProfiles.Add(profile.Clone());
+                var enabled = !profile.TryGetProperty("monitor_enabled", out var flag) || flag.GetBoolean();
+                savedMailboxes.Items.Add(profile.GetProperty("account").GetString() + (enabled ? " · 已启用" : " · 已暂停"));
+                if (profile.GetProperty("account").GetString() == Text("account") &&
+                    (!profile.TryGetProperty("host", out var host) || host.GetString() == Text("host"))) selected = index;
+            }
+            savedMailboxes.SelectedIndex = selected;
+            account.Text = Text("account"); mailSecret.Password = "";
+            var preset = Text("mail_provider");
+            mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == (preset.Length == 0 ? "163" : preset));
+            mailHost.Text = Text("host").Length == 0 ? "imap.163.com" : Text("host");
+            mailPort.Text = config.TryGetProperty("port", out var port) ? port.ToString() : "993";
+            mailUsername.Text = Text("username"); mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
+            mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
+            mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0;
+        }
+        finally { loadingMailboxes = false; }
+    }
     void Restore() { AppWindow.Show(); Activate(); }
     async Task Exit()
     {
@@ -781,7 +840,10 @@ sealed class MainWindow : Window
     async Task SelfTest()
     {
         var checks = new List<string>();
-        void Check(bool ok, string label) { if (!ok) throw new InvalidOperationException(label); checks.Add(label); }
+        void Check(bool ok, string label) {
+            if (!ok) throw new InvalidOperationException(label);
+            checks.Add(label); Program.Trace("Passed: " + label);
+        }
         async Task ReportsReady(int count)
         {
             await Refresh();
@@ -901,6 +963,7 @@ sealed class MainWindow : Window
                 Capture(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "-settings.png"));
             }
             navigation.SelectedIndex = 0;
+            Program.Trace("Opening first-run dialog");
             await Onboard(true);
             checks.Add("First-run native account dialog renders");
             File.WriteAllText(testResult!, JsonSerializer.Serialize(new { ok = true, checks }, new JsonSerializerOptions { WriteIndented = true }));

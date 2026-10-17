@@ -119,7 +119,40 @@ def remove_shortcuts(folder, places=None):
         pythoncom.CoUninitialize()
 
 
-def cleanup_installation(folder, data, delete_saved_reports, progress, registry_name='BensonMail', shortcut_places=None):
+def clear_user_data(data, keep_configuration=False):
+    """Retain only settings and encrypted credentials, never cached email bodies."""
+    data = Path(data)
+    if data.is_symlink():
+        data.unlink()
+        return
+    if not data.exists():
+        return
+    keep = {'config.json', 'secret.bin', 'mail-secrets', 'api-keys'} if keep_configuration else set()
+    for path in data.iterdir():
+        junction = hasattr(path, 'is_junction') and path.is_junction()
+        if path.name in keep and not path.is_symlink() and not junction:
+            if path.is_file() or path.name in ('mail-secrets', 'api-keys'):
+                if path.is_dir():
+                    for child in path.iterdir():
+                        if child.is_file() and not child.is_symlink() and child.suffix == '.bin':
+                            continue
+                        if child.is_dir() and not child.is_symlink():
+                            shutil.rmtree(child)
+                        else:
+                            child.unlink()
+                continue
+        if path.is_dir() and not path.is_symlink() and not junction:
+            shutil.rmtree(path)
+        elif junction:
+            path.rmdir()
+        else:
+            path.unlink()
+    if not keep_configuration:
+        data.rmdir()
+
+
+def cleanup_installation(folder, data, delete_saved_reports, progress, registry_name='BensonMail', shortcut_places=None,
+                         keep_configuration=False):
     from . import platform_windows as platform
     folder = installation(folder)
     if Path(sys.executable).resolve().is_relative_to(folder):
@@ -136,14 +169,11 @@ def cleanup_installation(folder, data, delete_saved_reports, progress, registry_
     platform.set_autostart(False, registry_name)
     progress('正在清理指向本次安装的快捷方式…')
     remove_shortcuts(folder, shortcut_places)
-    progress('正在清理配置、加密密钥和缓存…')
-    if data.is_symlink():
-        data.unlink()
-    elif data.exists():
-        shutil.rmtree(data)
+    progress('正在保留邮箱及 AI 配置、清理缓存…' if keep_configuration else '正在清理配置、加密密钥和缓存…')
+    clear_user_data(data, keep_configuration)
     progress('正在删除程序目录…')
     shutil.rmtree(folder)
-    if folder.exists() or data.exists():
+    if folder.exists() or (data.exists() and not keep_configuration):
         raise OSError('部分目录仍然存在，请关闭占用它们的程序后重试。')
 
 
@@ -182,7 +212,8 @@ def fixture_data(folder):
     return parent / 'user-data'
 
 
-def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_reports=False, fixture_result=None):
+def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_reports=False, fixture_result=None,
+         keep_configuration=False):
     import tkinter as tk
     from tkinter import ttk, messagebox
     from . import platform_windows as platform
@@ -198,15 +229,31 @@ def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_report
     from .app_icon import apply_window_icon
     apply_window_icon(root)
     root.title('卸载邮件小秘书')
-    root.geometry('660x470')
+    root.geometry('720x580')
     root.resizable(False, False)
-    frame = ttk.Frame(root, padding=22)
+    root.configure(background='#f3f3f3')
+    style = ttk.Style(root)
+    style.theme_use('clam')
+    root.option_add('*Font', '{Microsoft YaHei UI} 10')
+    style.configure('.', background='#f3f3f3', foreground='#202020', font=('Microsoft YaHei UI', 10))
+    style.configure('TButton', background='#ffffff', padding=(18, 8), borderwidth=1)
+    style.map('TButton', background=[('active', '#e9e9e9')])
+    style.configure('Accent.TButton', background='#0067c0', foreground='#ffffff')
+    style.map('Accent.TButton', background=[('active', '#005aab'), ('disabled', '#c5c5c5')])
+    style.configure('TCheckbutton', padding=(0, 8))
+    style.configure('TProgressbar', background='#0067c0', troughcolor='#e5e5e5')
+    frame = ttk.Frame(root, padding=28)
     frame.pack(fill='both', expand=True)
     ttk.Label(frame, text='卸载邮件小秘书', font=('Microsoft YaHei UI', 18)).pack(anchor='w')
-    ttk.Label(frame, text='请先从右下角托盘退出邮件小秘书。\n将删除本次程序目录、设置、加密密钥、缓存、自启动项及相关快捷方式。',
+    ttk.Label(frame, text='请先从右下角托盘退出邮件小秘书。\n删除程序、缓存、自启动项及快捷方式；您可以选择保留配置，方便下次安装。',
               wraplength=610).pack(anchor='w', pady=12)
     ttk.Label(frame, text=f'程序目录：{folder}\n数据目录：{data}', wraplength=610).pack(anchor='w', pady=8)
     delete_reports = tk.BooleanVar(value=delete_saved_reports)
+    keep_config = tk.BooleanVar(value=keep_configuration)
+    preserve_checkbox = ttk.Checkbutton(frame, text='保留邮箱及 AI 配置，下次重装不用再配置', variable=keep_config)
+    preserve_checkbox.pack(anchor='w')
+    ttk.Label(frame, text='配置和加密密钥仅供本机同一 Windows 用户使用。缓存会清除，重装后重新记录收信起点。',
+              wraplength=650).pack(anchor='w')
     checkbox = ttk.Checkbutton(frame, text='同时删除当前保存目录中的邮件报告及邮件索引', variable=delete_reports)
     checkbox.pack(anchor='w')
     ttk.Label(frame, text=f'报告目录：{reports or "未配置"}\n只删除可识别的报告和索引，保留其他文件及自选根目录。',
@@ -219,7 +266,7 @@ def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_report
     controls.pack(side='bottom', fill='x', pady=12)
     cancel = ttk.Button(controls, text='取消', command=root.destroy)
     cancel.pack(side='right', padx=10)
-    action = ttk.Button(controls, text='卸载并清理')
+    action = ttk.Button(controls, text='卸载', style='Accent.TButton')
     action.pack(side='right')
     events = queue.Queue()
     active = False
@@ -238,6 +285,7 @@ def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_report
         nonlocal active
         active = True
         checkbox.configure(state='disabled')
+        preserve_checkbox.configure(state='disabled')
         action.configure(state='disabled')
         cancel.configure(state='disabled')
         bar.start(12)
@@ -253,7 +301,8 @@ def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_report
             cleanup_installation(folder, data, delete_saved_reports,
                                  lambda text: events.put(('progress', text)),
                                  registry_name='BensonMail-UninstallFixture' if fixture_result else 'BensonMail',
-                                 shortcut_places=[folder.parent / 'shortcuts'] if fixture_result else None)
+                                 shortcut_places=[folder.parent / 'shortcuts'] if fixture_result else None,
+                                 keep_configuration=keep_configuration)
             events.put(('done', None))
         except Exception as error:
             events.put(('error', f'{type(error).__name__}：{error}'))
@@ -302,6 +351,8 @@ def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_report
                 args = [str(value), '--uninstall-worker', str(folder), '--parent-pid', str(os.getpid())]
                 if delete_reports.get():
                     args.append('--delete-reports')
+                if keep_config.get():
+                    args.append('--keep-configuration')
                 if fixture_result:
                     args += ['--fixture-result', str(fixture_result)]
                 try:
@@ -319,7 +370,8 @@ def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_report
                     instance.close()
                     instance = None
                 success = event == 'done'
-                status.set('卸载完成：程序目录、配置、密钥、缓存和自启动项已清理。' if success else '卸载未完成：' + value)
+                status.set(('卸载完成：已保留邮箱及 AI 配置，缓存和程序已清理。' if keep_configuration else
+                            '卸载完成：程序目录、配置、密钥、缓存和自启动项已清理。') if success else '卸载未完成：' + value)
                 root.title('卸载完成' if success else '卸载未完成')
                 action.configure(text='完成' if success else '关闭', command=root.destroy, state='normal')
                 cancel.pack_forget()
@@ -331,6 +383,16 @@ def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_report
     action.configure(command=start)
     root.protocol('WM_DELETE_WINDOW', lambda: None if active else root.destroy())
     root.after(100, poll)
+    def windows_corners():
+        try:
+            from ctypes import wintypes
+            ctypes.windll.user32.GetParent.restype = wintypes.HWND
+            hwnd = ctypes.windll.user32.GetParent(root.winfo_id())
+            preference = ctypes.c_int(2)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), 33, ctypes.byref(preference), 4)
+        except (OSError, AttributeError):
+            pass
+    root.after(50, windows_corners)
     if test_result:
         def verify_ui():
             root.update_idletasks()
@@ -361,9 +423,10 @@ def cli():
     parser.add_argument('--uninstall-worker')
     parser.add_argument('--parent-pid', type=int, default=0)
     parser.add_argument('--delete-reports', action='store_true')
+    parser.add_argument('--keep-configuration', action='store_true')
     parser.add_argument('--e2e-test')
     parser.add_argument('--fixture-result')
     args = parser.parse_args()
     return main(test_result=args.uninstall_ui_test, worker_folder=args.uninstall_worker,
                 parent_pid=args.parent_pid, delete_saved_reports=args.delete_reports,
-                fixture_result=args.fixture_result or args.e2e_test)
+                fixture_result=args.fixture_result or args.e2e_test, keep_configuration=args.keep_configuration)

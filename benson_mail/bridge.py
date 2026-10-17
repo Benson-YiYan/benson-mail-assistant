@@ -11,6 +11,8 @@ from .ai_api import complete, identity
 from .core import Service, IMAPMailbox, save_json
 from .report_index import report_entry, matches
 from .mailbox_config import PRESETS, normalize, mailbox_id
+MAIL_FIELDS = ('account', 'username', 'host', 'port', 'security', 'mail_folder', 'mail_auth',
+               'mail_provider', 'secret_binding', 'mail_secret_file')
 
 
 class Controller:
@@ -24,6 +26,7 @@ class Controller:
         self.emit = emit
         self.launcher = launcher
         self.service = None
+        self.services = {}
         self.shutting_down = False
         self.config_lock = threading.Lock()
 
@@ -32,7 +35,48 @@ class Controller:
             save_json(self.path, dict(self.config))
 
     def active(self):
-        return bool(self.service and self.service.thread and self.service.thread.is_alive())
+        return any(s.thread and s.thread.is_alive() for s in self.all_services())
+
+    def all_services(self):
+        return list({id(s): s for s in [self.service, *self.services.values()] if s is not None}.values())
+
+    def profiles(self):
+        if 'mailboxes' not in self.config:
+            self.config['mailboxes'] = (
+                [{**{k: self.config[k] for k in MAIL_FIELDS if k in self.config}, 'monitor_enabled': True}]
+                if self.config.get('account') else [])
+        return self.config['mailboxes']
+
+    def mailbox_secret(self, config):
+        path = self.root / config.get('mail_secret_file', 'secret.bin')
+        if not path.resolve().is_relative_to(self.root.resolve()):
+            raise ValueError('邮箱密钥路径无效。')
+        return platform.load_secret(path, config.get('secret_binding') or config['account']) if path.exists() else ''
+
+    def start_profile(self, profile, key):
+        identifier = mailbox_id(profile)
+        existing = self.services.get(identifier)
+        if existing and existing.thread and existing.thread.is_alive():
+            if existing.cancel.is_set():
+                raise ValueError('监听正在停止，请稍候再开始。')
+            return
+        config = {**self.config, **profile}
+        secret = self.mailbox_secret(config)
+        if not secret:
+            raise ValueError('请先保存该邮箱的登录凭据。')
+        def event(value):
+            value = {**value, 'mailbox_id': identifier, 'account': profile['account']}
+            if value.get('detail'):
+                value['detail'] = profile['account'] + ' · ' + value['detail']
+            if value.get('status') == '已暂停' and any(
+                    key != identifier and s.thread and s.thread.is_alive() and not s.cancel.is_set()
+                    for key, s in self.services.items()):
+                value['status'] = '运行中'
+            self.emit({'event': value})
+        service = Service(config, secret, self.root / 'state', event, api_key=key)
+        self.services[identifier] = service
+        self.service = service
+        service.start()
 
     def paused(self):
         if self.active():
@@ -73,14 +117,52 @@ class Controller:
         if name == 'config':
             if self.launcher and self.config.get('autostart'):
                 platform.set_autostart(True, launcher=self.launcher)
-            return {**self.config, 'running': self.active(),
+            return {**self.config, 'mailboxes': [{**p, 'id': mailbox_id(p)} for p in self.profiles()], 'running': self.active(),
                     'output_dir': self.config.get('output_dir') or str(platform.documents_dir() / '邮件'),
-                    'has_mail_secret': self.secret_path().exists()}
+                    'has_mail_secret': bool(self.config.get('account')) and self.secret_path().exists()}
         if name == 'mail_presets':
             return PRESETS
+        if name == 'select_mail':
+            profiles = self.profiles()
+            selected = next((p for p in profiles if mailbox_id(p) == data.get('id')), None)
+            if data.get('id') and selected is None:
+                raise ValueError('找不到此邮箱。')
+            for field in MAIL_FIELDS:
+                self.config.pop(field, None)
+            if selected:
+                self.config.update({k: selected[k] for k in MAIL_FIELDS if k in selected})
+            self.persist()
+            return '已选择邮箱。' if selected else '请填写新邮箱；已有邮箱继续保留。'
+        if name in ('mail_enabled', 'remove_mail'):
+            profile = next((p for p in self.profiles() if mailbox_id(p) == data.get('id')), None)
+            if profile is None:
+                raise ValueError('找不到此邮箱。')
+            identifier = mailbox_id(profile)
+            service = self.services.get(identifier)
+            if service:
+                service.stop()
+                service.join()
+            if name == 'remove_mail':
+                self.config['mailboxes'].remove(profile)
+                if self.config.get('account') and mailbox_id(self.config) == identifier:
+                    for field in MAIL_FIELDS:
+                        self.config.pop(field, None)
+                    if self.profiles():
+                        self.config.update({k: self.profiles()[0][k] for k in MAIL_FIELDS if k in self.profiles()[0]})
+            else:
+                profile['monitor_enabled'] = bool(data['enabled'])
+                if profile['monitor_enabled'] and self.config.get('enabled'):
+                    key = self.api_key() if self.config.get('ai_provider') == 'api' else ''
+                    self.start_profile(profile, key)
+            self.persist()
+            return '已移除邮箱，历史报告保留。' if name == 'remove_mail' else '已更新此邮箱监听状态。'
         if name == 'save_mail':
             self.paused()
+            profiles = self.profiles()
+            previous_id = mailbox_id(self.config) if self.config.get('account') else None
             connection = normalize(data)
+            if any(mailbox_id(p) == mailbox_id(connection) and mailbox_id(p) != previous_id for p in profiles):
+                raise ValueError('这个邮箱连接已存在，请从已添加邮箱中选择。')
             account = connection['account']
             secret = data.get('secret', '')
             changed = not self.config.get('account') or mailbox_id(connection) != mailbox_id(self.config)
@@ -101,6 +183,8 @@ class Controller:
             platform.set_autostart(bool(data.get('autostart')), launcher=self.launcher)
             self.config.update(**connection, output_dir=output,
                                autostart=bool(data.get('autostart')))
+            saved = {**{k: self.config[k] for k in MAIL_FIELDS if k in self.config}, 'monitor_enabled': True}
+            self.config['mailboxes'] = [p for p in profiles if mailbox_id(p) != previous_id] + [saved]
             self.persist()
             return '邮箱设置已保存。'
         if name == 'save_ai':
@@ -127,8 +211,8 @@ class Controller:
             if not 10 <= seconds <= 86400:
                 raise ValueError('检查间隔应为10至86400秒。')
             self.config['interval'] = seconds
-            if self.service:
-                self.service.set_interval(seconds)
+            for service in self.all_services():
+                service.set_interval(seconds)
             self.persist()
             return f'已设置每{seconds}秒检查；无新邮件不调用 AI。'
         if name == 'codex':
@@ -165,25 +249,29 @@ class Controller:
                 if self.service.cancel.is_set():
                     raise ValueError('监听正在停止，请稍候再开始。')
                 return '监听已在运行。'
-            secret = self.secret()
-            if not secret or not self.config.get('output_dir'):
+            profiles = [p for p in self.profiles() if p.get('monitor_enabled', True)]
+            if not profiles or not self.config.get('output_dir'):
                 raise ValueError('请先保存邮箱授权码并选择报告文件夹。')
             key = self.api_key() if self.config.get('ai_provider') == 'api' else ''
             if not key and self.config.get('ai_provider') == 'api':
                 raise ValueError('请先配置 AI。')
             if self.config.get('ai_provider') == 'codex' and not self.config.get('codex_command'):
                 raise ValueError('请先选择 Codex 命令行程序。')
-            self.service = Service(dict(self.config), secret, self.root / 'state', self.event, api_key=key)
+            for profile in profiles:
+                if not self.mailbox_secret(profile):
+                    raise ValueError('请补充所有启用邮箱的登录凭据。')
             self.config['enabled'] = True
             self.persist()
-            self.service.start()
+            for profile in profiles:
+                self.start_profile(profile, key)
             return '已开始监听。'
         if name in ('pause', 'shutdown'):
             self.shutting_down = name == 'shutdown'
-            if self.service:
-                self.service.stop()
-                if name == 'shutdown':
-                    self.service.join()
+            for service in self.all_services():
+                service.stop()
+            if name == 'shutdown':
+                for service in self.all_services():
+                    service.join()
             if name == 'pause':
                 self.config['enabled'] = False
             self.persist()
@@ -191,7 +279,9 @@ class Controller:
         if name == 'check':
             if not self.active():
                 raise ValueError('请先开始监听。')
-            self.service.request_check()
+            for service in self.all_services():
+                if not service.cancel.is_set():
+                    service.request_check()
             return '已请求立即检查。'
         if name == 'reports':
             output = self.config.get('output_dir')
@@ -252,7 +342,8 @@ def run(launcher=None, fixture=None):
                 detail = str(error) if isinstance(error, (ValueError, RuntimeError)) else f'{type(error).__name__}：操作失败，请检查设置与文件权限。'
                 emit({'id': request.get('id'), 'ok': False, 'error': detail})
     finally:
-        if controller.service:
-            controller.shutting_down = True
-            controller.service.stop()
-            controller.service.join()
+        controller.shutting_down = True
+        for service in controller.all_services():
+            service.stop()
+        for service in controller.all_services():
+            service.join()
