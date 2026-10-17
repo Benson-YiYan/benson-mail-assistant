@@ -13,6 +13,7 @@ $uninstaller = 'dist/BensonMail/Uninstall.exe'
 Move-Item $legacyExe $uninstaller -Force
 Copy-Item dist/MailWorker/* dist/BensonMail/ -Recurse -Force
 Copy-Item dist/native/* dist/BensonMail/ -Recurse -Force
+Copy-Item dist/BensonMail/BensonMail.exe dist/BensonMail/Uninstall.exe -Force
 New-Item -ItemType Directory -Force dist/BensonMail/assets | Out-Null
 Copy-Item assets/mail.ico dist/BensonMail/assets/mail.ico -Force
 $chinaZone = [TimeZoneInfo]::FindSystemTimeZoneById('China Standard Time')

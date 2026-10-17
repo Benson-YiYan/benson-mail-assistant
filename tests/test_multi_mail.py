@@ -28,6 +28,38 @@ class FakeService:
 
 
 class MultipleMailTests(unittest.TestCase):
+    def test_native_uninstaller_stages_its_entire_runtime_outside_target(self):
+        import contextlib
+        import io
+        import shutil
+        import sys
+        from unittest.mock import Mock
+        from benson_mail.uninstall import native_cli
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            program = root / 'BensonMail-202610171200'
+            (program / '_internal').mkdir(parents=True)
+            name = 'Uninstall-BensonMail-202610171200.exe'
+            (program / name).write_bytes(b'synthetic-apphost')
+            (program / 'BensonMail.dll').write_bytes(b'synthetic-native-runtime')
+            (program / 'MailWorker.exe').write_bytes(b'synthetic-worker')
+            output = io.StringIO()
+            instance = Mock(already_running=False)
+            args = ['main.py', '--uninstall-native', 'prepare', '--target', str(program), '--executable', name]
+            with patch.object(sys, 'argv', args), patch.dict('os.environ', {'LOCALAPPDATA': temporary}), \
+                 patch('benson_mail.platform_windows.SingleInstance', return_value=instance), \
+                 contextlib.redirect_stdout(output):
+                self.assertEqual(native_cli(), 0)
+            helper = Path(json.loads(output.getvalue().splitlines()[-1])['result']['helper'])
+            try:
+                self.assertFalse(helper.is_relative_to(program.resolve()))
+                self.assertEqual((helper.parent / 'BensonMail.dll').read_bytes(), b'synthetic-native-runtime')
+                self.assertTrue((helper.parent / 'MailWorker.exe').exists())
+                self.assertTrue(program.exists())
+            finally:
+                shutil.rmtree(helper.parent)
+            instance.close.assert_called_once()
+
     def test_two_mailboxes_same_uid_and_subject_export_without_overwrite(self):
         from concurrent.futures import ThreadPoolExecutor
         from datetime import datetime, timezone

@@ -457,3 +457,67 @@ def cli():
     return main(test_result=args.uninstall_ui_test, worker_folder=args.uninstall_worker,
                 parent_pid=args.parent_pid, delete_saved_reports=args.delete_reports,
                 fixture_result=args.fixture_result or args.e2e_test, keep_configuration=args.keep_configuration)
+
+
+def native_cli():
+    """Native WinUI owns the window; this redirected worker only stages or cleans."""
+    from . import platform_windows as platform
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--uninstall-native', choices=['info', 'prepare', 'cleanup', 'remove-helper'], required=True)
+    parser.add_argument('--target')
+    parser.add_argument('--executable')
+    parser.add_argument('--parent-pid', type=int, default=0)
+    parser.add_argument('--fixture-result')
+    parser.add_argument('--delete-reports', action='store_true')
+    parser.add_argument('--keep-configuration', action='store_true')
+    args = parser.parse_args()
+    def emit(kind, value):
+        print(json.dumps({kind: value}, ensure_ascii=False), flush=True)
+    instance = None
+    try:
+        if args.uninstall_native == 'remove-helper':
+            schedule_helper_removal()
+            return 0
+        folder = installation(args.target)
+        data = fixture_data(folder) if args.fixture_result else Path(os.environ['LOCALAPPDATA']) / 'BensonMail'
+        if args.uninstall_native == 'info':
+            try:
+                config = json.loads((data / 'config.json').read_text(encoding='utf-8'))
+            except (ValueError, OSError):
+                config = {}
+            emit('result', {'data': str(data), 'reports': config.get('output_dir', ''), 'target': str(folder)})
+            return 0
+        if args.uninstall_native == 'cleanup':
+            emit('progress', '正在等待原卸载窗口退出…')
+            wait_for_parent(args.parent_pid)
+        instance = platform.SingleInstance()
+        if instance.already_running:
+            raise RuntimeError('邮件小秘书仍在运行，请先从右下角托盘退出，再重新卸载。')
+        if args.uninstall_native == 'prepare':
+            name = Path(args.executable or '').name
+            if not re.fullmatch(r'Uninstall-BensonMail-\d{12}\.exe', name):
+                raise ValueError('卸载程序文件名不符合版本命名。')
+            emit('progress', '正在准备独立卸载组件，请稍候…')
+            temporary = Path(tempfile.mkdtemp(prefix='BensonMail-uninstall-'))
+            try:
+                shutil.copytree(folder, temporary, dirs_exist_ok=True)
+                (temporary / '.benson-uninstall-helper').write_text('temporary runtime', encoding='utf-8')
+                emit('result', {'helper': str(temporary / name)})
+            except Exception:
+                shutil.rmtree(temporary, ignore_errors=True)
+                raise
+        else:
+            cleanup_installation(folder, data, args.delete_reports, lambda text: emit('progress', text),
+                                 registry_name='BensonMail-UninstallFixture' if args.fixture_result else 'BensonMail',
+                                 shortcut_places=[folder.parent / 'shortcuts'] if args.fixture_result else None,
+                                 keep_configuration=args.keep_configuration)
+            emit('result', {'ok': True})
+        return 0
+    except Exception as error:
+        emit('error', f'{type(error).__name__}：{error}')
+        return 1
+    finally:
+        if instance:
+            instance.close()

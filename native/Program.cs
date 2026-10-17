@@ -18,6 +18,7 @@ namespace BensonMail;
 internal static class Program
 {
     internal static string[] Args = Array.Empty<string>();
+    internal static bool Uninstall => Path.GetFileName(Environment.ProcessPath ?? "").StartsWith("Uninstall-BensonMail-", StringComparison.OrdinalIgnoreCase);
     internal static void Trace(string stage)
     {
         var index = Array.IndexOf(Args, "--self-test");
@@ -31,7 +32,7 @@ internal static class Program
         Trace("Main");
         Forms.WindowsFormsSynchronizationContext.AutoInstall = false;
         WinRT.ComWrappersSupport.InitializeComWrappers();
-        using var mutex = new Mutex(false, @"Local\BensonMail-" + Environment.UserName, out var created);
+        using var mutex = new Mutex(false, Uninstall ? null : @"Local\BensonMail-" + Environment.UserName, out var created);
         if (!created) { Forms.MessageBox.Show("邮件小秘书已经运行，请点击任务栏右下角的信封。"); return; }
         try
         {
@@ -55,7 +56,7 @@ internal static class Program
 
 public sealed partial class MailApp : Application
 {
-    MainWindow? window;
+    Window? window;
     public MailApp()
     {
         Program.Trace("App constructor");
@@ -76,7 +77,7 @@ public sealed partial class MailApp : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         Program.Trace("OnLaunched");
-        window = new MainWindow();
+        window = Program.Uninstall ? new UninstallWindow() : new MainWindow();
         window.Activate();
         Program.Trace("Activated");
     }

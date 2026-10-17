@@ -143,6 +143,9 @@ def self_test(result_path,screenshot):
     return 0 if result['ok'] else 1
 
 def main():
+    if '--uninstall-native' in sys.argv:
+        from benson_mail.uninstall import native_cli
+        return native_cli()
     if '--bridge' in sys.argv:
         parser=argparse.ArgumentParser()
         parser.add_argument('--bridge',action='store_true')
