@@ -57,7 +57,81 @@ class WindowsTests(unittest.TestCase):
             self.assertFalse(created.exists())
             self.assertTrue(original.exists())
 
+    def test_four_portable_links_migrate_upgrade_and_user_deletion(self):
+        import json
+        import pythoncom
+        from win32com.shell import shell
+        from benson_mail.uninstall import remove_shortcuts
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); desktop = root / 'Desktop'; programs = root / 'Programs'
+            desktop.mkdir(); programs.mkdir()
+            first = root / 'old' / 'BensonMail-202610170900.exe'
+            second = root / 'new' / 'BensonMail-202610171300.exe'
+            for main in (first, second):
+                main.parent.mkdir(); main.write_bytes(b'app')
+                (main.parent / main.name.replace('BensonMail-', 'Uninstall-BensonMail-')).write_bytes(b'uninstaller')
+            unrelated = root / 'other.exe'; unrelated.write_bytes(b'other')
+            collision = platform.create_shortcut(unrelated, '邮件小秘书', desktop)
+            legacy = platform.create_desktop_shortcut(first, desktop=desktop)
+            marker = root / 'desktop-shortcut.json'
+            marker.write_text(json.dumps({'launcher': str(first.resolve())}))
+            self.assertTrue(platform.ensure_portable_shortcuts(first, marker, desktop, programs))
+            recorded = json.loads(marker.read_text())
+            self.assertEqual(len(recorded['links']), 4)
+            self.assertEqual(len(list(desktop.glob('*.lnk'))), 3)
+            self.assertEqual(len(list(programs.glob('*.lnk'))), 2)
+            Path(recorded['links'][0]).unlink()
+            self.assertFalse(platform.ensure_portable_shortcuts(first, marker, desktop, programs))
+            self.assertFalse(Path(recorded['links'][0]).exists())
+            self.assertTrue(platform.ensure_portable_shortcuts(second, marker, desktop, programs))
+            pythoncom.CoInitialize()
+            try:
+                for index, path in enumerate(json.loads(marker.read_text())['links']):
+                    link = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER, shell.IID_IShellLink)
+                    link.QueryInterface(pythoncom.IID_IPersistFile).Load(path)
+                    expected = second if index % 2 == 0 else platform.matching_uninstaller(second)
+                    self.assertEqual(Path(link.GetPath(shell.SLGP_RAWPATH)[0]).resolve(), expected.resolve())
+            finally:
+                pythoncom.CoUninitialize()
+            corrupt = programs / 'unrelated-broken.lnk'; corrupt.write_bytes(b'not a shortcut')
+            legacy_folder = programs / '邮件小秘书'; legacy_folder.mkdir()
+            platform.create_shortcut(second, '邮件小秘书', legacy_folder)
+            remove_shortcuts(second.parent, [desktop, programs])
+            self.assertFalse(legacy_folder.exists())
+            self.assertTrue(corrupt.exists() and collision.exists() and desktop.exists() and programs.exists())
+            self.assertEqual(list(desktop.glob('*.lnk')), [collision])
+            self.assertEqual(list(programs.glob('*.lnk')), [corrupt])
+
+    def test_installed_apps_registration_belongs_to_matching_installation(self):
+        import winreg
+        name = 'BensonMail-UninstallRegistrationUnitTest'
+        path = r'Software\Microsoft\Windows\CurrentVersion\Uninstall' + '\\' + name
+        with tempfile.TemporaryDirectory() as temporary:
+            old = Path(temporary) / 'old'; new = Path(temporary) / 'new'
+            try:
+                with winreg.CreateKey(winreg.HKEY_CURRENT_USER, path) as key:
+                    winreg.SetValueEx(key, 'InstallLocation', 0, winreg.REG_SZ, str(new))
+                platform.remove_uninstall_registration(old, name)
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path):
+                    pass
+                platform.remove_uninstall_registration(new, name)
+                with self.assertRaises(FileNotFoundError):
+                    winreg.OpenKey(winreg.HKEY_CURRENT_USER, path)
+            finally:
+                try: winreg.DeleteKey(winreg.HKEY_CURRENT_USER, path)
+                except FileNotFoundError: pass
+
 class DiscoveryTests(unittest.TestCase):
+    def test_installer_marker_prevents_all_automatic_shortcuts(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); launcher = root / 'BensonMail-202610171300.exe'
+            launcher.write_bytes(b'app'); (root / '.benson-installed.json').write_text('{"installed":true}')
+            with patch.object(platform, 'create_shortcut') as create:
+                self.assertFalse(platform.ensure_portable_shortcuts(launcher, root / 'marker.json'))
+                create.assert_not_called()
+            self.assertFalse((root / 'marker.json').exists())
+
     def test_reject_gui_and_cmd_without_runtime(self):
         from unittest.mock import patch
         import subprocess

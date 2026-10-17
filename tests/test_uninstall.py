@@ -4,7 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from benson_mail.uninstall import report_files, remove_reports, installation, copy_runtime, cleanup_installation
+from benson_mail.uninstall import report_files, remove_reports, installation, copy_runtime, cleanup_installation, remove_empty_archive_wrapper, clear_user_data
 
 
 class UninstallTests(unittest.TestCase):
@@ -32,6 +32,42 @@ class UninstallTests(unittest.TestCase):
             self.assertTrue(other.exists())
             self.assertTrue(outside.exists())
 
+    def test_remove_empty_owned_dates_and_keep_selected_report_root(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / 'chosen'; root.mkdir()
+            (root / '2026-10-17').mkdir()
+            (root / 'other-empty-user-folder').mkdir()
+            self.assertEqual(remove_reports(root), 0)
+            self.assertFalse((root / '2026-10-17').exists())
+            self.assertTrue(root.exists() and (root / 'other-empty-user-folder').exists())
+
+    def test_remove_only_empty_same_version_explorer_wrapper(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            wrapper = root / 'BensonMail-Windows-x64-202610171300'; wrapper.mkdir()
+            self.assertTrue(remove_empty_archive_wrapper(wrapper / 'BensonMail-202610171300'))
+            wrapper.mkdir(); unrelated = wrapper / 'keep.txt'; unrelated.write_text('keep')
+            self.assertFalse(remove_empty_archive_wrapper(wrapper / 'BensonMail-202610171300'))
+            self.assertTrue(unrelated.exists())
+            unrelated.unlink()
+            self.assertFalse(remove_empty_archive_wrapper(wrapper / 'BensonMail-202610171301'))
+            self.assertTrue(wrapper.exists())
+            for name in ('Desktop', 'Downloads', 'Documents'):
+                selected = root / name; selected.mkdir()
+                self.assertFalse(remove_empty_archive_wrapper(selected / 'BensonMail-202610171300'))
+                self.assertTrue(selected.exists())
+
+    def test_keep_configuration_prunes_empty_owned_directories(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / 'data'; root.mkdir()
+            (root / 'config.json').write_text('{"ui_language":"en"}')
+            (root / 'api-keys').mkdir(); (root / 'mail-secrets').mkdir()
+            clear_user_data(root, True)
+            self.assertEqual({p.name for p in root.iterdir()}, {'config.json'})
+            (root / 'config.json').unlink()
+            clear_user_data(root, True)
+            self.assertFalse(root.exists())
+
     def test_refuses_arbitrary_program_directory(self):
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaises(ValueError):
@@ -40,6 +76,16 @@ class UninstallTests(unittest.TestCase):
             program.mkdir()
             with self.assertRaises(ValueError):
                 installation(program)
+
+    def test_installed_marker_authorizes_custom_installation_folder(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary) / '自选安装位置'; (folder / '_internal').mkdir(parents=True)
+            marker = folder / '.benson-installed.json'
+            for contents in ('broken', '{"installed":false}', '[]'):
+                marker.write_text(contents)
+                with self.assertRaises(ValueError): installation(folder)
+            marker.write_text('{"installed":true}')
+            self.assertEqual(installation(folder), folder.resolve())
 
     def test_stage_runtime_outside_installation(self):
         with tempfile.TemporaryDirectory() as temporary:

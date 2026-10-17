@@ -16,7 +16,12 @@ import uuid
 
 def installation(path):
     folder = Path(path).resolve()
-    if not re.fullmatch(r'BensonMail(?:-\d{12})?', folder.name) or not (folder / '_internal').is_dir():
+    installed = False
+    try:
+        installed = json.loads((folder / '.benson-installed.json').read_text(encoding='utf-8')).get('installed') is True
+    except (OSError, ValueError, AttributeError):
+        pass
+    if not (folder / '_internal').is_dir() or not (installed or re.fullmatch(r'BensonMail(?:-\d{12})?', folder.name)):
         raise ValueError('程序目录名称或结构不符，请手动删除当前解压文件夹。')
     return folder
 
@@ -51,7 +56,12 @@ def remove_reports(directory):
     files = report_files(directory)
     for path in files:
         path.unlink(missing_ok=True)
-    for folder in {p.parent for p in files}:
+    root = Path(directory).resolve()
+    folders = {p.parent for p in files}
+    if root.is_dir():
+        folders.update(day for day in root.iterdir() if re.fullmatch(r'\d{4}-\d{2}-\d{2}', day.name)
+                       and not day.is_symlink() and not (hasattr(day, 'is_junction') and day.is_junction()))
+    for folder in folders:
         try:
             folder.rmdir()
         except OSError:
@@ -105,17 +115,31 @@ def remove_shortcuts(folder, places=None):
                 shellcon.CSIDL_DESKTOPDIRECTORY, shellcon.CSIDL_STARTMENU, shellcon.CSIDL_STARTUP)]
             places.append(str(Path(os.environ['APPDATA']) / 'Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar'))
         for place in set(map(str, places)):
-            if not place or not Path(place).is_dir():
+            root = Path(place)
+            if not place or not root.is_dir():
                 continue
-            for link in Path(place).rglob('*.lnk'):
+            removed_parents = set()
+            for link in root.rglob('*.lnk'):
                 if link.is_symlink():
                     continue
-                shortcut = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER,
-                                                      shell.IID_IShellLink)
-                shortcut.QueryInterface(pythoncom.IID_IPersistFile).Load(str(link))
-                target = shortcut.GetPath(shell.SLGP_RAWPATH)[0]
-                if target and Path(target).resolve().parent == Path(folder).resolve():
+                try:
+                    shortcut = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER,
+                                                          shell.IID_IShellLink)
+                    shortcut.QueryInterface(pythoncom.IID_IPersistFile).Load(str(link))
+                    target = shortcut.GetPath(shell.SLGP_RAWPATH)[0]
+                except (pythoncom.com_error, OSError):
+                    continue  # An unrelated broken link must not prevent uninstall.
+                if (target and Path(target).resolve().parent == Path(folder).resolve()
+                        and re.fullmatch(r'(?:BensonMail(?:-\d{12})?|Uninstall(?:-BensonMail-\d{12})?)\.exe',
+                                         Path(target).name, re.IGNORECASE)):
                     link.unlink()
+                    removed_parents.add(link.parent)
+            for parent in sorted(removed_parents, key=lambda p: len(p.parts), reverse=True):
+                if parent != root and parent.name in ('邮件小秘书', 'BensonMail', 'Mail Secretary'):
+                    try:
+                        parent.rmdir()
+                    except OSError:
+                        pass
     finally:
         pythoncom.CoUninitialize()
 
@@ -144,6 +168,10 @@ def clear_user_data(data, keep_configuration=False):
                             shutil.rmtree(child)
                         else:
                             child.unlink()
+                    try:
+                        path.rmdir()
+                    except OSError:
+                        pass
                 continue
         if path.is_dir() and not path.is_symlink() and not junction:
             shutil.rmtree(path)
@@ -153,6 +181,11 @@ def clear_user_data(data, keep_configuration=False):
             path.unlink()
     if not keep_configuration:
         data.rmdir()
+    else:
+        try:
+            data.rmdir()  # No retained configuration means no reason to leave an empty root.
+        except OSError:
+            pass
 
 
 def cleanup_installation(folder, data, delete_saved_reports, progress, registry_name='BensonMail', shortcut_places=None,
@@ -169,6 +202,12 @@ def cleanup_installation(folder, data, delete_saved_reports, progress, registry_
     if delete_saved_reports and config.get('output_dir'):
         progress('正在删除选中的邮件报告…')
         remove_reports(config['output_dir'])
+        report_root = Path(config['output_dir']).resolve()
+        if report_root == (platform.documents_dir() / '邮件').resolve():
+            try:
+                report_root.rmdir()
+            except OSError:
+                pass
     elif config.get('output_dir'):
         report_root = Path(config['output_dir']).resolve()
         if report_root.is_relative_to(folder) or report_root.is_relative_to(data.resolve()):
@@ -187,14 +226,29 @@ def cleanup_installation(folder, data, delete_saved_reports, progress, registry_
                 progress('已将程序或数据目录中的报告保留到：' + str(preserved))
     progress('正在清理自启动注册表项…')
     platform.set_autostart(False, registry_name)
+    platform.remove_uninstall_registration(folder, registry_name)
     progress('正在清理指向本次安装的快捷方式…')
     remove_shortcuts(folder, shortcut_places)
     progress('正在保留邮箱及 AI 配置、清理缓存…' if keep_configuration else '正在清理配置、加密密钥和缓存…')
     clear_user_data(data, keep_configuration)
     progress('正在删除程序目录…')
     shutil.rmtree(folder)
+    remove_empty_archive_wrapper(folder)
     if folder.exists() or (data.exists() and not keep_configuration):
         raise OSError('部分目录仍然存在，请关闭占用它们的程序后重试。')
+
+
+def remove_empty_archive_wrapper(folder):
+    """Explorer Extract All adds this known same-version wrapper around old ZIPs."""
+    folder = Path(folder)
+    match = re.fullmatch(r'BensonMail-(\d{12})', folder.name)
+    if not match or folder.parent.name != 'BensonMail-Windows-x64-' + match.group(1):
+        return False
+    try:
+        folder.parent.rmdir()  # Never remove siblings, user files, or arbitrary ancestors.
+        return True
+    except OSError:
+        return False
 
 
 def schedule_helper_removal():

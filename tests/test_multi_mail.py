@@ -173,6 +173,7 @@ class MultipleMailTests(unittest.TestCase):
             documents = root / 'documents'
             documents.mkdir()
             with patch('benson_mail.platform_windows.set_autostart'), \
+                 patch('benson_mail.platform_windows.remove_uninstall_registration'), \
                  patch('benson_mail.platform_windows.documents_dir', return_value=documents), \
                  patch('benson_mail.uninstall.remove_shortcuts'):
                 cleanup_installation(program, data, False, lambda _: None, keep_configuration=True)

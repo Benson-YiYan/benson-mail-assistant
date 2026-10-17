@@ -47,8 +47,8 @@ def startup_command(launcher=None):
     if launcher: return subprocess.list2cmdline([str(launcher),'--background'])
     return subprocess.list2cmdline([sys.executable]+([] if getattr(sys,'frozen',False) else [str(Path(__file__).resolve().parent.parent/'main.py')])+['--background'])
 
-def create_desktop_shortcut(launcher, previous=None, desktop=None):
-    """Use the redirected Windows desktop and preserve unrelated shortcuts."""
+def create_shortcut(launcher, label, destination_folder, previous=None):
+    """Create or update our target without overwriting another application link."""
     require_windows()
     import pythoncom
     from win32com.shell import shell, shellcon
@@ -57,13 +57,12 @@ def create_desktop_shortcut(launcher, previous=None, desktop=None):
         raise FileNotFoundError('找不到邮件小秘书主程序')
     pythoncom.CoInitialize()
     try:
-        desktop = Path(desktop) if desktop else Path(shell.SHGetFolderPath(
-            0, shellcon.CSIDL_DESKTOPDIRECTORY, None, 0))
+        desktop = Path(destination_folder)
         desktop.mkdir(parents=True, exist_ok=True)
         number = 1
         while True:
-            label = '邮件小秘书' if number == 1 else f'邮件小秘书 ({number})'
-            destination = desktop / (label + '.lnk')
+            candidate = label if number == 1 else f'{label} ({number})'
+            destination = desktop / (candidate + '.lnk')
             link = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER,
                                              shell.IID_IShellLink)
             if destination.exists():
@@ -79,12 +78,77 @@ def create_desktop_shortcut(launcher, previous=None, desktop=None):
             link.SetPath(str(launcher))
             link.SetArguments('')
             link.SetWorkingDirectory(str(launcher.parent))
-            link.SetDescription('邮件小秘书')
+            link.SetDescription(label)
             link.SetIconLocation(str(launcher), 0)
             link.QueryInterface(pythoncom.IID_IPersistFile).Save(str(destination), 1)
             return destination
     finally:
         pythoncom.CoUninitialize()
+
+def create_desktop_shortcut(launcher, previous=None, desktop=None):
+    require_windows()
+    from win32com.shell import shell, shellcon
+    desktop = desktop or shell.SHGetFolderPath(0, shellcon.CSIDL_DESKTOPDIRECTORY, None, 0)
+    return create_shortcut(launcher, '邮件小秘书', desktop, previous)
+
+
+def matching_uninstaller(launcher):
+    """Never pair a versioned app with an uninstaller from a different release."""
+    import re
+    launcher = Path(launcher).resolve()
+    match = re.fullmatch(r'BensonMail-(\d{12})\.exe', launcher.name, re.IGNORECASE)
+    name = 'Uninstall-BensonMail-' + match.group(1) + '.exe' if match else 'Uninstall.exe'
+    target = launcher.parent / name
+    if not target.is_file():
+        raise FileNotFoundError('找不到此版本的邮件小秘书卸载程序')
+    return target
+
+
+def ensure_portable_shortcuts(launcher, marker, desktop=None, programs=None):
+    """Migrate legacy portable installs once. Installed editions use installer choices."""
+    launcher = Path(launcher).resolve()
+    if (launcher.parent / '.benson-installed.json').is_file():
+        return False
+    marker = Path(marker)
+    try:
+        recorded = json.loads(marker.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        recorded = {}
+    if recorded.get('schema') == 2 and recorded.get('launcher') == str(launcher):
+        return False  # A user deleting a shortcut must not cause it to reappear.
+    require_windows()
+    from win32com.shell import shell, shellcon
+    desktop = Path(desktop or shell.SHGetFolderPath(0, shellcon.CSIDL_DESKTOPDIRECTORY, None, 0))
+    programs = Path(programs or shell.SHGetFolderPath(0, shellcon.CSIDL_PROGRAMS, None, 0))
+    previous = recorded.get('launcher')
+    old_uninstaller = None
+    if previous:
+        import re
+        match = re.fullmatch(r'BensonMail-(\d{12})\.exe', Path(previous).name, re.IGNORECASE)
+        old_uninstaller = Path(previous).parent / ('Uninstall-BensonMail-' + match.group(1) + '.exe' if match else 'Uninstall.exe')
+    uninstaller = matching_uninstaller(launcher)
+    created = []
+    for place in (desktop, programs):
+        created.append(str(create_shortcut(launcher, '邮件小秘书', place, previous)))
+        created.append(str(create_shortcut(uninstaller, '卸载邮件小秘书', place, old_uninstaller)))
+    from .core import save_json
+    save_json(marker, {'schema': 2, 'launcher': str(launcher), 'links': created})
+    return True
+
+
+def remove_uninstall_registration(folder, name='BensonMail'):
+    """An old release must never remove a newer release's Installed Apps entry."""
+    require_windows()
+    import winreg
+    key_path = r'Software\Microsoft\Windows\CurrentVersion\Uninstall' + '\\' + name
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+            location = winreg.QueryValueEx(key, 'InstallLocation')[0]
+    except FileNotFoundError:
+        return
+    if Path(location).resolve() == Path(folder).resolve():
+        winreg.DeleteKey(winreg.HKEY_CURRENT_USER, key_path)
+
 
 def set_autostart(enabled,name=APP_NAME,launcher=None):
     require_windows(); import winreg
