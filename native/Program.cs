@@ -71,6 +71,7 @@ public sealed partial class MailApp : Application
             }
         };
         InitializeComponent();
+        Resources["ContentControlThemeFontFamily"] = MailTypography.Font;
         Program.Trace("Control resources");
     }
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -180,17 +181,17 @@ public sealed class Report
 
 sealed class MainWindow : Window
 {
-    readonly Grid layout = new();
+    readonly Grid layout = new() { UseLayoutRounding = true, Language = "zh-CN" };
     readonly ListView navigation = new() { SelectionMode = ListViewSelectionMode.Single,
         BorderThickness = new Thickness(0), Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
     readonly Grid pages = new() { Padding = new Thickness(24, 12, 24, 20) };
     readonly Grid reportPage = new() { RowSpacing = 16 };
     readonly Grid mailPage = new();
     readonly Grid aiPage = new();
-    readonly TextBlock pageTitle = new() { Text = "邮件报告", FontSize = 28, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-    readonly TextBlock reportCount = new() { Opacity = .65, VerticalAlignment = VerticalAlignment.Center };
-    readonly TextBlock status = new() { Text = "已暂停", FontSize = 23, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-    readonly TextBlock detail = new() { Text = "正在加载设置…", TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock pageTitle = new() { FontFamily = MailTypography.Font, Text = "邮件报告", FontSize = 28, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+    readonly TextBlock reportCount = new() { FontFamily = MailTypography.Font, Opacity = .65, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock status = new() { FontFamily = MailTypography.Font, Text = "已暂停", FontSize = 23, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+    readonly TextBlock detail = new() { FontFamily = MailTypography.Font, Text = "正在加载设置…", TextWrapping = TextWrapping.Wrap };
     readonly TextBox account = new() { Header = "163 邮箱地址", PlaceholderText = "name@163.com" };
     readonly PasswordBox mailSecret = new() { Header = "POP3/IMAP/SMTP 授权码", PlaceholderText = "留空保留已有授权码" };
     readonly TextBox folder = new() { Header = "报告保存文件夹" };
@@ -237,7 +238,9 @@ sealed class MainWindow : Window
         AppWindow.Move(new PointInt32(area.X + 20, area.Y + 20));
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico"));
         SystemBackdrop = new MicaBackdrop();
-        Content = layout;
+        Content = new ContentControl { Content = layout, FontFamily = MailTypography.Font, FontSize = 14,
+            Language = "zh-CN", UseLayoutRounding = true, IsTabStop = false,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch };
         BuildLeft();
         Program.Trace("Left controls");
         BuildRight();
@@ -245,9 +248,12 @@ sealed class MainWindow : Window
         foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model,
             apiKey, interval, search, sender, from, to, attachment })
         {
+            field.FontFamily = MailTypography.Font;
             field.CornerRadius = new CornerRadius(4);
             field.BorderThickness = new Thickness(1);
         }
+        foreach (var control in new Control[] { preview, toggle, check, startup, navigation, reports })
+            control.FontFamily = MailTypography.Font;
         tray = new Forms.NotifyIcon
         {
             Text = "邮件小秘书", Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico")),
@@ -271,7 +277,7 @@ sealed class MainWindow : Window
         bridge.Event += ev => DispatcherQueue.TryEnqueue(() => { if (!exitRequested) HandleEvent(ev); });
         layout.Loaded += async (_, _) => await Initialize();
     }
-    static TextBlock Note(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Opacity = .7, FontSize = 12 };
+    static TextBlock Note(string text) => new() { FontFamily = MailTypography.Font, Text = text, TextWrapping = TextWrapping.Wrap, Opacity = .7, FontSize = 12 };
     static StackPanel Stack(params UIElement[] children)
     {
         var stack = new StackPanel { Spacing = 10 };
@@ -280,7 +286,7 @@ sealed class MainWindow : Window
     }
     Button Action(string text, Func<Task> action)
     {
-        var button = new Button { Content = text, CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 7, 12, 7) };
+        var button = new Button { FontFamily = MailTypography.Font, Content = text, CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 7, 12, 7) };
         button.Click += async (_, _) => { if (exitRequested) return; button.IsEnabled = false; try { await action(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; } finally { if (!exitRequested) button.IsEnabled = true; } };
         return button;
     }
@@ -326,7 +332,7 @@ sealed class MainWindow : Window
         Update();
         return card;
     }
-    static TextBlock Heading(string text) => new() { Text = text, FontSize = 18,
+    static TextBlock Heading(string text) => new() { FontFamily = MailTypography.Font, Text = text, FontSize = 18,
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
     void ShowPage(int index)
     {
@@ -338,12 +344,12 @@ sealed class MainWindow : Window
     void BuildLeft()
     {
         var brand = Row(new SymbolIcon(Symbol.Mail) { Margin = new Thickness(4, 0, 0, 0) },
-            new TextBlock { Text = "邮件小秘书", FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            new TextBlock { FontFamily = MailTypography.Font, Text = "邮件小秘书", FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center });
         foreach (var (label, symbol) in new[] { ("邮件报告", Symbol.Mail), ("邮箱与检查", Symbol.Setting), ("AI 服务", Symbol.Message) })
         {
             navigation.Items.Add(new ListViewItem { Content = Row(new SymbolIcon(symbol) { Width = 20 },
-                new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center }),
+                new TextBlock { FontFamily = MailTypography.Font, Text = label, VerticalAlignment = VerticalAlignment.Center }),
                 Padding = new Thickness(12, 12, 12, 12), CornerRadius = new CornerRadius(4),
                 Margin = new Thickness(0, 2, 0, 2), HorizontalContentAlignment = HorizontalAlignment.Stretch });
         }
@@ -421,7 +427,7 @@ sealed class MainWindow : Window
         for (int i = 0; i < 4; i++) dates.ColumnDefinitions.Add(new ColumnDefinition());
         dates.Children.Add(sender); Grid.SetColumn(from, 1); dates.Children.Add(from);
         Grid.SetColumn(to, 2); dates.Children.Add(to); Grid.SetColumn(attachment, 3); dates.Children.Add(attachment);
-        filters = new Flyout { Content = Stack(new TextBlock { Text = "筛选邮件", FontSize = 18 }, dates,
+        filters = new Flyout { Content = Stack(new TextBlock { FontFamily = MailTypography.Font, Text = "筛选邮件", FontSize = 18 }, dates,
             Row(Action("应用筛选", async () => { await Refresh(); if (!exitRequested) filters.Hide(); }), Action("重置", async () =>
             { search.Text = sender.Text = ""; from.Date = to.Date = null; attachment.SelectedIndex = 0; await Refresh(); }),
             reportCount)) };
@@ -431,7 +437,8 @@ sealed class MainWindow : Window
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.Children.Add(search);
-        filterButton = new Button { Content = Row(new SymbolIcon(Symbol.Filter) { Width = 16 }, new TextBlock { Text = "筛选" }),
+        filterButton = new Button { FontFamily = MailTypography.Font, Content = Row(new SymbolIcon(Symbol.Filter) { Width = 16 },
+            new TextBlock { FontFamily = MailTypography.Font, Text = "筛选" }),
             CornerRadius = new CornerRadius(4), Flyout = filters };
         Grid.SetColumn(filterButton, 1); toolbar.Children.Add(filterButton);
         var refreshButton = Action("刷新", Refresh); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
@@ -537,10 +544,10 @@ sealed class MainWindow : Window
             var report = new Report(row.GetProperty("path").GetString()!, row.GetProperty("title").GetString()!,
                 row.GetProperty("sender").GetString()!, row.GetProperty("time").GetString()!,
                 row.GetProperty("attachments").ValueKind == JsonValueKind.Null ? null : row.GetProperty("attachments").GetBoolean());
-            var lines = Stack(new TextBlock { Text = report.title, FontSize = 15,
+            var lines = Stack(new TextBlock { FontFamily = MailTypography.Font, Text = report.title, FontSize = 15,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
-                new TextBlock { Text = report.sender, FontSize = 12, Opacity = .7, TextTrimming = TextTrimming.CharacterEllipsis },
-                new TextBlock { Text = report.time, FontSize = 12, Opacity = .55 });
+                new TextBlock { FontFamily = MailTypography.Font, Text = report.sender, FontSize = 12, Opacity = .7, TextTrimming = TextTrimming.CharacterEllipsis },
+                new TextBlock { FontFamily = MailTypography.Font, Text = report.time, FontSize = 12, Opacity = .55 });
             lines.Spacing = 6;
             var item = new ListViewItem { Tag = report, Content = lines,
                 Padding = new Thickness(12), CornerRadius = new CornerRadius(4),
@@ -607,10 +614,10 @@ sealed class MainWindow : Window
     }
     async Task Onboard(bool testing = false)
     {
-        var address = new TextBox { Header = "163 邮箱地址", Text = account.Text };
-        var secret = new PasswordBox { Header = "POP3/IMAP/SMTP 授权码" };
+        var address = new TextBox { FontFamily = MailTypography.Font, Header = "163 邮箱地址", Text = account.Text };
+        var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = "POP3/IMAP/SMTP 授权码" };
         var error = Note("");
-        var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = "欢迎使用邮件小秘书",
+        var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = "欢迎使用邮件小秘书",
             PrimaryButtonText = "保存邮箱", CloseButtonText = "稍后填写", Content = Stack(address, secret,
             Note("在163邮箱设置中启用 IMAP，并生成授权码。报告目录可在设置里点“浏览……”选择。"), error) };
         dialog.PrimaryButtonClick += async (_, e) =>
@@ -670,6 +677,22 @@ sealed class MainWindow : Window
                     localWinUI = module.FileName.StartsWith(AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase);
             }
             Check(localRuntime && localWinUI, "Uses bundled .NET and WinUI runtimes");
+            Check(pageTitle.FontFamily.Source == MailTypography.FontStack &&
+                preview.FontFamily.Source == MailTypography.FontStack && account.FontFamily.Source == MailTypography.FontStack,
+                "Windows UI font stack applied to headings, controls and report text");
+            Check(Forms.SystemInformation.IsFontSmoothingEnabled, "Font smoothing enabled on screenshot desktop");
+            using (var installed = new System.Drawing.Text.InstalledFontCollection())
+            {
+                var families = new List<string>();
+                foreach (var family in installed.Families) families.Add(family.Name);
+                File.WriteAllText(Path.ChangeExtension(testResult!, ".typography.json"), JsonSerializer.Serialize(new
+                {
+                    font_stack = MailTypography.FontStack,
+                    font_smoothing = Forms.SystemInformation.IsFontSmoothingEnabled,
+                    rasterization_scale = layout.XamlRoot.RasterizationScale,
+                    installed_families = families
+                }, new JsonSerializerOptions { WriteIndented = true }));
+            }
             var runtime = await bridge.Call("runtime_info");
             Check(!runtime.GetProperty("console_visible").GetBoolean(), "Packaged mail worker runs without a visible console window");
             Check(reports.Items.Count == 1, "Native WinUI 3 window receives synthetic reports through packaged worker");
