@@ -191,8 +191,16 @@ sealed class MainWindow : Window
     readonly TextBlock reportCount = new() { Opacity = .65, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock status = new() { Text = "已暂停", FontSize = 23, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
     readonly TextBlock detail = new() { Text = "正在加载设置…", TextWrapping = TextWrapping.Wrap };
-    readonly TextBox account = new() { Header = "163 邮箱地址", PlaceholderText = "name@163.com" };
-    readonly PasswordBox mailSecret = new() { Header = "POP3/IMAP/SMTP 授权码", PlaceholderText = "留空保留已有授权码" };
+    readonly TextBox account = new() { Header = "邮箱地址", PlaceholderText = "name@example.com" };
+    readonly PasswordBox mailSecret = new() { Header = "密码／授权码／OAuth2 访问令牌", PlaceholderText = "连接信息未变时可留空保留" };
+    readonly ComboBox mailProvider = new() { Header = "邮箱服务商", HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly TextBox mailHost = new() { Header = "IMAP 收件服务器", Text = "imap.163.com" };
+    readonly TextBox mailPort = new() { Header = "端口", Text = "993" };
+    readonly ComboBox mailSecurity = new() { Header = "连接加密", HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly ComboBox mailAuth = new() { Header = "登录方式", HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly TextBox mailUsername = new() { Header = "登录用户名（可选）", PlaceholderText = "留空使用邮箱地址" };
+    readonly TextBox mailFolder = new() { Header = "邮件文件夹", Text = "INBOX" };
+    readonly List<JsonElement> mailPresets = new();
     readonly TextBox folder = new() { Header = "报告保存文件夹" };
     readonly ToggleSwitch startup = new() { Header = "登录 Windows 后自动启动", OnContent = "开启", OffContent = "关闭" };
     readonly ComboBox provider = new() { Header = "分析方式", HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -264,7 +272,8 @@ sealed class MainWindow : Window
         foreach (var text in new[] { pageTitle, reportCount, status, detail })
             text.FontFamily = MailTypography.Font;
         foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model,
-            apiKey, interval, search, sender, from, to, attachment })
+            apiKey, interval, search, sender, from, to, attachment, mailProvider, mailHost, mailPort,
+            mailSecurity, mailAuth, mailUsername, mailFolder })
         {
             field.FontFamily = MailTypography.Font;
             field.CornerRadius = new CornerRadius(4);
@@ -447,12 +456,25 @@ sealed class MainWindow : Window
         var main = new Border { Child = shell, Padding = new Thickness(28, 16, 24, 20) };
         Grid.SetColumn(main, 1); layout.Children.Add(main);
         provider.Items.Add("API · 无需安装 Codex"); provider.Items.Add("Codex · 已安装并登录");
+        mailSecurity.Items.Add("SSL/TLS"); mailSecurity.Items.Add("STARTTLS"); mailSecurity.SelectedIndex = 0;
+        mailAuth.Items.Add("密码／客户端授权码"); mailAuth.Items.Add("OAuth2 访问令牌"); mailAuth.SelectedIndex = 0;
+        mailProvider.SelectionChanged += (_, _) =>
+        {
+            if (mailProvider.SelectedIndex < 0 || mailProvider.SelectedIndex >= mailPresets.Count) return;
+            var preset = mailPresets[mailProvider.SelectedIndex];
+            if (preset.GetProperty("id").GetString() == "custom") return;
+            mailHost.Text = preset.GetProperty("host").GetString() ?? "";
+            mailPort.Text = "993"; mailSecurity.SelectedIndex = 0;
+            mailAuth.SelectedIndex = preset.TryGetProperty("mail_auth", out var auth) && auth.GetString() == "oauth2" ? 1 : 0;
+        };
         mailSaveButton = Action("保存邮箱设置", SaveMail);
         aiSaveButton = Action("保存 AI 设置", SaveAI);
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
         mailPage.Children.Add(SettingsPage(Stack(
-            Card(Stack(Heading("邮箱账号"), account, mailSecret,
-                Note("在 163 邮箱中启用 IMAP，使用邮箱授权码。授权码由 Windows 加密保存。"))),
+            Card(Stack(Heading("邮箱连接"), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
+                new Expander { Header = "高级连接选项", HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Content = Stack(mailUsername, mailFolder, mailAuth) },
+                Note("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。"))),
             Card(Stack(Heading("报告与后台运行"), folder, Action("浏览……", PickFolder), startup,
                 Row(interval, Action("应用间隔", async () =>
                 {
@@ -558,8 +580,12 @@ sealed class MainWindow : Window
     }
     async Task SaveMail()
     {
+        if (!int.TryParse(mailPort.Text, out var port)) throw new InvalidOperationException("请输入有效的 IMAP 端口。");
         await Call("save_mail", new { account = account.Text, secret = mailSecret.Password,
-            output_dir = folder.Text, autostart = startup.IsOn });
+            output_dir = folder.Text, autostart = startup.IsOn,
+            mail_provider = mailProvider.SelectedIndex >= 0 ? mailPresets[mailProvider.SelectedIndex].GetProperty("id").GetString() : "custom",
+            host = mailHost.Text, port, security = mailSecurity.SelectedIndex == 1 ? "starttls" : "ssl",
+            username = mailUsername.Text, mail_folder = mailFolder.Text, mail_auth = mailAuth.SelectedIndex == 1 ? "oauth2" : "password" });
         mailSecret.Password = "";
     }
     async Task SaveAI()
@@ -643,10 +669,24 @@ sealed class MainWindow : Window
         try
         {
             var config = await bridge.Call("config");
+            var presets = await bridge.Call("mail_presets");
             if (exitRequested) return;
+            foreach (var preset in presets.EnumerateArray())
+            {
+                mailPresets.Add(preset.Clone());
+                mailProvider.Items.Add(preset.GetProperty("name").GetString());
+            }
             navigation.SelectedIndex = 0;
             string Text(string key) => config.TryGetProperty(key, out var value) ? value.GetString() ?? "" : "";
             account.Text = Text("account"); folder.Text = Text("output_dir"); apiBase.Text = Text("api_base"); model.Text = Text("api_model");
+            var presetId = Text("mail_provider");
+            mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() ==
+                (presetId.Length == 0 ? (Text("host").Length == 0 || Text("host") == "imap.163.com" ? "163" : "custom") : presetId));
+            mailHost.Text = Text("host").Length == 0 ? "imap.163.com" : Text("host");
+            mailPort.Text = config.TryGetProperty("port", out var savedPort) ? savedPort.ToString() : "993";
+            mailUsername.Text = Text("username"); mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
+            mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
+            mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0;
             provider.SelectedIndex = Text("ai_provider") == "codex" ? 1 : 0;
             interval.Text = config.GetProperty("interval").ToString();
             startup.IsOn = config.TryGetProperty("autostart", out var auto) && auto.GetBoolean();
@@ -670,16 +710,44 @@ sealed class MainWindow : Window
     }
     async Task Onboard(bool testing = false)
     {
-        var address = new TextBox { FontFamily = MailTypography.Font, Header = "163 邮箱地址", Text = account.Text };
-        var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = "POP3/IMAP/SMTP 授权码" };
+        var address = new TextBox { FontFamily = MailTypography.Font, Header = "邮箱地址", Text = account.Text };
+        var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = "密码／授权码／OAuth2 访问令牌" };
+        var presetChoice = new ComboBox { Header = "邮箱服务商", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var host = new TextBox { Header = "IMAP 收件服务器", Text = mailHost.Text };
+        var port = new TextBox { Header = "端口", Text = mailPort.Text };
+        var username = new TextBox { Header = "登录用户名（可选）", PlaceholderText = "留空使用邮箱地址", Text = mailUsername.Text };
+        var mailboxFolder = new TextBox { Header = "邮件文件夹", Text = mailFolder.Text };
+        var encryption = new ComboBox { Header = "连接加密", HorizontalAlignment = HorizontalAlignment.Stretch };
+        encryption.Items.Add("SSL/TLS"); encryption.Items.Add("STARTTLS"); encryption.SelectedIndex = mailSecurity.SelectedIndex;
+        var authentication = new ComboBox { Header = "登录方式", HorizontalAlignment = HorizontalAlignment.Stretch };
+        authentication.Items.Add("密码／客户端授权码"); authentication.Items.Add("OAuth2 访问令牌"); authentication.SelectedIndex = mailAuth.SelectedIndex;
+        foreach (var preset in mailPresets) presetChoice.Items.Add(preset.GetProperty("name").GetString());
+        presetChoice.SelectedIndex = mailProvider.SelectedIndex;
+        presetChoice.SelectionChanged += (_, _) =>
+        {
+            if (presetChoice.SelectedIndex < 0) return;
+            var preset = mailPresets[presetChoice.SelectedIndex];
+            if (preset.GetProperty("id").GetString() == "custom") return;
+            host.Text = preset.GetProperty("host").GetString(); port.Text = "993"; encryption.SelectedIndex = 0;
+            authentication.SelectedIndex = preset.TryGetProperty("mail_auth", out var auth) && auth.GetString() == "oauth2" ? 1 : 0;
+        };
         var error = Note("");
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = "欢迎使用邮件小秘书",
-            PrimaryButtonText = "保存邮箱", CloseButtonText = "稍后填写", Content = Stack(address, secret,
-            Note("在163邮箱设置中启用 IMAP，并生成授权码。报告目录可在设置里点“浏览……”选择。"), error) };
+            PrimaryButtonText = "保存邮箱", CloseButtonText = "稍后填写",
+            Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), secret,
+                new Expander { Header = "高级连接选项", Content = Stack(username, mailboxFolder, authentication) },
+                Note("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。"), error) } };
         dialog.PrimaryButtonClick += async (_, e) =>
         {
             var deferral = e.GetDeferral();
-            try { account.Text = address.Text; mailSecret.Password = secret.Password; await SaveMail(); }
+            try {
+                mailProvider.SelectedIndex = presetChoice.SelectedIndex;
+                account.Text = address.Text; mailSecret.Password = secret.Password;
+                mailHost.Text = host.Text; mailPort.Text = port.Text; mailUsername.Text = username.Text;
+                mailFolder.Text = mailboxFolder.Text; mailSecurity.SelectedIndex = encryption.SelectedIndex;
+                mailAuth.SelectedIndex = authentication.SelectedIndex;
+                await SaveMail();
+            }
             catch (Exception ex) { e.Cancel = true; error.Text = ex.Message; }
             finally { deferral.Complete(); }
         };
@@ -733,6 +801,19 @@ sealed class MainWindow : Window
                     localWinUI = module.FileName.StartsWith(AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase);
             }
             Check(localRuntime && localWinUI, "Uses bundled .NET and WinUI runtimes");
+            Check(mailPresets.Count >= 10 && mailPresets.Exists(p => p.GetProperty("id").GetString() == "custom"),
+                "Common mailbox presets and custom IMAP available through bundled bridge");
+            var savedPreset = mailProvider.SelectedIndex;
+            mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "qq");
+            Check(mailHost.Text == "imap.qq.com" && mailPort.Text == "993", "QQ preset fills editable TLS server settings");
+            mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "custom");
+            mailHost.Text = "imap.example.invalid"; mailPort.Text = "1993";
+            mailUsername.Text = "synthetic-login"; mailFolder.Text = "Archive";
+            mailSecurity.SelectedIndex = 1; mailAuth.SelectedIndex = 1;
+            Check(mailHost.Text == "imap.example.invalid" && mailPort.Text == "1993" && mailFolder.Text == "Archive",
+                "Custom host port encryption login username folder and OAuth2 controls accept configuration");
+            mailProvider.SelectedIndex = savedPreset;
+            mailUsername.Text = ""; mailFolder.Text = "INBOX"; mailSecurity.SelectedIndex = 0; mailAuth.SelectedIndex = 0;
             Check(pageTitle.FontFamily.Source == MailTypography.FontStack &&
                 preview.FontFamily.Source == MailTypography.FontStack && account.FontFamily.Source == MailTypography.FontStack,
                 "Windows UI font stack applied to headings, controls and report text");
@@ -805,6 +886,11 @@ sealed class MainWindow : Window
             await Task.Delay(400);
             layout.UpdateLayout();
             Check(Visible(mailSaveButton), "Mail save button visible without scrolling");
+            if (screenArg >= 0)
+            {
+                var path = Program.Args[screenArg + 1];
+                Capture(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "-mailbox.png"));
+            }
             navigation.SelectedIndex = 2;
             await Task.Delay(400);
             layout.UpdateLayout();

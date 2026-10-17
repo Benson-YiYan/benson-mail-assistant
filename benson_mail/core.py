@@ -14,6 +14,7 @@ from datetime import datetime, timezone, timedelta
 from email import policy
 from pathlib import Path
 from xml.etree import ElementTree
+from .mailbox_config import connect, state_identity
 
 BEIJING = timezone(timedelta(hours=8))
 MAX_ATTACHMENT = 20 * 1024 * 1024
@@ -159,12 +160,8 @@ def export_report(directory, message, answer, uid, target=None):
 
 class IMAPMailbox:
     def __init__(self, config, secret):
-        self.client=imaplib.IMAP4_SSL(config.get('host','imap.163.com'),timeout=25)
-        self.client.login(config['account'],secret)
-        if 'ID' not in imaplib.Commands: imaplib.Commands['ID']=('AUTH','SELECTED')
-        self.client._simple_command('ID','("name" "BensonMail" "version" "1.0" "vendor" "Benson")')
-        status,_=self.client.select('INBOX',readonly=True)
-        if status!='OK': raise RuntimeError('无法读取收件箱')
+        from .ai_api import tls_context
+        self.client = connect(config, secret, context=tls_context())
     def snapshot(self):
         validity=self.client.response('UIDVALIDITY')[1][0].decode()
         status,data=self.client.uid('search',None,'ALL')
@@ -228,7 +225,7 @@ class Service:
     def __init__(self,config,secret,root,callback,mailbox=None,analyzer=None,api_key=''):
         self.config=dict(config); self.secret=secret; self.root=Path(root); self.callback=callback; self.mailbox=mailbox
         self.root.mkdir(parents=True,exist_ok=True)
-        identity=hashlib.sha256((config['account'].lower()+'|'+config.get('host','imap.163.com')).encode()).hexdigest()[:24]
+        identity=state_identity(config)
         self.identity=identity
         self.state_path=self.root/(identity+'.json'); self.state=json.loads(self.state_path.read_text(encoding='utf-8')) if self.state_path.exists() else {}
         self.analyzer=analyzer or (APIAnalyzer(config,api_key) if config.get('ai_provider','codex')=='api' else CodexAnalyzer(config.get('codex_command',[]),self.root))

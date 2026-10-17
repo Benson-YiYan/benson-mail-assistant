@@ -10,6 +10,7 @@ from . import platform_windows as platform
 from .ai_api import complete, identity
 from .core import Service, IMAPMailbox, save_json
 from .report_index import report_entry, matches
+from .mailbox_config import PRESETS, normalize, mailbox_id
 
 
 class Controller:
@@ -42,8 +43,14 @@ class Controller:
 
     def secret(self):
         account = self.config.get('account', '')
-        path = self.root / 'secret.bin'
-        return platform.load_secret(path, account) if account and path.exists() else ''
+        path = self.secret_path()
+        return platform.load_secret(path, self.config.get('secret_binding') or account) if account and path.exists() else ''
+
+    def secret_path(self):
+        path = self.root / self.config.get('mail_secret_file', 'secret.bin')
+        if not path.resolve().is_relative_to(self.root.resolve()):
+            raise ValueError('邮箱密钥路径无效。')
+        return path
 
     def api_key(self):
         path = self.key_path(self.config.get('api_base', ''))
@@ -68,23 +75,31 @@ class Controller:
                 platform.set_autostart(True, launcher=self.launcher)
             return {**self.config, 'running': self.active(),
                     'output_dir': self.config.get('output_dir') or str(platform.documents_dir() / '邮件'),
-                    'has_mail_secret': (self.root / 'secret.bin').exists()}
+                    'has_mail_secret': self.secret_path().exists()}
+        if name == 'mail_presets':
+            return PRESETS
         if name == 'save_mail':
             self.paused()
-            account = data.get('account', '').strip().lower()
-            if not re.fullmatch(r'[a-z0-9._%+\-]+@163\.com', account):
-                raise ValueError('请输入完整的163邮箱地址，例如 name@163.com。')
+            connection = normalize(data)
+            account = connection['account']
             secret = data.get('secret', '')
-            if not secret and (account != self.config.get('account') or not self.secret()):
-                raise ValueError('请填写 POP3/IMAP/SMTP 授权码。')
+            changed = not self.config.get('account') or mailbox_id(connection) != mailbox_id(self.config)
+            if not secret and (changed or not self.secret()):
+                raise ValueError('新邮箱或连接设置变更后，请重新填写密码、授权码或 OAuth2 访问令牌。')
             output = data.get('output_dir', '').strip()
             if not output:
                 raise ValueError('请选择报告保存文件夹。')
             Path(output).mkdir(parents=True, exist_ok=True)
             if secret:
-                platform.save_secret(self.root / 'secret.bin', account, secret)
+                binding = 'mailbox:' + mailbox_id(connection)
+                relative = 'mail-secrets/' + mailbox_id(connection) + '.bin'
+                path = self.root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                platform.save_secret(path, binding, secret)
+                self.config['secret_binding'] = binding
+                self.config['mail_secret_file'] = relative
             platform.set_autostart(bool(data.get('autostart')), launcher=self.launcher)
-            self.config.update(account=account, host='imap.163.com', output_dir=output,
+            self.config.update(**connection, output_dir=output,
                                autostart=bool(data.get('autostart')))
             self.persist()
             return '邮箱设置已保存。'
@@ -226,7 +241,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info'):
+                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})
