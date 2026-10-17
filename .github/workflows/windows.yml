@@ -38,7 +38,12 @@ jobs:
           $exe = (Get-ChildItem dist -Recurse -Filter 'BensonMail-*.exe' | Select-Object -First 1).FullName
           $process = Start-Process -FilePath $exe -ArgumentList @('--self-test', "`"$result`"", '--screenshot', "`"$screen`"") -PassThru
           if (!$process.WaitForExit(120000)) { Stop-Process -Id $process.Id -Force; throw 'Packaged EXE timed out' }
-          if ($process.ExitCode -ne 0) { throw "Packaged EXE failed: $($process.ExitCode)" }
+          if ($process.ExitCode -ne 0) {
+            Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-5)} -ErrorAction SilentlyContinue |
+              Select-Object -First 8 TimeCreated,ProviderName,Message |
+              ConvertTo-Json -Depth 3 | Set-Content evidence/native-crash-events.json
+            throw "Packaged EXE failed: $($process.ExitCode)"
+          }
           if (!(Test-Path $result)) { throw 'Missing packaged self-test evidence' }
           if (!(Get-Content $result -Raw | ConvertFrom-Json).ok) { throw 'Packaged result failed' }
           if (!(Test-Path $screen)) { throw 'Missing screenshot' }

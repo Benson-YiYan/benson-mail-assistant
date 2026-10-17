@@ -182,9 +182,8 @@ public sealed class Report
 sealed class MainWindow : Window
 {
     readonly Grid layout = new();
-    readonly NavigationView navigation = new() { PaneDisplayMode = NavigationViewPaneDisplayMode.Left,
-        OpenPaneLength = 200, IsBackButtonVisible = NavigationViewBackButtonVisible.Collapsed,
-        IsSettingsVisible = false, IsPaneOpen = true };
+    readonly ListView navigation = new() { SelectionMode = ListViewSelectionMode.Single,
+        BorderThickness = new Thickness(0), Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
     readonly Grid pages = new() { Padding = new Thickness(24, 12, 24, 20) };
     readonly Grid reportPage = new() { RowSpacing = 16 };
     readonly Grid mailPage = new();
@@ -338,20 +337,31 @@ sealed class MainWindow : Window
     }
     void BuildLeft()
     {
-        navigation.PaneHeader = Row(new SymbolIcon(Symbol.Mail) { Margin = new Thickness(12, 0, 0, 0) },
+        var brand = Row(new SymbolIcon(Symbol.Mail) { Margin = new Thickness(4, 0, 0, 0) },
             new TextBlock { Text = "邮件小秘书", FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center });
-        navigation.MenuItems.Add(new NavigationViewItem { Content = "邮件报告", Icon = new SymbolIcon(Symbol.Mail), Tag = 0 });
-        navigation.MenuItems.Add(new NavigationViewItem { Content = "邮箱与检查", Icon = new SymbolIcon(Symbol.Setting), Tag = 1 });
-        navigation.MenuItems.Add(new NavigationViewItem { Content = "AI 服务", Icon = new SymbolIcon(Symbol.Message), Tag = 2 });
-        navigation.PaneFooter = Stack(Action("打开报告文件夹", () =>
+        foreach (var (label, symbol) in new[] { ("邮件报告", Symbol.Mail), ("邮箱与检查", Symbol.Setting), ("AI 服务", Symbol.Message) })
+        {
+            navigation.Items.Add(new ListViewItem { Content = Row(new SymbolIcon(symbol) { Width = 20 },
+                new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center }),
+                Padding = new Thickness(12, 12, 12, 12), CornerRadius = new CornerRadius(4),
+                Margin = new Thickness(0, 2, 0, 2), HorizontalContentAlignment = HorizontalAlignment.Stretch });
+        }
+        var footer = Stack(Action("打开报告文件夹", () =>
         {
             Directory.CreateDirectory(folder.Text); Open(folder.Text); return Task.CompletedTask;
         }), Action("退出邮件小秘书", Exit), Note("无新邮件，不调用 AI。"));
-        navigation.SelectionChanged += (_, e) =>
+        navigation.SelectionChanged += (_, _) =>
         {
-            if (e.SelectedItem is NavigationViewItem item && item.Tag is int index) ShowPage(index);
+            if (navigation.SelectedIndex >= 0) ShowPage(navigation.SelectedIndex);
         };
+        var sidebar = new Grid { Padding = new Thickness(12, 20, 12, 16), RowSpacing = 24 };
+        sidebar.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        sidebar.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        sidebar.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        sidebar.Children.Add(brand);
+        Grid.SetRow(navigation, 1); sidebar.Children.Add(navigation);
+        Grid.SetRow(footer, 2); sidebar.Children.Add(footer);
         var shell = new Grid { RowSpacing = 16 };
         shell.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         shell.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -370,8 +380,11 @@ sealed class MainWindow : Window
         Grid.SetRow(pages, 2); shell.Children.Add(pages);
         pages.Padding = new Thickness(0);
         pages.Children.Add(reportPage); pages.Children.Add(mailPage); pages.Children.Add(aiPage);
-        navigation.Content = new Border { Child = shell, Padding = new Thickness(24, 12, 24, 20) };
-        layout.Children.Add(navigation);
+        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
+        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        layout.Children.Add(sidebar);
+        var main = new Border { Child = shell, Padding = new Thickness(24, 20, 24, 20) };
+        Grid.SetColumn(main, 1); layout.Children.Add(main);
         provider.Items.Add("API · 无需安装 Codex"); provider.Items.Add("Codex · 已安装并登录");
         mailSaveButton = Action("保存邮箱设置", SaveMail);
         aiSaveButton = Action("保存 AI 设置", SaveAI);
@@ -427,8 +440,7 @@ sealed class MainWindow : Window
         reading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
         reading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         reports.BorderThickness = new Thickness(0);
-        reports.ItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
-            """<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><StackPanel Padding="4,12" Spacing="6"><TextBlock Text="{Binding title}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding sender}" FontSize="12" Opacity="0.7" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding time}" FontSize="12" Opacity="0.55"/></StackPanel></DataTemplate>""");
+        reports.ItemTemplate = (DataTemplate)Application.Current.Resources["MailReportTemplate"];
         reading.Children.Add(Card(reports, 4));
         var article = new Grid { RowSpacing = 12 };
         article.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -562,7 +574,7 @@ sealed class MainWindow : Window
         {
             var config = await bridge.Call("config");
             if (exitRequested) return;
-            navigation.SelectedItem = navigation.MenuItems[0];
+            navigation.SelectedIndex = 0;
             string Text(string key) => config.TryGetProperty(key, out var value) ? value.GetString() ?? "" : "";
             account.Text = Text("account"); folder.Text = Text("output_dir"); apiBase.Text = Text("api_base"); model.Text = Text("api_model");
             provider.SelectedIndex = Text("ai_provider") == "codex" ? 1 : 0;
@@ -690,7 +702,7 @@ sealed class MainWindow : Window
             if (screenArg >= 0) Capture(Program.Args[screenArg + 1]);
             Check(layout.ActualWidth > 0 && preview.ActualHeight > 100 && reports.ActualHeight > 100,
                 "Native window, report list and preview rendered");
-            Check(navigation.IsPaneOpen && reportPage.Visibility == Visibility.Visible &&
+            Check(navigation.ActualWidth > 150 && navigation.SelectedIndex == 0 && reportPage.Visibility == Visibility.Visible &&
                 reports.ActualHeight > 250 && preview.ActualHeight > 250,
                 "Fluent navigation and full height side by side report reader");
             filters.ShowAt(filterButton);
@@ -703,11 +715,11 @@ sealed class MainWindow : Window
                 var point = button.TransformToVisual(layout).TransformPoint(new Windows.Foundation.Point(0, 0));
                 return button.ActualHeight > 0 && point.Y >= 0 && point.Y + button.ActualHeight <= layout.ActualHeight;
             }
-            navigation.SelectedItem = navigation.MenuItems[1];
+            navigation.SelectedIndex = 1;
             await Task.Delay(400);
             layout.UpdateLayout();
             Check(Visible(mailSaveButton), "Mail save button visible without scrolling");
-            navigation.SelectedItem = navigation.MenuItems[2];
+            navigation.SelectedIndex = 2;
             await Task.Delay(400);
             layout.UpdateLayout();
             Check(Visible(aiSaveButton), "AI save button visible without scrolling");
@@ -716,7 +728,7 @@ sealed class MainWindow : Window
                 var path = Program.Args[screenArg + 1];
                 Capture(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "-settings.png"));
             }
-            navigation.SelectedItem = navigation.MenuItems[0];
+            navigation.SelectedIndex = 0;
             await Onboard(true);
             checks.Add("First-run native account dialog renders");
             File.WriteAllText(testResult!, JsonSerializer.Serialize(new { ok = true, checks }, new JsonSerializerOptions { WriteIndented = true }));
