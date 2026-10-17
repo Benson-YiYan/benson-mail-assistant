@@ -163,7 +163,6 @@ sealed class Bridge : IDisposable
     }
 }
 
-[Microsoft.UI.Xaml.Data.Bindable]
 public sealed class Report
 {
     public string path { get; set; }
@@ -222,6 +221,7 @@ sealed class MainWindow : Window
     Flyout filters = null!;
     bool initialized, running, exiting, exitRequested;
     long reportGeneration, previewGeneration;
+    Report? SelectedReport => (reports.SelectedItem as ListViewItem)?.Tag as Report;
 
     public MainWindow()
     {
@@ -422,7 +422,7 @@ sealed class MainWindow : Window
         dates.Children.Add(sender); Grid.SetColumn(from, 1); dates.Children.Add(from);
         Grid.SetColumn(to, 2); dates.Children.Add(to); Grid.SetColumn(attachment, 3); dates.Children.Add(attachment);
         filters = new Flyout { Content = Stack(new TextBlock { Text = "筛选邮件", FontSize = 18 }, dates,
-            Row(Action("应用筛选", async () => { await Refresh(); filters.Hide(); }), Action("重置", async () =>
+            Row(Action("应用筛选", async () => { await Refresh(); if (!exitRequested) filters.Hide(); }), Action("重置", async () =>
             { search.Text = sender.Text = ""; from.Date = to.Date = null; attachment.SelectedIndex = 0; await Refresh(); }),
             reportCount)) };
         dates.Width = 600;
@@ -440,13 +440,12 @@ sealed class MainWindow : Window
         reading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
         reading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         reports.BorderThickness = new Thickness(0);
-        reports.ItemTemplate = (DataTemplate)Application.Current.Resources["MailReportTemplate"];
         reading.Children.Add(Card(reports, 4));
         var article = new Grid { RowSpacing = 12 };
         article.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         article.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         article.Children.Add(Row(Heading("邮件报告"), Action("打开 TXT", () =>
-            { if (reports.SelectedItem is Report report) Open(report.path); return Task.CompletedTask; })));
+            { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; })));
         preview.BorderThickness = new Thickness(0);
         preview.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         preview.FontSize = 14;
@@ -458,7 +457,7 @@ sealed class MainWindow : Window
         {
             var generation = ++previewGeneration;
             preview.Text = "";
-            if (reports.SelectedItem is Report report)
+            if (SelectedReport is Report report)
             {
                 var result = await bridge.Call("read_report", new { path = report.path });
                 if (!exitRequested && generation == previewGeneration) preview.Text = result.GetString() ?? "";
@@ -527,7 +526,7 @@ sealed class MainWindow : Window
         if (exitRequested) return;
         searchTimer.Stop();
         var generation = ++reportGeneration;
-        var selected = (reports.SelectedItem as Report)?.path;
+        var selected = SelectedReport?.path;
         var result = await bridge.Call("reports", new { query = search.Text, sender = sender.Text,
             start = from.Date?.ToString("yyyy-MM-dd") ?? "", end = to.Date?.ToString("yyyy-MM-dd") ?? "",
             attachments = attachment.SelectedItem?.ToString() ?? "全部" });
@@ -538,8 +537,16 @@ sealed class MainWindow : Window
             var report = new Report(row.GetProperty("path").GetString()!, row.GetProperty("title").GetString()!,
                 row.GetProperty("sender").GetString()!, row.GetProperty("time").GetString()!,
                 row.GetProperty("attachments").ValueKind == JsonValueKind.Null ? null : row.GetProperty("attachments").GetBoolean());
-            reports.Items.Add(report);
-            if (report.path == selected) reports.SelectedItem = report;
+            var lines = Stack(new TextBlock { Text = report.title, FontSize = 15,
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
+                new TextBlock { Text = report.sender, FontSize = 12, Opacity = .7, TextTrimming = TextTrimming.CharacterEllipsis },
+                new TextBlock { Text = report.time, FontSize = 12, Opacity = .55 });
+            lines.Spacing = 6;
+            var item = new ListViewItem { Tag = report, Content = lines,
+                Padding = new Thickness(12), CornerRadius = new CornerRadius(4),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            reports.Items.Add(item);
+            if (report.path == selected) reports.SelectedItem = item;
         }
         reportCount.Text = $"{reports.Items.Count} 封邮件";
     }
@@ -666,7 +673,7 @@ sealed class MainWindow : Window
             var runtime = await bridge.Call("runtime_info");
             Check(!runtime.GetProperty("console_visible").GetBoolean(), "Packaged mail worker runs without a visible console window");
             Check(reports.Items.Count == 1, "Native WinUI 3 window receives synthetic reports through packaged worker");
-            var report = (Report)reports.Items[0];
+            var report = (Report)((ListViewItem)reports.Items[0]).Tag;
             Check(report.title == "模拟合同检查" && report.time == "2026-10-17 09:15", "Subject and received time are separate");
             search.Text = "合同.pdf"; await ReportsReady(1);
             Check(reports.Items.Count == 1, "Attachment filename search");
