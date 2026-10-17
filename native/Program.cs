@@ -259,7 +259,7 @@ sealed class MainWindow : Window
         BuildLeft();
         Program.Trace("Left controls");
         BuildRight();
-        check.Style = (Style)Application.Current.Resources["MailSecondaryButtonStyle"];
+        Secondary(check);
         Program.Trace("Right controls");
         foreach (var text in new[] { pageTitle, reportCount, status, detail })
             text.FontFamily = MailTypography.Font;
@@ -296,6 +296,23 @@ sealed class MainWindow : Window
         layout.Loaded += async (_, _) => await Initialize();
     }
     static TextBlock Note(string text) => new() { FontFamily = MailTypography.Font, Text = text, TextWrapping = TextWrapping.Wrap, Opacity = .7, FontSize = 12 };
+    static void Secondary(Button button)
+    {
+        button.CornerRadius = new CornerRadius(4);
+        button.Padding = new Thickness(12, 8, 12, 8);
+        button.MinHeight = 34;
+        void Update()
+        {
+            if (button.Style == (Style)Application.Current.Resources["AccentButtonStyle"]) return;
+            if (Forms.SystemInformation.HighContrast) { button.ClearValue(Control.BackgroundProperty); button.ClearValue(Control.BorderBrushProperty); return; }
+            var dark = button.ActualTheme == ElementTheme.Dark;
+            button.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(dark ? (byte)15 : (byte)190, 255, 255, 255));
+            button.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(dark ? (byte)25 : (byte)30,
+                dark ? (byte)255 : (byte)0, dark ? (byte)255 : (byte)0, dark ? (byte)255 : (byte)0));
+        }
+        button.Loaded += (_, _) => Update();
+        button.ActualThemeChanged += (_, _) => Update();
+    }
     static StackPanel Stack(params UIElement[] children)
     {
         var stack = new StackPanel { Spacing = 10 };
@@ -304,8 +321,8 @@ sealed class MainWindow : Window
     }
     Button Action(string text, Func<Task> action)
     {
-        var button = new Button { FontFamily = MailTypography.Font, Content = text,
-            Style = (Style)Application.Current.Resources["MailSecondaryButtonStyle"] };
+        var button = new Button { FontFamily = MailTypography.Font, Content = text };
+        Secondary(button);
         button.Click += async (_, _) => { if (exitRequested) return; button.IsEnabled = false; try { await action(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; } finally { if (!exitRequested) button.IsEnabled = true; } };
         return button;
     }
@@ -362,14 +379,34 @@ sealed class MainWindow : Window
     }
     void BuildLeft()
     {
+        void NavigationColors()
+        {
+            var dark = navigation.ActualTheme == ElementTheme.Dark;
+            var fill = new SolidColorBrush(Windows.UI.Color.FromArgb(dark ? (byte)22 : (byte)13,
+                dark ? (byte)255 : (byte)0, dark ? (byte)255 : (byte)0, dark ? (byte)255 : (byte)0));
+            var hover = new SolidColorBrush(Windows.UI.Color.FromArgb(dark ? (byte)30 : (byte)20,
+                dark ? (byte)255 : (byte)0, dark ? (byte)255 : (byte)0, dark ? (byte)255 : (byte)0));
+            foreach (var key in new[] { "ListViewItemBackgroundSelected", "ListViewItemBackgroundSelectedPointerOver", "ListViewItemBackgroundSelectedPressed" })
+                navigation.Resources[key] = Forms.SystemInformation.HighContrast
+                    ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 95, 184)) : fill;
+            navigation.Resources["ListViewItemBackgroundPointerOver"] = hover;
+        }
+        NavigationColors();
+        navigation.ActualThemeChanged += (_, _) => NavigationColors();
         var brand = Row(new SymbolIcon(Symbol.Mail) { Margin = new Thickness(4, 0, 0, 0) },
             new TextBlock { FontFamily = MailTypography.Font, Text = "邮件小秘书", FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center });
         foreach (var (label, symbol) in new[] { ("邮件报告", Symbol.Mail), ("邮箱与检查", Symbol.Setting), ("AI 服务", Symbol.Message) })
         {
-            navigation.Items.Add(new ListViewItem { Content = Row(new SymbolIcon(symbol) { Width = 20 },
+            var indicator = new Border { Width = 3, Height = 18, CornerRadius = new CornerRadius(2),
+                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 95, 184)),
+                Opacity = 0, VerticalAlignment = VerticalAlignment.Center };
+            var item = new ListViewItem { Content = Row(indicator, new SymbolIcon(symbol) { Width = 20 },
                 new TextBlock { FontFamily = MailTypography.Font, Text = label, VerticalAlignment = VerticalAlignment.Center }),
-                Style = (Style)Application.Current.Resources["MailNavigationItemStyle"] });
+                Padding = new Thickness(8, 10, 10, 10), CornerRadius = new CornerRadius(4),
+                Margin = new Thickness(0, 2, 0, 2), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            navigation.SelectionChanged += (_, _) => indicator.Opacity = item.IsSelected ? 1 : 0;
+            navigation.Items.Add(item);
         }
         var footer = Stack(Action("打开报告文件夹", () =>
         {
@@ -457,7 +494,8 @@ sealed class MainWindow : Window
         toolbar.Children.Add(search);
         filterButton = new Button { FontFamily = MailTypography.Font, Content = Row(new SymbolIcon(Symbol.Filter) { Width = 16 },
             new TextBlock { FontFamily = MailTypography.Font, Text = "筛选" }),
-            Style = (Style)Application.Current.Resources["MailSecondaryButtonStyle"], Flyout = filters };
+            Flyout = filters };
+        Secondary(filterButton);
         Grid.SetColumn(filterButton, 1); toolbar.Children.Add(filterButton);
         var refreshButton = Action("刷新", Refresh); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
         pane.Children.Add(toolbar);
