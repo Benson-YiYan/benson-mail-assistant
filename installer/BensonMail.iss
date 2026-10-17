@@ -134,7 +134,7 @@ end;
 
 function IsOurShortcut(const Filename: String): Boolean;
 var
-  Shell, Link: Variant;
+  Shell, Link, Folder, Item: Variant;
   Target, Directory: String;
 begin
   Result := False;
@@ -142,6 +142,15 @@ begin
     Shell := CreateOleObject('WScript.Shell');
     Link := Shell.CreateShortcut(Filename);
     Target := Link.TargetPath;
+    if Target = '' then
+    begin
+      { WScript can return an empty target for newer Shell link formats. }
+      Shell := CreateOleObject('Shell.Application');
+      Folder := Shell.NameSpace(ExtractFileDir(Filename));
+      Item := Folder.ParseName(ExtractFileName(Filename));
+      Link := Item.GetLink;
+      Target := Link.Path;
+    end;
     Directory := RemoveBackslashUnlessRoot(ExtractFileDir(Target));
     Log('Shortcut ownership: ' + Filename + ' -> ' + Target + '; app=' + ExpandConstant('{app}') + '; previous=' + PreviousInstallDirectory);
     Result := IsOurExecutable(ExtractFileName(Target)) and
