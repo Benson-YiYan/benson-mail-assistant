@@ -69,6 +69,25 @@ sealed class UninstallWindow : Window
         AppWindow.Resize(new SizeInt32(width, height));
         AppWindow.Move(new PointInt32(area.X + Math.Max(0, (area.Width - width) / 2),
                                      area.Y + Math.Max(0, (area.Height - height) / 2)));
+        if (Argument("--uninstall-probe") is string probe)
+        {
+            var panel = new StackPanel { Padding = new Thickness(30), Spacing = 12 };
+            panel.Children.Add(new TextBlock { Text = "卸载界面组件检查" });
+            panel.Children.Add(probe switch {
+                "selection" => Text("可选择文字"),
+                "progress" => progress,
+                "toggle" => preserve,
+                "card" => Card(new TextBlock { Text = "卡片" }),
+                _ => new Button { Content = "完成" }
+            });
+            Content = panel;
+            panel.Loaded += async (_, _) => {
+                await Task.Delay(300);
+                File.WriteAllText(uiResult!, JsonSerializer.Serialize(new { ok = true, probe }));
+                Application.Current.Exit();
+            };
+            return;
+        }
         var caption = new Grid { Height = 40, Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
         caption.Children.Add(new TextBlock { Text = "邮件小秘书", FontFamily = MailTypography.Font, FontSize = 12,
             Margin = new Thickness(0, 0, 150, 0), VerticalAlignment = VerticalAlignment.Center });
