@@ -164,8 +164,18 @@ sealed class Bridge : IDisposable
 }
 
 [Microsoft.UI.Xaml.Data.Bindable]
-public sealed record Report(string path, string title, string sender, string time, bool? attachments)
+public sealed class Report
 {
+    public string path { get; set; }
+    public string title { get; set; }
+    public string sender { get; set; }
+    public string time { get; set; }
+    public bool? attachments { get; set; }
+    public Report(string path, string title, string sender, string time, bool? attachments)
+    {
+        this.path = path; this.title = title; this.sender = sender;
+        this.time = time; this.attachments = attachments;
+    }
     public override string ToString() => title + "\n" + sender + "  ·  " + time + (attachments == true ? "  ·  有附件" : "");
 }
 
