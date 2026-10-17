@@ -25,6 +25,37 @@ class WindowsTests(unittest.TestCase):
         first=platform.SingleInstance(); second=platform.SingleInstance()
         try: self.assertTrue(second.already_running)
         finally: second.close(); first.close()
+    def test_desktop_shortcut_creation_upgrade_collision_and_uninstall(self):
+        import pythoncom
+        from win32com.shell import shell
+        from benson_mail.uninstall import remove_shortcuts
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            desktop = root / '桌面'
+            first = root / '旧版本' / 'BensonMail-202610170900.exe'
+            second = root / '新版本' / 'BensonMail-202610171300.exe'
+            other = root / 'other.exe'
+            for target in (first, second, other):
+                target.parent.mkdir(exist_ok=True)
+                target.write_bytes(b'synthetic target')
+            original = platform.create_desktop_shortcut(other, desktop=desktop)
+            created = platform.create_desktop_shortcut(first, desktop=desktop)
+            self.assertNotEqual(original, created)
+            updated = platform.create_desktop_shortcut(second, previous=first, desktop=desktop)
+            self.assertEqual(created, updated)
+            pythoncom.CoInitialize()
+            try:
+                link = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER,
+                                                 shell.IID_IShellLink)
+                link.QueryInterface(pythoncom.IID_IPersistFile).Load(str(updated))
+                self.assertEqual(Path(link.GetPath(shell.SLGP_RAWPATH)[0]), second)
+                self.assertEqual(link.GetArguments(), '')
+                self.assertEqual(Path(link.GetWorkingDirectory()), second.parent)
+            finally:
+                pythoncom.CoUninitialize()
+            remove_shortcuts(second.parent, [desktop])
+            self.assertFalse(created.exists())
+            self.assertTrue(original.exists())
 
 class DiscoveryTests(unittest.TestCase):
     def test_reject_gui_and_cmd_without_runtime(self):

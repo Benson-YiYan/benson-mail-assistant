@@ -231,7 +231,7 @@ sealed class UninstallWindow : Window
     }
     void Failed(Exception error)
     {
-        busy = false; finished = true; progress.Text = "准备就绪";
+        busy = false; finished = true; progress.Text = "未能完成";
         detail.Text = "卸载未完成：" + error.Message;
         remove.Content = "关闭"; remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
         WriteFixture(false, error.Message);

@@ -47,6 +47,45 @@ def startup_command(launcher=None):
     if launcher: return subprocess.list2cmdline([str(launcher),'--background'])
     return subprocess.list2cmdline([sys.executable]+([] if getattr(sys,'frozen',False) else [str(Path(__file__).resolve().parent.parent/'main.py')])+['--background'])
 
+def create_desktop_shortcut(launcher, previous=None, desktop=None):
+    """Use the redirected Windows desktop and preserve unrelated shortcuts."""
+    require_windows()
+    import pythoncom
+    from win32com.shell import shell, shellcon
+    launcher = Path(launcher).resolve()
+    if not launcher.is_file():
+        raise FileNotFoundError('找不到邮件小秘书主程序')
+    pythoncom.CoInitialize()
+    try:
+        desktop = Path(desktop) if desktop else Path(shell.SHGetFolderPath(
+            0, shellcon.CSIDL_DESKTOPDIRECTORY, None, 0))
+        desktop.mkdir(parents=True, exist_ok=True)
+        number = 1
+        while True:
+            label = '邮件小秘书' if number == 1 else f'邮件小秘书 ({number})'
+            destination = desktop / (label + '.lnk')
+            link = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER,
+                                             shell.IID_IShellLink)
+            if destination.exists():
+                try:
+                    link.QueryInterface(pythoncom.IID_IPersistFile).Load(str(destination))
+                    existing = Path(link.GetPath(shell.SLGP_RAWPATH)[0]).resolve()
+                    if existing not in {launcher, Path(previous).resolve() if previous else launcher}:
+                        number += 1
+                        continue
+                except pythoncom.com_error:
+                    number += 1
+                    continue
+            link.SetPath(str(launcher))
+            link.SetArguments('')
+            link.SetWorkingDirectory(str(launcher.parent))
+            link.SetDescription('邮件小秘书')
+            link.SetIconLocation(str(launcher), 0)
+            link.QueryInterface(pythoncom.IID_IPersistFile).Save(str(destination), 1)
+            return destination
+    finally:
+        pythoncom.CoUninitialize()
+
 def set_autostart(enabled,name=APP_NAME,launcher=None):
     require_windows(); import winreg
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER,r'Software\Microsoft\Windows\CurrentVersion\Run') as key:

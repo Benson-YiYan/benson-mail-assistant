@@ -318,6 +318,17 @@ def run(launcher=None, fixture=None):
             print(json.dumps(message, ensure_ascii=False), flush=True)
     root = Path(fixture) if fixture else platform.app_dir()
     controller = Controller(root, emit, launcher)
+    shortcut_marker = root / 'desktop-shortcut.json'
+    try:
+        previous_launcher = json.loads(shortcut_marker.read_text(encoding='utf-8')).get('launcher')
+    except (OSError, ValueError):
+        previous_launcher = None
+    if not fixture and launcher and previous_launcher != str(launcher):
+        try:
+            platform.create_desktop_shortcut(launcher, previous_launcher)
+            save_json(shortcut_marker, {'launcher': str(launcher)})
+        except Exception:
+            emit({'event': {'detail': '桌面快捷方式创建失败，请检查桌面写入权限；软件仍可正常使用。'}})
     if fixture:
         output = root / '报告' / '2026-10-17'
         output.mkdir(parents=True, exist_ok=True)
