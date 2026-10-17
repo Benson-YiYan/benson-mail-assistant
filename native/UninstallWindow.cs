@@ -15,8 +15,8 @@ namespace BensonMail;
 sealed class UninstallWindow : Window
 {
     readonly Grid root = new() { Padding = new Thickness(28, 12, 28, 24), RowSpacing = 20 };
-    readonly CheckBox preserve = new() { Content = "保留邮箱及 AI 配置，下次重装不用再配置" };
-    readonly CheckBox deleteReports = new() { Content = "同时删除已生成的邮件报告" };
+    readonly ToggleSwitch preserve = new() { Header = "保留邮箱及 AI 配置，下次重装不用再配置", OnContent = "保留", OffContent = "不保留" };
+    readonly ToggleSwitch deleteReports = new() { Header = "同时删除已生成的邮件报告", OnContent = "删除", OffContent = "保留报告" };
     readonly TextBlock detail = Text("正在读取卸载信息…");
     readonly TextBlock locations = Text("");
     readonly TextBlock reports = Text("");
@@ -69,8 +69,9 @@ sealed class UninstallWindow : Window
         AppWindow.Resize(new SizeInt32(width, height));
         AppWindow.Move(new PointInt32(area.X + Math.Max(0, (area.Width - width) / 2),
                                      area.Y + Math.Max(0, (area.Height - height) / 2)));
-        var caption = Text("邮件小秘书"); caption.FontSize = 12; caption.Height = 32;
-        caption.VerticalAlignment = VerticalAlignment.Center;
+        var caption = new Grid { Height = 40, Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
+        caption.Children.Add(new TextBlock { Text = "邮件小秘书", FontFamily = MailTypography.Font, FontSize = 12,
+            Margin = new Thickness(0, 0, 150, 0), VerticalAlignment = VerticalAlignment.Center });
         if (AppWindowTitleBar.IsCustomizationSupported())
         {
             ExtendsContentIntoTitleBar = true; SetTitleBar(caption);
@@ -85,8 +86,8 @@ sealed class UninstallWindow : Window
         var subheading = Text("卸载前，请先从任务栏右下角的信封菜单退出邮件小秘书。");
         subheading.Opacity = .7;
         preserve.FontFamily = deleteReports.FontFamily = MailTypography.Font;
-        preserve.IsChecked = Array.IndexOf(Program.Args, "--keep-configuration") >= 0;
-        deleteReports.IsChecked = Array.IndexOf(Program.Args, "--delete-reports") >= 0;
+        preserve.IsOn = Array.IndexOf(Program.Args, "--keep-configuration") >= 0;
+        deleteReports.IsOn = Array.IndexOf(Program.Args, "--delete-reports") >= 0;
         var configNote = Text("保留账号列表、服务器、AI 设置及加密密钥，供本机同一 Windows 用户重装后继续使用。");
         configNote.Opacity = .7; configNote.FontSize = 12;
         var cacheNote = Text("缓存和收信进度会清除，重装后重新记录收信起点。自启动项及本次安装的快捷方式会移除。");
@@ -121,8 +122,8 @@ sealed class UninstallWindow : Window
         if (operation == "remove-helper") return start;
         start.ArgumentList.Add("--target"); start.ArgumentList.Add(target);
         if (fixtureResult != null) { start.ArgumentList.Add("--fixture-result"); start.ArgumentList.Add(fixtureResult); }
-        if (preserve.IsChecked == true) start.ArgumentList.Add("--keep-configuration");
-        if (deleteReports.IsChecked == true) start.ArgumentList.Add("--delete-reports");
+        if (preserve.IsOn == true) start.ArgumentList.Add("--keep-configuration");
+        if (deleteReports.IsOn == true) start.ArgumentList.Add("--delete-reports");
         return start;
     }
     async Task<JsonElement> RunWorker(ProcessStartInfo start)
@@ -159,7 +160,7 @@ sealed class UninstallWindow : Window
                 using var graphics = System.Drawing.Graphics.FromImage(image);
                 graphics.CopyFromScreen(bounds.X, bounds.Y, 0, 0, image.Size);
                 image.Save(Path.ChangeExtension(uiResult, ".png"), System.Drawing.Imaging.ImageFormat.Png);
-                if (!preserve.IsLoaded || !deleteReports.IsLoaded || preserve.IsChecked == true || deleteReports.IsChecked == true)
+                if (!preserve.IsLoaded || !deleteReports.IsLoaded || preserve.IsOn == true || deleteReports.IsOn == true)
                     throw new InvalidOperationException("Uninstall options did not render with safe defaults");
                 File.WriteAllText(uiResult, JsonSerializer.Serialize(new { ok = true, checks = new[] {
                     "Native WinUI 3 uninstaller rendered with Mica backdrop and Fluent cards",
@@ -190,8 +191,8 @@ sealed class UninstallWindow : Window
         try {
             if (fixtureResult == null) {
                 var dialog = new ContentDialog { XamlRoot = root.XamlRoot, Title = "确认卸载？",
-                    Content = (preserve.IsChecked == true ? "保留邮箱及 AI 配置，移除程序和缓存。" : "移除程序、配置、加密密钥和缓存。")
-                        + (deleteReports.IsChecked == true ? "\n同时删除已选的邮件报告。" : "\n已生成的邮件报告保留。"),
+                    Content = (preserve.IsOn == true ? "保留邮箱及 AI 配置，移除程序和缓存。" : "移除程序、配置、加密密钥和缓存。")
+                        + (deleteReports.IsOn == true ? "\n同时删除已选的邮件报告。" : "\n已生成的邮件报告保留。"),
                     PrimaryButtonText = "卸载", CloseButtonText = "取消", DefaultButton = ContentDialogButton.Close };
                 if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
             }
@@ -204,8 +205,8 @@ sealed class UninstallWindow : Window
             };
             helper.ArgumentList.Add("--uninstall-worker"); helper.ArgumentList.Add(target);
             helper.ArgumentList.Add("--parent-pid"); helper.ArgumentList.Add(Environment.ProcessId.ToString());
-            if (preserve.IsChecked == true) helper.ArgumentList.Add("--keep-configuration");
-            if (deleteReports.IsChecked == true) helper.ArgumentList.Add("--delete-reports");
+            if (preserve.IsOn == true) helper.ArgumentList.Add("--keep-configuration");
+            if (deleteReports.IsOn == true) helper.ArgumentList.Add("--delete-reports");
             if (fixtureResult != null) { helper.ArgumentList.Add("--fixture-result"); helper.ArgumentList.Add(fixtureResult); }
             using var process = Process.Start(helper) ?? throw new IOException("无法打开独立卸载窗口。");
             busy = false;
@@ -221,7 +222,7 @@ sealed class UninstallWindow : Window
             start.ArgumentList.Add(Argument("--parent-pid") ?? "0");
             await RunWorker(start);
             busy = false; finished = true; progress.IsIndeterminate = false; progress.Value = 100;
-            detail.Text = preserve.IsChecked == true ? "卸载完成。邮箱及 AI 配置已保留，下次重装可继续使用。" : "卸载完成。程序、配置、加密密钥和缓存已清理。";
+            detail.Text = preserve.IsOn == true ? "卸载完成。邮箱及 AI 配置已保留，下次重装可继续使用。" : "卸载完成。程序、配置、加密密钥和缓存已清理。";
             remove.Content = "完成"; remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
             WriteFixture(true, null);
             if (fixtureResult != null) { await Task.Delay(150); Finish(); }
@@ -243,7 +244,7 @@ sealed class UninstallWindow : Window
             File.WriteAllText(fixtureResult, JsonSerializer.Serialize(new { ok, detail = error,
                 helper = Path.GetFullPath(AppContext.BaseDirectory), target, data,
                 checks = new[] { "independent helper outside program directory", "responsive native WinUI 3 GUI",
-                    preserve.IsChecked == true ? "encrypted configuration retained and cache removed" : "full installation and user data cleanup" } }));
+                    preserve.IsOn == true ? "encrypted configuration retained and cache removed" : "full installation and user data cleanup" } }));
     }
     bool removingHelper;
     void RemoveHelperOnExit()
