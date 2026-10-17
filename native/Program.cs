@@ -71,7 +71,6 @@ public sealed partial class MailApp : Application
             }
         };
         InitializeComponent();
-        Resources["ContentControlThemeFontFamily"] = MailTypography.Font;
         Program.Trace("Control resources");
     }
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -188,10 +187,10 @@ sealed class MainWindow : Window
     readonly Grid reportPage = new() { RowSpacing = 16 };
     readonly Grid mailPage = new();
     readonly Grid aiPage = new();
-    readonly TextBlock pageTitle = new() { FontFamily = MailTypography.Font, Text = "邮件报告", FontSize = 28, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-    readonly TextBlock reportCount = new() { FontFamily = MailTypography.Font, Opacity = .65, VerticalAlignment = VerticalAlignment.Center };
-    readonly TextBlock status = new() { FontFamily = MailTypography.Font, Text = "已暂停", FontSize = 23, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-    readonly TextBlock detail = new() { FontFamily = MailTypography.Font, Text = "正在加载设置…", TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock pageTitle = new() { Text = "邮件报告", FontSize = 28, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+    readonly TextBlock reportCount = new() { Opacity = .65, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock status = new() { Text = "已暂停", FontSize = 23, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+    readonly TextBlock detail = new() { Text = "正在加载设置…", TextWrapping = TextWrapping.Wrap };
     readonly TextBox account = new() { Header = "163 邮箱地址", PlaceholderText = "name@163.com" };
     readonly PasswordBox mailSecret = new() { Header = "POP3/IMAP/SMTP 授权码", PlaceholderText = "留空保留已有授权码" };
     readonly TextBox folder = new() { Header = "报告保存文件夹" };
@@ -245,6 +244,8 @@ sealed class MainWindow : Window
         Program.Trace("Left controls");
         BuildRight();
         Program.Trace("Right controls");
+        foreach (var text in new[] { pageTitle, reportCount, status, detail })
+            text.FontFamily = MailTypography.Font;
         foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model,
             apiKey, interval, search, sender, from, to, attachment })
         {
