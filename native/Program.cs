@@ -296,13 +296,14 @@ sealed class MainWindow : Window
         Grid.SetRow(actions, 1); page.Children.Add(actions);
         return page;
     }
-    static Brush ThemeBrush(string key) => (Brush)Application.Current.Resources[key];
-    static Border Card(UIElement content, double padding = 18) => new()
+    static Border Card(UIElement content, double padding = 18)
     {
-        Child = content, Padding = new Thickness(padding), CornerRadius = new CornerRadius(8),
-        Background = ThemeBrush("CardBackgroundFillColorDefaultBrush"),
-        BorderBrush = ThemeBrush("CardStrokeColorDefaultBrush"), BorderThickness = new Thickness(1)
-    };
+        var card = (Border)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+            """<Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8"/>""");
+        card.Child = content;
+        card.Padding = new Thickness(padding);
+        return card;
+    }
     static TextBlock Heading(string text) => new() { Text = text, FontSize = 18,
         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
     void ShowPage(int index)
