@@ -143,6 +143,19 @@ def main():
                 assert path.is_file() == (task in selected), f"First start overrode selected task {task}"
             cases.append({"tasks": list(selected), "language": language, "installed": True, "shortcuts": True,
                           "first_start_preserves_choices": True})
+            if number == 0:
+                # Reinstall into the same directory with all four choices cancelled,
+                # including a language change: old Chinese links must disappear.
+                reinstall = subprocess.run([
+                    str(setup), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-",
+                    "/LANG=english", "/DIR=" + str(program), "/TASKS=",
+                    "/LOG=" + str(evidence / "installer-reinstall-none.log"),
+                ], cwd=tempfile.gettempdir(), timeout=180)
+                assert reinstall.returncode == 0
+                assert not any(path.exists() for path in all_links), "Reinstall kept shortcuts cancelled by user"
+                run_first_start_worker(program, fixture)
+                assert not any(path.exists() for path in all_links)
+                checks.append("Reinstall with every choice cancelled removes old shortcuts across UI languages")
             data = fixture / "user-data"
             data.mkdir(exist_ok=True)
             (data / "config.json").write_text('{"ui_language":"en"}', encoding="utf-8")
