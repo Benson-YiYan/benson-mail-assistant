@@ -299,7 +299,7 @@ sealed class MainWindow : Window
     static Border Card(UIElement content, double padding = 18)
     {
         var card = (Border)Microsoft.UI.Xaml.Markup.XamlReader.Load(
-            """<Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8"/>""");
+            """<Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Background="{ThemeResource MailCardBackground}" BorderBrush="{ThemeResource MailCardStroke}" BorderThickness="1" CornerRadius="8"/>""");
         card.Child = content;
         card.Padding = new Thickness(padding);
         return card;
