@@ -119,7 +119,7 @@ def main():
             log = evidence / f"installer-{label}.log"
             process = subprocess.run([
                 str(setup), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-",
-                "/LANG=" + language, "/DIR=" + str(program), "/TASKS=" + ",".join(selected),
+                "/LANG=" + language, "/DIR=" + str(program), "/TASKS=" + ",".join(task if task in selected else "!" + task for task in TASKS),
                 "/LOG=" + str(log),
             ], cwd=tempfile.gettempdir(), timeout=180)
             assert process.returncode == 0, f"Installer failed for {label}: {process.returncode}"
@@ -148,11 +148,11 @@ def main():
                 # including a language change: old Chinese links must disappear.
                 reinstall = subprocess.run([
                     str(setup), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-",
-                    "/LANG=english", "/DIR=" + str(program), "/TASKS=",
+                    "/LANG=english", "/DIR=" + str(program), "/TASKS=" + ",".join("!" + task for task in TASKS),
                     "/LOG=" + str(evidence / "installer-reinstall-none.log"),
                 ], cwd=tempfile.gettempdir(), timeout=180)
                 assert reinstall.returncode == 0
-                assert not any(path.exists() for path in all_links), "Reinstall kept shortcuts cancelled by user"
+                assert not any(path.exists() for path in all_links), f"Reinstall kept shortcuts cancelled by user: {[str(path) for path in all_links if path.exists()]}"
                 run_first_start_worker(program, fixture)
                 assert not any(path.exists() for path in all_links)
                 checks.append("Reinstall with every choice cancelled removes old shortcuts across UI languages")

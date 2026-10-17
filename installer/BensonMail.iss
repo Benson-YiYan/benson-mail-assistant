@@ -143,10 +143,12 @@ begin
     Link := Shell.CreateShortcut(Filename);
     Target := Link.TargetPath;
     Directory := RemoveBackslashUnlessRoot(ExtractFileDir(Target));
+    Log('Shortcut ownership: ' + Filename + ' -> ' + Target + '; app=' + ExpandConstant('{app}') + '; previous=' + PreviousInstallDirectory);
     Result := IsOurExecutable(ExtractFileName(Target)) and
       ((CompareText(Directory, RemoveBackslashUnlessRoot(ExpandConstant('{app}'))) = 0) or
        ((PreviousInstallDirectory <> '') and
         (CompareText(Directory, RemoveBackslashUnlessRoot(PreviousInstallDirectory)) = 0)));
+    Log('Shortcut owned=' + IntToStr(Ord(Result)));
   except
     Log('Preserving an unreadable shortcut: ' + Filename);
   end;
