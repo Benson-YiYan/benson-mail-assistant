@@ -237,12 +237,29 @@ sealed class MainWindow : Window
         AppWindow.Move(new PointInt32(area.X + 20, area.Y + 20));
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico"));
         SystemBackdrop = new MicaBackdrop();
-        Content = new ContentControl { Content = layout, FontFamily = MailTypography.Font, FontSize = 14,
+        var frame = new Grid();
+        frame.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        frame.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        if (AppWindowTitleBar.IsCustomizationSupported())
+        {
+            ExtendsContentIntoTitleBar = true;
+            var caption = new Grid { Height = 40, Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
+            caption.Children.Add(new TextBlock { Text = "邮件小秘书", FontFamily = MailTypography.Font, FontSize = 12,
+                Margin = new Thickness(20, 0, 150, 0), VerticalAlignment = VerticalAlignment.Center });
+            frame.Children.Add(caption);
+            SetTitleBar(caption);
+            AppWindow.TitleBar.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
+            AppWindow.TitleBar.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
+            if (AppWindow.Presenter is OverlappedPresenter presenter) presenter.SetBorderAndTitleBar(true, true);
+        }
+        Grid.SetRow(layout, 1); frame.Children.Add(layout);
+        Content = new ContentControl { Content = frame, FontFamily = MailTypography.Font, FontSize = 14,
             Language = "zh-CN", UseLayoutRounding = true, IsTabStop = false,
             HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch };
         BuildLeft();
         Program.Trace("Left controls");
         BuildRight();
+        check.Style = (Style)Application.Current.Resources["MailSecondaryButtonStyle"];
         Program.Trace("Right controls");
         foreach (var text in new[] { pageTitle, reportCount, status, detail })
             text.FontFamily = MailTypography.Font;
@@ -287,7 +304,8 @@ sealed class MainWindow : Window
     }
     Button Action(string text, Func<Task> action)
     {
-        var button = new Button { FontFamily = MailTypography.Font, Content = text, CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 7, 12, 7) };
+        var button = new Button { FontFamily = MailTypography.Font, Content = text,
+            Style = (Style)Application.Current.Resources["MailSecondaryButtonStyle"] };
         button.Click += async (_, _) => { if (exitRequested) return; button.IsEnabled = false; try { await action(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; } finally { if (!exitRequested) button.IsEnabled = true; } };
         return button;
     }
@@ -351,8 +369,7 @@ sealed class MainWindow : Window
         {
             navigation.Items.Add(new ListViewItem { Content = Row(new SymbolIcon(symbol) { Width = 20 },
                 new TextBlock { FontFamily = MailTypography.Font, Text = label, VerticalAlignment = VerticalAlignment.Center }),
-                Padding = new Thickness(12, 12, 12, 12), CornerRadius = new CornerRadius(4),
-                Margin = new Thickness(0, 2, 0, 2), HorizontalContentAlignment = HorizontalAlignment.Stretch });
+                Style = (Style)Application.Current.Resources["MailNavigationItemStyle"] });
         }
         var footer = Stack(Action("打开报告文件夹", () =>
         {
@@ -362,7 +379,7 @@ sealed class MainWindow : Window
         {
             if (navigation.SelectedIndex >= 0) ShowPage(navigation.SelectedIndex);
         };
-        var sidebar = new Grid { Padding = new Thickness(12, 20, 12, 16), RowSpacing = 24 };
+        var sidebar = new Grid { Padding = new Thickness(12, 12, 12, 16), RowSpacing = 24 };
         sidebar.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         sidebar.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         sidebar.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -390,7 +407,7 @@ sealed class MainWindow : Window
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         layout.Children.Add(sidebar);
-        var main = new Border { Child = shell, Padding = new Thickness(24, 20, 24, 20) };
+        var main = new Border { Child = shell, Padding = new Thickness(28, 16, 24, 20) };
         Grid.SetColumn(main, 1); layout.Children.Add(main);
         provider.Items.Add("API · 无需安装 Codex"); provider.Items.Add("Codex · 已安装并登录");
         mailSaveButton = Action("保存邮箱设置", SaveMail);
@@ -440,7 +457,7 @@ sealed class MainWindow : Window
         toolbar.Children.Add(search);
         filterButton = new Button { FontFamily = MailTypography.Font, Content = Row(new SymbolIcon(Symbol.Filter) { Width = 16 },
             new TextBlock { FontFamily = MailTypography.Font, Text = "筛选" }),
-            CornerRadius = new CornerRadius(4), Flyout = filters };
+            Style = (Style)Application.Current.Resources["MailSecondaryButtonStyle"], Flyout = filters };
         Grid.SetColumn(filterButton, 1); toolbar.Children.Add(filterButton);
         var refreshButton = Action("刷新", Refresh); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
         pane.Children.Add(toolbar);
