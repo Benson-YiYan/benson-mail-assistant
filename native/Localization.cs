@@ -62,9 +62,9 @@ internal static class L
         if (element is FrameworkElement frame) frame.Language = Locale;
         switch (element) {
             case TextBox box: box.Header = box.Header is string h ? T(h) : box.Header; box.PlaceholderText = T(box.PlaceholderText); return;
-            case PasswordBox box: box.Header = box.Header is string h ? T(h) : box.Header; box.PlaceholderText = T(box.PlaceholderText); return;
-            case CalendarDatePicker date: date.Header = date.Header is string h ? T(h) : date.Header; date.PlaceholderText = T(date.PlaceholderText); return;
-            case ToggleSwitch toggle: toggle.Header = toggle.Header is string h ? T(h) : toggle.Header; toggle.OnContent = toggle.OnContent is string on ? T(on) : toggle.OnContent; toggle.OffContent = toggle.OffContent is string off ? T(off) : toggle.OffContent; return;
+            case PasswordBox box: box.Header = box.Header is string passwordHeader ? T(passwordHeader) : box.Header; box.PlaceholderText = T(box.PlaceholderText); return;
+            case CalendarDatePicker date: date.Header = date.Header is string dateHeader ? T(dateHeader) : date.Header; date.PlaceholderText = T(date.PlaceholderText); return;
+            case ToggleSwitch toggle: toggle.Header = toggle.Header is string toggleHeader ? T(toggleHeader) : toggle.Header; toggle.OnContent = toggle.OnContent is string on ? T(on) : toggle.OnContent; toggle.OffContent = toggle.OffContent is string off ? T(off) : toggle.OffContent; return;
             case ComboBox combo:
                 combo.Header = combo.Header is string header ? T(header) : combo.Header;
                 var selected = combo.SelectedIndex;
