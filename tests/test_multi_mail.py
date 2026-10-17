@@ -63,7 +63,7 @@ class MultipleMailTests(unittest.TestCase):
                     future.result()
             paths = list((root / 'reports').glob('*/*.txt'))
             self.assertEqual(len(paths), 2)
-            self.assertEqual({p.read_text().split()[-1] for p in paths},
+            self.assertEqual({p.read_text(encoding='utf-8').split()[-1] for p in paths},
                              {'first@example.invalid', 'second@example.invalid'})
             self.assertEqual(len(list((root / 'state').glob('*.json'))), 2)
 
@@ -145,6 +145,6 @@ class MultipleMailTests(unittest.TestCase):
                  patch('benson_mail.uninstall.remove_shortcuts'):
                 cleanup_installation(program, data, False, lambda _: None, keep_configuration=True)
             self.assertFalse(program.exists())
-            saved = Path(json.loads((data / 'config.json').read_text())['output_dir'])
+            saved = Path(json.loads((data / 'config.json').read_text(encoding='utf-8'))['output_dir'])
             self.assertTrue(saved.is_relative_to(documents))
             self.assertEqual((saved / '2026-10-17/synthetic.txt').read_text(), 'keep report')
