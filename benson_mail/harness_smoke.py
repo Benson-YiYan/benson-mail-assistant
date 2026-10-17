@@ -1,48 +1,37 @@
-"""Local-only synthetic smoke check for the bundled official Harness runtime."""
+"""Exercise the external CLI adapter with a separate synthetic executable process."""
 import json
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import threading
-from .deepseek_harness_ai import complete
+from pathlib import Path
+import sys
+import tempfile
+from unittest.mock import patch
+from benson_mail.deepseek_harness_ai import complete
+
+
+def fixture():
+    args = sys.argv
+    assert '--profile' in args and args[args.index('--profile') + 1] == 'headless'
+    assert '--json' in args
+    overlay = json.loads(Path(args[args.index('--patch') + 1]).read_text(encoding='utf-8'))
+    assert any(r['id'] == 'tool-fs' and r.get('disabled') for r in overlay)
+    assert any(r['id'] == 'credentials' and r.get('disabled') is False for r in overlay)
+    assert '原提示词逐字保持' in json.dumps(overlay, ensure_ascii=False)
+    body = sys.stdin.buffer.read().decode('utf-8')
+    assert body == '模拟邮件正文'
+    print(json.dumps({'type': 'text', 'text': '不要把中间事件当报告'}))
+    print(json.dumps({'type': 'final', 'text': '六项邮件报告完成'}))
+
 
 def run():
-    requests = []
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *args):
-            pass
-        def do_POST(self):
-            body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-            requests.append((self.path, body))
-            chunks = [
-                {'id': 'chatcmpl_test', 'object': 'chat.completion.chunk', 'model': 'deepseek-v4-flash',
-                 'choices': [{'index': 0, 'delta': {'role': 'assistant', 'content': '六项邮件报告完成'}, 'finish_reason': None}]},
-                {'id': 'chatcmpl_test', 'object': 'chat.completion.chunk', 'model': 'deepseek-v4-flash',
-                 'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'stop'}],
-                 'usage': {'prompt_tokens': 10, 'completion_tokens': 10, 'total_tokens': 20}},
-            ]
-            data = (''.join('data: ' + json.dumps(value) + '\n\n' for value in chunks)
-                    + 'data: [DONE]\n\n').encode()
-            self.send_response(200)
-            self.send_header('Content-Type', 'text/event-stream')
-            self.send_header('Content-Length', str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
-    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        result = complete(f'http://127.0.0.1:{server.server_port}',
-                          'deepseek-v4-flash', 'synthetic-key',
-                          [{'role': 'system', 'content': '原提示词逐字保持'},
-                           {'role': 'user', 'content': '模拟邮件正文'}])
-        assert result == '六项邮件报告完成'
-        assert requests
-        path, request = requests[0]
-        assert path.endswith('/chat/completions'), path
-        assert not request.get('tools'), 'Mail analysis must not enable agent tools'
-        assert '原提示词逐字保持' in json.dumps(request['messages'], ensure_ascii=False)
-        assert '模拟邮件正文' in json.dumps(request['messages'], ensure_ascii=False)
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join()
-    return {"ok": True, "checks": ["bundled official Harness process and streaming response", "original prompt and body preserved", "agent tools disabled; synthetic localhost endpoint only"]}
+    if getattr(sys, 'frozen', False):
+        launcher = [sys.executable, '--harness-fixture']
+    else:
+        source = str(Path(__file__).resolve().parents[1])
+        launcher = [sys.executable, '-c', 'import sys; sys.path.insert(0, ' + repr(source) + '); from benson_mail.harness_smoke import fixture; fixture()']
+    # Replace discovery only; actual launch, stdin, cancellation loop and event parsing run normally.
+    with patch('benson_mail.deepseek_harness_ai.command', side_effect=lambda path, args: launcher + args):
+        result = complete(messages=[{'role': 'system', 'content': '原提示词逐字保持'},
+                                    {'role': 'user', 'content': '模拟邮件正文'}])
+    assert result == '六项邮件报告完成'
+    return {'ok': True, 'checks': ['external CLI process, stdin and final-event extraction',
+        'original prompt preserved and tools disabled', 'saved Harness authentication enabled',
+        'synthetic child process only; no AI request or bundled Harness runtime']}

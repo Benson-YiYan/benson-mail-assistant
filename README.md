@@ -41,6 +41,8 @@ Windows 构建需要 .NET 8 SDK，运行 `./build.ps1`。GitHub Actions 在 Wind
 
 ## DeepSeek Harness
 
-在 AI 服务选择“DeepSeek Harness”，填写基础地址、模型名和 API Key。内置官方 Python SDK 与运行时 0.1.5rc1，无需另装 Codex、Python 或 Node。官方基础地址为 `https://api.deepseek.com`，默认示例模型 `deepseek-v4-flash`；可手动修改并测试连接。该版本使用 Chat Completions 传输，基础地址不填写 `/chat/completions`。原有邮件分析提示词保持不变。
+选择“DeepSeek Harness（使用已安装的应用）”，先在 Harness 中配置模型和登录。邮件小秘书自动查找 dsh，也可通过“浏览……”选择 dsh / dsh.cmd / dsh.exe（Mac 可选择 DeepSeek Harness.app）。不会捆绑、下载或安装 Harness，无需在邮件小秘书重复填写其 API Key。
 
-每次分析使用独立临时目录和独立会话，关闭命令执行及文件工具；读取附件后只发送原有邮件分析所需文字。临时会话随后清理；没有新邮件不启动 Harness、不调用模型。API Key 仍使用系统加密存储，卸载时的保留配置选项同样适用。
+使用已安装版本的 headless --json 接口与保存的凭据，每封邮件使用新会话，临时工作目录和覆盖配置不改变用户的配置。禁用命令执行与文件工具，原有六项提示词保持不变。会话记录按 Harness 自身规则保存在 Harness 中。无新邮件时不启动 Harness、不调用 AI。测试连接会发送少量测试文字。
+
+需安装支持 headless --json 的 Harness 版本；未检测到或版本不兼容时显示提示。Harness 自身的登录及配置由其管理，邮件小秘书卸载不会移除 Harness。

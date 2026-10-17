@@ -155,7 +155,7 @@ class Controller:
             else:
                 profile['monitor_enabled'] = bool(data['enabled'])
                 if profile['monitor_enabled'] and self.config.get('enabled'):
-                    key = self.api_key() if self.config.get('ai_provider') in ('api', 'deepseek_harness') else ''
+                    key = self.api_key() if self.config.get('ai_provider') == 'api' else ''
                     self.start_profile(profile, key)
             self.persist()
             return '已移除邮箱，历史报告保留。' if name == 'remove_mail' else '已更新此邮箱监听状态。'
@@ -191,13 +191,16 @@ class Controller:
             self.config['mailboxes'] = [p for p in profiles if mailbox_id(p) != previous_id] + [saved]
             self.persist()
             return '邮箱设置已保存。'
+        if name == 'harness_detect':
+            from .deepseek_harness_ai import discover
+            return discover(data.get('path', ''))
         if name == 'save_ai':
             self.paused()
             provider = data.get('ai_provider')
             if provider not in ('api', 'codex', 'deepseek_harness'):
                 raise ValueError('请选择分析方式。')
             base, model = data.get('api_base', '').strip(), data.get('api_model', '').strip()
-            if provider in ('api', 'deepseek_harness'):
+            if provider == 'api':
                 binding = identity(base)
                 if not model:
                     raise ValueError('请填写模型名。')
@@ -207,7 +210,10 @@ class Controller:
                     platform.save_secret(path, binding, data['key'].strip())
                 elif not path.exists() or not platform.load_secret(path, binding):
                     raise ValueError('请填写此基础地址的 API Key。')
-            self.config.update(ai_provider=provider, api_base=base, api_model=model)
+            if provider == 'deepseek_harness':
+                from .deepseek_harness_ai import discover
+                discover(data.get('harness_path', ''))
+            self.config.update(ai_provider=provider, api_base=base, api_model=model, harness_path=data.get('harness_path', '').strip())
             self.persist()
             return 'AI 设置已保存，六项总结提示词保持原样。'
         if name == 'interval':
@@ -235,11 +241,11 @@ class Controller:
                 mailbox.close()
             return '邮箱连接正常。'
         if name == 'test_ai':
-            if self.config.get('ai_provider') in ('api', 'deepseek_harness'):
-                transport = complete
-                if self.config.get('ai_provider') == 'deepseek_harness':
-                    from .deepseek_harness_ai import complete as transport
-                transport(self.config['api_base'], self.config['api_model'], self.api_key(),
+            if self.config.get('ai_provider') == 'deepseek_harness':
+                from .deepseek_harness_ai import complete as harness_complete
+                harness_complete(messages=[{'role': 'user', 'content': 'Reply OK.'}], cli_path=self.config.get('harness_path', ''))
+            elif self.config.get('ai_provider') == 'api':
+                complete(self.config['api_base'], self.config['api_model'], self.api_key(),
                          [{'role': 'user', 'content': 'Reply OK.'}])
             else:
                 import subprocess
@@ -259,9 +265,12 @@ class Controller:
             profiles = [p for p in self.profiles() if p.get('monitor_enabled', True)]
             if not profiles or not self.config.get('output_dir'):
                 raise ValueError('请先保存邮箱授权码并选择报告文件夹。')
-            key = self.api_key() if self.config.get('ai_provider') in ('api', 'deepseek_harness') else ''
-            if not key and self.config.get('ai_provider') in ('api', 'deepseek_harness'):
+            key = self.api_key() if self.config.get('ai_provider') == 'api' else ''
+            if not key and self.config.get('ai_provider') == 'api':
                 raise ValueError('请先配置 AI。')
+            if self.config.get('ai_provider') == 'deepseek_harness':
+                from .deepseek_harness_ai import discover
+                discover(self.config.get('harness_path', ''))
             if self.config.get('ai_provider') == 'codex' and not self.config.get('codex_command'):
                 raise ValueError('请先选择 Codex 命令行程序。')
             for profile in profiles:

@@ -222,8 +222,9 @@ class APIAnalyzer:
         transport = complete
         if self.config.get('ai_provider') == 'deepseek_harness':
             from .deepseek_harness_ai import complete as transport
+        options = {'cli_path': self.config.get('harness_path', '')} if self.config.get('ai_provider') == 'deepseek_harness' else {}
         return transport(self.config.get('api_base',''),self.config.get('api_model',''),self.key,
-                        [{'role':'user','content':ANALYSIS_PROMPT+json.dumps(message,ensure_ascii=False)}],stop)
+                        [{'role':'user','content':ANALYSIS_PROMPT+json.dumps(message,ensure_ascii=False)}],stop,**options)
 
 class Service:
     def __init__(self,config,secret,root,callback,mailbox=None,analyzer=None,api_key=''):

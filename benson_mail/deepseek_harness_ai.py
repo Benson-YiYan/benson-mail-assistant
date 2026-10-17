@@ -1,97 +1,103 @@
-"""Official Harness SDK transport, isolated per request without agent tools."""
+"""Invoke the user's installed dsh CLI; never bundle or download Harness."""
 import json
 import os
 from pathlib import Path
-import tempfile
-import sys
+import shutil
+import signal
 import subprocess
-import re
+import tempfile
+import time
 
 
-DEFAULT_BASE = 'https://api.deepseek.com'
-DEFAULT_MODEL = 'deepseek-v4-flash'
-
-class HarnessFailure(RuntimeError):
-    pass
-
-
-def _failure_detail(text):
-    match = re.search(r'\b(401|403|404|429|5\d\d)\b', text)
-    if match:
-        code = match.group(1)
-        hint = {'401': 'API Key 无效或已过期', '403': 'Key 没有访问权限',
-                '404': '基础地址或模型不存在', '429': '服务限流或额度不足'}.get(code, 'AI 服务暂时不可用')
-        return f'DeepSeek Harness 请求失败（HTTP {code}）：{hint}。'
-    if 'timeout' in text.lower() or 'timed out' in text.lower():
-        return 'DeepSeek Harness 连接超时，请检查网络和基础地址。'
-    if 'STREAM_CLOSED' in text:
-        return 'DeepSeek Harness 的响应提前中断，邮件已保留，可稍后重试。'
-    return 'DeepSeek Harness 连接失败，请检查基础地址、模型、API Key 及安装包完整性。'
-
-def _sdk():
-    from deepseek_harness import DeepSeekHarness
-    if sys.platform == 'win32':
-        import deepseek_harness.client as client
-        class WindowlessProcesses:
-            def __getattr__(self, name):
-                return getattr(subprocess, name)
-            def Popen(self, *args, **kwargs):
-                kwargs['creationflags'] = kwargs.get('creationflags', 0) | subprocess.CREATE_NO_WINDOW
-                return subprocess.Popen(*args, **kwargs)
-        # Affect this pinned SDK's launcher only, never global subprocess calls.
-        client.subprocess = WindowlessProcesses()
-    return DeepSeekHarness
+def discover(path=''):
+    candidates = [Path(path).expanduser()] if path.strip() else []
+    if not path.strip():
+        found = shutil.which('dsh')
+        if found:
+            candidates.append(Path(found))
+        home = Path.home()
+        if os.name == 'nt':
+            for base in (Path(os.environ.get('LOCALAPPDATA', str(home))) / 'Programs', Path(os.environ.get('PROGRAMFILES', 'C:/Program Files'))):
+                for name in ('DeepSeek Harness', 'deepseek-harness'):
+                    candidates.append(base / name / 'resources/runtime/cli/bin/dsh.cmd')
+            candidates.append(Path(os.environ.get('APPDATA', str(home))) / 'npm/dsh.cmd')
+        else:
+            for base in (Path('/Applications'), home / 'Applications'):
+                candidates.append(base / 'DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh')
+            candidates.extend(Path(p) for p in ('/opt/homebrew/bin/dsh', '/usr/local/bin/dsh', str(home / '.local/bin/dsh')))
+    for candidate in candidates:
+        if candidate.suffix.lower() == '.app':
+            candidate = candidate / 'Contents/Resources/runtime/cli/bin/dsh'
+        if candidate.is_file() and (os.name == 'nt' or os.access(candidate, os.X_OK)):
+            return str(candidate.absolute())
+    raise RuntimeError('未找到已安装的 DeepSeek Harness。请先安装并配置，在设置中选择 dsh（Windows 为 dsh.cmd 或 dsh.exe）。不会自动下载。')
 
 
-def complete(base, model, key, messages, stop=None):
-    from .ai_api import endpoint
-    endpoint(base)  # Apply the same HTTPS and credential-in-URL validation.
-    if not model.strip() or not key.strip():
-        raise ValueError('请填写 DeepSeek Harness 的模型名和 API Key。')
+def command(path, args):
+    argv = [discover(path)] + args
+    if os.name == 'nt' and Path(argv[0]).suffix.lower() in ('.cmd', '.bat'):
+        # Only trusted launcher/patch paths and fixed flags enter cmd; mail goes to stdin.
+        if any(any(c in value for c in ('%', '!', '\r', '\n', '"')) for value in argv):
+            raise RuntimeError('Harness 启动路径含不支持的字符，请换一个安装位置。')
+        return [os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/s', '/c', '"' + ' '.join('"' + value + '"' for value in argv) + '"']
+    return argv
+
+
+def complete(base='', model='', key='', messages=(), stop=None, *, cli_path=''):
+    # base/model/key are intentionally unused: configuration and credentials belong to dsh.
     if stop is not None and stop.is_set():
         raise RuntimeError('分析已停止，邮件将在下次重试。')
-    systems = '\n\n'.join(m['content'] for m in messages if m['role'] == 'system')
+    system = '\n\n'.join(m['content'] for m in messages if m['role'] == 'system')
     prompt = '\n\n'.join(m['content'] for m in messages if m['role'] != 'system')
-    if len((systems + prompt).encode()) > 2 * 1024 * 1024:
+    if len((system + prompt).encode()) > 2 * 1024 * 1024:
         raise ValueError('本封邮件及附件文字过大，尚未发送给 AI。')
-    try:
-        DeepSeekHarness = _sdk()
-        with tempfile.TemporaryDirectory(prefix='BensonMail-Harness-') as temporary:
-            root = Path(temporary)
-            os.chmod(root, 0o700)
-            workspace = root / 'workspace'
-            workspace.mkdir()
-            patch = root / 'mail.patch.yml'
-            rows = [{'id': name, 'disabled': True} for name in (
-                'persistent-bash', 'persistent-pwsh', 'tool-fs', 'tool-working-directory')]
-            rows.append({'id': 'system-prompt', 'config': {
-                'includeHarnessIdentity': False, 'includeRuntimeContext': False,
-                'personaPrefix': systems}})
-            # JSON is also valid YAML; mail content never becomes patch syntax.
-            patch.write_text(json.dumps(rows, ensure_ascii=False), encoding='utf-8')
-            with DeepSeekHarness(
-                dsh_home=str(root / 'home'), cwd=str(workspace), profile='sdk-minimal',
-                patches=(str(patch),), provider='deepseek-official', model=model.strip(),
-                base_url=base.strip().rstrip('/'), api_key=key.strip(),
-                initialize_timeout_seconds=30, request_timeout_seconds=180,
-                shutdown_timeout_seconds=5,
-            ) as harness:
-                result = harness.run(prompt)
-            if stop is not None and stop.is_set():
-                raise RuntimeError('分析已停止，邮件将在下次重试。')
-            if result.finish_reason != 'completed' or not result.final_response.strip():
-                errors = [event.get('data', {}).get('reason', {}).get('error', {})
-                          for event in result.events if event.get('type') == 'turn/end']
-                raise HarnessFailure(_failure_detail(json.dumps(errors)))
-            return result.final_response
-    except ImportError:
-        raise RuntimeError('安装包缺少 DeepSeek Harness 组件，请下载最新版完整安装包。') from None
-    except HarnessFailure:
-        raise
-    except Exception as error:
-        # SDK diagnostics may include request content or credentials.
-        if str(error) in (
-            '分析已停止，邮件将在下次重试。',
-        ):
-            raise
-        raise RuntimeError(_failure_detail(str(error))) from None
+    with tempfile.TemporaryDirectory(prefix='BensonMail-Harness-') as temporary:
+        root = Path(temporary)
+        patch = root / 'mail.patch.json'
+        rows = [{'id': name, 'disabled': True} for name in (
+            'persistent-bash', 'persistent-pwsh', 'tool-fs', 'tool-working-directory',
+            'tool-bash', 'tool-pwsh', 'tool-fs-search', 'tool-jobs', 'tool-skill',
+            'tool-subagent', 'tool-subagent-fork', 'tool-subagent-control',
+            'tool-subagent-list-agents', 'tool-workflow', 'tool-todo', 'tool-goal',
+            'tool-web', 'tool-plugin-manager', 'mcp-resources', 'plan-mode')]
+        # Headless disables GUI credentials by default; reuse the installed user's saved login.
+        rows += [{'id': name, 'disabled': False} for name in ('credentials', 'authorization', 'deepseek-account')]
+        rows.append({'id': 'system-prompt', 'config': {
+            'includeHarnessIdentity': False, 'includeRuntimeContext': False,
+            'personaPrefix': system}})
+        patch.write_text(json.dumps(rows, ensure_ascii=False), encoding='utf-8')
+        argv = command(cli_path, ['--profile', 'headless', '--patch', str(patch), '--json'])
+        flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+        # Do not retain reasoning or diagnostic output. The terminal JSON event contains the answer.
+        with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as source:
+            source.write(prompt.encode("utf-8")); source.seek(0)
+            process = subprocess.Popen(argv, stdin=source, stdout=out,
+                stderr=subprocess.DEVNULL, cwd=root, creationflags=flags, start_new_session=(os.name != 'nt'))
+            try:
+                deadline = time.monotonic() + 180
+                while process.poll() is None:
+                    if stop is not None and stop.is_set():
+                        raise RuntimeError('分析已停止，邮件将在下次重试。')
+                    if time.monotonic() >= deadline:
+                        raise RuntimeError('DeepSeek Harness 响应超时，请检查其网络及模型设置。')
+                    time.sleep(.1)
+                out.seek(0)
+                answer = ''
+                for line in out:
+                    try:
+                        event = json.loads(line)
+                    except (ValueError, UnicodeError):
+                        continue
+                    if event.get('type') == 'final':
+                        answer = event.get('text', '')
+                if process.returncode or not isinstance(answer, str) or not answer.strip():
+                    raise RuntimeError('已安装的 DeepSeek Harness 执行失败（退出码 ' + str(process.returncode) + '）。请在 Harness 中检查登录、模型与网络，并确认版本支持 headless --json。')
+                return answer
+            finally:
+                if process.poll() is None:
+                    if os.name == 'nt':
+                        subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                            capture_output=True, creationflags=flags, timeout=10)
+                    else:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    process.wait(timeout=10)

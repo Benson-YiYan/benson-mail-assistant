@@ -210,6 +210,7 @@ sealed class MainWindow : Window
     readonly TextBox folder = new() { Header = "报告保存文件夹" };
     readonly ToggleSwitch startup = new() { Header = "登录 Windows 后自动启动", OnContent = "开启", OffContent = "关闭" };
     readonly ComboBox provider = new() { Header = "分析方式", HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly TextBox harnessPath = new() { Header = "DeepSeek Harness 启动器", PlaceholderText = "dsh.cmd / dsh.exe 路径；留空自动查找" };
     readonly TextBox apiBase = new() { Header = "基础地址", PlaceholderText = "https://服务商地址/v1" };
     readonly TextBox model = new() { Header = "模型名", PlaceholderText = "填写服务商提供的模型名" };
     readonly PasswordBox apiKey = new() { Header = "API Key", PlaceholderText = "留空保留此地址已保存的 Key" };
@@ -277,7 +278,7 @@ sealed class MainWindow : Window
         Program.Trace("Right controls");
         foreach (var text in new[] { pageTitle, reportCount, status, detail })
             text.FontFamily = MailTypography.Font;
-        foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model,
+        foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model, harnessPath,
             apiKey, interval, search, sender, from, to, attachment, mailProvider, mailHost, mailPort,
             mailSecurity, mailAuth, mailUsername, mailFolder })
         {
@@ -461,11 +462,11 @@ sealed class MainWindow : Window
         layout.Children.Add(sidebar);
         var main = new Border { Child = shell, Padding = new Thickness(28, 16, 24, 20) };
         Grid.SetColumn(main, 1); layout.Children.Add(main);
-        provider.Items.Add("API · 无需安装 Codex"); provider.Items.Add("Codex · 已安装并登录"); provider.Items.Add("DeepSeek Harness · 内置官方运行时");
+        provider.Items.Add("API · 无需安装 Codex"); provider.Items.Add("Codex · 已安装并登录"); provider.Items.Add("DeepSeek Harness · 使用已安装的应用");
         provider.SelectionChanged += (_, _) => {
-            if (provider.SelectedIndex == 2 && string.IsNullOrWhiteSpace(apiBase.Text)) {
-                apiBase.Text = "https://api.deepseek.com"; model.Text = "deepseek-v4-flash";
-            }
+            var api = provider.SelectedIndex == 0;
+            apiBase.Visibility = model.Visibility = apiKey.Visibility = api ? Visibility.Visible : Visibility.Collapsed;
+            harnessPath.Visibility = provider.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
         };
         mailSecurity.Items.Add("SSL/TLS"); mailSecurity.Items.Add("STARTTLS"); mailSecurity.SelectedIndex = 0;
         mailAuth.Items.Add("密码／客户端授权码"); mailAuth.Items.Add("OAuth2 访问令牌"); mailAuth.SelectedIndex = 0;
@@ -519,9 +520,10 @@ sealed class MainWindow : Window
                     await Call("interval", new { seconds });
                 }))))),
             Row(mailSaveButton, Action("测试邮箱连接", async () => { await SaveMail(); await Call("test_mail"); }))));
-        aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading("选择您喜欢的 AI"), provider, apiBase, model, apiKey,
+        aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading("选择您喜欢的 AI"), provider, apiBase, model, apiKey, harnessPath,
+            Row(Action("检测 Harness", async () => { var found = await Call("harness_detect", new { path = harnessPath.Text }); harnessPath.Text = found.GetString() ?? ""; }), Action("浏览 Harness……", PickHarness)),
             Row(Action("查找 Codex", async () => await Call("codex")), Action("浏览……", PickCodex)),
-            Note("来信及可读取的附件文字交给所选 AI，整理为六项报告。Harness 使用 API 基础地址（官方：https://api.deepseek.com），模型例如 deepseek-v4-flash。运行时已内置；测试连接会发送少量文字。")))),
+            Note("来信及可读取的附件文字交给所选 AI，整理为六项报告。Harness 使用用户已安装的应用及其登录、模型配置，不捆绑或下载运行时。请先在 Harness 中配置；测试连接会发送少量文字。")))),
             Row(aiSaveButton, Action("测试 AI 连接", async () => { await SaveAI(); await Call("test_ai"); }))));
         toggle.Click += async (_, _) => await Guard(ToggleService);
         check.Click += async (_, _) => await Guard(async () =>
@@ -629,8 +631,16 @@ sealed class MainWindow : Window
     async Task SaveAI()
     {
         await Call("save_ai", new { ai_provider = provider.SelectedIndex == 1 ? "codex" : provider.SelectedIndex == 2 ? "deepseek_harness" : "api",
-            api_base = apiBase.Text, api_model = model.Text, key = apiKey.Password });
+            api_base = apiBase.Text, api_model = model.Text, key = apiKey.Password, harness_path = harnessPath.Text });
         apiKey.Password = "";
+    }
+    async Task PickHarness()
+    {
+        var picker = new Windows.Storage.Pickers.FileOpenPicker();
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+        picker.FileTypeFilter.Add(".exe"); picker.FileTypeFilter.Add(".cmd");
+        var picked = await picker.PickSingleFileAsync();
+        if (picked != null && !exitRequested) harnessPath.Text = picked.Path;
     }
     async Task PickFolder()
     {
@@ -716,7 +726,7 @@ sealed class MainWindow : Window
             }
             navigation.SelectedIndex = 0;
             string Text(string key) => config.TryGetProperty(key, out var value) ? value.GetString() ?? "" : "";
-            account.Text = Text("account"); folder.Text = Text("output_dir"); apiBase.Text = Text("api_base"); model.Text = Text("api_model");
+            harnessPath.Text = Text("harness_path"); account.Text = Text("account"); folder.Text = Text("output_dir"); apiBase.Text = Text("api_base"); model.Text = Text("api_model");
             var presetId = Text("mail_provider");
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() ==
                 (presetId.Length == 0 ? (Text("host").Length == 0 || Text("host") == "imap.163.com" ? "163" : "custom") : presetId));
@@ -824,7 +834,7 @@ sealed class MainWindow : Window
                 if (profile.GetProperty("id").GetString() == Text("selected_mailbox_id")) selected = index;
             }
             savedMailboxes.SelectedIndex = selected;
-            account.Text = Text("account"); mailSecret.Password = "";
+            harnessPath.Text = Text("harness_path"); account.Text = Text("account"); mailSecret.Password = "";
             var preset = Text("mail_provider");
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == (preset.Length == 0 ? "163" : preset));
             mailHost.Text = Text("host").Length == 0 ? "imap.163.com" : Text("host");
