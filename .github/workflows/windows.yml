@@ -50,12 +50,6 @@ jobs:
           if (!(Get-Content $result -Raw | ConvertFrom-Json).ok) { throw 'Packaged result failed' }
           if (!(Test-Path $screen)) { throw 'Missing screenshot' }
           $uninstaller = (Get-ChildItem dist -Recurse -Filter 'Uninstall-BensonMail-*.exe' | Select-Object -First 1).FullName
-          foreach ($probe in @('basic', 'selection', 'progress', 'toggle', 'card')) {
-            $probeResult = Join-Path $PWD "evidence/uninstall-probe-$probe.json"
-            $probeProcess = Start-Process -FilePath $uninstaller -ArgumentList @('--uninstall-ui-test', "`"$probeResult`"", '--uninstall-probe', $probe) -PassThru
-            if (!$probeProcess.WaitForExit(15000)) { Stop-Process -Id $probeProcess.Id -Force }
-            "probe=$probe exit=$($probeProcess.ExitCode)" | Add-Content evidence/uninstall-probes.txt
-          }
           $uninstallResult = Join-Path $PWD 'evidence/uninstall-result.json'
           $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('--uninstall-ui-test', "`"$uninstallResult`"") -PassThru
           if (!$uninstallProcess.WaitForExit(30000)) { Stop-Process -Id $uninstallProcess.Id -Force; throw 'Uninstaller UI test timed out' }

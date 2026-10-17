@@ -20,7 +20,7 @@ sealed class UninstallWindow : Window
     readonly TextBlock detail = Text("正在读取卸载信息…");
     readonly TextBlock locations = Text("");
     readonly TextBlock reports = Text("");
-    readonly ProgressBar progress = new() { IsIndeterminate = true };
+    readonly TextBlock progress = Text("正在准备…");
     readonly Button remove = new() { Content = "卸载", MinWidth = 110 };
     readonly Button close = new() { Content = "取消", MinWidth = 110 };
     readonly string target;
@@ -69,25 +69,6 @@ sealed class UninstallWindow : Window
         AppWindow.Resize(new SizeInt32(width, height));
         AppWindow.Move(new PointInt32(area.X + Math.Max(0, (area.Width - width) / 2),
                                      area.Y + Math.Max(0, (area.Height - height) / 2)));
-        if (Argument("--uninstall-probe") is string probe)
-        {
-            var panel = new StackPanel { Padding = new Thickness(30), Spacing = 12 };
-            panel.Children.Add(new TextBlock { Text = "卸载界面组件检查" });
-            panel.Children.Add(probe switch {
-                "selection" => Text("可选择文字"),
-                "progress" => progress,
-                "toggle" => preserve,
-                "card" => Card(new TextBlock { Text = "卡片" }),
-                _ => new Button { Content = "完成" }
-            });
-            Content = panel;
-            panel.Loaded += async (_, _) => {
-                await Task.Delay(300);
-                File.WriteAllText(uiResult!, JsonSerializer.Serialize(new { ok = true, probe }));
-                Application.Current.Exit();
-            };
-            return;
-        }
         var caption = new Grid { Height = 40, Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
         caption.Children.Add(new TextBlock { Text = "邮件小秘书", FontFamily = MailTypography.Font, FontSize = 12,
             Margin = new Thickness(0, 0, 150, 0), VerticalAlignment = VerticalAlignment.Center });
@@ -171,7 +152,7 @@ sealed class UninstallWindow : Window
             if (uiResult != null) {
                 locations.Text = "程序目录：模拟安装目录"; reports.Text = "默认保留报告；勾选后才删除可识别的报告及索引。";
                 detail.Text = "卸载会通过独立组件执行，进度显示在此处。";
-                progress.IsIndeterminate = false; remove.IsEnabled = true;
+                progress.Text = "准备就绪"; remove.IsEnabled = true;
                 await Task.Delay(500);
                 Program.Trace("Uninstall UI test capture");
                 var bounds = AppWindow.Position; var size = AppWindow.Size;
@@ -193,7 +174,7 @@ sealed class UninstallWindow : Window
             locations.Text = "程序目录：" + target + "\n数据目录：" + data;
             reports.Text = "报告目录：" + (info.GetProperty("reports").GetString() is string r && r.Length > 0 ? r : "未配置")
                 + "\n仅删除可识别的报告和邮件索引，保留其他文件及自选根目录。";
-            progress.IsIndeterminate = false; remove.IsEnabled = true;
+            progress.Text = "准备就绪"; remove.IsEnabled = true;
             detail.Text = "准备就绪。可选择保留配置，方便下次安装。";
             if (staged) await Cleanup();
             else if (fixtureResult != null) await Start();
@@ -203,7 +184,7 @@ sealed class UninstallWindow : Window
     void SetBusy()
     {
         busy = true; remove.IsEnabled = close.IsEnabled = preserve.IsEnabled = deleteReports.IsEnabled = false;
-        progress.IsIndeterminate = true;
+        progress.Text = "处理中，请稍候…";
     }
     async Task Start()
     {
@@ -240,7 +221,7 @@ sealed class UninstallWindow : Window
             var start = Worker("cleanup"); start.ArgumentList.Add("--parent-pid");
             start.ArgumentList.Add(Argument("--parent-pid") ?? "0");
             await RunWorker(start);
-            busy = false; finished = true; progress.IsIndeterminate = false; progress.Value = 100;
+            busy = false; finished = true; progress.Text = "已完成";
             detail.Text = preserve.IsOn == true ? "卸载完成。邮箱及 AI 配置已保留，下次重装可继续使用。" : "卸载完成。程序、配置、加密密钥和缓存已清理。";
             remove.Content = "完成"; remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
             WriteFixture(true, null);
@@ -250,7 +231,7 @@ sealed class UninstallWindow : Window
     }
     void Failed(Exception error)
     {
-        busy = false; finished = true; progress.IsIndeterminate = false;
+        busy = false; finished = true; progress.Text = "准备就绪";
         detail.Text = "卸载未完成：" + error.Message;
         remove.Content = "关闭"; remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
         WriteFixture(false, error.Message);
