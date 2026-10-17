@@ -39,7 +39,7 @@ def command(path, args):
         # Only trusted launcher/patch paths and fixed flags enter cmd; mail goes to stdin.
         if any(any(c in value for c in ('%', '!', '\r', '\n', '"')) for value in argv):
             raise RuntimeError('Harness 启动路径含不支持的字符，请换一个安装位置。')
-        return [os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/s', '/c', '"' + ' '.join('"' + value + '"' for value in argv) + '"']
+        return subprocess.list2cmdline([os.environ.get('COMSPEC', 'cmd.exe')]) + ' /d /s /c "' + ' '.join('"' + value + '"' for value in argv) + '"'
     return argv
 
 
