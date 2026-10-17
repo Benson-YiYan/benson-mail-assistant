@@ -298,10 +298,27 @@ sealed class MainWindow : Window
     }
     static Border Card(UIElement content, double padding = 18)
     {
-        var card = (Border)Microsoft.UI.Xaml.Markup.XamlReader.Load(
-            """<Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Background="{ThemeResource MailCardBackground}" BorderBrush="{ThemeResource MailCardStroke}" BorderThickness="1" CornerRadius="8"/>""");
-        card.Child = content;
-        card.Padding = new Thickness(padding);
+        var card = new Border { Child = content, Padding = new Thickness(padding),
+            CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1) };
+        var accessibility = new Windows.UI.ViewManagement.AccessibilitySettings();
+        void Update()
+        {
+            var dark = card.ActualTheme == ElementTheme.Dark;
+            var colors = new Windows.UI.ViewManagement.UISettings();
+            card.Background = new SolidColorBrush(accessibility.HighContrast
+                ? colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background)
+                : Windows.UI.Color.FromArgb(dark ? (byte)13 : (byte)179, 255, 255, 255));
+            card.BorderBrush = new SolidColorBrush(accessibility.HighContrast
+                ? colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground)
+                : Windows.UI.Color.FromArgb(dark ? (byte)25 : (byte)15, 0, 0, 0));
+        }
+        card.Loaded += (_, _) => Update();
+        card.ActualThemeChanged += (_, _) => Update();
+        accessibility.HighContrastChanged += (_, _) => card.DispatcherQueue.TryEnqueue(() =>
+        {
+            if (card.XamlRoot != null) Update();
+        });
+        Update();
         return card;
     }
     static TextBlock Heading(string text) => new() { Text = text, FontSize = 18,

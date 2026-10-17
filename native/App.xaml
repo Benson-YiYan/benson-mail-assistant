@@ -5,20 +5,6 @@
     xmlns:controls="using:Microsoft.UI.Xaml.Controls">
     <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.ThemeDictionaries>
-                <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="MailCardBackground" Color="#B3FFFFFF" />
-                    <SolidColorBrush x:Key="MailCardStroke" Color="#0F000000" />
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="Default">
-                    <SolidColorBrush x:Key="MailCardBackground" Color="#0DFFFFFF" />
-                    <SolidColorBrush x:Key="MailCardStroke" Color="#19000000" />
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="HighContrast">
-                    <SolidColorBrush x:Key="MailCardBackground" Color="{ThemeResource SystemColorWindowColor}" />
-                    <SolidColorBrush x:Key="MailCardStroke" Color="{ThemeResource SystemColorWindowTextColor}" />
-                </ResourceDictionary>
-            </ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary.MergedDictionaries>
                 <controls:XamlControlsResources />
             </ResourceDictionary.MergedDictionaries>
