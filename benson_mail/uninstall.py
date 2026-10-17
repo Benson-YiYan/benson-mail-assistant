@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import uuid
 
 
 def installation(path):
@@ -168,6 +169,22 @@ def cleanup_installation(folder, data, delete_saved_reports, progress, registry_
     if delete_saved_reports and config.get('output_dir'):
         progress('正在删除选中的邮件报告…')
         remove_reports(config['output_dir'])
+    elif config.get('output_dir'):
+        report_root = Path(config['output_dir']).resolve()
+        if report_root.is_relative_to(folder) or report_root.is_relative_to(data.resolve()):
+            files = report_files(report_root)
+            if files:
+                preserved = platform.documents_dir() / ('邮件-卸载保留-' + uuid.uuid4().hex[:8])
+                if preserved.resolve().is_relative_to(folder) or preserved.resolve().is_relative_to(data.resolve()):
+                    raise OSError('报告保留位置仍位于待卸载目录中，请先修改报告保存位置。')
+                preserved.mkdir(parents=True)
+                for source in files:
+                    target = preserved / source.relative_to(report_root)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(source), str(target))
+                config['output_dir'] = str(preserved)
+                (data / 'config.json').write_text(json.dumps(config, ensure_ascii=False), encoding='utf-8')
+                progress('已将程序或数据目录中的报告保留到：' + str(preserved))
     progress('正在清理自启动注册表项…')
     platform.set_autostart(False, registry_name)
     progress('正在清理指向本次安装的快捷方式…')

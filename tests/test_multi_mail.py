@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 from benson_mail.bridge import Controller
 from benson_mail.mailbox_config import mailbox_id
-from benson_mail.uninstall import clear_user_data
+from benson_mail.uninstall import clear_user_data, cleanup_installation
 
 
 class FakeThread:
@@ -124,3 +124,27 @@ class MultipleMailTests(unittest.TestCase):
             self.assertFalse((root / 'mail-secrets/cache.txt').exists())
             clear_user_data(root, False)
             self.assertFalse(root.exists())
+
+    def test_reports_inside_removed_data_are_relocated_and_retained_config_updated(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            program = root / 'BensonMail-202610171200'
+            (program / '_internal').mkdir(parents=True)
+            data = root / 'data'
+            day = data / 'reports/2026-10-17'
+            day.mkdir(parents=True)
+            report = day / 'synthetic.txt'
+            report.write_text('keep report')
+            report.with_suffix('.mail.json').write_text(json.dumps(
+                {'subject': 'synthetic', 'sender': 'fixture', 'received': '2026-10-17'}))
+            (data / 'config.json').write_text(json.dumps({'output_dir': str(day.parent)}))
+            documents = root / 'documents'
+            documents.mkdir()
+            with patch('benson_mail.platform_windows.set_autostart'), \
+                 patch('benson_mail.platform_windows.documents_dir', return_value=documents), \
+                 patch('benson_mail.uninstall.remove_shortcuts'):
+                cleanup_installation(program, data, False, lambda _: None, keep_configuration=True)
+            self.assertFalse(program.exists())
+            saved = Path(json.loads((data / 'config.json').read_text())['output_dir'])
+            self.assertTrue(saved.is_relative_to(documents))
+            self.assertEqual((saved / '2026-10-17/synthetic.txt').read_text(), 'keep report')
