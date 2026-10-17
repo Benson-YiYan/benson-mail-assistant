@@ -186,7 +186,8 @@ sealed class UninstallWindow : Window
         try {
             if (fixtureResult == null) {
                 var dialog = new ContentDialog { XamlRoot = root.XamlRoot, Title = "确认卸载？",
-                    Content = preserve.IsChecked == true ? "保留邮箱及 AI 配置，移除程序和缓存。" : "移除程序、配置、加密密钥和缓存。",
+                    Content = (preserve.IsChecked == true ? "保留邮箱及 AI 配置，移除程序和缓存。" : "移除程序、配置、加密密钥和缓存。")
+                        + (deleteReports.IsChecked == true ? "\n同时删除已选的邮件报告。" : "\n已生成的邮件报告保留。"),
                     PrimaryButtonText = "卸载", CloseButtonText = "取消", DefaultButton = ContentDialogButton.Close };
                 if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
             }
