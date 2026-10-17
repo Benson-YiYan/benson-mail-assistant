@@ -517,6 +517,7 @@ sealed class MainWindow : Window
                     }
                 })), Note(L.T("可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。")))),
             Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
+                Action(L.T("如何获取授权码？"), OpenAccountGuide),
                 Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。")))),
             Card(Stack(Heading(L.T("报告与后台运行")), folder, Action(L.T("浏览……"), PickFolder), startup,
@@ -603,6 +604,15 @@ sealed class MainWindow : Window
         {
             if (initialized && !exitRequested) { searchTimer.Stop(); searchTimer.Start(); }
         };
+    }
+    static string AccountGuidePath => Path.Combine(AppContext.BaseDirectory, "Mail-account-setup-" + L.Code + ".txt");
+    static Task OpenAccountGuide()
+    {
+        var path = AccountGuidePath;
+        if (!File.Exists(path)) path = Path.Combine(AppContext.BaseDirectory, "Mail-account-setup-zh.txt");
+        if (!File.Exists(path)) throw new FileNotFoundException(L.T("无法打开邮箱设置教程，请重新安装邮件小秘书。"));
+        Open(path);
+        return Task.CompletedTask;
     }
     static void Open(string path) => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     async Task ToggleService()
@@ -806,6 +816,7 @@ sealed class MainWindow : Window
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T("欢迎使用邮件小秘书"),
             PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T("稍后填写"),
             Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), secret,
+                Action(L.T("如何获取授权码？"), OpenAccountGuide),
                 Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。")), error) } };
         dialog.PrimaryButtonClick += async (_, e) =>
@@ -1042,7 +1053,9 @@ sealed class MainWindow : Window
             Check(L.Detect("zh-Hant-TW") == "zh" && L.Detect("zh-CN") == "zh" && L.Detect("es-MX") == "en" && L.Detect("en-US") == "en", "Chinese system languages select Chinese; all others select English");
             var rawPreview = preview.Text; var rawAccount = account.Text; var rawHost = mailHost.Text;
             var rawModel = model.Text; var rawFolder = folder.Text; var wasRunning = running;
+            Check(File.Exists(AccountGuidePath) && Path.GetFileName(AccountGuidePath) == "Mail-account-setup-zh.txt", "Chinese local account setup guide packaged and selected");
             await ChangeLanguage("en");
+            Check(File.Exists(AccountGuidePath) && Path.GetFileName(AccountGuidePath) == "Mail-account-setup-en.txt", "English local account setup guide selected without opening editor");
             Check(Title == "Mail Secretary" && account.Header?.ToString() == "Email address" && languageChoice.Header?.ToString() == "Interface language" && savedMailboxes.Header?.ToString() == L.T("已添加的邮箱"), "English labels applied immediately");
             Check(preview.Text == rawPreview && account.Text == rawAccount && mailHost.Text == rawHost && model.Text == rawModel && folder.Text == rawFolder && running == wasRunning, "Language change preserves report text, inputs and monitoring state");
             config = await bridge.Call("config");

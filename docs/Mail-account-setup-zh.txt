@@ -1,0 +1,122 @@
+邮件小秘书：邮箱配置手把手教程（中文）
+适用：Windows、Apple 芯片 Mac、Intel Mac。资料核对日期：2026-10-17。
+官方网站可能调整菜单名称；以登录后看到的页面和管理员要求为准。
+
+一、先分清要填什么
+1. 首次打开软件，在“连接邮箱”区域选“邮箱服务商”。以后在“设置 > 邮箱”（Mac）或“邮箱与检查”（Windows）修改。多邮箱用户先点“添加邮箱”。
+2. “邮箱地址”填完整地址；“IMAP 收件服务器”只填域名，不加 https://、端口或路径。下列常见预设均用端口 993、SSL/TLS；自定义邮箱按官方说明填写。
+3. “登录用户名”通常留空，软件使用完整邮箱地址；服务商另有要求才填。文件夹通常为 INBOX。
+4. “密码／客户端授权码”与“OAuth2 访问令牌”是两种登录方式。没有通用的“IMAP码”。授权码／应用专用密码由邮箱网站生成，不是短信验证码；OAuth2 要填 access_token，不是 refresh_token、id_token 或授权码。
+5. 把凭据填进软件的密码／授权码／OAuth2 访问令牌框，点“保存邮箱设置”（首次使用可能显示“保存并开始使用”），再点“测试邮箱连接”。更换连接信息前先暂停监听。
+6. 邮箱凭据与 AI API Key 是不同的东西。不要把密码、授权码、令牌贴到聊天或发给陌生人。收到新邮件需要另外配置 AI；没有新邮件不会调用 AI。
+
+如果你已经有AI软件，就让它们帮你获得授权码。
+让 AI 帮你辨认官方入口和操作步骤；凭据只填邮箱官网或邮件小秘书，身份验证由你本人完成。
+
+二、网易 163 / 126 / Yeah
+官网分别为 https://mail.163.com/ 、https://mail.126.com/ 、https://www.yeah.net/ 。官方帮助入口：https://help.mail.163.com/ 。
+1. 用浏览器进入对应官网，登录自己的邮箱。
+2. 在设置中找“POP3/SMTP/IMAP”或客户端相关设置，开通 IMAP 服务；不要只开 POP3。
+3. 按页面提示做安全验证并生成客户端授权码。有的页面把“开通服务”和“新增授权码”放在一起；按当前页面完成手机等验证。若没有入口，先查看官方帮助或联系网易客服，不要从第三方买授权码。
+4. 保存生成的授权码。它通常只在生成时完整显示；忘了可在官网撤销并重新生成。
+5. 回软件，选对应预设，填完整地址与授权码，登录方式选“密码／客户端授权码”。163 用 imap.163.com；126 用 imap.126.com；Yeah 用 imap.yeah.net。端口 993，SSL/TLS。
+6. 保存并测试连接。账号风控、安全验证或 IMAP 未开通时，需先在网页端解决；邮箱登录密码不能代替服务商要求的客户端授权码。
+
+三、QQ 邮箱 / QQ 地址的 Foxmail
+官网：https://mail.qq.com/ 。官方授权码说明：https://service.mail.qq.com/detail/0/75 。
+1. 登录 QQ 邮箱网页版，打开“设置”，进入“账号”。
+2. 找到“POP3/IMAP/SMTP/Exchange/CardDAV/CalDAV 服务”区域，开通 IMAP/SMTP 服务。
+3. 按网页提示完成身份验证，获取授权码；生成或管理授权码的具体入口以当前页面为准。
+4. 软件选“QQ / Foxmail”，填完整的 QQ 邮箱地址或该 QQ 邮箱已启用的 @foxmail.com 地址；服务器 imap.qq.com，993，SSL/TLS。授权码填进凭据框，登录方式为“密码／客户端授权码”。
+5. 保存并测试。Foxmail 同时也是一个邮件客户端名称：只是“在 Foxmail 软件里收信”的其他公司邮箱，不能因此选 QQ 预设，应按真实服务商或“其他邮箱”配置。
+
+四、腾讯企业邮箱
+官网：https://exmail.qq.com/ 。官方客户端设置说明：https://hiflow.tencent.com/document/applications/tencent-exmail/ 。
+1. 登录企业邮箱网页版。先检查企业是否允许 IMAP／第三方客户端；没有相关权限时联系公司管理员开通。
+2. 在账户／安全或客户端设置中查看当前组织的客户端登录要求；若启用了安全登录，按页面验证并生成客户端专用密码。不同企业、管理版本和安全策略可能让入口不同，不要照搬个人 QQ 邮箱的入口。
+3. 软件选“腾讯企业邮箱”，填完整企业邮箱地址，服务器 imap.exmail.qq.com，993，SSL/TLS，登录方式“密码／客户端授权码”。凭据按企业要求填专用密码；只有管理员明确允许普通密码时才使用它。
+4. 保存并测试；企业禁用了 IMAP、第三方客户端或密码登录时，需管理员处理，反复更换密码不能绕过企业策略。
+
+五、Gmail
+官网：https://mail.google.com/ 。应用密码官方说明：https://support.google.com/accounts/answer/185833?hl=zh-Hans 。账户安全页：https://myaccount.google.com/security 。
+1. 登录 Google 账号，进入“安全性”，启用“两步验证”。
+2. 打开 https://myaccount.google.com/apppasswords ，按提示再次登录，为“邮件小秘书”创建应用密码。
+3. 将生成的 16 位应用密码填到软件；不要填 Google 常用登录密码。选 Gmail，填完整地址，imap.gmail.com，993，SSL/TLS，“密码／客户端授权码”，保存并测试。
+4. 只有安全密钥的两步验证、Google 高级保护计划、工作／学校账号的管理员限制等情况可能看不到应用密码。软件目前没有 Google 网页 OAuth 登录流程；没有应用密码时不要关闭账号安全保护硬凑连接，应咨询管理员或换可用账号。
+5. 改 Google 账号密码会撤销应用密码，届时需重新生成并更新软件。
+
+六、iCloud 邮箱
+官网：https://www.icloud.com/mail/ 。官方应用专用密码说明：https://support.apple.com/102654 。服务器说明：https://support.apple.com/102525 。
+1. 登录 https://account.apple.com/ ，先确保 Apple 账户已启用双重认证。
+2. 进入“登录和安全 > App 专用密码”，选“生成 App 专用密码”或“+”，命名为“邮件小秘书”，按提示验证。
+3. 软件选 iCloud，填实际 iCloud 邮箱地址和生成的专用密码。服务器 imap.mail.me.com，993，SSL/TLS，登录方式“密码／客户端授权码”。
+4. Apple 官方说明登录用户名通常是地址 @ 前面的部分；完整地址连接失败时，在高级选项“登录用户名”中填地址 @ 前部分再测试。自定义域名或别名以 Apple 账号的有效邮箱和官方要求为准。
+5. 保存并测试。重设 Apple 账户主密码会自动撤销所有 App 专用密码，需要重新生成。不能使用 Apple 账户主密码代替。
+
+七、Yahoo Mail
+官网：https://mail.yahoo.com/ 。官方应用密码说明：https://help.yahoo.com/kb/SLN15241.html 。IMAP 说明：https://help.yahoo.com/kb/SLN4075.html 。
+1. 登录 Yahoo 账户，进入“Account Security / 账户安全”，找到“Generate and manage app passwords / 生成和管理应用密码”。
+2. 按网页提示输入应用名“Mail Secretary”，生成并复制应用密码。
+3. 软件选 Yahoo，完整邮箱地址，imap.mail.yahoo.com，993，SSL/TLS，“密码／客户端授权码”。填生成的应用密码，保存并测试。
+4. 若账户暂时不能生成应用密码，按 Yahoo 官网提示处理或联系其支持；不能保证所有账号都有该入口，也不要用短信验证码代替应用密码。
+
+八、Outlook.com / Hotmail / Microsoft 365（OAuth2，步骤较多）
+官网：个人邮箱 https://outlook.live.com/mail/ ；工作／学校邮箱 https://outlook.office.com/mail/ 。
+重要：该预设用 OAuth2。不要填普通密码或“应用密码”；Exchange Online 已移除 IMAP 基本认证。Graph Explorer 获取的是 Microsoft Graph 令牌，不能拿来登录 IMAP。软件目前只能接收手动取得的 access_token，没有内置微软网页登录或自动续期。
+A. 先开通邮箱 IMAP
+1. 个人 Outlook 在网页版“设置 > 邮件 > 转发和 IMAP”检查并启用 IMAP；若当前界面名称不同，在设置中搜索 IMAP。
+2. 企业 Microsoft 365 先让管理员确认邮箱启用 IMAP、允许下述应用与委托权限。组织可能要求管理员同意或禁止设备代码登录，软件无法绕过。
+B. 一次性注册自己的应用（不想处理这部分可让 IT 帮忙）
+3. 需要有可注册应用的 Microsoft Entra 目录和权限；个人邮箱并不保证自带此条件，不能进入或不能新注册时请 IT 协助。登录 https://entra.microsoft.com/ ，进入“标识 > 应用程序 > 应用注册 > 新注册”。取名 Mail Secretary；选支持你的邮箱类型的账户范围。个人 Outlook 要选择包括“个人 Microsoft 账户”的范围；纯组织账号可选对应组织范围。记下“应用程序(客户端) ID”。
+4. 在该应用的“身份验证 > 高级设置”启用“允许公共客户端流”。不要创建客户端密码；这里使用公共客户端设备代码流程。
+5. 在“API 权限 > 添加权限 > 我的组织使用的 API”搜索“Office 365 Exchange Online”，选“委托的权限”，添加 IMAP.AccessAsUser.All。需要时请管理员同意。不是 Microsoft Graph 的 Mail.Read。
+C. 在自己电脑取令牌（Windows PowerShell；Mac 可让管理员协助取令牌）
+6. 打开 PowerShell，复制下面整段。只把 CLIENT-ID-HERE 改成步骤3的客户端 ID；这不是秘密。个人账号保留 consumers；纯组织注册改成你的租户 ID，不要填邮箱密码。
+
+$clientId = 'CLIENT-ID-HERE'
+$tenant = 'consumers'
+$scope = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access'
+$base = "https://login.microsoftonline.com/$tenant/oauth2/v2.0"
+$device = Invoke-RestMethod -Method Post -Uri "$base/devicecode" -Body @{client_id=$clientId;scope=$scope}
+Write-Host $device.message
+$until = (Get-Date).AddSeconds([int]$device.expires_in)
+$token = $null
+while ((Get-Date) -lt $until) {
+    Start-Sleep -Seconds ([int]$device.interval)
+    try {
+        $token = Invoke-RestMethod -Method Post -Uri "$base/token" -Body @{grant_type='urn:ietf:params:oauth:grant-type:device_code';client_id=$clientId;device_code=$device.device_code}
+        break
+    } catch {
+        try { $failure = $_.ErrorDetails.Message | ConvertFrom-Json } catch { throw }
+        if ($failure.error -eq 'authorization_pending') { continue }
+        if ($failure.error -eq 'slow_down') { $device.interval = [int]$device.interval + 5; continue }
+        throw
+    }
+}
+if (-not $token.access_token) { throw 'Sign-in expired; start again.' }
+$token.access_token | Set-Clipboard
+Write-Host 'Access token copied. Paste it only into Mail Secretary.'
+
+7. 按终端显示的微软登录网址和一次性代码，在浏览器登录你要监听的邮箱并同意权限；不要关闭正在等待的 PowerShell。确认应用名是你自己注册的应用，不要把代码交给他人。
+8. 终端提示已复制后，回软件选 Outlook / Microsoft 365，填完整邮箱地址；服务器 outlook.office365.com，993，SSL/TLS；登录方式 OAuth2 访问令牌，把剪贴板粘贴到凭据框，保存并测试。随后用复制普通文字的方式覆盖剪贴板。
+9. access_token 会过期（期限由微软和组织策略决定）。过期后按步骤6—8重新登录并更新软件。offline_access 可能同时返回 refresh_token，但本软件不接收它也不自动续期。不要把完整令牌或终端响应发给别人。
+10. consent_required、admin_consent、权限不足或企业策略阻止时，让管理员检查应用注册、Exchange Online 委托权限、用户同意与条件访问；不要从不明网站购买所谓“永久 token”。
+微软官方资料：
+https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
+https://learn.microsoft.com/entra/identity-platform/v2-oauth2-device-code
+https://learn.microsoft.com/entra/identity-platform/quickstart-register-app
+https://learn.microsoft.com/entra/identity-platform/scenario-desktop-app-registration
+https://support.microsoft.com/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040
+
+九、其他邮箱（最简单的顺序）
+1. 进这个邮箱服务商自己的官方网页版邮箱，登录。
+2. 在官网设置或官方帮助中找 IMAP／第三方客户端，开通 IMAP；没有入口就联系该邮箱客服或单位管理员。不同服务商菜单不同，没有统一的开通按钮。
+3. 按官网要求取得客户端授权码／应用专用密码；如果必须 OAuth2，请向管理员取得适用于该 IMAP 服务的 access_token。本软件没有通用 OAuth 登录或自动续期功能。
+4. 回软件选“其他邮箱／自定义 IMAP”，填完整邮箱地址、官方提供的 IMAP 域名、端口、加密方式与登录凭据；“高级连接选项”按需填登录用户名和邮件文件夹。不要猜服务器名，也不要把 SMTP 发件服务器填到 IMAP 中。
+5. 保存好，点“测试邮箱连接”；成功后开始监听。官网要求 STARTTLS 就选 STARTTLS 并用官方端口，不要套用别家的 993。服务商只提供 POP3、要求本软件尚不支持的登录方式或禁止第三方客户端时，当前不能连接。
+
+十、连接不通先看这里
+域名／端口错误：回官网核对 IMAP，不要填网页 URL。
+认证失败：检查登录方式、完整账号、授权码是否撤销、OAuth 令牌是否过期。
+组织策略拒绝：联系管理员；软件不能解除限制。
+测试成功但没有旧邮件报告：首次检查只记录已有邮件，之后的新邮件才生成报告。

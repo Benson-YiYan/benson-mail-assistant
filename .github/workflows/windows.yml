@@ -37,7 +37,7 @@ jobs:
         run: |
           $result = Join-Path $PWD 'evidence/packaged-result.json'
           $screen = Join-Path $PWD 'evidence/packaged-screen.png'
-          $exe = (Get-ChildItem dist -Recurse -Filter 'BensonMail-*.exe' | Select-Object -First 1).FullName
+          $exe = (Get-ChildItem dist -Recurse -Filter 'BensonMail-*.exe' | Where-Object Name -Match '^BensonMail-\d{12}\.exe$' | Select-Object -First 1).FullName
           $process = Start-Process -FilePath $exe -ArgumentList @('--self-test', "`"$result`"", '--screenshot', "`"$screen`"") -PassThru
           if (!$process.WaitForExit(120000)) { Stop-Process -Id $process.Id -Force; throw 'Packaged EXE timed out' }
           if ($process.ExitCode -ne 0) {
@@ -69,11 +69,16 @@ jobs:
           $programDir = Split-Path $exe
           python script/check_packaged_uninstall.py "$programDir" evidence/uninstall-e2e-result.json
           if ($LASTEXITCODE -ne 0) { throw 'Independent uninstall integration test failed' }
+      - name: Installer choices and complete cleanup integration test
+        run: |
+          $setup = (Get-ChildItem dist -Filter 'BensonMail-Windows-x64-Setup-*.exe' | Select-Object -First 1).FullName
+          python script/check_installer.py "$setup" evidence
+          if ($LASTEXITCODE -ne 0) { throw 'Installer integration test failed' }
       - name: Upload verified Windows package
         uses: actions/upload-artifact@v4
         with:
           name: BensonMail-Windows-x64
-          path: dist/BensonMail-Windows-x64-*.zip
+          path: dist/BensonMail-Windows-x64-Setup-*.exe
           if-no-files-found: error
       - name: Upload test evidence
         if: always()

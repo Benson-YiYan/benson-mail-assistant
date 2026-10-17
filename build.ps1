@@ -6,6 +6,7 @@ if ($LASTEXITCODE -ne 0) { throw 'WinUI publish failed' }
 python -m PyInstaller --noconfirm --clean --onedir --windowed --name BensonMail --icon assets/mail.ico --add-data "assets;assets" --hidden-import win32timezone --collect-all pystray --collect-all pypdf --collect-all certifi --collect-all truststore main.py
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed' }
 Copy-Item README.md dist/BensonMail/使用说明.md
+Copy-Item docs/Mail-account-setup-*.txt dist/BensonMail/
 python -m PyInstaller --noconfirm --clean --onedir --console --hide-console hide-early --name MailWorker --icon assets/mail.ico --add-data "assets;assets" --hidden-import win32timezone --collect-all pypdf --collect-all certifi --collect-all truststore main.py
 if ($LASTEXITCODE -ne 0) { throw 'Worker build failed' }
 $legacyExe = 'dist/BensonMail/BensonMail.exe'
@@ -21,4 +22,5 @@ $version = [TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $chinaZone).To
 Rename-Item dist/BensonMail/BensonMail.exe "BensonMail-$version.exe"
 Rename-Item "dist/BensonMail/Uninstall.exe" "Uninstall-BensonMail-$version.exe"
 Rename-Item dist/BensonMail "BensonMail-$version"
-Compress-Archive -Path "dist/BensonMail-$version" -DestinationPath "dist/BensonMail-Windows-x64-$version.zip" -Force
+& "$PSScriptRoot/script/build_installer.ps1" -PackageDir (Resolve-Path "dist/BensonMail-$version").Path -Version $version
+if ($LASTEXITCODE -ne 0) { throw 'Installer build failed' }
