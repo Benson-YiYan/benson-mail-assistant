@@ -305,7 +305,8 @@ def main(test_result=None, worker_folder=None, parent_pid=0, delete_saved_report
                 if fixture_result:
                     args += ['--fixture-result', str(fixture_result)]
                 try:
-                    subprocess.Popen(args, cwd=tempfile.gettempdir(), close_fds=True)
+                    subprocess.Popen(args, cwd=tempfile.gettempdir(), close_fds=True,
+                                     creationflags=subprocess.CREATE_NO_WINDOW)
                     root.destroy()
                     return
                 except OSError as error:

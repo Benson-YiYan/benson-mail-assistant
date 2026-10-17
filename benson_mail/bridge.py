@@ -56,6 +56,13 @@ class Controller:
         self.emit({'event': event})
 
     def command(self, name, data):
+        if name == 'runtime_info':
+            import ctypes
+            from ctypes import wintypes
+            ctypes.windll.kernel32.GetConsoleWindow.restype = wintypes.HWND
+            ctypes.windll.user32.IsWindowVisible.argtypes = [wintypes.HWND]
+            console = ctypes.windll.kernel32.GetConsoleWindow()
+            return {'console_visible': bool(console and ctypes.windll.user32.IsWindowVisible(console))}
         if name == 'config':
             if self.launcher and self.config.get('autostart'):
                 platform.set_autostart(True, launcher=self.launcher)
@@ -219,7 +226,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown'):
+                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})

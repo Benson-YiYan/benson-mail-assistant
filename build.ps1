@@ -6,7 +6,7 @@ if ($LASTEXITCODE -ne 0) { throw 'WinUI publish failed' }
 python -m PyInstaller --noconfirm --clean --onedir --windowed --name BensonMail --icon assets/mail.ico --add-data "assets;assets" --hidden-import win32timezone --collect-all pystray --collect-all pypdf --collect-all certifi --collect-all truststore main.py
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed' }
 Copy-Item README.md dist/BensonMail/使用说明.md
-python -m PyInstaller --noconfirm --clean --onedir --console --name MailWorker --icon assets/mail.ico --add-data "assets;assets" --hidden-import win32timezone --collect-all pypdf --collect-all certifi --collect-all truststore main.py
+python -m PyInstaller --noconfirm --clean --onedir --console --hide-console hide-early --name MailWorker --icon assets/mail.ico --add-data "assets;assets" --hidden-import win32timezone --collect-all pypdf --collect-all certifi --collect-all truststore main.py
 if ($LASTEXITCODE -ne 0) { throw 'Worker build failed' }
 $legacyExe = 'dist/BensonMail/BensonMail.exe'
 $uninstaller = 'dist/BensonMail/Uninstall.exe'

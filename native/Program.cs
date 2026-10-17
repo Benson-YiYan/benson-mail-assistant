@@ -616,6 +616,8 @@ sealed class MainWindow : Window
                     localWinUI = module.FileName.StartsWith(AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase);
             }
             Check(localRuntime && localWinUI, "Uses bundled .NET and WinUI runtimes");
+            var runtime = await bridge.Call("runtime_info");
+            Check(!runtime.GetProperty("console_visible").GetBoolean(), "Packaged mail worker runs without a visible console window");
             Check(reports.Items.Count == 1, "Native WinUI 3 window receives synthetic reports through packaged worker");
             var report = (Report)reports.Items[0];
             Check(report.title == "模拟合同检查" && report.time == "2026-10-17 09:15", "Subject and received time are separate");
