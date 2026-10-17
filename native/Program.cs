@@ -873,6 +873,7 @@ sealed class MainWindow : Window
         changingLanguage = true;
         try {
             L.Apply(Content as UIElement, reports, savedMailboxes, detail);
+            savedMailboxes.Header = savedMailboxes.Header is string mailboxHeader ? L.T(mailboxHeader) : savedMailboxes.Header;
             if (!detailIsUserSubject) detail.Text = L.T(detail.Text);
             L.Apply(filters.Content as UIElement);
             Title = L.T("邮件小秘书"); tray.Text = Title;
@@ -1042,7 +1043,7 @@ sealed class MainWindow : Window
             var rawPreview = preview.Text; var rawAccount = account.Text; var rawHost = mailHost.Text;
             var rawModel = model.Text; var rawFolder = folder.Text; var wasRunning = running;
             await ChangeLanguage("en");
-            Check(Title == "Mail Secretary" && account.Header?.ToString() == "Email address" && languageChoice.Header?.ToString() == "Interface language", "English labels applied immediately");
+            Check(Title == "Mail Secretary" && account.Header?.ToString() == "Email address" && languageChoice.Header?.ToString() == "Interface language" && savedMailboxes.Header?.ToString() == L.T("已添加的邮箱"), "English labels applied immediately");
             Check(preview.Text == rawPreview && account.Text == rawAccount && mailHost.Text == rawHost && model.Text == rawModel && folder.Text == rawFolder && running == wasRunning, "Language change preserves report text, inputs and monitoring state");
             config = await bridge.Call("config");
             Check(config.GetProperty("ui_language").GetString() == "en", "Selected report and interface language persisted through bridge");
