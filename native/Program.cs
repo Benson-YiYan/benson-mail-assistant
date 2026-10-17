@@ -300,21 +300,21 @@ sealed class MainWindow : Window
     {
         var card = new Border { Child = content, Padding = new Thickness(padding),
             CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1) };
-        var accessibility = new Windows.UI.ViewManagement.AccessibilitySettings();
         void Update()
         {
             var dark = card.ActualTheme == ElementTheme.Dark;
-            var colors = new Windows.UI.ViewManagement.UISettings();
-            card.Background = new SolidColorBrush(accessibility.HighContrast
-                ? colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background)
+            var background = System.Drawing.SystemColors.Window;
+            var foreground = System.Drawing.SystemColors.WindowText;
+            card.Background = new SolidColorBrush(Forms.SystemInformation.HighContrast
+                ? Windows.UI.Color.FromArgb(background.A, background.R, background.G, background.B)
                 : Windows.UI.Color.FromArgb(dark ? (byte)13 : (byte)179, 255, 255, 255));
-            card.BorderBrush = new SolidColorBrush(accessibility.HighContrast
-                ? colors.GetColorValue(Windows.UI.ViewManagement.UIColorType.Foreground)
+            card.BorderBrush = new SolidColorBrush(Forms.SystemInformation.HighContrast
+                ? Windows.UI.Color.FromArgb(foreground.A, foreground.R, foreground.G, foreground.B)
                 : Windows.UI.Color.FromArgb(dark ? (byte)25 : (byte)15, 0, 0, 0));
         }
         card.Loaded += (_, _) => Update();
         card.ActualThemeChanged += (_, _) => Update();
-        accessibility.HighContrastChanged += (_, _) => card.DispatcherQueue.TryEnqueue(() =>
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged += (_, _) => card.DispatcherQueue.TryEnqueue(() =>
         {
             if (card.XamlRoot != null) Update();
         });
