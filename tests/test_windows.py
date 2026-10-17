@@ -48,9 +48,9 @@ class WindowsTests(unittest.TestCase):
                 link = pythoncom.CoCreateInstance(shell.CLSID_ShellLink, None, pythoncom.CLSCTX_INPROC_SERVER,
                                                  shell.IID_IShellLink)
                 link.QueryInterface(pythoncom.IID_IPersistFile).Load(str(updated))
-                self.assertEqual(Path(link.GetPath(shell.SLGP_RAWPATH)[0]), second)
+                self.assertEqual(Path(link.GetPath(shell.SLGP_RAWPATH)[0]).resolve(), second.resolve())
                 self.assertEqual(link.GetArguments(), '')
-                self.assertEqual(Path(link.GetWorkingDirectory()), second.parent)
+                self.assertEqual(Path(link.GetWorkingDirectory()).resolve(), second.parent.resolve())
             finally:
                 pythoncom.CoUninitialize()
             remove_shortcuts(second.parent, [desktop])

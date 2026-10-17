@@ -143,6 +143,11 @@ def self_test(result_path,screenshot):
     return 0 if result['ok'] else 1
 
 def main():
+    if "--harness-self-test" in sys.argv:
+        from benson_mail.harness_smoke import run
+        result = run()
+        Path(sys.argv[sys.argv.index("--harness-self-test") + 1]).write_text(json.dumps(result), encoding="utf-8")
+        return 0
     if '--uninstall-native' in sys.argv:
         from benson_mail.uninstall import native_cli
         return native_cli()

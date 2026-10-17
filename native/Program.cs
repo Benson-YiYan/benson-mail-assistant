@@ -461,7 +461,12 @@ sealed class MainWindow : Window
         layout.Children.Add(sidebar);
         var main = new Border { Child = shell, Padding = new Thickness(28, 16, 24, 20) };
         Grid.SetColumn(main, 1); layout.Children.Add(main);
-        provider.Items.Add("API · 无需安装 Codex"); provider.Items.Add("Codex · 已安装并登录");
+        provider.Items.Add("API · 无需安装 Codex"); provider.Items.Add("Codex · 已安装并登录"); provider.Items.Add("DeepSeek Harness · 内置官方运行时");
+        provider.SelectionChanged += (_, _) => {
+            if (provider.SelectedIndex == 2 && string.IsNullOrWhiteSpace(apiBase.Text)) {
+                apiBase.Text = "https://api.deepseek.com"; model.Text = "deepseek-v4-flash";
+            }
+        };
         mailSecurity.Items.Add("SSL/TLS"); mailSecurity.Items.Add("STARTTLS"); mailSecurity.SelectedIndex = 0;
         mailAuth.Items.Add("密码／客户端授权码"); mailAuth.Items.Add("OAuth2 访问令牌"); mailAuth.SelectedIndex = 0;
         mailProvider.SelectionChanged += (_, _) =>
@@ -516,7 +521,7 @@ sealed class MainWindow : Window
             Row(mailSaveButton, Action("测试邮箱连接", async () => { await SaveMail(); await Call("test_mail"); }))));
         aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading("选择您喜欢的 AI"), provider, apiBase, model, apiKey,
             Row(Action("查找 Codex", async () => await Call("codex")), Action("浏览……", PickCodex)),
-            Note("来信及可读取的附件文字交给所选 AI，整理为六项报告。测试连接会发送少量文字。")))),
+            Note("来信及可读取的附件文字交给所选 AI，整理为六项报告。Harness 使用 API 基础地址（官方：https://api.deepseek.com），模型例如 deepseek-v4-flash。运行时已内置；测试连接会发送少量文字。")))),
             Row(aiSaveButton, Action("测试 AI 连接", async () => { await SaveAI(); await Call("test_ai"); }))));
         toggle.Click += async (_, _) => await Guard(ToggleService);
         check.Click += async (_, _) => await Guard(async () =>
@@ -623,7 +628,7 @@ sealed class MainWindow : Window
     }
     async Task SaveAI()
     {
-        await Call("save_ai", new { ai_provider = provider.SelectedIndex == 1 ? "codex" : "api",
+        await Call("save_ai", new { ai_provider = provider.SelectedIndex == 1 ? "codex" : provider.SelectedIndex == 2 ? "deepseek_harness" : "api",
             api_base = apiBase.Text, api_model = model.Text, key = apiKey.Password });
         apiKey.Password = "";
     }
@@ -720,7 +725,7 @@ sealed class MainWindow : Window
             mailUsername.Text = Text("username"); mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
             mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0;
-            provider.SelectedIndex = Text("ai_provider") == "codex" ? 1 : 0;
+            provider.SelectedIndex = Text("ai_provider") == "codex" ? 1 : Text("ai_provider") == "deepseek_harness" ? 2 : 0;
             interval.Text = config.GetProperty("interval").ToString();
             startup.IsOn = config.TryGetProperty("autostart", out var auto) && auto.GetBoolean();
             await ReloadMailboxes();

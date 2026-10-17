@@ -49,6 +49,12 @@ jobs:
           if (!(Test-Path $result)) { throw 'Missing packaged self-test evidence' }
           if (!(Get-Content $result -Raw | ConvertFrom-Json).ok) { throw 'Packaged result failed' }
           if (!(Test-Path $screen)) { throw 'Missing screenshot' }
+          $harnessResult = Join-Path $PWD 'evidence/harness-result.json'
+          $worker = Join-Path (Split-Path $exe) 'MailWorker.exe'
+          $harnessProcess = Start-Process -FilePath $worker -ArgumentList @('--harness-self-test', "`"$harnessResult`"") -PassThru -WindowStyle Hidden
+          if (!$harnessProcess.WaitForExit(60000)) { Stop-Process -Id $harnessProcess.Id -Force; throw 'Packaged Harness test timed out' }
+          if ($harnessProcess.ExitCode -ne 0 -or !(Test-Path $harnessResult)) { throw 'Packaged Harness runtime failed' }
+          if (!(Get-Content $harnessResult -Raw | ConvertFrom-Json).ok) { throw 'Packaged Harness result failed' }
           $uninstaller = (Get-ChildItem dist -Recurse -Filter 'Uninstall-BensonMail-*.exe' | Select-Object -First 1).FullName
           $uninstallResult = Join-Path $PWD 'evidence/uninstall-result.json'
           $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @('--uninstall-ui-test', "`"$uninstallResult`"") -PassThru

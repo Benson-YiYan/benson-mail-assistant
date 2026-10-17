@@ -38,3 +38,9 @@ Python 3.12：`python -m pip install -r requirements.txt`；`python -m unittest 
 Windows 构建需要 .NET 8 SDK，运行 `./build.ps1`。GitHub Actions 在 Windows 2022 上执行后台单元测试、旧界面回归、Windows DPAPI/文档目录/注册表检查、完整模拟来信流程，然后编译原生 WinUI 3 窗口并运行实际 EXE 自检及卸载测试。安装包与测试记录分别作为 artifacts 下载。界面与后台通过本机重定向管道交换 JSON，不开放网络端口；密钥不会返回界面或写入普通配置。
 
 `python main.py --self-test RESULT.json --screenshot SCREEN.png` 使用临时目录、模拟邮箱和本机 HTTP 测试服务，不访问真实邮箱或 AI 服务；在 Windows 上临时启动实际测试托盘、调用通知与关闭接口后清理。系统是否显示通知受 Windows 设置控制。自检仅临时创建测试专用自启动注册表值并清理，不改变正式应用自启动项。
+
+## DeepSeek Harness
+
+在 AI 服务选择“DeepSeek Harness”，填写基础地址、模型名和 API Key。内置官方 Python SDK 与运行时 0.1.5rc1，无需另装 Codex、Python 或 Node。官方基础地址为 `https://api.deepseek.com`，默认示例模型 `deepseek-v4-flash`；可手动修改并测试连接。该版本使用 Chat Completions 传输，基础地址不填写 `/chat/completions`。原有邮件分析提示词保持不变。
+
+每次分析使用独立临时目录和独立会话，关闭命令执行及文件工具；读取附件后只发送原有邮件分析所需文字。临时会话随后清理；没有新邮件不启动 Harness、不调用模型。API Key 仍使用系统加密存储，卸载时的保留配置选项同样适用。

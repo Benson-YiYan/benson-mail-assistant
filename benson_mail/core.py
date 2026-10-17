@@ -219,7 +219,10 @@ class APIAnalyzer:
         self.config=dict(config); self.key=key
     def __call__(self,message,stop):
         from .ai_api import complete
-        return complete(self.config.get('api_base',''),self.config.get('api_model',''),self.key,
+        transport = complete
+        if self.config.get('ai_provider') == 'deepseek_harness':
+            from .deepseek_harness_ai import complete as transport
+        return transport(self.config.get('api_base',''),self.config.get('api_model',''),self.key,
                         [{'role':'user','content':ANALYSIS_PROMPT+json.dumps(message,ensure_ascii=False)}],stop)
 
 class Service:
@@ -229,7 +232,7 @@ class Service:
         identity=state_identity(config)
         self.identity=identity
         self.state_path=self.root/(identity+'.json'); self.state=json.loads(self.state_path.read_text(encoding='utf-8')) if self.state_path.exists() else {}
-        self.analyzer=analyzer or (APIAnalyzer(config,api_key) if config.get('ai_provider','codex')=='api' else CodexAnalyzer(config.get('codex_command',[]),self.root))
+        self.analyzer=analyzer or (APIAnalyzer(config,api_key) if config.get('ai_provider','codex') in ('api','deepseek_harness') else CodexAnalyzer(config.get('codex_command',[]),self.root))
         self.cancel=threading.Event(); self.thread=None
         self.wake=threading.Event(); self.check_requested=False
     def start(self):
