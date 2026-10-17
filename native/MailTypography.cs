@@ -4,9 +4,9 @@ namespace BensonMail;
 
 internal static class MailTypography
 {
-    // Use the Windows 11 Latin UI face and Windows' Chinese UI face.
-    // Segoe UI remains available on Windows 10; no third-party fonts are bundled.
-    internal const string FontStack = "Segoe UI Variable, Segoe UI, Microsoft YaHei UI, Microsoft YaHei";
+    // Prefer the Windows Chinese UI face for this Chinese-language application.
+    // Put it first so Segoe's automatic glyph fallback cannot select another CJK face.
+    internal const string FontStack = "Microsoft YaHei UI, Microsoft YaHei, Segoe UI Variable, Segoe UI";
     internal static readonly FontFamily Font = Create();
     static FontFamily Create()
     {
