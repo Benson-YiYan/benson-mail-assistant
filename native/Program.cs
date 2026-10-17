@@ -811,9 +811,9 @@ sealed class MainWindow : Window
             foreach (var profile in config.GetProperty("mailboxes").EnumerateArray()) {
                 var index = mailboxProfiles.Count; mailboxProfiles.Add(profile.Clone());
                 var enabled = !profile.TryGetProperty("monitor_enabled", out var flag) || flag.GetBoolean();
-                savedMailboxes.Items.Add(profile.GetProperty("account").GetString() + (enabled ? " · 已启用" : " · 已暂停"));
-                if (profile.GetProperty("account").GetString() == Text("account") &&
-                    (!profile.TryGetProperty("host", out var host) || host.GetString() == Text("host"))) selected = index;
+                var mailboxFolder = profile.TryGetProperty("mail_folder", out var mf) ? mf.GetString() : "INBOX";
+                savedMailboxes.Items.Add(profile.GetProperty("account").GetString() + " · " + mailboxFolder + (enabled ? " · 已启用" : " · 已暂停"));
+                if (profile.GetProperty("id").GetString() == Text("selected_mailbox_id")) selected = index;
             }
             savedMailboxes.SelectedIndex = selected;
             account.Text = Text("account"); mailSecret.Password = "";
@@ -871,6 +871,12 @@ sealed class MainWindow : Window
             Check(localRuntime && localWinUI, "Uses bundled .NET and WinUI runtimes");
             Check(mailPresets.Count >= 10 && mailPresets.Exists(p => p.GetProperty("id").GetString() == "custom"),
                 "Common mailbox presets and custom IMAP available through bundled bridge");
+            Check(savedMailboxes.Items.Count == 2, "Multiple saved accounts populate the native mailbox picker");
+            savedMailboxes.SelectedIndex = 1;
+            var switchDeadline = DateTime.UtcNow.AddSeconds(3);
+            while (account.Text != "second@example.invalid" && DateTime.UtcNow < switchDeadline) await Task.Delay(25);
+            Check(account.Text == "second@example.invalid" && mailHost.Text == "imap.second.invalid",
+                "Selecting a different saved mailbox loads its own connection without overwriting the other account");
             var savedPreset = mailProvider.SelectedIndex;
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "qq");
             Check(mailHost.Text == "imap.qq.com" && mailPort.Text == "993", "QQ preset fills editable TLS server settings");

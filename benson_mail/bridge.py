@@ -120,6 +120,7 @@ class Controller:
             if self.launcher and self.config.get('autostart'):
                 platform.set_autostart(True, launcher=self.launcher)
             return {**self.config, 'mailboxes': [{**p, 'id': mailbox_id(p)} for p in self.profiles()], 'running': self.active(),
+                    'selected_mailbox_id': mailbox_id(self.config) if self.config.get('account') else '',
                     'output_dir': self.config.get('output_dir') or str(platform.documents_dir() / '邮件'),
                     'has_mail_secret': bool(self.config.get('account')) and self.secret_path().exists()}
         if name == 'mail_presets':
@@ -328,13 +329,17 @@ def run(launcher=None, fixture=None):
                   'body': '请检查合同正文', 'received': '2026-10-17T01:15:00+00:00',
                   'attachments': [{'name': '合同.pdf'}]})
         controller.config.update(output_dir=str(output.parent), interval=60)
+        fixture_profiles = [normalize({'account': 'first@example.invalid', 'host': 'imap.first.invalid'}),
+                            normalize({'account': 'second@example.invalid', 'host': 'imap.second.invalid'})]
+        controller.config.update(mailboxes=[{**p, 'monitor_enabled': True} for p in fixture_profiles],
+                                 **fixture_profiles[0])
     try:
         for line in sys.stdin:
             request = {}
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets'):
+                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})
