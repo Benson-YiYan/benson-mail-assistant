@@ -210,8 +210,8 @@ sealed class MainWindow : Window
     readonly ListView reports = new() { SelectionMode = ListViewSelectionMode.Single };
     readonly TextBox preview = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
         PlaceholderText = "选择一封邮件，查看六项报告。", VerticalAlignment = VerticalAlignment.Stretch };
-    readonly Button toggle = new() { Content = "开始监听" };
-    readonly Button check = new() { Content = "立即检查" };
+    readonly Button toggle = new() { Content = "开始监听", CornerRadius = new CornerRadius(4) };
+    readonly Button check = new() { Content = "立即检查", CornerRadius = new CornerRadius(4) };
     readonly Forms.NotifyIcon tray;
     readonly Bridge bridge;
     readonly Microsoft.UI.Dispatching.DispatcherQueueTimer searchTimer;
@@ -243,6 +243,12 @@ sealed class MainWindow : Window
         Program.Trace("Left controls");
         BuildRight();
         Program.Trace("Right controls");
+        foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model,
+            apiKey, interval, search, sender, from, to, attachment })
+        {
+            field.CornerRadius = new CornerRadius(4);
+            field.BorderThickness = new Thickness(1);
+        }
         tray = new Forms.NotifyIcon
         {
             Text = "邮件小秘书", Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico")),
@@ -275,7 +281,7 @@ sealed class MainWindow : Window
     }
     Button Action(string text, Func<Task> action)
     {
-        var button = new Button { Content = text };
+        var button = new Button { Content = text, CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 7, 12, 7) };
         button.Click += async (_, _) => { if (exitRequested) return; button.IsEnabled = false; try { await action(); } catch (Exception e) { if (!exitRequested) detail.Text = e.Message; } finally { if (!exitRequested) button.IsEnabled = true; } };
         return button;
     }
@@ -390,7 +396,6 @@ sealed class MainWindow : Window
             check.IsEnabled = false;
             try { await Call("check"); } catch { if (!exitRequested) check.IsEnabled = true; throw; }
         });
-        navigation.SelectedItem = navigation.MenuItems[0];
         ShowPage(0);
     }
     void BuildRight()
@@ -413,7 +418,8 @@ sealed class MainWindow : Window
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.Children.Add(search);
-        filterButton = new Button { Content = Row(new SymbolIcon(Symbol.Filter) { Width = 16 }, new TextBlock { Text = "筛选" }), Flyout = filters };
+        filterButton = new Button { Content = Row(new SymbolIcon(Symbol.Filter) { Width = 16 }, new TextBlock { Text = "筛选" }),
+            CornerRadius = new CornerRadius(4), Flyout = filters };
         Grid.SetColumn(filterButton, 1); toolbar.Children.Add(filterButton);
         var refreshButton = Action("刷新", Refresh); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
         pane.Children.Add(toolbar);
@@ -556,6 +562,7 @@ sealed class MainWindow : Window
         {
             var config = await bridge.Call("config");
             if (exitRequested) return;
+            navigation.SelectedItem = navigation.MenuItems[0];
             string Text(string key) => config.TryGetProperty(key, out var value) ? value.GetString() ?? "" : "";
             account.Text = Text("account"); folder.Text = Text("output_dir"); apiBase.Text = Text("api_base"); model.Text = Text("api_model");
             provider.SelectedIndex = Text("ai_provider") == "codex" ? 1 : 0;
