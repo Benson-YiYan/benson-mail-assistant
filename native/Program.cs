@@ -163,14 +163,24 @@ sealed class Bridge : IDisposable
     }
 }
 
-sealed record Report(string path, string title, string sender, string time, bool? attachments)
+[Microsoft.UI.Xaml.Data.Bindable]
+public sealed record Report(string path, string title, string sender, string time, bool? attachments)
 {
     public override string ToString() => title + "\n" + sender + "  ·  " + time + (attachments == true ? "  ·  有附件" : "");
 }
 
 sealed class MainWindow : Window
 {
-    readonly Grid layout = new() { Padding = new Thickness(22), ColumnSpacing = 22 };
+    readonly Grid layout = new();
+    readonly NavigationView navigation = new() { PaneDisplayMode = NavigationViewPaneDisplayMode.Left,
+        OpenPaneLength = 200, IsBackButtonVisible = NavigationViewBackButtonVisible.Collapsed,
+        IsSettingsVisible = false, IsPaneOpen = true };
+    readonly Grid pages = new() { Padding = new Thickness(24, 12, 24, 20) };
+    readonly Grid reportPage = new() { RowSpacing = 16 };
+    readonly Grid mailPage = new();
+    readonly Grid aiPage = new();
+    readonly TextBlock pageTitle = new() { Text = "邮件报告", FontSize = 28, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+    readonly TextBlock reportCount = new() { Opacity = .65, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock status = new() { Text = "已暂停", FontSize = 23, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
     readonly TextBlock detail = new() { Text = "正在加载设置…", TextWrapping = TextWrapping.Wrap };
     readonly TextBox account = new() { Header = "163 邮箱地址", PlaceholderText = "name@163.com" };
@@ -198,8 +208,9 @@ sealed class MainWindow : Window
     readonly string? testResult;
     readonly string? fixture;
     readonly HashSet<string> notified = new();
-    Pivot tabs = null!;
     Button mailSaveButton = null!, aiSaveButton = null!;
+    Button filterButton = null!;
+    Flyout filters = null!;
     bool initialized, running, exiting, exitRequested;
     long reportGeneration, previewGeneration;
 
@@ -218,8 +229,6 @@ sealed class MainWindow : Window
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico"));
         SystemBackdrop = new MicaBackdrop();
         Content = layout;
-        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(375) });
-        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         BuildLeft();
         Program.Trace("Left controls");
         BuildRight();
@@ -277,62 +286,127 @@ sealed class MainWindow : Window
         Grid.SetRow(actions, 1); page.Children.Add(actions);
         return page;
     }
+    static Brush ThemeBrush(string key) => (Brush)Application.Current.Resources[key];
+    static Border Card(UIElement content, double padding = 18) => new()
+    {
+        Child = content, Padding = new Thickness(padding), CornerRadius = new CornerRadius(8),
+        Background = ThemeBrush("CardBackgroundFillColorDefaultBrush"),
+        BorderBrush = ThemeBrush("CardStrokeColorDefaultBrush"), BorderThickness = new Thickness(1)
+    };
+    static TextBlock Heading(string text) => new() { Text = text, FontSize = 18,
+        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+    void ShowPage(int index)
+    {
+        reportPage.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
+        mailPage.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
+        aiPage.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
+        pageTitle.Text = index == 0 ? "邮件报告" : index == 1 ? "邮箱与检查" : "AI 服务";
+    }
     void BuildLeft()
     {
-        var pane = new Grid { RowSpacing = 14 };
-        pane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        pane.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        pane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        pane.Children.Add(Stack(new TextBlock { Text = "邮件小秘书", FontSize = 30,
-            FontWeight = Microsoft.UI.Text.FontWeights.Bold }, Note("新来信自动整理，您决定如何回复。"), status, detail));
+        navigation.PaneHeader = Row(new SymbolIcon(Symbol.Mail) { Margin = new Thickness(12, 0, 0, 0) },
+            new TextBlock { Text = "邮件小秘书", FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center });
+        navigation.MenuItems.Add(new NavigationViewItem { Content = "邮件报告", Icon = new SymbolIcon(Symbol.Mail), Tag = 0 });
+        navigation.MenuItems.Add(new NavigationViewItem { Content = "邮箱与检查", Icon = new SymbolIcon(Symbol.Setting), Tag = 1 });
+        navigation.MenuItems.Add(new NavigationViewItem { Content = "AI 服务", Icon = new SymbolIcon(Symbol.Message), Tag = 2 });
+        navigation.PaneFooter = Stack(Action("打开报告文件夹", () =>
+        {
+            Directory.CreateDirectory(folder.Text); Open(folder.Text); return Task.CompletedTask;
+        }), Action("退出邮件小秘书", Exit), Note("无新邮件，不调用 AI。"));
+        navigation.SelectionChanged += (_, e) =>
+        {
+            if (e.SelectedItem is NavigationViewItem item && item.Tag is int index) ShowPage(index);
+        };
+        var shell = new Grid { RowSpacing = 16 };
+        shell.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        shell.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        shell.Children.Add(pageTitle);
+        status.FontSize = 16;
+        detail.FontSize = 12; detail.Opacity = .7;
+        var service = new Grid { ColumnSpacing = 16 };
+        service.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        service.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        service.Children.Add(Stack(status, detail));
+        toggle.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        var serviceActions = Row(toggle, check); serviceActions.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(serviceActions, 1); service.Children.Add(serviceActions);
+        var serviceCard = Card(service, 16); Grid.SetRow(serviceCard, 1); shell.Children.Add(serviceCard);
+        Grid.SetRow(pages, 2); shell.Children.Add(pages);
+        pages.Padding = new Thickness(0);
+        pages.Children.Add(reportPage); pages.Children.Add(mailPage); pages.Children.Add(aiPage);
+        navigation.Content = new Border { Child = shell, Padding = new Thickness(24, 12, 24, 20) };
+        layout.Children.Add(navigation);
         provider.Items.Add("API · 无需安装 Codex"); provider.Items.Add("Codex · 已安装并登录");
-        tabs = new Pivot();
         mailSaveButton = Action("保存邮箱设置", SaveMail);
         aiSaveButton = Action("保存 AI 设置", SaveAI);
-        tabs.Items.Add(new PivotItem { Header = "邮箱", Content = SettingsPage(Stack(account, mailSecret,
-            Note("在163邮箱设置中启用 IMAP。填写授权码，不是邮箱登录密码。"), folder,
-            Action("浏览……", PickFolder), startup,
-            Note("授权码由当前 Windows 用户加密保存。不会自动回复，也不会标记邮件已读。")),
-            Row(mailSaveButton, Action("测试邮箱连接", async () => { await SaveMail(); await Call("test_mail"); }))) });
-        tabs.Items.Add(new PivotItem { Header = "AI 服务", Content = SettingsPage(Stack(provider, apiBase, model, apiKey,
+        mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        mailPage.Children.Add(SettingsPage(Stack(
+            Card(Stack(Heading("邮箱账号"), account, mailSecret,
+                Note("在 163 邮箱中启用 IMAP，使用邮箱授权码。授权码由 Windows 加密保存。"))),
+            Card(Stack(Heading("报告与后台运行"), folder, Action("浏览……", PickFolder), startup,
+                Row(interval, Action("应用间隔", async () =>
+                {
+                    if (!int.TryParse(interval.Text, out var seconds)) throw new InvalidOperationException("请填写整数秒数。");
+                    await Call("interval", new { seconds });
+                }))))),
+            Row(mailSaveButton, Action("测试邮箱连接", async () => { await SaveMail(); await Call("test_mail"); }))));
+        aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading("选择您喜欢的 AI"), provider, apiBase, model, apiKey,
             Row(Action("查找 Codex", async () => await Call("codex")), Action("浏览……", PickCodex)),
-            Note("六项总结提示词保持原样。来信和可读取的附件文字会交给所选 AI。无新邮件不调用 AI；测试连接会发送少量文字。")),
-            Row(aiSaveButton, Action("测试 AI 连接", async () => { await SaveAI(); await Call("test_ai"); }))) });
-        Grid.SetRow(tabs, 1); pane.Children.Add(tabs);
+            Note("来信及可读取的附件文字交给所选 AI，整理为六项报告。测试连接会发送少量文字。")))),
+            Row(aiSaveButton, Action("测试 AI 连接", async () => { await SaveAI(); await Call("test_ai"); }))));
         toggle.Click += async (_, _) => await Guard(ToggleService);
         check.Click += async (_, _) => await Guard(async () =>
         {
             check.IsEnabled = false;
             try { await Call("check"); } catch { if (!exitRequested) check.IsEnabled = true; throw; }
         });
-        var bottom = Stack(Row(interval, Action("应用间隔", async () =>
-        {
-            if (!int.TryParse(interval.Text, out var seconds)) throw new InvalidOperationException("请填写整数秒数。");
-            await Call("interval", new { seconds });
-        })), Row(toggle, check), Row(Action("打开报告文件夹", () =>
-        {
-            Directory.CreateDirectory(folder.Text); Open(folder.Text); return Task.CompletedTask;
-        }), Action("退出", Exit)));
-        Grid.SetRow(bottom, 2); pane.Children.Add(bottom);
-        layout.Children.Add(pane);
+        navigation.SelectedItem = navigation.MenuItems[0];
+        ShowPage(0);
     }
     void BuildRight()
     {
-        var pane = new Grid { RowSpacing = 10 };
-        Grid.SetColumn(pane, 1);
+        var pane = reportPage;
         pane.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        pane.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         pane.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         attachment.Items.Add("全部"); attachment.Items.Add("有附件"); attachment.Items.Add("无附件"); attachment.SelectedIndex = 0;
         var dates = new Grid { ColumnSpacing = 8 };
-        for (int i = 0; i < 3; i++) dates.ColumnDefinitions.Add(new ColumnDefinition());
-        dates.Children.Add(from); Grid.SetColumn(to, 1); dates.Children.Add(to); Grid.SetColumn(attachment, 2); dates.Children.Add(attachment);
-        pane.Children.Add(Stack(new TextBlock { Text = "邮件报告", FontSize = 25, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold },
-            search, sender, dates, Row(Action("筛选 / 刷新", Refresh), Action("重置", async () =>
+        for (int i = 0; i < 4; i++) dates.ColumnDefinitions.Add(new ColumnDefinition());
+        dates.Children.Add(sender); Grid.SetColumn(from, 1); dates.Children.Add(from);
+        Grid.SetColumn(to, 2); dates.Children.Add(to); Grid.SetColumn(attachment, 3); dates.Children.Add(attachment);
+        filters = new Flyout { Content = Stack(new TextBlock { Text = "筛选邮件", FontSize = 18 }, dates,
+            Row(Action("应用筛选", async () => { await Refresh(); filters.Hide(); }), Action("重置", async () =>
             { search.Text = sender.Text = ""; from.Date = to.Date = null; attachment.SelectedIndex = 0; await Refresh(); }),
-            Action("打开 TXT", () => { if (reports.SelectedItem is Report report) Open(report.path); return Task.CompletedTask; }))));
-        Grid.SetRow(reports, 1); pane.Children.Add(reports);
-        Grid.SetRow(preview, 2); pane.Children.Add(preview);
+            reportCount)) };
+        dates.Width = 600;
+        var toolbar = new Grid { ColumnSpacing = 8 };
+        toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        toolbar.Children.Add(search);
+        filterButton = new Button { Content = Row(new SymbolIcon(Symbol.Filter) { Width = 16 }, new TextBlock { Text = "筛选" }), Flyout = filters };
+        Grid.SetColumn(filterButton, 1); toolbar.Children.Add(filterButton);
+        var refreshButton = Action("刷新", Refresh); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
+        pane.Children.Add(toolbar);
+        var reading = new Grid { ColumnSpacing = 12 };
+        reading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+        reading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        reports.BorderThickness = new Thickness(0);
+        reports.ItemTemplate = (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+            """<DataTemplate xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"><StackPanel Padding="4,12" Spacing="6"><TextBlock Text="{Binding title}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding sender}" FontSize="12" Opacity="0.7" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding time}" FontSize="12" Opacity="0.55"/></StackPanel></DataTemplate>""");
+        reading.Children.Add(Card(reports, 4));
+        var article = new Grid { RowSpacing = 12 };
+        article.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        article.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        article.Children.Add(Row(Heading("邮件报告"), Action("打开 TXT", () =>
+            { if (reports.SelectedItem is Report report) Open(report.path); return Task.CompletedTask; })));
+        preview.BorderThickness = new Thickness(0);
+        preview.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        preview.FontSize = 14;
+        Grid.SetRow(preview, 1); article.Children.Add(preview);
+        var articleCard = Card(article); Grid.SetColumn(articleCard, 1); reading.Children.Add(articleCard);
+        Grid.SetRow(reading, 1); pane.Children.Add(reading);
         ScrollViewer.SetVerticalScrollBarVisibility(preview, ScrollBarVisibility.Auto);
         reports.SelectionChanged += async (_, _) => await Guard(async () =>
         {
@@ -348,7 +422,6 @@ sealed class MainWindow : Window
         {
             if (initialized && !exitRequested) { searchTimer.Stop(); searchTimer.Start(); }
         };
-        layout.Children.Add(pane);
     }
     static void Open(string path) => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     async Task ToggleService()
@@ -422,6 +495,7 @@ sealed class MainWindow : Window
             reports.Items.Add(report);
             if (report.path == selected) reports.SelectedItem = report;
         }
+        reportCount.Text = $"{reports.Items.Count} 封邮件";
     }
     void HandleEvent(JsonElement ev)
     {
@@ -579,14 +653,24 @@ sealed class MainWindow : Window
             if (screenArg >= 0) Capture(Program.Args[screenArg + 1]);
             Check(layout.ActualWidth > 0 && preview.ActualHeight > 100 && reports.ActualHeight > 100,
                 "Native window, report list and preview rendered");
-            Check(from.ActualHeight < 100 && to.ActualHeight < 100, "Date filters stay compact until opened");
+            Check(navigation.IsPaneOpen && reportPage.Visibility == Visibility.Visible &&
+                reports.ActualHeight > 250 && preview.ActualHeight > 250,
+                "Fluent navigation and full height side by side report reader");
+            filters.ShowAt(filterButton);
+            await Task.Delay(400);
+            Check(from.ActualHeight > 0 && from.ActualHeight < 100 && to.ActualHeight > 0 && to.ActualHeight < 100,
+                "Filter flyout renders compact date pickers");
+            filters.Hide();
             bool Visible(Button button)
             {
                 var point = button.TransformToVisual(layout).TransformPoint(new Windows.Foundation.Point(0, 0));
                 return button.ActualHeight > 0 && point.Y >= 0 && point.Y + button.ActualHeight <= layout.ActualHeight;
             }
+            navigation.SelectedItem = navigation.MenuItems[1];
+            await Task.Delay(400);
+            layout.UpdateLayout();
             Check(Visible(mailSaveButton), "Mail save button visible without scrolling");
-            tabs.SelectedIndex = 1;
+            navigation.SelectedItem = navigation.MenuItems[2];
             await Task.Delay(400);
             layout.UpdateLayout();
             Check(Visible(aiSaveButton), "AI save button visible without scrolling");
@@ -595,7 +679,7 @@ sealed class MainWindow : Window
                 var path = Program.Args[screenArg + 1];
                 Capture(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "-settings.png"));
             }
-            tabs.SelectedIndex = 0;
+            navigation.SelectedItem = navigation.MenuItems[0];
             await Onboard(true);
             checks.Add("First-run native account dialog renders");
             File.WriteAllText(testResult!, JsonSerializer.Serialize(new { ok = true, checks }, new JsonSerializerOptions { WriteIndented = true }));
