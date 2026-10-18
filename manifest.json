@@ -2,34 +2,34 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610181042",
-      "sha256": "643e9b1d4c50a21db8cc3e9f2f3b0cfea84d53eb4a2f7677126fa790e639bb65",
-      "size": 108574624,
+      "version": "202610181157",
+      "sha256": "fa3341ac37e93990c02146c88bf91a9d84e4ccffb7ff0a54d1c16fef51676721",
+      "size": 108736543,
       "notes": {
-        "zh": "邮件小秘书主程序和卸载程序启动时默认最大化，保留标准标题栏、任务栏和还原按钮。包含此前的更新连接备用入口修复。",
-        "en": "The main app and uninstaller now start maximized with standard window controls. Includes the previous update connection fallback fix."
+        "zh": "新增应用内下载更新、进度、取消及SHA256校验；运行中卸载先询问退出；覆盖安装保留原配置及快捷方式选择。报告改为Markdown（.md），原生预览支持标题、列表、表格和代码，兼容旧TXT。",
+        "en": "Adds in-app update downloads, progress, cancellation and SHA256 verification; uninstall asks before exiting a running app, and updates preserve settings and shortcut choices. Reports use Markdown (.md) with native formatted previews and legacy TXT compatibility."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181042.exe"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181157.exe"
     },
     "macos-arm64": {
-      "version": "202610181128",
-      "sha256": "4bdf502efaa703a13911b1c6a30ed1c014d3e9f1c3edbcccf756d53b0230472f",
-      "size": 22910064,
+      "version": "202610181158",
+      "sha256": "8c8b0249d9bc04aeff892ef88930c3864ed6dccb87b576f7e62d9e69dd07c06d",
+      "size": 23174323,
       "notes": {
-        "zh": "新增应用内更新：下载进度、取消、SHA256校验及安装失败恢复；补齐中英双语帮助菜单。",
-        "en": "Adds in-app update downloads, progress, cancellation, SHA256 verification and rollback, plus a complete bilingual Help menu."
+        "zh": "报告改为Markdown（.md），完整显示标题、加粗、嵌套列表、链接、表格和代码块，兼容旧TXT；新增复制原文及打开报告。含应用内更新、安装失败恢复与中英双语帮助菜单。",
+        "en": "Reports now use Markdown (.md) with formatted headings, bold, nested lists, links, tables and code blocks, plus legacy TXT compatibility and copy/open actions. Includes in-app updates, rollback and a bilingual Help menu."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610181128.dmg"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610181158.dmg"
     },
     "macos-x86_64": {
-      "version": "202610181129",
-      "sha256": "008a14eb9b13ff8bd902caa8a5756cd2a304218ef6a4cdd1cd1d5080d5e77595",
-      "size": 15925415,
+      "version": "202610181158",
+      "sha256": "81be612df196b1d51bb2aba8cb186b1f2ab3447e12c2b6b7d0f4fb3401e11f59",
+      "size": 16277365,
       "notes": {
-        "zh": "新增应用内更新：下载进度、取消、SHA256校验及安装失败恢复；补齐中英双语帮助菜单。",
-        "en": "Adds in-app update downloads, progress, cancellation, SHA256 verification and rollback, plus a complete bilingual Help menu."
+        "zh": "报告改为Markdown（.md），完整显示标题、加粗、嵌套列表、链接、表格和代码块，兼容旧TXT；新增复制原文及打开报告。含应用内更新、安装失败恢复与中英双语帮助菜单。",
+        "en": "Reports now use Markdown (.md) with formatted headings, bold, nested lists, links, tables and code blocks, plus legacy TXT compatibility and copy/open actions. Includes in-app updates, rollback and a bilingual Help menu."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610181129.dmg"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610181158.dmg"
     }
   }
 }
