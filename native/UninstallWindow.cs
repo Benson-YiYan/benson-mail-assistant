@@ -85,7 +85,7 @@ sealed class UninstallWindow : Window
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.Children.Add(caption);
         var heading = Text(L.T("卸载邮件小秘书")); heading.FontSize = 28; heading.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-        var subheading = Text(L.T("卸载前，请先从任务栏右下角的信封菜单退出邮件小秘书。"));
+        var subheading = Text(L.T("若邮件小秘书正在运行，点击卸载后会询问是否退出；确认退出后再继续。"));
         subheading.Opacity = .7;
         preserve.FontFamily = keepReports.FontFamily = MailTypography.Font;
         preserve.IsOn = Array.IndexOf(Program.Args, "--keep-configuration") >= 0;
@@ -170,6 +170,14 @@ sealed class UninstallWindow : Window
                     throw new InvalidOperationException("Uninstall options did not render with safe defaults");
                 keepReports.IsOn = false;
                 if (!Worker("prepare").ArgumentList.Contains("--delete-reports")) throw new InvalidOperationException("Report retention off must request deletion");
+                var exitCalls = 0;
+                foreach (var refusal in new[] { ContentDialogResult.Secondary, ContentDialogResult.None }) {
+                    if (await StopRunningApplication(() => true, () => { exitCalls++; return Task.CompletedTask; }, dialog => Task.FromResult(refusal)))
+                        throw new InvalidOperationException("Declined process exit continued uninstall");
+                }
+                if (exitCalls != 0 || busy) throw new InvalidOperationException("Exit refusal changed application state");
+                if (!await StopRunningApplication(() => true, () => { exitCalls++; return Task.CompletedTask; }, dialog => Task.FromResult(ContentDialogResult.Primary)) || exitCalls != 1)
+                    throw new InvalidOperationException("Accepted process exit did not complete before uninstall");
                 var confirmations = 0;
                 if (await ConfirmUninstall(async dialog => {
                     if (++confirmations == 1) return ContentDialogResult.Primary;
@@ -186,6 +194,7 @@ sealed class UninstallWindow : Window
                 File.WriteAllText(uiResult, JsonSerializer.Serialize(new { ok = true, checks = new[] {
                     "Uninstaller starts maximized with the standard window presenter",
                     "Native WinUI 3 uninstaller rendered with Mica backdrop and Fluent cards",
+                    "Running-app prompt supports Yes/No/Cancel; refusal does not exit or uninstall, acceptance awaits graceful exit before confirmations",
                     "Optional mailbox and AI configuration retention visible",
                     "Report retention defaults on; off maps to deletion and on preserves reports",
                     "Fixed switch labels, report-directory confirmation, explicit accept and safe cancellation; no real data accessed"
@@ -226,9 +235,30 @@ sealed class UninstallWindow : Window
             PrimaryButtonText = L.T("删除报告并卸载"), CloseButtonText = L.T("取消"), DefaultButton = ContentDialogButton.Close };
         return await Accept(reportDialog);
     }
+    async Task<bool> StopRunningApplication(Func<bool>? running = null, Func<Task>? stop = null,
+        Func<ContentDialog, Task<ContentDialogResult>>? show = null)
+    {
+        using var process = running == null ? AppLifetime.FindRunning(target) : null;
+        if (!(running?.Invoke() ?? process != null)) return true;
+        var dialog = new ContentDialog { XamlRoot = root.XamlRoot, Title = L.T("检测到邮件小秘书正在运行，是否退出？"),
+            Content = L.T("将先停止邮箱监听并退出程序，再继续卸载确认。选择“否”或“取消”不会卸载。"),
+            PrimaryButtonText = L.T("是，退出并继续"), SecondaryButtonText = L.T("否"), CloseButtonText = L.T("取消"),
+            DefaultButton = ContentDialogButton.Close };
+        var choice = show == null ? await dialog.ShowAsync() : await show(dialog);
+        if (choice != ContentDialogResult.Primary) return false;
+        remove.IsEnabled = false;
+        progress.Text = L.T("正在等待邮件小秘书退出…");
+        try { if (stop != null) await stop(); else await AppLifetime.RequestExit(target, process!); }
+        finally { remove.IsEnabled = true; progress.Text = L.T("准备就绪"); }
+        return true;
+    }
+    bool starting;
     async Task Start()
     {
+        if (starting) return;
+        starting = true;
         try {
+            if (!await StopRunningApplication()) return;
             if (fixtureResult == null && !await ConfirmUninstall()) return;
             SetBusy();
             var start = Worker("prepare"); start.ArgumentList.Add("--executable");
@@ -248,6 +278,7 @@ sealed class UninstallWindow : Window
             Application.Current.Exit();
         }
         catch (Exception error) { Failed(error); }
+        finally { starting = false; }
     }
     async Task Cleanup()
     {

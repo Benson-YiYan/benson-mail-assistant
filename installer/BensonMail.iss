@@ -13,7 +13,7 @@ VersionInfoVersion=1.0.0.0
 VersionInfoProductVersion=1.0.0.0
 VersionInfoProductTextVersion={#AppVersion}
 AppPublisher=Benson
-DefaultDirName={localappdata}\Programs\BensonMail
+DefaultDirName={code:DefaultInstallDirectory}
 AppendDefaultDirName=yes
 DisableDirPage=no
 DisableProgramGroupPage=yes
@@ -142,6 +142,13 @@ begin
   Result := True;
 end;
 
+function DefaultInstallDirectory(Param: String): String;
+begin
+  if (PreviousInstallDirectory <> '') and FileExists(AddBackslash(PreviousInstallDirectory) + '.benson-installed.json') then
+    Result := PreviousInstallDirectory
+  else Result := ExpandConstant('{localappdata}\Programs\BensonMail');
+end;
+
 function OpenProcess(Access: LongWord; InheritHandle: Boolean; ProcessId: LongWord): THandle;
   external 'OpenProcess@kernel32.dll stdcall';
 function QueryFullProcessImageName(ProcessHandle: THandle; Flags: LongWord; ExeName: String; var Size: LongWord): Boolean;
@@ -261,7 +268,9 @@ var
   DesktopApp, DesktopUninstall, StartApp, StartUninstall: Boolean;
   Tasks: String;
 begin
-  if ExpandConstant('{param:UPDATE|0}') <> '1' then Exit;
+  if (ExpandConstant('{param:UPDATE|0}') <> '1') and
+    not FileExists(AddBackslash(WizardDirValue) + '.benson-installed.json') then Exit;
+  if ExpandConstant('{param:TASKS|__unspecified__}') <> '__unspecified__' then Exit;
   DesktopApp := False; DesktopUninstall := False; StartApp := False; StartUninstall := False;
   FindPreviousTasks(ExpandConstant('{userdesktop}'), True, DesktopApp, DesktopUninstall);
   FindPreviousTasks(ExpandConstant('{userprograms}'), False, StartApp, StartUninstall);

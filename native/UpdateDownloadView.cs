@@ -117,7 +117,7 @@ sealed class UpdateDownloadView : IDisposable
                 "Native retry finishes with verified-install action; download completion never executes installer");
             var info = UpdateInstall.StartInfo(view.Verified!, @"C:\Users\Fixture User\BensonMail", "en", 12345);
             Check(!info.UseShellExecute && info.CreateNoWindow && info.FileName == view.Verified!.Path &&
-                info.ArgumentList.Contains("/DIR=C:\Users\Fixture User\BensonMail") && info.ArgumentList.Contains("/UPDATEPID=12345") && info.ArgumentList.Contains("/LANG=english"),
+                info.ArgumentList.Contains(@"/DIR=C:\Users\Fixture User\BensonMail") && info.ArgumentList.Contains("/UPDATEPID=12345") && info.ArgumentList.Contains("/LANG=english"),
                 "Install handoff directly starts the verified native Setup with original directory, language and wait-for-parent arguments; no cmd");
             await view.Install();
             Check(launches == 1, "Only explicit Install action invokes an injected installer callback; test never executes fixture payloads");

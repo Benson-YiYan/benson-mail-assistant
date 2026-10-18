@@ -143,6 +143,21 @@ def main():
                 assert path.is_file() == (task in selected), f"First start overrode selected task {task}"
             cases.append({"tasks": list(selected), "language": language, "installed": True, "shortcuts": True,
                           "first_start_preserves_choices": True})
+            if number == 1:
+                ready = fixture / "exit-pipe-parent.ready"
+                ack = fixture / "exit-pipe-client.result"
+                parent = subprocess.Popen([str(launcher), "--lifetime-pipe-test", str(ready)],
+                    cwd=tempfile.gettempdir(), creationflags=subprocess.CREATE_NO_WINDOW)
+                try:
+                    wait_until(ready.exists, 20, "IPC exit fixture did not start")
+                    client = subprocess.run([str(launcher), "--request-app-exit-test", str(ack)],
+                        cwd=tempfile.gettempdir(), timeout=40, creationflags=subprocess.CREATE_NO_WINDOW)
+                    assert client.returncode == 0 and ack.exists(), "Native graceful exit IPC failed"
+                    assert parent.wait(timeout=15) == 0
+                    checks.append("Current-user directory-scoped native IPC confirms exact server PID, acknowledges exit and waits for process without killing")
+                finally:
+                    if parent.poll() is None:
+                        parent.terminate(); parent.wait(timeout=15)
             if number in (1, len(selections) - 1):
                 # A real executable from the installed product holds the application's mutex.
                 # Setup must wait for it, preserve selections and keep the same directory.

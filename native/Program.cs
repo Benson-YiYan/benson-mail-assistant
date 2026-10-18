@@ -44,6 +44,7 @@ internal static class Program
             Thread.Sleep(8000); // Synthetic installer wait test only: no email, configuration, or AI access.
             return;
         }
+        if (AppLifetime.TestProcess(args)) return;
         L.Initialize();
         Trace("Main");
         Forms.WindowsFormsSynchronizationContext.AutoInstall = false;
@@ -255,6 +256,7 @@ sealed class MainWindow : Window
     readonly Button check = new() { Content = L.T("立即检查"), CornerRadius = new CornerRadius(4) };
     readonly Forms.NotifyIcon tray;
     readonly Bridge bridge;
+    readonly AppLifetime lifetime;
     readonly Microsoft.UI.Dispatching.DispatcherQueueTimer searchTimer;
     readonly string? testResult;
     readonly string? fixture;
@@ -347,6 +349,7 @@ sealed class MainWindow : Window
         searchTimer.IsRepeating = false;
         searchTimer.Tick += async (_, _) => await Guard(Refresh);
         bridge.Event += ev => DispatcherQueue.TryEnqueue(() => { if (!exitRequested) HandleEvent(ev); });
+        lifetime = new AppLifetime(AppContext.BaseDirectory, () => DispatcherQueue.TryEnqueue(async () => await Exit()));
         L.Apply(Content as UIElement, reports, savedMailboxes);
         L.Apply(filters.Content as UIElement);
         layout.Loaded += async (_, _) => await Initialize();
@@ -1031,6 +1034,7 @@ sealed class MainWindow : Window
         }
         catch (Exception e) { if (installingUpdate) bridge.KillForUpdate(); detail.Text = L.T(e.Message); }
         Program.Trace("Disposing tray and worker pipes");
+        lifetime.Dispose();
         exiting = true; tray.Visible = false; tray.Dispose(); bridge.Dispose();
         Program.Trace("Exiting application");
         Application.Current.Exit();

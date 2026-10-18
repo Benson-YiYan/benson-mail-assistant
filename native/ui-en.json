@@ -555,7 +555,17 @@
     "下载已取消。可以重试。": "Download cancelled. You can retry.",
     "下载更新失败：": "Update download failed: ",
     "重试下载": "Retry download",
-    "无法安装更新：": "Cannot install update: "
+    "无法安装更新：": "Cannot install update: ",
+    "若邮件小秘书正在运行，点击卸载后会询问是否退出；确认退出后再继续。": "If Mail Secretary is running, Uninstall will ask to close it before continuing.",
+    "检测到邮件小秘书正在运行，是否退出？": "Mail Secretary is running. Would you like to close it?",
+    "将先停止邮箱监听并退出程序，再继续卸载确认。选择“否”或“取消”不会卸载。": "Email monitoring will stop and the app will close before the uninstall confirmation. No or Cancel leaves the app and files unchanged.",
+    "是，退出并继续": "Yes, close and continue",
+    "否": "No",
+    "正在等待邮件小秘书退出…": "Waiting for Mail Secretary to close…",
+    "无法确认正在运行的程序身份，未执行卸载。": "The running application could not be verified. Nothing was uninstalled.",
+    "程序没有确认退出请求，未执行卸载。": "The app did not acknowledge the exit request. Nothing was uninstalled.",
+    "等待邮件小秘书退出超时。没有删除任何文件，请稍后重试。": "Mail Secretary did not finish closing in time. No files were deleted. Please retry later.",
+    "无法自动退出邮件小秘书。没有删除任何文件；请退出程序后重试。": "Mail Secretary could not be closed automatically. No files were deleted. Please close the app and retry."
   },
   "templates": [
     {
