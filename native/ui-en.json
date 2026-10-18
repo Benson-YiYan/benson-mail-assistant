@@ -526,7 +526,15 @@
     "无法打开邮箱设置教程，请重新安装邮件小秘书。": "Cannot open the email setup guide. Please reinstall Mail Secretary.",
     "无法打开 OAuth2 获取工具，请重新安装邮件小秘书。": "Unable to open the OAuth2 helper. Please reinstall Mail Secretary.",
     "获取微软 OAuth2 Token": "Get Microsoft OAuth2 Token",
-    "仅适用于 Outlook / Microsoft 365": "For Outlook / Microsoft 365 only"
+    "仅适用于 Outlook / Microsoft 365": "For Outlook / Microsoft 365 only",
+    "保留配置": "Keep configuration",
+    "保留邮件报告": "Keep email reports",
+    "开启＝保留；关闭＝删除。": "On = keep; off = delete.",
+    "报告默认保留；关闭“保留邮件报告”才会删除可识别的报告及索引。": "Reports are kept by default. Turn off “Keep email reports” to delete recognized reports and indexes.",
+    "确认删除邮件报告？": "Delete email reports?",
+    "将删除以下目录中本软件可识别的邮件报告及索引：\n": "Recognized Mail Secretary reports and indexes will be deleted from:\n",
+    "\n其他文件及自选根目录会保留。此操作无法撤销。": "\nOther files and your chosen root folder will remain. This cannot be undone.",
+    "删除报告并卸载": "Delete reports and uninstall"
   },
   "templates": [
     {

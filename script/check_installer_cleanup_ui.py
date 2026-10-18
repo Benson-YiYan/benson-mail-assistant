@@ -53,11 +53,14 @@ def main():
                         wizard.descendants(class_name='TNewButton') if b.is_visible() and b.is_enabled()}
                     if 'Finish' in buttons:
                         break
-                    button = next((buttons[name] for name in ('Next >', 'Install') if name in buttons), None)
+                    print('Installer buttons:', list(buttons), flush=True)
+                    button = next((button for name, button in buttons.items() if name.startswith('Next') or name == 'Install'), None)
                     if button:
                         button.click()
                     time.sleep(.3)
                 else:
+                    wizard.capture_as_image().save(str(evidence / 'installer-cleanup-stuck.png'))
+                    (evidence / 'installer-cleanup-stuck.json').write_text(json.dumps([(c.class_name(), c.window_text()) for c in wizard.descendants()], ensure_ascii=False, indent=2), encoding='utf-8')
                     raise AssertionError('Completed page never appeared')
                 lists = [control for control in wizard.descendants(class_name='TNewCheckListBox') if control.is_visible()]
                 assert len(lists) == 1, 'Expected the standard completed-page action list'
@@ -92,7 +95,8 @@ def main():
                 if process.poll() is None:
                     process.terminate()
                     process.wait(timeout=20)
-                cleanup_installation(app, folder / 'synthetic-data', False, lambda _: None)
+                if (app / '.benson-installed.json').exists():
+                    cleanup_installation(app, folder / 'synthetic-data', False, lambda _: None)
         result['ok'] = True
     except Exception as error:
         result['error'] = repr(error)

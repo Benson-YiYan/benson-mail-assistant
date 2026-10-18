@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -15,8 +16,8 @@ namespace BensonMail;
 sealed class UninstallWindow : Window
 {
     readonly Grid root = new() { Padding = new Thickness(28, 12, 28, 24), RowSpacing = 20 };
-    readonly ToggleSwitch preserve = new() { Header = L.T("保留邮箱及 AI 配置，下次重装不用再配置"), OnContent = L.T("保留"), OffContent = L.T("不保留") };
-    readonly ToggleSwitch deleteReports = new() { Header = L.T("同时删除已生成的邮件报告"), OnContent = L.T("删除"), OffContent = L.T("保留报告") };
+    readonly ToggleSwitch preserve = new() { Header = L.T("保留配置"), OnContent = "", OffContent = "" };
+    readonly ToggleSwitch keepReports = new() { Header = L.T("保留邮件报告"), OnContent = "", OffContent = "" };
     readonly TextBlock detail = Text(L.T("正在读取卸载信息…"));
     readonly TextBlock locations = Text("");
     readonly TextBlock reports = Text("");
@@ -31,6 +32,7 @@ sealed class UninstallWindow : Window
     bool finished;
     bool loaded;
     string data = "";
+    string reportDirectory = "";
     static string? Argument(string key)
     {
         var index = Array.IndexOf(Program.Args, key);
@@ -85,16 +87,16 @@ sealed class UninstallWindow : Window
         var heading = Text(L.T("卸载邮件小秘书")); heading.FontSize = 28; heading.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
         var subheading = Text(L.T("卸载前，请先从任务栏右下角的信封菜单退出邮件小秘书。"));
         subheading.Opacity = .7;
-        preserve.FontFamily = deleteReports.FontFamily = MailTypography.Font;
+        preserve.FontFamily = keepReports.FontFamily = MailTypography.Font;
         preserve.IsOn = Array.IndexOf(Program.Args, "--keep-configuration") >= 0;
-        deleteReports.IsOn = Array.IndexOf(Program.Args, "--delete-reports") >= 0;
+        keepReports.IsOn = Array.IndexOf(Program.Args, "--delete-reports") < 0;
         var configNote = Text(L.T("保留账号列表、服务器、AI 设置及加密密钥，供本机同一 Windows 用户重装后继续使用。"));
         configNote.Opacity = .7; configNote.FontSize = 12;
         var cacheNote = Text(L.T("缓存和收信进度会清除，重装后重新记录收信起点。自启动项及本次安装的快捷方式会移除。"));
         cacheNote.Opacity = .7; cacheNote.FontSize = 12;
         reports.FontSize = 12; reports.Opacity = .7; locations.FontSize = 12; locations.Opacity = .7;
-        var content = Stack(heading, subheading, Card(Stack(preserve, configNote, cacheNote)),
-            Card(Stack(deleteReports, reports)), locations, detail, progress);
+        var content = Stack(heading, subheading, Card(Stack(preserve, Text(L.T("开启＝保留；关闭＝删除。")), configNote, cacheNote)),
+            Card(Stack(keepReports, Text(L.T("开启＝保留；关闭＝删除。")), reports)), locations, detail, progress);
         var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         Grid.SetRow(scroll, 1); root.Children.Add(scroll);
@@ -124,7 +126,7 @@ sealed class UninstallWindow : Window
         start.ArgumentList.Add("--target"); start.ArgumentList.Add(target);
         if (fixtureResult != null) { start.ArgumentList.Add("--fixture-result"); start.ArgumentList.Add(fixtureResult); }
         if (preserve.IsOn == true) start.ArgumentList.Add("--keep-configuration");
-        if (deleteReports.IsOn == true) start.ArgumentList.Add("--delete-reports");
+        if (keepReports.IsOn != true) start.ArgumentList.Add("--delete-reports");
         return start;
     }
     async Task<JsonElement> RunWorker(ProcessStartInfo start)
@@ -151,7 +153,8 @@ sealed class UninstallWindow : Window
         Program.Trace("Uninstall layout loaded");
         try {
             if (uiResult != null) {
-                locations.Text = L.T("程序目录：模拟安装目录"); reports.Text = L.T("默认保留报告；勾选后才删除可识别的报告及索引。");
+                locations.Text = L.T("程序目录：模拟安装目录"); reports.Text = L.T("报告默认保留；关闭“保留邮件报告”才会删除可识别的报告及索引。");
+                reportDirectory = @"C:\Synthetic-Mail-Reports";
                 detail.Text = L.T("卸载会通过独立组件执行，进度显示在此处。");
                 progress.Text = L.T("准备就绪"); remove.IsEnabled = true;
                 await Task.Delay(500);
@@ -161,19 +164,36 @@ sealed class UninstallWindow : Window
                 using var graphics = System.Drawing.Graphics.FromImage(image);
                 graphics.CopyFromScreen(bounds.X, bounds.Y, 0, 0, image.Size);
                 image.Save(Path.ChangeExtension(uiResult, ".png"), System.Drawing.Imaging.ImageFormat.Png);
-                if (!preserve.IsLoaded || !deleteReports.IsLoaded || preserve.IsOn == true || deleteReports.IsOn == true)
+                if (!preserve.IsLoaded || !keepReports.IsLoaded || preserve.IsOn == true || keepReports.IsOn != true)
                     throw new InvalidOperationException("Uninstall options did not render with safe defaults");
+                keepReports.IsOn = false;
+                if (!Worker("prepare").ArgumentList.Contains("--delete-reports")) throw new InvalidOperationException("Report retention off must request deletion");
+                var confirmations = 0;
+                if (await ConfirmUninstall(async dialog => {
+                    if (++confirmations == 1) return ContentDialogResult.Primary;
+                    if (!dialog.Content.ToString()!.Contains(reportDirectory)) throw new InvalidOperationException("Report confirmation missing directory");
+                    var showing = dialog.ShowAsync(); await Task.Delay(250);
+                    if (!dialog.IsLoaded || dialog.DefaultButton != ContentDialogButton.Close) throw new InvalidOperationException("Destructive confirmation must render with cancel default");
+                    dialog.Hide(); await showing; return ContentDialogResult.None;
+                })) throw new InvalidOperationException("Cancel accepted deletion");
+                if (busy || confirmations != 2) throw new InvalidOperationException("Report cancellation did not stop before uninstall");
+                if (!await ConfirmUninstall(dialog => Task.FromResult(ContentDialogResult.Primary))) throw new InvalidOperationException("Explicit confirmation rejected");
+                keepReports.IsOn = true;
+                if (Worker("prepare").ArgumentList.Contains("--delete-reports")) throw new InvalidOperationException("Report retention on must preserve reports");
+                if (preserve.OnContent?.ToString() != "" || preserve.OffContent?.ToString() != "" || keepReports.OnContent?.ToString() != "" || keepReports.OffContent?.ToString() != "") throw new InvalidOperationException("Retention switch labels must stay fixed");
                 File.WriteAllText(uiResult, JsonSerializer.Serialize(new { ok = true, checks = new[] {
                     "Native WinUI 3 uninstaller rendered with Mica backdrop and Fluent cards",
                     "Optional mailbox and AI configuration retention visible",
-                    "Report deletion opt-in; no real data or credentials accessed"
+                    "Report retention defaults on; off maps to deletion and on preserves reports",
+                    "Fixed switch labels, report-directory confirmation, explicit accept and safe cancellation; no real data accessed"
                 }}));
                 Finish(); return;
             }
             var info = await RunWorker(Worker("info"));
             data = info.GetProperty("data").GetString() ?? "";
             locations.Text = L.T("程序目录：") + target + L.T("\n数据目录：") + data;
-            reports.Text = L.T("报告目录：") + (info.GetProperty("reports").GetString() is string r && r.Length > 0 ? r : L.T("未配置"))
+            reportDirectory = info.GetProperty("reports").GetString() is string r && r.Length > 0 ? r : L.T("未配置");
+            reports.Text = L.T("报告目录：") + reportDirectory
                 + L.T("\n仅删除可识别的报告和邮件索引，保留其他文件及自选根目录。");
             progress.Text = L.T("准备就绪"); remove.IsEnabled = true;
             detail.Text = L.T("准备就绪。可选择保留配置，方便下次安装。");
@@ -184,19 +204,29 @@ sealed class UninstallWindow : Window
     }
     void SetBusy()
     {
-        busy = true; remove.IsEnabled = close.IsEnabled = preserve.IsEnabled = deleteReports.IsEnabled = false;
+        busy = true; remove.IsEnabled = close.IsEnabled = preserve.IsEnabled = keepReports.IsEnabled = false;
         progress.Text = L.T("处理中，请稍候…");
+    }
+    async Task<bool> ConfirmUninstall(Func<ContentDialog, Task<ContentDialogResult>>? show = null)
+    {
+        async Task<bool> Accept(ContentDialog dialog) =>
+            (show == null ? await dialog.ShowAsync() : await show(dialog)) == ContentDialogResult.Primary;
+        var dialog = new ContentDialog { XamlRoot = root.XamlRoot, Title = L.T("确认卸载？"),
+            Content = (preserve.IsOn == true ? L.T("保留邮箱及 AI 配置，移除程序和缓存。") : L.T("移除程序、配置、加密密钥和缓存。"))
+                + (keepReports.IsOn == true ? L.T("\n已生成的邮件报告保留。") : L.T("\n同时删除已选的邮件报告。")),
+            PrimaryButtonText = L.T("卸载"), CloseButtonText = L.T("取消"), DefaultButton = ContentDialogButton.Close };
+        if (!await Accept(dialog)) return false;
+        if (keepReports.IsOn == true) return true;
+        var reportDialog = new ContentDialog { XamlRoot = root.XamlRoot, Title = L.T("确认删除邮件报告？"),
+            Content = L.T("将删除以下目录中本软件可识别的邮件报告及索引：\n") + reportDirectory
+                + L.T("\n其他文件及自选根目录会保留。此操作无法撤销。"),
+            PrimaryButtonText = L.T("删除报告并卸载"), CloseButtonText = L.T("取消"), DefaultButton = ContentDialogButton.Close };
+        return await Accept(reportDialog);
     }
     async Task Start()
     {
         try {
-            if (fixtureResult == null) {
-                var dialog = new ContentDialog { XamlRoot = root.XamlRoot, Title = L.T("确认卸载？"),
-                    Content = (preserve.IsOn == true ? L.T("保留邮箱及 AI 配置，移除程序和缓存。") : L.T("移除程序、配置、加密密钥和缓存。"))
-                        + (deleteReports.IsOn == true ? L.T("\n同时删除已选的邮件报告。") : L.T("\n已生成的邮件报告保留。")),
-                    PrimaryButtonText = L.T("卸载"), CloseButtonText = L.T("取消"), DefaultButton = ContentDialogButton.Close };
-                if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-            }
+            if (fixtureResult == null && !await ConfirmUninstall()) return;
             SetBusy();
             var start = Worker("prepare"); start.ArgumentList.Add("--executable");
             start.ArgumentList.Add(Path.GetFileName(Environment.ProcessPath!));
@@ -208,7 +238,7 @@ sealed class UninstallWindow : Window
             helper.ArgumentList.Add("--uninstall-worker"); helper.ArgumentList.Add(target);
             helper.ArgumentList.Add("--parent-pid"); helper.ArgumentList.Add(Environment.ProcessId.ToString());
             if (preserve.IsOn == true) helper.ArgumentList.Add("--keep-configuration");
-            if (deleteReports.IsOn == true) helper.ArgumentList.Add("--delete-reports");
+            if (keepReports.IsOn != true) helper.ArgumentList.Add("--delete-reports");
             if (fixtureResult != null) { helper.ArgumentList.Add("--fixture-result"); helper.ArgumentList.Add(fixtureResult); }
             using var process = Process.Start(helper) ?? throw new IOException(L.T("无法打开独立卸载窗口。"));
             busy = false;
