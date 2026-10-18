@@ -97,11 +97,11 @@ python3 script/check_package.py 'dist-intel/邮件小秘书.app' evidence/runtim
 
 ## Create and verify DMGs
 
-Final deliverables for this project go in `/Users/apple/Documents/CodexMade`:
+Choose an output folder for your release packages, for example `$HOME/Documents/CodexMade`:
 
 ```sh
-python3 script/package_release.py /Users/apple/Documents/CodexMade 'dist/邮件小秘书.app'
-python3 script/package_release.py /Users/apple/Documents/CodexMade 'dist-intel/邮件小秘书.app'
+python3 script/package_release.py "$HOME/Documents/CodexMade" 'dist/邮件小秘书.app'
+python3 script/package_release.py "$HOME/Documents/CodexMade" 'dist-intel/邮件小秘书.app'
 ```
 
 The scripts print the exact generated DMG paths, using the version in each application's `Info.plist`. Do not substitute an earlier timestamp. For each generated image, run:
