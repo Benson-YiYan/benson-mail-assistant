@@ -6,6 +6,9 @@ $baselineRoot = Join-Path $env:RUNNER_TEMP ('BensonMail-size-baseline-' + [Guid]
 $archive = $baselineRoot + '.zip'
 $measure = Join-Path $PSScriptRoot 'measure_package.py'
 $result = Join-Path $PWD 'evidence/package-size-baseline.json'
+$manifestTool = Join-Path $PSScriptRoot 'payload_manifest.py'
+$manifest = Join-Path $PWD 'evidence/legacy-payload-manifest.json'
+$fixtures = Join-Path $PWD 'dist/legacy-migration-fixture'
 try {
     git archive --format=zip "--output=$archive" $baselineCommit
     if ($LASTEXITCODE -ne 0) { throw 'Baseline source archive failed' }
@@ -23,6 +26,8 @@ try {
         if (!$package) { throw 'Missing baseline package' }
         python $measure $package.FullName $result --baseline-commit $baselineCommit
         if ($LASTEXITCODE -ne 0) { throw 'Baseline measurement failed' }
+        python $manifestTool snapshot $package.FullName $manifest --fixtures $fixtures
+        if ($LASTEXITCODE -ne 0) { throw 'Legacy payload fingerprinting failed' }
     } finally { Pop-Location }
 } finally {
     Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue

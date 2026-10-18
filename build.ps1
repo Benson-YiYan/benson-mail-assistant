@@ -1,4 +1,8 @@
 $ErrorActionPreference = 'Stop'
+if (!(Test-Path 'evidence/legacy-payload-manifest.json')) {
+    & "$PSScriptRoot/script/build_size_baseline.ps1"
+    if ($LASTEXITCODE -ne 0) { throw 'Legacy migration baseline build failed' }
+}
 python script/make_icon.py
 if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed' }
 dotnet publish native/BensonMail.csproj -c Release -r win-x64 -o dist/native -p:Platform=x64
@@ -24,5 +28,7 @@ Set-Content -LiteralPath dist/BensonMail/build-version.txt -Value $version -Enco
 Rename-Item dist/BensonMail/BensonMail.exe "BensonMail-$version.exe"
 Rename-Item "dist/BensonMail/Uninstall.exe" "Uninstall-BensonMail-$version.exe"
 Rename-Item dist/BensonMail "BensonMail-$version"
+python script/payload_manifest.py migration "dist/BensonMail-$version" evidence/legacy-payload-manifest.json
+if ($LASTEXITCODE -ne 0) { throw 'Payload migration manifest generation failed' }
 & "$PSScriptRoot/script/build_installer.ps1" -PackageDir (Resolve-Path "dist/BensonMail-$version").Path -Version $version
 if ($LASTEXITCODE -ne 0) { throw 'Installer build failed' }

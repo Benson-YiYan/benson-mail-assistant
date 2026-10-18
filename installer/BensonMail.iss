@@ -111,6 +111,7 @@ Filename: "{app}\MailWorker.exe"; Parameters: "--delete-installer ""{srcexe}"" -
 var
   PreviousInstallDirectory: String;
   TaskDefaultsApplied: Boolean;
+  HadLegacyPayload: Boolean;
 
 function GetCurrentProcessId: LongWord;
   external 'GetCurrentProcessId@kernel32.dll stdcall';
@@ -441,16 +442,85 @@ begin
   end;
 end;
 
+function FileAttributes(const Filename: String): LongWord;
+  external 'GetFileAttributesW@kernel32.dll stdcall';
+
+function SafeMigrationPath(const Relative: String): Boolean;
+var
+  Candidate, Root: String;
+  Attributes: LongWord;
+begin
+  Result := False;
+  if (Relative = '') or (Pos('..', Relative) <> 0) or (Pos(':', Relative) <> 0) or
+    (Relative[1] = '\') or (Pos('{', Relative) <> 0) then Exit;
+  Root := RemoveBackslashUnlessRoot(ExpandConstant('{app}'));
+  Candidate := Root + '\' + Relative;
+  { Never follow junctions or symlinks in a legacy dependency path. }
+  while Length(Candidate) >= Length(Root) do
+  begin
+    Attributes := FileAttributes(Candidate);
+    if (Attributes <> $FFFFFFFF) and ((Attributes and $400) <> 0) then Exit;
+    if CompareText(Candidate, Root) = 0 then Break;
+    Candidate := ExtractFileDir(Candidate);
+  end;
+  Result := True;
+end;
+
+procedure RemoveObsoletePayload;
+var
+  Lines: TArrayOfString;
+  I: Integer;
+  Digest, Relative, Filename, Parent, Root: String;
+begin
+  if not HadLegacyPayload then Exit;
+  if not LoadStringsFromFile(ExpandConstant('{app}\.benson-obsolete-files.tsv'), Lines) then
+    RaiseException('Cannot read the legacy payload migration list.');
+  Root := RemoveBackslashUnlessRoot(ExpandConstant('{app}'));
+  for I := 0 to GetArrayLength(Lines) - 1 do
+  begin
+    if Length(Lines[I]) > 65 then
+    begin
+      Digest := Copy(Lines[I], 1, 64);
+      Relative := Copy(Lines[I], 66, MaxInt);
+      StringChangeEx(Relative, '/', '\', True);
+      if (Lines[I][65] = #9) and SafeMigrationPath(Relative) then
+      begin
+        Filename := Root + '\' + Relative;
+        if FileExists(Filename) then
+        begin
+          if CompareText(GetSHA256OfFile(Filename), Digest) = 0 then
+          begin
+            if not DeleteFile(Filename) then
+            begin
+              WriteUpdateState('failed', 'Cannot remove obsolete runtime: ' + Relative);
+              RaiseException('Cannot remove obsolete runtime: ' + Relative);
+            end;
+            Log('Removed obsolete owned payload: ' + Relative);
+            Parent := ExtractFileDir(Filename);
+            { Remove only empty directories; unrelated files are always retained. }
+            while (Length(Parent) > Length(Root)) and RemoveDir(Parent) do
+              Parent := ExtractFileDir(Parent);
+          end
+          else Log('Preserved modified legacy file: ' + Relative);
+        end;
+      end;
+    end;
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
+    HadLegacyPayload := FileExists(ExpandConstant('{app}\MailWorker.exe')) and
+      DirExists(ExpandConstant('{app}\_internal'));
     if ExpandConstant('{param:UPDATE|0}') = '1' then
       WriteUpdateState('installing', '{#AppVersion}');
     { Clear this application's old choices, including names in the other UI language. }
     RemoveOldShortcuts(ExpandConstant('{userdesktop}'));
     RemoveOldShortcuts(ExpandConstant('{userprograms}'));
   end;
+  if CurStep = ssPostInstall then RemoveObsoletePayload;
   if (CurStep = ssPostInstall) and (ExpandConstant('{param:UPDATE|0}') = '1') then
   begin
     if not FileExists(ExpandConstant('{app}\BensonMail-{#AppVersion}.exe')) or not InstalledVersionMatches then

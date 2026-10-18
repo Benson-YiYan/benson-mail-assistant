@@ -53,6 +53,23 @@ def main():
         (program/f'Uninstall-BensonMail-{version}.exe').rename(program/'Uninstall-BensonMail-200001010000.exe')
         (program/'build-version.txt').write_text('200001010000')
         (program/'.benson-installed.json').unlink(missing_ok=True)
+        # Seed actual removed dependencies from the same-run legacy baseline build.
+        legacy_samples=ROOT/'dist'/'legacy-migration-fixture'
+        assert legacy_samples.is_dir(), 'Missing real legacy dependency fixtures'
+        obsolete=json.loads((ROOT/'evidence'/'legacy-payload-manifest.json').read_text())
+        seeded=[]
+        for source in legacy_samples.rglob('*'):
+            if source.is_file():
+                relative=source.relative_to(legacy_samples)
+                target=program/relative
+                assert not target.exists(), 'Sample is still required by current payload: '+str(relative)
+                assert hashlib.sha256(source.read_bytes()).hexdigest()==obsolete[relative.as_posix()]
+                target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target);seeded.append(target)
+        unrelated=program/'_internal'/'_tk_data'/'family-notes.txt'
+        unrelated.parent.mkdir(parents=True,exist_ok=True);unrelated.write_text('Keep this unrelated user file')
+        modified=program/'PresentationCore.dll'
+        assert 'PresentationCore.dll' in obsolete
+        modified.write_bytes(b'User-modified legacy filename must survive')
         data=fixture/'user-data';data.mkdir()
         config=data/'config.json';config.write_text('{"fixture":"preserve","enabled":false}')
         report=fixture/'reports'/'2026-10-18'/'Existing.md';report.parent.mkdir(parents=True);report.write_text('## Existing report')
@@ -91,6 +108,10 @@ def main():
         reopened=json.loads(relaunch.read_text())
         assert reopened['version']==version and Path(reopened['launcher']).resolve()==(program/f'BensonMail-{version}.exe').resolve()
         assert process_exit(reopened['pid'])==0
+        assert all(not path.exists() for path in seeded), 'Obsolete legacy dependencies remained after upgrade'
+        assert unrelated.read_text()=='Keep this unrelated user file'
+        assert modified.read_bytes()==b'User-modified legacy filename must survive'
+        checks.append('Actual legacy WinForms, WPF, Tcl/Tk and Pillow files removed only after matching their baseline SHA256; unrelated and modified files preserved')
         checks.append('Real Setup relaunches the newly installed native executable; its actual build version is verified without loading any accounts')
         assert before==(config.read_bytes(),report.read_bytes()),'Update changed config or report bytes'
         log=Path(attempt['log']);shutil.copy2(log,evidence/'update-handoff-setup.log')
