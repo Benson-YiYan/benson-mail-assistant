@@ -107,6 +107,9 @@ Filename: "{app}\BensonMail-{#AppVersion}.exe"; Description: "{cm:RunApp}"; Flag
 Filename: "{app}\MailWorker.exe"; Parameters: "--delete-installer ""{srcexe}"" --setup-pid {code:SetupProcessId} --installer-sha256 {code:SetupFingerprint}"; Description: "{cm:DeleteInstaller}"; Flags: postinstall unchecked nowait skipifsilent runhidden
 
 [Code]
+var
+  PreviousInstallDirectory: String;
+
 function GetCurrentProcessId: LongWord;
   external 'GetCurrentProcessId@kernel32.dll stdcall';
 
@@ -119,9 +122,6 @@ function SetupFingerprint(Param: String): String;
 begin
   Result := GetSHA256OfFile(ExpandConstant('{srcexe}'));
 end;
-
-var
-  PreviousInstallDirectory: String;
 
 function InitializeSetup: Boolean;
 begin
