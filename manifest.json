@@ -12,24 +12,24 @@
       "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181042.exe"
     },
     "macos-arm64": {
-      "version": "202610180948",
-      "sha256": "79a9562688b88877a20f7520ec285469198eaec72775d1086d7d8e7255314a70",
-      "size": 22838482,
+      "version": "202610181128",
+      "sha256": "4bdf502efaa703a13911b1c6a30ed1c014d3e9f1c3edbcccf756d53b0230472f",
+      "size": 22910064,
       "notes": {
-        "zh": "新增每5小时自动检查更新和手动检查；卸载选项使用固定保留标签，删除报告前再次确认；内附微软OAuth2辅助工具。",
-        "en": "Adds automatic update checks every five hours and manual checks. Uninstall switches use fixed retention labels, with confirmation before deleting reports. Includes the Microsoft OAuth2 helper."
+        "zh": "新增应用内更新：下载进度、取消、SHA256校验及安装失败恢复；补齐中英双语帮助菜单。",
+        "en": "Adds in-app update downloads, progress, cancellation, SHA256 verification and rollback, plus a complete bilingual Help menu."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610180948.dmg"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610181128.dmg"
     },
     "macos-x86_64": {
-      "version": "202610180948",
-      "sha256": "69f0170275b9bb5303434350c225a427c1708ef486b60be21e1d109b5b56dd92",
-      "size": 15880389,
+      "version": "202610181129",
+      "sha256": "008a14eb9b13ff8bd902caa8a5756cd2a304218ef6a4cdd1cd1d5080d5e77595",
+      "size": 15925415,
       "notes": {
-        "zh": "新增每5小时自动检查更新和手动检查；卸载选项使用固定保留标签，删除报告前再次确认；内附微软OAuth2辅助工具。",
-        "en": "Adds automatic update checks every five hours and manual checks. Uninstall switches use fixed retention labels, with confirmation before deleting reports. Includes the Microsoft OAuth2 helper."
+        "zh": "新增应用内更新：下载进度、取消、SHA256校验及安装失败恢复；补齐中英双语帮助菜单。",
+        "en": "Adds in-app update downloads, progress, cancellation, SHA256 verification and rollback, plus a complete bilingual Help menu."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610180948.dmg"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610181129.dmg"
     }
   }
 }
