@@ -96,6 +96,24 @@ class MailDiagnosticTests(unittest.TestCase):
             connect({**CONFIG,'security':'starttls','port':143},SECRET,Mock())
         remote.login.assert_not_called()
 
+    def test_test_mail_snapshot_failure_preserves_sanitized_diagnostic(self):
+        with tempfile.TemporaryDirectory() as root:
+            controller=Controller(root,lambda _:None); controller.config.update(CONFIG)
+            cases=[(('UIDVALIDITY',[b'123']), imaplib.IMAP4.error('SEARCH refused '+SECRET), 'UID SEARCH'),
+                   (('UIDVALIDITY',[None]), None, 'UIDVALIDITY'),
+                   (('UIDVALIDITY',[b'123']), ('NO',[b'Search unavailable']), 'UID SEARCH')]
+            for identity, search, stage in cases:
+                remote=client(); remote.response.return_value=identity
+                if isinstance(search,Exception): remote.uid.side_effect=search
+                else: remote.uid.return_value=search
+                with patch.object(controller,'secret',return_value=SECRET), patch('benson_mail.core.connect',return_value=remote), self.assertRaises(MailConnectionError) as caught:
+                    controller.command('test_mail',{})
+                text=str(caught.exception)
+                self.assertIn(stage,text); self.assertIn('IMAP4.error',text)
+                self.assertNotIn(SECRET,text); self.assertIn('imap.example.invalid:993',text)
+                if search is not None and not isinstance(search,Exception): self.assertIn('Search unavailable',text)
+                remote.logout.assert_called_once()
+
     def test_background_preserves_only_sanitized_mail_diagnostic(self):
         with tempfile.TemporaryDirectory() as root:
             events=[]; service=Service(CONFIG,SECRET,root,events.append)

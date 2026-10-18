@@ -140,7 +140,8 @@ def mail_error(error, value, secret, stage, language='zh'):
         stages = {'SSL/TLS 连接':'SSL/TLS connection', 'TCP 连接':'TCP connection', 'STARTTLS 加密协商':'STARTTLS negotiation',
                   'XOAUTH2 认证':'XOAUTH2 authentication', 'LOGIN 认证':'LOGIN authentication',
                   'CAPABILITY 登录后能力协商':'CAPABILITY after authentication', 'ID 客户端标识协商':'ID client identification',
-                  'SELECT 只读打开邮件文件夹':'SELECT read-only mailbox'}
+                  'SELECT 只读打开邮件文件夹':'SELECT read-only mailbox',
+                  'UIDVALIDITY 读取邮件文件夹标识':'UIDVALIDITY mailbox identity', 'UID SEARCH 检查邮件编号':'UID SEARCH message identifiers'}
         return MailConnectionError(f"Mailbox connection failed: {hints[hint]}\nServer: {value['host']}:{value['port']} ({value['security']})\nStage: {stages.get(stage, stage)}\nCause: {error_type}: {detail}")
     return MailConnectionError(f"邮箱连接失败：{hint}\n服务器：{value['host']}:{value['port']} ({value['security']})\n阶段：{stage}\n具体原因：{error_type}: {detail}")
 

@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta
 from email import policy
 from pathlib import Path
 from xml.etree import ElementTree
-from .mailbox_config import connect, state_identity, MailConnectionError
+from .mailbox_config import connect, state_identity, MailConnectionError, mail_error, normalize, IMAP_ERROR, require_ok
 
 BEIJING = timezone(timedelta(hours=8))
 MAX_ATTACHMENT = 20 * 1024 * 1024
@@ -176,12 +176,26 @@ def export_report(directory, message, answer, uid, target=None):
 class IMAPMailbox:
     def __init__(self, config, secret):
         from .ai_api import tls_context
+        self.config = dict(config); self.connection = normalize(config); self.secret = secret
         self.client = connect(config, secret, context=tls_context())
     def snapshot(self):
-        validity=self.client.response('UIDVALIDITY')[1][0].decode()
-        status,data=self.client.uid('search',None,'ALL')
-        if status!='OK': raise RuntimeError('无法检查新邮件')
-        return validity,[int(uid) for uid in data[0].split()]
+        stage = 'UIDVALIDITY 读取邮件文件夹标识'
+        try:
+            response = self.client.response('UIDVALIDITY')
+            if (not isinstance(response, tuple) or len(response) != 2 or response[0] != 'UIDVALIDITY'
+                    or not response[1] or not response[1][0]):
+                raise IMAP_ERROR(f'UIDVALIDITY missing or invalid: {response!r}')
+            raw = response[1][0]
+            validity = raw.decode('ascii') if isinstance(raw, bytes) else str(raw)
+            if not validity.isascii() or not validity.isdigit():
+                raise IMAP_ERROR(f'UIDVALIDITY invalid: {response!r}')
+            stage = 'UID SEARCH 检查邮件编号'
+            data = require_ok(self.client.uid('search', None, 'ALL'), 'UID SEARCH')
+            if not data or data[0] is None:
+                raise IMAP_ERROR(f'UID SEARCH missing response: {data!r}')
+            return validity, [int(uid) for uid in data[0].split()]
+        except Exception as error:
+            raise mail_error(error, self.connection, self.secret, stage, self.config.get('ui_language', 'zh')) from None
     def fetch(self,uid):
         status,data=self.client.uid('fetch',str(uid),'(BODY.PEEK[] INTERNALDATE)')
         if status!='OK': raise RuntimeError('无法读取邮件')
