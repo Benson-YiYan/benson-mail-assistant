@@ -71,6 +71,12 @@ B. Register your own application once (IT assistance may be useful)
 C. Get a token on your own computer
 6) On Windows, open PowerShell and paste the script below. Replace CLIENT-ID-HERE with your application ID. For personal accounts keep consumers; for an organization-only application replace it with your tenant ID. Do not enter an email password in the script. Mac users can ask their administrator to obtain a token or use PowerShell if already installed.
 
+WHAT DOES THE FOLLOWING CODE DO?
+This helper obtains a Microsoft email OAuth2 access token (access_token). It applies only to the Outlook / Hotmail / Microsoft 365 section. Users of 163, QQ or other providers can skip this section.
+It asks Microsoft to start a sign-in and displays the official sign-in URL and a one-time code. After you sign in and approve access in your browser, it waits for Microsoft's response and copies the access_token to your clipboard. Paste that value into Mail Secretary's OAuth2 access token field, save, and test.
+First complete the app registration and permission steps above. Replace CLIENT-ID-HERE with your own Application (client) ID; this is not your email address, mailbox password or AI API key. The default consumers tenant is for personal Microsoft accounts. For an organization account, use your tenant ID as described above; the app must also support that account type.
+This code does not bypass sign-in or administrator approval and does not keep Mail Secretary signed in permanently. Access tokens expire. The current app does not refresh them automatically, so obtain a new token and update it when needed. Do not paste the resulting token into a chat.
+
 $clientId = 'CLIENT-ID-HERE'
 $tenant = 'consumers'
 $scope = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access'

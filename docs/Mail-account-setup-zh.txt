@@ -73,6 +73,12 @@ B. 一次性注册自己的应用（不想处理这部分可让 IT 帮忙）
 C. 在自己电脑取令牌（Windows PowerShell；Mac 可让管理员协助取令牌）
 6. 打开 PowerShell，复制下面整段。只把 CLIENT-ID-HERE 改成步骤3的客户端 ID；这不是秘密。个人账号保留 consumers；纯组织注册改成你的租户 ID，不要填邮箱密码。
 
+【下面这段代码是做什么的？】
+这是“获取微软邮箱 OAuth2 访问令牌（access_token）”的辅助代码，仅用于这一节的 Outlook / Hotmail / Microsoft 365。使用 163、QQ 等邮箱的用户跳过本节即可。
+它会向微软申请一次登录，显示官方登录网址和一次性代码；你在浏览器中登录并确认授权后，它等待微软返回访问令牌，并自动把 access_token 复制到剪贴板。然后把它粘贴到邮件小秘书的“OAuth2 访问令牌”框，保存并测试。
+运行前必须先完成上面的应用注册和权限配置，把 CLIENT-ID-HERE 换成自己的“应用程序(客户端) ID”；它不是邮箱地址、邮箱密码或 AI API Key。默认 consumers 用于个人微软账户；组织账户按上文改成自己的租户 ID，应用本身也必须支持对应账户类型。
+代码不会自动绕过登录或管理员审批，也不会替邮件小秘书永久登录。它取得的访问令牌会过期；当前软件不自动续期，失效后需要重新获取并更新。不要把得到的完整令牌发进聊天。
+
 $clientId = 'CLIENT-ID-HERE'
 $tenant = 'consumers'
 $scope = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access'
