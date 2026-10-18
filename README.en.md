@@ -38,7 +38,7 @@ Windows and Mac packages in one release may have different version numbers. Veri
 - Local search across message bodies, senders and attachment names; date, sender and attachment filters.
 - English and Chinese interfaces and new reports; existing reports remain unchanged.
 - Tray/menu bar operation, configurable intervals and report locations.
-- In-app update downloads and configurable retention during uninstall.
+- In-app update downloads: when several sources are available, bounded speed probes select a faster route; network failures try another source. SHA256 is verified before installation. Uninstall can retain settings and reports.
 
 Attachment analysis depends on extractable text; scanned images and encrypted documents may not be readable. Search covers locally saved mail data and reports, not your entire remote inbox.
 
