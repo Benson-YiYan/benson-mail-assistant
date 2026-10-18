@@ -3,21 +3,19 @@ python script/make_icon.py
 if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed' }
 dotnet publish native/BensonMail.csproj -c Release -r win-x64 -o dist/native -p:Platform=x64
 if ($LASTEXITCODE -ne 0) { throw 'WinUI publish failed' }
-python -m PyInstaller --noconfirm --clean --onedir --windowed --name BensonMail --icon assets/mail.ico --add-data "assets;assets" --hidden-import win32timezone --collect-all pystray --collect-all pypdf --collect-all certifi --collect-all truststore main.py
-if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed' }
+python -m PyInstaller --noconfirm --clean --onedir --console --hide-console hide-early --name MailWorker --icon assets/mail.ico --hidden-import win32timezone --collect-all pypdf --collect-all certifi --collect-all truststore --exclude-module tkinter --exclude-module _tkinter --exclude-module PIL --exclude-module pystray --exclude-module benson_mail.ui --exclude-module benson_mail.app_icon worker.py
+if ($LASTEXITCODE -ne 0) { throw 'Headless worker build failed' }
+New-Item -ItemType Directory -Force dist/BensonMail | Out-Null
+Copy-Item dist/MailWorker/* dist/BensonMail/ -Recurse -Force
+Copy-Item dist/native/* dist/BensonMail/ -Recurse -Force
+# Debug symbols are for developers; the shipped app never loads them.
+Get-ChildItem dist/BensonMail -Recurse -Filter *.pdb | Remove-Item -Force
+Copy-Item dist/BensonMail/BensonMail.exe dist/BensonMail/Uninstall.exe -Force
 Copy-Item README.md dist/BensonMail/使用说明.md
 Copy-Item README.en.md "dist/BensonMail/Read me - English.md"
 Copy-Item docs/Mail-account-setup-*.txt dist/BensonMail/
 Copy-Item docs/Markdig-LICENSE.txt dist/BensonMail/
 Copy-Item docs/Get-Outlook-Token.bat, docs/Get-Outlook-Token.ps1 dist/BensonMail/
-python -m PyInstaller --noconfirm --clean --onedir --console --hide-console hide-early --name MailWorker --icon assets/mail.ico --add-data "assets;assets" --hidden-import win32timezone --collect-all pypdf --collect-all certifi --collect-all truststore main.py
-if ($LASTEXITCODE -ne 0) { throw 'Worker build failed' }
-$legacyExe = 'dist/BensonMail/BensonMail.exe'
-$uninstaller = 'dist/BensonMail/Uninstall.exe'
-Move-Item $legacyExe $uninstaller -Force
-Copy-Item dist/MailWorker/* dist/BensonMail/ -Recurse -Force
-Copy-Item dist/native/* dist/BensonMail/ -Recurse -Force
-Copy-Item dist/BensonMail/BensonMail.exe dist/BensonMail/Uninstall.exe -Force
 New-Item -ItemType Directory -Force dist/BensonMail/assets | Out-Null
 Copy-Item assets/mail.ico dist/BensonMail/assets/mail.ico -Force
 $chinaZone = [TimeZoneInfo]::FindSystemTimeZoneById('China Standard Time')

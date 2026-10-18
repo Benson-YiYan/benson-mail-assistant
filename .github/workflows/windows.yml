@@ -11,6 +11,8 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -56,8 +58,15 @@ jobs:
           python main.py --self-test evidence/source-result.json --screenshot evidence/source-screen.png
           if ($LASTEXITCODE -ne 0) { throw 'Source self-test failed' }
           if (!(Get-Content evidence/source-result.json -Raw | ConvertFrom-Json).ok) { throw 'Source result failed' }
+      - name: Rebuild previous release size baseline without running it
+        run: ./script/build_size_baseline.ps1
       - name: Build standalone application
         run: ./build.ps1
+      - name: Measure installed payload reduction
+        run: |
+          $package = Get-ChildItem dist -Directory | Where-Object Name -Match '^BensonMail-\d{12}$' | Select-Object -First 1
+          python script/measure_package.py $package.FullName evidence/package-size-result.json --baseline evidence/package-size-baseline.json
+          if ($LASTEXITCODE -ne 0) { throw 'Package size verification failed' }
       - name: Public update manifest over verified Windows HTTPS
         run: |
           $exe = (Get-ChildItem dist -Recurse -Filter 'BensonMail-*.exe' | Where-Object Name -Match '^BensonMail-\d{12}\.exe$' | Select-Object -First 1).FullName
@@ -82,6 +91,12 @@ jobs:
           if (!(Test-Path $result)) { throw 'Missing packaged self-test evidence' }
           if (!(Get-Content $result -Raw | ConvertFrom-Json).ok) { throw 'Packaged result failed' }
           if (!(Test-Path $screen)) { throw 'Missing screenshot' }
+          $runtimeResult = Join-Path $PWD 'evidence/worker-runtime-result.json'
+          $worker = Join-Path (Split-Path $exe) 'MailWorker.exe'
+          $runtimeProcess = Start-Process -FilePath $worker -ArgumentList @('--runtime-self-test', "`"$runtimeResult`"") -PassThru -WindowStyle Hidden
+          if (!$runtimeProcess.WaitForExit(60000)) { Stop-Process -Id $runtimeProcess.Id -Force; throw 'Slim frozen worker test timed out' }
+          if ($runtimeProcess.ExitCode -ne 0 -or !(Test-Path $runtimeResult)) { throw 'Slim frozen worker test failed' }
+          if (!(Get-Content $runtimeResult -Raw | ConvertFrom-Json).ok) { throw 'Slim worker attachment/TLS/DPAPI test failed' }
           $harnessResult = Join-Path $PWD 'evidence/harness-result.json'
           $worker = Join-Path (Split-Path $exe) 'MailWorker.exe'
           $harnessProcess = Start-Process -FilePath $worker -ArgumentList @('--harness-self-test', "`"$harnessResult`"") -PassThru -WindowStyle Hidden

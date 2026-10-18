@@ -11,7 +11,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Windowing;
 using Windows.Graphics;
-using Forms = System.Windows.Forms;
 
 namespace BensonMail;
 
@@ -47,10 +46,9 @@ internal static class Program
         if (AppLifetime.TestProcess(args)) return;
         L.Initialize();
         Trace("Main");
-        Forms.WindowsFormsSynchronizationContext.AutoInstall = false;
         WinRT.ComWrappersSupport.InitializeComWrappers();
         using var mutex = new Mutex(false, Uninstall ? null : @"Local\BensonMail-" + Environment.UserName, out var created);
-        if (!created) { Forms.MessageBox.Show(L.T("邮件小秘书已经运行，请点击任务栏右下角的信封。")); return; }
+        if (!created) { Desktop.Message(L.T("邮件小秘书已经运行，请点击任务栏右下角的信封。")); return; }
         try
         {
             Application.Start(initialization =>
@@ -66,7 +64,7 @@ internal static class Program
         {
             var path = Path.Combine(Path.GetTempPath(), "BensonMail-startup-error.txt");
             File.WriteAllText(path, e.ToString());
-            Forms.MessageBox.Show(L.T("启动失败，错误详情已保存至：") + path);
+            Desktop.Message(L.T("启动失败，错误详情已保存至：") + path);
         }
     }
 }
@@ -245,7 +243,7 @@ sealed class MainWindow : Window
     readonly MarkdownReportView preview = new() { VerticalAlignment = VerticalAlignment.Stretch };
     readonly Button toggle = new() { Content = L.T("开始监听"), CornerRadius = new CornerRadius(4) };
     readonly Button check = new() { Content = L.T("立即检查"), CornerRadius = new CornerRadius(4) };
-    readonly Forms.NotifyIcon tray;
+    readonly NativeTray tray;
     readonly Bridge bridge;
     readonly AppLifetime lifetime;
     readonly Microsoft.UI.Dispatching.DispatcherQueueTimer searchTimer;
@@ -316,14 +314,11 @@ sealed class MainWindow : Window
         }
         foreach (var control in new Control[] { preview, toggle, check, startup, navigation, reports })
             control.FontFamily = MailTypography.Font;
-        tray = new Forms.NotifyIcon
-        {
-            Text = L.T("邮件小秘书"), Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico")),
-            Visible = true, ContextMenuStrip = new Forms.ContextMenuStrip()
-        };
-        tray.ContextMenuStrip.Items.Add(L.T("打开窗口"), null, (_, _) => DispatcherQueue.TryEnqueue(Restore));
-        tray.ContextMenuStrip.Items.Add(L.T("开始／暂停监听"), null, (_, _) => DispatcherQueue.TryEnqueue(async () => await Guard(ToggleService)));
-        tray.ContextMenuStrip.Items.Add(L.T("退出邮件小秘书"), null, (_, _) => DispatcherQueue.TryEnqueue(async () => await Exit()));
+        tray = new NativeTray(WinRT.Interop.WindowNative.GetWindowHandle(this),
+            Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico"), L.T("邮件小秘书"));
+        tray.Commands.Add(new NativeTray.Command(L.T("打开窗口"), () => DispatcherQueue.TryEnqueue(Restore)));
+        tray.Commands.Add(new NativeTray.Command(L.T("开始／暂停监听"), () => DispatcherQueue.TryEnqueue(async () => await Guard(ToggleService))));
+        tray.Commands.Add(new NativeTray.Command(L.T("退出邮件小秘书"), () => DispatcherQueue.TryEnqueue(async () => await Exit())));
         tray.DoubleClick += (_, _) => DispatcherQueue.TryEnqueue(Restore);
         tray.BalloonTipClicked += (_, _) => DispatcherQueue.TryEnqueue(Restore);
         AppWindow.Closing += (_, e) =>
@@ -361,7 +356,7 @@ sealed class MainWindow : Window
         void Update()
         {
             if (button.Style == (Style)Application.Current.Resources["AccentButtonStyle"]) return;
-            if (Forms.SystemInformation.HighContrast) { button.ClearValue(Control.BackgroundProperty); button.ClearValue(Control.BorderBrushProperty); return; }
+            if (Desktop.HighContrast) { button.ClearValue(Control.BackgroundProperty); button.ClearValue(Control.BorderBrushProperty); return; }
             var dark = button.ActualTheme == ElementTheme.Dark;
             button.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(dark ? (byte)15 : (byte)190, 255, 255, 255));
             button.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(dark ? (byte)25 : (byte)30,
@@ -409,10 +404,10 @@ sealed class MainWindow : Window
             var dark = card.ActualTheme == ElementTheme.Dark;
             var background = System.Drawing.SystemColors.Window;
             var foreground = System.Drawing.SystemColors.WindowText;
-            card.Background = new SolidColorBrush(Forms.SystemInformation.HighContrast
+            card.Background = new SolidColorBrush(Desktop.HighContrast
                 ? Windows.UI.Color.FromArgb(background.A, background.R, background.G, background.B)
                 : Windows.UI.Color.FromArgb(dark ? (byte)13 : (byte)179, 255, 255, 255));
-            card.BorderBrush = new SolidColorBrush(Forms.SystemInformation.HighContrast
+            card.BorderBrush = new SolidColorBrush(Desktop.HighContrast
                 ? Windows.UI.Color.FromArgb(foreground.A, foreground.R, foreground.G, foreground.B)
                 : Windows.UI.Color.FromArgb(dark ? (byte)25 : (byte)15, 0, 0, 0));
         }
@@ -444,7 +439,7 @@ sealed class MainWindow : Window
             var hover = new SolidColorBrush(Windows.UI.Color.FromArgb(dark ? (byte)30 : (byte)20,
                 dark ? (byte)255 : (byte)0, dark ? (byte)255 : (byte)0, dark ? (byte)255 : (byte)0));
             foreach (var key in new[] { "ListViewItemBackgroundSelected", "ListViewItemBackgroundSelectedPointerOver", "ListViewItemBackgroundSelectedPressed" })
-                navigation.Resources[key] = Forms.SystemInformation.HighContrast
+                navigation.Resources[key] = Desktop.HighContrast
                     ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 95, 184)) : fill;
             navigation.Resources["ListViewItemBackgroundPointerOver"] = hover;
         }
@@ -843,7 +838,7 @@ sealed class MainWindow : Window
                 var title = L.T(notice.GetProperty("title").GetString() ?? "邮件小秘书");
                 var message = L.T(notice.GetProperty("message").GetString() ?? "收到新邮件");
                 tray.ShowBalloonTip(5000, title[..Math.Min(title.Length, 63)],
-                    message[..Math.Min(message.Length, 240)], Forms.ToolTipIcon.Info);
+                    message[..Math.Min(message.Length, 240)]);
             }
             catch { detail.Text = L.T("邮件报告照常保存；系统通知暂不可用，请查看报告列表。"); }
         }
@@ -1010,7 +1005,7 @@ sealed class MainWindow : Window
             if (!detailIsUserSubject) detail.Text = L.T(detail.Text);
             L.Apply(filters.Content as UIElement);
             Title = L.T("邮件小秘书"); tray.Text = Title;
-            foreach (System.Windows.Forms.ToolStripItem item in tray.ContextMenuStrip!.Items) item.Text = L.T(item.Text);
+            foreach (var item in tray.Commands) item.Text = L.T(item.Text);
             languageChoice.SelectedIndex = code == "zh" ? 0 : 1;
             // Account names are user content; translate only the app's enabled/paused suffix.
             var selected = savedMailboxes.SelectedIndex;
@@ -1106,7 +1101,7 @@ sealed class MainWindow : Window
             Check(pageTitle.FontFamily.Source == MailTypography.FontStack &&
                 preview.FontFamily.Source == MailTypography.FontStack && account.FontFamily.Source == MailTypography.FontStack,
                 "Windows UI font stack applied to headings, controls and report text");
-            Check(Forms.SystemInformation.IsFontSmoothingEnabled, "Font smoothing enabled on screenshot desktop");
+            Check(Desktop.FontSmoothing, "Font smoothing enabled on screenshot desktop");
             using (var installed = new System.Drawing.Text.InstalledFontCollection())
             {
                 var families = new List<string>();
@@ -1114,7 +1109,7 @@ sealed class MainWindow : Window
                 File.WriteAllText(Path.ChangeExtension(testResult!, ".typography.json"), JsonSerializer.Serialize(new
                 {
                     font_stack = MailTypography.FontStack,
-                    font_smoothing = Forms.SystemInformation.IsFontSmoothingEnabled,
+                    font_smoothing = Desktop.FontSmoothing,
                     rasterization_scale = layout.XamlRoot.RasterizationScale,
                     installed_families = families
                 }, new JsonSerializerOptions { WriteIndented = true }));
@@ -1160,7 +1155,7 @@ sealed class MainWindow : Window
             try { await bridge.Call("interval", new { seconds = 0 }); throw new Exception("Invalid interval accepted"); }
             catch (InvalidOperationException) { checks.Add("Invalid interval rejected"); }
             AppWindow.Hide(); Restore();
-            Check(tray.Visible, "Envelope tray icon and window restore");
+            Check(tray.Visible && tray.VerifyNativeState(), "Native shell envelope icon, three menu commands and window restore");
             await Task.Delay(1000);
             var screenArg = Array.IndexOf(Program.Args, "--screenshot");
             void Capture(string path)
