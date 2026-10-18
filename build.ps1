@@ -6,6 +6,7 @@ if ($LASTEXITCODE -ne 0) { throw 'WinUI publish failed' }
 python -m PyInstaller --noconfirm --clean --onedir --windowed --name BensonMail --icon assets/mail.ico --add-data "assets;assets" --hidden-import win32timezone --collect-all pystray --collect-all pypdf --collect-all certifi --collect-all truststore main.py
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller build failed' }
 Copy-Item README.md dist/BensonMail/使用说明.md
+Copy-Item README.en.md "dist/BensonMail/Read me - English.md"
 Copy-Item docs/Mail-account-setup-*.txt dist/BensonMail/
 Copy-Item docs/Markdig-LICENSE.txt dist/BensonMail/
 Copy-Item docs/Get-Outlook-Token.bat, docs/Get-Outlook-Token.ps1 dist/BensonMail/
