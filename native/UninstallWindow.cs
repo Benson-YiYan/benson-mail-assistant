@@ -158,6 +158,8 @@ sealed class UninstallWindow : Window
                 detail.Text = L.T("卸载会通过独立组件执行，进度显示在此处。");
                 progress.Text = L.T("准备就绪"); remove.IsEnabled = true;
                 await Task.Delay(500);
+                if (AppWindow.Presenter is not OverlappedPresenter { State: OverlappedPresenterState.Maximized })
+                    throw new InvalidOperationException("Uninstaller must start maximized with the standard window presenter");
                 Program.Trace("Uninstall UI test capture");
                 var bounds = AppWindow.Position; var size = AppWindow.Size;
                 using var image = new System.Drawing.Bitmap(size.Width, size.Height);
@@ -182,6 +184,7 @@ sealed class UninstallWindow : Window
                 if (Worker("prepare").ArgumentList.Contains("--delete-reports")) throw new InvalidOperationException("Report retention on must preserve reports");
                 if (preserve.OnContent?.ToString() != "" || preserve.OffContent?.ToString() != "" || keepReports.OnContent?.ToString() != "" || keepReports.OffContent?.ToString() != "") throw new InvalidOperationException("Retention switch labels must stay fixed");
                 File.WriteAllText(uiResult, JsonSerializer.Serialize(new { ok = true, checks = new[] {
+                    "Uninstaller starts maximized with the standard window presenter",
                     "Native WinUI 3 uninstaller rendered with Mica backdrop and Fluent cards",
                     "Optional mailbox and AI configuration retention visible",
                     "Report retention defaults on; off maps to deletion and on preserves reports",

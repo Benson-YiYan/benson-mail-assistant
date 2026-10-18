@@ -86,6 +86,7 @@ public sealed partial class MailApp : Application
     {
         Program.Trace("OnLaunched");
         window = Program.Uninstall ? new UninstallWindow() : new MainWindow();
+        if (window.AppWindow.Presenter is OverlappedPresenter presenter) presenter.Maximize();
         window.Activate();
         Program.Trace("Activated");
     }
@@ -1010,6 +1011,8 @@ sealed class MainWindow : Window
         }
         try
         {
+            Check(AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized },
+                "Main window starts maximized with the standard window presenter");
             checks.AddRange(await UpdateClient.OfflineTests(fixture!));
             Check(UpdateClient.InstalledVersion.Length == 12 && File.Exists(Path.Combine(AppContext.BaseDirectory, "build-version.txt")), "Installed update version comes from actual timestamped build");
             var localRuntime = false;
