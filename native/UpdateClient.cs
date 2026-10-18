@@ -47,7 +47,7 @@ sealed class UpdateClient
         File.WriteAllText(temporary, JsonSerializer.Serialize(state));
         File.Move(temporary, statePath, true);
     }
-    internal static UpdateRelease Parse(string json)
+    internal static UpdateRelease Parse(string json, string? language = null)
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
@@ -56,6 +56,12 @@ sealed class UpdateClient
             throw new InvalidDataException("更新清单尚未准备好。");
         string Read(string key) => release.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString()! : "";
         var version = Read("version"); var sha = Read("sha256"); var notes = Read("notes");
+        if (release.TryGetProperty("notes", out var localizedNotes) && localizedNotes.ValueKind == JsonValueKind.Object) {
+            var preferred = (language ?? L.Code) == "zh" ? "zh" : "en";
+            var fallback = preferred == "zh" ? "en" : "zh";
+            if (localizedNotes.TryGetProperty(preferred, out var primary) && primary.ValueKind == JsonValueKind.String) notes = primary.GetString()!;
+            else if (localizedNotes.TryGetProperty(fallback, out var secondary) && secondary.ValueKind == JsonValueKind.String) notes = secondary.GetString()!;
+        }
         if (!Regex.IsMatch(version, @"^\d{12}$") || !DateTime.TryParseExact(version, "yyyyMMddHHmm", CultureInfo.InvariantCulture, DateTimeStyles.None, out _) ||
             !Regex.IsMatch(sha, @"\A[a-fA-F0-9]{64}\z") || !Uri.TryCreate(Read("url"), UriKind.Absolute, out var url) ||
             url.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(url.Host) || url.UserInfo.Length > 0 || url.Fragment.Length > 0)
@@ -91,6 +97,12 @@ sealed class UpdateClient
         string Manifest(string version, string url = "https://downloads.example.invalid/mail.exe", string? sha = null) =>
             JsonSerializer.Serialize(new { schema_version = 1, platforms = new Dictionary<string, object> {
                 ["windows-x64"] = new { version, url, sha256 = sha ?? new string('a', 64), notes = "Synthetic release notes" } } });
+        var bilingual = JsonSerializer.Serialize(new { schema_version = 1, platforms = new Dictionary<string, object> {
+            ["windows-x64"] = new { version = "209910180900", url = "https://download.example.invalid/a.exe", sha256 = new string('a', 64), notes = new { zh = "中文说明", en = "English notes" } } } });
+        Check(Parse(bilingual, "zh").Notes == "中文说明" && Parse(bilingual, "en").Notes == "English notes",
+            "Localized release notes follow Chinese and English UI language");
+        Check(Parse(bilingual.Replace("\"en\":\"English notes\"", "\"other\":\"English notes\""), "en").Notes == "中文说明",
+            "Missing localized notes fall back to the available language");
         var time = new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.Zero); var calls = 0;
         var path = Path.Combine(folder, "updates.json");
         Task<string> Fetch() { calls++; return Task.FromResult(Manifest("209910180900")); }
