@@ -58,6 +58,14 @@ jobs:
           if (!(Get-Content evidence/source-result.json -Raw | ConvertFrom-Json).ok) { throw 'Source result failed' }
       - name: Build standalone application
         run: ./build.ps1
+      - name: Public update manifest over verified Windows HTTPS
+        run: |
+          $exe = (Get-ChildItem dist -Recurse -Filter 'BensonMail-*.exe' | Where-Object Name -Match '^BensonMail-\d{12}\.exe$' | Select-Object -First 1).FullName
+          $result = Join-Path $PWD 'evidence/update-network-result.json'
+          $process = Start-Process -FilePath $exe -ArgumentList @('--update-network-test', "`"$result`"") -PassThru -WindowStyle Hidden
+          if (!$process.WaitForExit(45000)) { Stop-Process -Id $process.Id -Force; throw 'Public update manifest probe timed out' }
+          Get-Content $result
+          if ($process.ExitCode -ne 0 -or !(Get-Content $result -Raw | ConvertFrom-Json).ok) { throw 'Verified public update manifest probe failed' }
       - name: Packaged EXE self-test with timeout
         run: |
           $result = Join-Path $PWD 'evidence/packaged-result.json'

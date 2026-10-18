@@ -30,6 +30,11 @@ internal static class Program
     static void Main(string[] args)
     {
         Args = args;
+        var networkProbe = Array.IndexOf(args, "--update-network-test");
+        if (networkProbe >= 0 && networkProbe + 1 < args.Length) {
+            Environment.ExitCode = UpdateTransport.NetworkProbe(args[networkProbe + 1]).GetAwaiter().GetResult();
+            return;
+        }
         L.Initialize();
         Trace("Main");
         Forms.WindowsFormsSynchronizationContext.AutoInstall = false;
@@ -239,7 +244,7 @@ sealed class MainWindow : Window
     Button filterButton = null!;
     Button updateButton = null!;
     UpdateRelease? pendingUpdate;
-    readonly TextBlock updateStatus = new() { TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock updateStatus = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
     readonly UpdateClient updates = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail", "update-state.json"), UpdateClient.InstalledVersion);
     readonly Microsoft.UI.Dispatching.DispatcherQueueTimer updateTimer;
     Flyout filters = null!;
@@ -639,7 +644,7 @@ sealed class MainWindow : Window
             if (choice == ContentDialogResult.Primary && !exitRequested) Open(release.Url.AbsoluteUri);
         }
         catch (Exception error) {
-            if (manual && !exitRequested) updateStatus.Text = L.T("检查更新失败：") + L.T(error.Message);
+            if (manual && !exitRequested) updateStatus.Text = L.T("检查更新失败：") + UpdateTransport.ErrorDetails(error, L.Code);
         }
         finally { if (manual && !exitRequested) updateButton.IsEnabled = true; }
     }

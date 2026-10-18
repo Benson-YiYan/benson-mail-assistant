@@ -15,7 +15,7 @@ sealed record UpdateRelease(string Version, Uri Url, string Sha256, string Notes
 sealed class UpdateClient
 {
     internal const string ManifestUrl = "https://raw.githubusercontent.com/Benson-YiYan/benson-mail-updates/main/manifest.json";
-    static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10), MaxResponseContentBufferSize = 512 * 1024 };
+    static readonly UpdateTransport Transport = new();
     readonly string statePath;
     readonly string current;
     readonly Func<Task<string>> fetch;
@@ -33,7 +33,7 @@ sealed class UpdateClient
     internal UpdateClient(string path, string version, Func<Task<string>>? fetchManifest = null, Func<DateTimeOffset>? clock = null)
     {
         statePath = path; current = version; now = clock ?? (() => DateTimeOffset.UtcNow);
-        fetch = fetchManifest ?? (() => Http.GetStringAsync(ManifestUrl));
+        fetch = fetchManifest ?? (() => Transport.Fetch());
     }
     State Load()
     {
@@ -92,7 +92,7 @@ sealed class UpdateClient
     }
     internal static async Task<string[]> OfflineTests(string folder)
     {
-        var checks = new List<string>();
+        var checks = new List<string>(await UpdateTransport.OfflineTests());
         void Check(bool ok, string label) { if (!ok) throw new InvalidOperationException(label); checks.Add(label); }
         string Manifest(string version, string url = "https://downloads.example.invalid/mail.exe", string? sha = null) =>
             JsonSerializer.Serialize(new { schema_version = 1, platforms = new Dictionary<string, object> {
