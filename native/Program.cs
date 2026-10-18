@@ -1143,6 +1143,14 @@ sealed class MainWindow : Window
             Check(preview.HeadingCount == 1 && preview.BoldCount == 1 && preview.ListCount == 1 &&
                 preview.LinkCount == 1 && preview.CodeCount == 1 && preview.TableCount == 1,
                 "Native Markdown renders headings, bold, lists, safe links, code and tables; image and unsafe link excluded");
+            preview.Show("A &amp; B / &#20013;", true);
+            var entityStack = (StackPanel)((ScrollViewer)preview.Content).Content;
+            var entityBlock = (RichTextBlock)entityStack.Children[0];
+            var entityParagraph = (Microsoft.UI.Xaml.Documents.Paragraph)entityBlock.Blocks[0];
+            var entityText = new StringBuilder();
+            foreach (var inline in entityParagraph.Inlines)
+                if (inline is Microsoft.UI.Xaml.Documents.Run run) entityText.Append(run.Text);
+            Check(entityText.ToString() == "A & B / 中", "HTML entities decoded into actual native Run text");
             await Task.Delay(80);
             preview.Show(fixturePreview, false);
 

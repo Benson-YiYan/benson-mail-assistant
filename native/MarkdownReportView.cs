@@ -111,6 +111,7 @@ internal sealed class MarkdownReportView : UserControl
         foreach (var inline in source)
         {
             if (inline is LiteralInline literal) destination.Add(new Run { Text = literal.Content.ToString() });
+            else if (inline is HtmlEntityInline entity) destination.Add(new Run { Text = entity.Transcoded.ToString() });
             else if (inline is LineBreakInline) destination.Add(new LineBreak());
             else if (inline is CodeInline code) destination.Add(new Run { Text = code.Content, FontFamily = new FontFamily("Cascadia Mono, Consolas") });
             else if (inline is EmphasisInline emphasis)
