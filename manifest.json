@@ -12,24 +12,24 @@
       "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181431.exe"
     },
     "macos-arm64": {
-      "version": "202610181158",
-      "sha256": "8c8b0249d9bc04aeff892ef88930c3864ed6dccb87b576f7e62d9e69dd07c06d",
-      "size": 23174323,
+      "version": "202610181459",
+      "sha256": "c783085b6fb6e7369903407223e8e763dced13c6ef2342e6b27cebfe364380fa",
+      "size": 23292690,
       "notes": {
-        "zh": "报告改为Markdown（.md），完整显示标题、加粗、嵌套列表、链接、表格和代码块，兼容旧TXT；新增复制原文及打开报告。含应用内更新、安装失败恢复与中英双语帮助菜单。",
-        "en": "Reports now use Markdown (.md) with formatted headings, bold, nested lists, links, tables and code blocks, plus legacy TXT compatibility and copy/open actions. Includes in-app updates, rollback and a bilingual Help menu."
+        "zh": "全新四页侧栏：邮件报告、邮箱与检查、AI服务、通用设置。报告正文通高显示；切页保留未保存输入，首次配置后同步表单；新增脱敏邮箱连接诊断和双语使用指南。",
+        "en": "New four-page sidebar for reports, mailboxes, AI and general settings. Full-height Markdown reader, preserved form drafts and first-run form synchronization, detailed sanitized mailbox diagnostics and bilingual guides."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610181158.dmg"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610181459.dmg"
     },
     "macos-x86_64": {
-      "version": "202610181158",
-      "sha256": "81be612df196b1d51bb2aba8cb186b1f2ab3447e12c2b6b7d0f4fb3401e11f59",
-      "size": 16277365,
+      "version": "202610181459",
+      "sha256": "0e1fd853412b07ee7555c2f847fdd6fd813b11fd0d0e04ed8f80411787986f9a",
+      "size": 16365626,
       "notes": {
-        "zh": "报告改为Markdown（.md），完整显示标题、加粗、嵌套列表、链接、表格和代码块，兼容旧TXT；新增复制原文及打开报告。含应用内更新、安装失败恢复与中英双语帮助菜单。",
-        "en": "Reports now use Markdown (.md) with formatted headings, bold, nested lists, links, tables and code blocks, plus legacy TXT compatibility and copy/open actions. Includes in-app updates, rollback and a bilingual Help menu."
+        "zh": "全新四页侧栏：邮件报告、邮箱与检查、AI服务、通用设置。报告正文通高显示；切页保留未保存输入，首次配置后同步表单；新增脱敏邮箱连接诊断和双语使用指南。",
+        "en": "New four-page sidebar for reports, mailboxes, AI and general settings. Full-height Markdown reader, preserved form drafts and first-run form synchronization, detailed sanitized mailbox diagnostics and bilingual guides."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610181158.dmg"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610181459.dmg"
     }
   }
 }
