@@ -56,8 +56,18 @@ internal sealed class NativeTray : IDisposable
         catch { RemoveWindowSubclass(window, callback, 73); DestroyIcon(icon); throw; }
     }
     Notification Data() => new() { Size = (uint)Marshal.SizeOf<Notification>(), Window = window, Id = 1,
-        Flags = 1 | 2 | 4, Callback = CallbackMessage, Icon = icon, Tip = text[..Math.Min(text.Length, 127)], Info = "", Title = "" };
-    bool Send(uint operation) { var data = Data(); return Shell_NotifyIconW(operation, ref data); }
+        Flags = 1 | 2 | 4 | 0x80, Callback = CallbackMessage, Icon = icon, Tip = text[..Math.Min(text.Length, 127)], Info = "", Title = "" };
+    bool Send(uint operation)
+    {
+        var data = Data();
+        if (!Shell_NotifyIconW(operation, ref data)) return false;
+        if (operation == 0)
+        {
+            data.Timeout = 4; // NOTIFYICON_VERSION_4; set again after Explorer recreates the taskbar.
+            if (!Shell_NotifyIconW(4, ref data)) { Shell_NotifyIconW(2, ref data); return false; }
+        }
+        return true;
+    }
     internal void ShowBalloonTip(int timeout, string title, string message)
     {
         var data = Data(); data.Flags |= 0x10; data.Timeout = (uint)timeout;
@@ -70,7 +80,7 @@ internal sealed class NativeTray : IDisposable
         if (message == CallbackMessage)
         {
             var action = (uint)lParam.ToInt64() & 0xffff;
-            if (action == 0x203) DoubleClick?.Invoke(this, EventArgs.Empty);
+            if (action == 0x203 || action == 0x401) DoubleClick?.Invoke(this, EventArgs.Empty);
             else if (action == 0x405) BalloonTipClicked?.Invoke(this, EventArgs.Empty);
             else if (action == 0x205 || action == 0x7B) ShowMenu();
             return IntPtr.Zero;
@@ -96,7 +106,7 @@ internal sealed class NativeTray : IDisposable
             PostMessageW(window, 0, UIntPtr.Zero, IntPtr.Zero);
             if (selected > 0 && selected <= Commands.Count) Commands[(int)selected - 1].Invoke();
         }
-        finally { DestroyMenu(menu); }
+        finally { DestroyMenu(menu); Send(3); }
     }
     internal bool VerifyNativeState()
     {
