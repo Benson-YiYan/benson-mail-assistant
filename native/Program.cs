@@ -237,6 +237,10 @@ sealed class MainWindow : Window
     readonly HashSet<string> notified = new();
     Button mailSaveButton = null!, aiSaveButton = null!;
     Button filterButton = null!;
+    Button updateButton = null!;
+    readonly TextBlock updateStatus = new() { TextWrapping = TextWrapping.Wrap };
+    readonly UpdateClient updates = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail", "update-state.json"), UpdateClient.InstalledVersion);
+    readonly Microsoft.UI.Dispatching.DispatcherQueueTimer updateTimer;
     Flyout filters = null!;
     bool initialized, running, exiting, exitRequested, detailIsUserSubject;
     long reportGeneration, previewGeneration;
@@ -308,6 +312,9 @@ sealed class MainWindow : Window
         };
         bridge = new Bridge(fixture);
         Program.Trace("Worker started");
+        updateTimer = DispatcherQueue.CreateTimer();
+        updateTimer.Interval = TimeSpan.FromMinutes(30);
+        updateTimer.Tick += async (_, _) => await CheckUpdates(false);
         searchTimer = DispatcherQueue.CreateTimer();
         searchTimer.Interval = TimeSpan.FromMilliseconds(200);
         searchTimer.IsRepeating = false;
@@ -485,6 +492,7 @@ sealed class MainWindow : Window
             mailPort.Text = "993"; mailSecurity.SelectedIndex = 0;
             mailAuth.SelectedIndex = preset.TryGetProperty("mail_auth", out var auth) && auth.GetString() == "oauth2" ? 1 : 0;
         };
+        updateButton = Action(L.T("检查更新"), () => CheckUpdates(true));
         mailSaveButton = Action(L.T("保存邮箱设置"), SaveMail);
         aiSaveButton = Action(L.T("保存 AI 设置"), SaveAI);
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
@@ -499,7 +507,9 @@ sealed class MainWindow : Window
             });
         };
         mailPage.Children.Add(SettingsPage(Stack(
-            Card(Stack(languageChoice, Note(L.T("语言更改立即生效，下次打开时保留。")))),
+            Card(Stack(languageChoice, Note(L.T("语言更改立即生效，下次打开时保留。")),
+                Note(L.T("当前版本：") + UpdateClient.InstalledVersion), Row(updateButton), updateStatus,
+                Note(L.T("每 5 小时自动检查更新；仅提示下载，不会自动安装。")))),
             Card(Stack(Heading(L.T("管理邮箱")), savedMailboxes,
                 Row(Action(L.T("添加邮箱"), async () => {
                     await Call("select_mail", new { id = "" }); await ReloadMailboxes();
@@ -606,6 +616,26 @@ sealed class MainWindow : Window
         {
             if (initialized && !exitRequested) { searchTimer.Stop(); searchTimer.Start(); }
         };
+    }
+    async Task CheckUpdates(bool manual)
+    {
+        if (exitRequested || testResult != null) return;
+        if (manual) { updateButton.IsEnabled = false; updateStatus.Text = L.T("正在检查更新…"); }
+        try {
+            var release = await updates.Check(manual);
+            if (exitRequested) return;
+            if (release == null) { if (manual) updateStatus.Text = L.T("当前已是最新版本。"); return; }
+            updateStatus.Text = L.T("发现新版本：") + release.Version;
+            var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("发现新版本：") + release.Version,
+                Content = release.Notes.Length > 0 ? release.Notes : L.T("此版本没有提供更新说明。"),
+                PrimaryButtonText = L.T("下载更新"), CloseButtonText = L.T("稍后"), DefaultButton = ContentDialogButton.Close };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary && !exitRequested)
+                Open(release.Url.AbsoluteUri);
+        }
+        catch (Exception error) {
+            if (manual && !exitRequested) updateStatus.Text = L.T("检查更新失败：") + L.T(error.Message);
+        }
+        finally { if (manual && !exitRequested) updateButton.IsEnabled = true; }
     }
     static string OAuthTokenPath => Path.Combine(AppContext.BaseDirectory, "Get-Outlook-Token.bat");
     Button OAuthTokenButton(ComboBox authentication)
@@ -800,6 +830,8 @@ sealed class MainWindow : Window
             {
                 await Call("start"); running = true; toggle.Content = L.T("暂停监听"); status.Text = L.T("运行中");
             }
+            updateTimer.Start();
+            _ = CheckUpdates(false);
             if (Array.IndexOf(Program.Args, "--background") >= 0) AppWindow.Hide();
         }
         catch (Exception e)
@@ -939,6 +971,7 @@ sealed class MainWindow : Window
     {
         if (exiting || exitRequested) return;
         exitRequested = true;
+        updateTimer.Stop();
         searchTimer.Stop();
         Program.Trace("Stopping worker");
         detail.Text = L.T("正在停止后台，请稍候…");
@@ -966,6 +999,8 @@ sealed class MainWindow : Window
         }
         try
         {
+            checks.AddRange(await UpdateClient.OfflineTests(fixture!));
+            Check(UpdateClient.InstalledVersion.Length == 12 && File.Exists(Path.Combine(AppContext.BaseDirectory, "build-version.txt")), "Installed update version comes from actual timestamped build");
             var localRuntime = false;
             var localWinUI = false;
             foreach (ProcessModule module in Process.GetCurrentProcess().Modules)

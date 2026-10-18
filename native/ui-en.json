@@ -534,7 +534,19 @@
     "确认删除邮件报告？": "Delete email reports?",
     "将删除以下目录中本软件可识别的邮件报告及索引：\n": "Recognized Mail Secretary reports and indexes will be deleted from:\n",
     "\n其他文件及自选根目录会保留。此操作无法撤销。": "\nOther files and your chosen root folder will remain. This cannot be undone.",
-    "删除报告并卸载": "Delete reports and uninstall"
+    "删除报告并卸载": "Delete reports and uninstall",
+    "检查更新": "Check for updates",
+    "当前版本：": "Current version: ",
+    "每 5 小时自动检查更新；仅提示下载，不会自动安装。": "Checks for updates every 5 hours. Downloads are offered; updates are never installed automatically.",
+    "正在检查更新…": "Checking for updates…",
+    "当前已是最新版本。": "You have the latest version.",
+    "发现新版本：": "New version: ",
+    "此版本没有提供更新说明。": "No release notes were provided.",
+    "下载更新": "Download update",
+    "稍后": "Later",
+    "检查更新失败：": "Update check failed: ",
+    "更新清单尚未准备好。": "The update manifest is not ready yet.",
+    "更新清单内容无效。": "The update manifest is invalid."
   },
   "templates": [
     {
@@ -794,6 +806,18 @@
       ],
       "en": "Email connection failed ({0}). Check server, port, encryption, and credentials. OAuth2 tokens may have expired.",
       "pattern": "^邮箱连接失败（(.*?)），请检查服务器、端口、加密和登录凭据；OAuth2\\ 令牌可能已过期。$"
+    },
+    {
+      "pattern": "^当前版本：(.*)$",
+      "en": "Current version: {0}"
+    },
+    {
+      "pattern": "^发现新版本：(.*)$",
+      "en": "New version: {0}"
+    },
+    {
+      "pattern": "^检查更新失败：(.*)$",
+      "en": "Update check failed: {0}"
     }
   ]
 }

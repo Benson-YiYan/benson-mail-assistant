@@ -20,6 +20,7 @@ New-Item -ItemType Directory -Force dist/BensonMail/assets | Out-Null
 Copy-Item assets/mail.ico dist/BensonMail/assets/mail.ico -Force
 $chinaZone = [TimeZoneInfo]::FindSystemTimeZoneById('China Standard Time')
 $version = [TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $chinaZone).ToString('yyyyMMddHHmm')
+Set-Content -LiteralPath dist/BensonMail/build-version.txt -Value $version -Encoding ascii
 Rename-Item dist/BensonMail/BensonMail.exe "BensonMail-$version.exe"
 Rename-Item "dist/BensonMail/Uninstall.exe" "Uninstall-BensonMail-$version.exe"
 Rename-Item dist/BensonMail "BensonMail-$version"
