@@ -96,7 +96,7 @@ sealed class UpdateDownload : IDisposable
                 if (sources.Count > 1) progress?.Report(new(0, release.Size, sources[index].Host));
                 try { return await DownloadFrom(release, sources[index], progress, cancellation).ConfigureAwait(false); }
                 catch (Exception error) when (!cancellation.IsCancellationRequested && index + 1 < sources.Count &&
-                    (error is HttpRequestException or TimeoutException || error is IOException and not InvalidDataException)) {
+                    error is HttpRequestException or TimeoutException or IOException) {
                     // Each attempt deletes its own .part file; never combine bytes across sources.
                 }
             }
