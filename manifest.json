@@ -9,7 +9,10 @@
         "zh": "修复更新下载后安装程序未出现及旧版本目录无法覆盖的问题；加入启动确认、日志、取消保护与安装后自动重开。安装占用减少约30.4%；升级时按SHA256清理已停用的旧运行库，保留配置、报告及修改文件。含双语指南和详细邮箱诊断。",
         "en": "Fixes installer handoff and legacy-folder upgrades, with startup acknowledgment, logs, safe cancellation and verified relaunch. Reduces installed payload by 30.4%; upgrades remove obsolete runtime files only when SHA256 matches, preserving configuration, reports and modified files. Includes bilingual guides and detailed mailbox diagnostics."
       },
-      "url": "https://logo-skilled-chrome-fine.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181547.exe"
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018/BensonMail-Windows-x64-Setup-202610181547.exe"
+      ],
+      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181547.exe"
     },
     "macos-arm64": {
       "version": "202610181459",
@@ -19,7 +22,10 @@
         "zh": "全新四页侧栏：邮件报告、邮箱与检查、AI服务、通用设置。报告正文通高显示；切页保留未保存输入，首次配置后同步表单；新增脱敏邮箱连接诊断和双语使用指南。",
         "en": "New four-page sidebar for reports, mailboxes, AI and general settings. Full-height Markdown reader, preserved form drafts and first-run form synchronization, detailed sanitized mailbox diagnostics and bilingual guides."
       },
-      "url": "https://logo-skilled-chrome-fine.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610181459.dmg"
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018/BensonMail-Mac-AppleSilicon-202610181459.dmg"
+      ],
+      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610181459.dmg"
     },
     "macos-x86_64": {
       "version": "202610181459",
@@ -29,7 +35,10 @@
         "zh": "全新四页侧栏：邮件报告、邮箱与检查、AI服务、通用设置。报告正文通高显示；切页保留未保存输入，首次配置后同步表单；新增脱敏邮箱连接诊断和双语使用指南。",
         "en": "New four-page sidebar for reports, mailboxes, AI and general settings. Full-height Markdown reader, preserved form drafts and first-run form synchronization, detailed sanitized mailbox diagnostics and bilingual guides."
       },
-      "url": "https://logo-skilled-chrome-fine.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610181459.dmg"
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018/BensonMail-Mac-Intel-202610181459.dmg"
+      ],
+      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610181459.dmg"
     }
   }
 }
