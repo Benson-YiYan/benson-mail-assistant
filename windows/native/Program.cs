@@ -888,7 +888,9 @@ sealed class MainWindow : Window
                 (presetId.Length == 0 ? (Text("host").Length == 0 || Text("host") == "imap.163.com" ? "163" : "custom") : presetId));
             mailHost.Text = Text("host").Length == 0 ? "imap.163.com" : Text("host");
             mailPort.Text = config.TryGetProperty("port", out var savedPort) ? savedPort.ToString() : "993";
-            mailUsername.Text = OptionalMailUsername(Text("account"), Text("username")); mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
+            mailUsername.Text = OptionalMailUsername(Text("account"), Text("username"));
+            RefreshMailLogin(account, mailUsername, mailLoginSummary);
+            mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
             mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0;
             provider.SelectedIndex = Text("ai_provider") == "codex" ? 1 : Text("ai_provider") == "deepseek_harness" ? 2 : 0;
@@ -958,6 +960,7 @@ sealed class MainWindow : Window
             mailFolder.Text = mailboxFolder.Text; mailSecurity.SelectedIndex = encryption.SelectedIndex;
             mailAuth.SelectedIndex = authentication.SelectedIndex;
             await SaveMail();
+            RefreshMailLogin(address, username, loginSummary);
         }
         dialog.PrimaryButtonClick += async (_, e) =>
         {
@@ -1031,7 +1034,9 @@ sealed class MainWindow : Window
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == (preset.Length == 0 ? "163" : preset));
             mailHost.Text = Text("host").Length == 0 ? "imap.163.com" : Text("host");
             mailPort.Text = config.TryGetProperty("port", out var port) ? port.ToString() : "993";
-            mailUsername.Text = OptionalMailUsername(Text("account"), Text("username")); mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
+            mailUsername.Text = OptionalMailUsername(Text("account"), Text("username"));
+            RefreshMailLogin(account, mailUsername, mailLoginSummary);
+            mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
             mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0;
         }
@@ -1125,6 +1130,7 @@ sealed class MainWindow : Window
             while (account.Text != "second@example.invalid" && DateTime.UtcNow < switchDeadline) await Task.Delay(25);
             Check(account.Text == "second@example.invalid" && mailHost.Text == "imap.second.invalid",
                 "Selecting a different saved mailbox loads its own connection without overwriting the other account");
+            navigation.SelectedIndex = 1; await Task.Delay(150);
             Check(mailUsername.Text.Length == 0 && mailLoginSummary.Visibility == Visibility.Collapsed,
                 "Stored default login is blank in the native form after profile selection");
             mailUsername.Text = account.Text; // Defensive path: a user or old UI repeated the old address.
@@ -1141,11 +1147,13 @@ sealed class MainWindow : Window
             await SaveMail();
             var savedCustomLogin = await bridge.Call("config");
             Check(savedCustomLogin.GetProperty("username").GetString() == "DOMAIN\\custom-user" &&
-                mailUsername.Text == "DOMAIN\\custom-user" && mailLoginSummary.Visibility == Visibility.Visible &&
-                mailLoginSummary.Text.Contains("DOMAIN\\custom-user") &&
-                mailUsername.Parent is StackPanel { Visibility: Visibility.Collapsed } loginAdvanced &&
+                mailUsername.Text == "DOMAIN\\custom-user",
+                "Native address edit and Save preserve the actual persisted distinct custom login");
+            Check(mailLoginSummary.Visibility == Visibility.Visible && mailLoginSummary.Text.Contains("DOMAIN\\custom-user"),
+                "Reloaded custom-login summary reflects the saved login even when advanced options were collapsed");
+            Check(mailUsername.Parent is StackPanel { Visibility: Visibility.Collapsed } loginAdvanced &&
                 ReferenceEquals(mailLoginSummary.Parent, loginAdvanced),
-                "Native edit and Save preserve custom login inside collapsed advanced options");
+                "Login control and summary remain inside collapsed advanced options");
             savedMailboxes.SelectedIndex = 0;
             var loginSwitchDeadline = DateTime.UtcNow.AddSeconds(3);
             while (account.Text != "first@example.invalid" && DateTime.UtcNow < loginSwitchDeadline) await Task.Delay(25);
@@ -1169,6 +1177,7 @@ sealed class MainWindow : Window
             Check(OptionalMailUsername("mixed@example.invalid", "MIXED@example.invalid") == "" &&
                 OptionalMailUsername("mixed@example.invalid", "DOMAIN\\custom-user") == "DOMAIN\\custom-user",
                 "Case-only default email logins are optional while distinct custom logins are preserved");
+            navigation.SelectedIndex = 0; await Task.Delay(50);
             var savedPreset = mailProvider.SelectedIndex;
             Check(File.Exists(OAuthTokenPath) && File.Exists(Path.Combine(AppContext.BaseDirectory, "Get-Outlook-Token.ps1")), "Interactive OAuth2 helper BAT and PowerShell script packaged without contacting Microsoft");
             mailAuth.SelectedIndex = 0;
