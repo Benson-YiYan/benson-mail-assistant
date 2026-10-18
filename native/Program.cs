@@ -242,8 +242,7 @@ sealed class MainWindow : Window
     readonly CalendarDatePicker to = new() { Header = L.T("结束日期"), PlaceholderText = L.T("不限"), MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ComboBox attachment = new() { Header = L.T("附件"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ListView reports = new() { SelectionMode = ListViewSelectionMode.Single };
-    readonly TextBox preview = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
-        PlaceholderText = L.T("选择一封邮件，查看六项报告。"), VerticalAlignment = VerticalAlignment.Stretch };
+    readonly MarkdownReportView preview = new() { VerticalAlignment = VerticalAlignment.Stretch };
     readonly Button toggle = new() { Content = L.T("开始监听"), CornerRadius = new CornerRadius(4) };
     readonly Button check = new() { Content = L.T("立即检查"), CornerRadius = new CornerRadius(4) };
     readonly Forms.NotifyIcon tray;
@@ -622,7 +621,7 @@ sealed class MainWindow : Window
         var article = new Grid { RowSpacing = 12 };
         article.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         article.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        article.Children.Add(Row(Heading(L.T("邮件报告")), Action(L.T("打开 TXT"), () =>
+        article.Children.Add(Row(Heading(L.T("邮件报告")), Action(L.T("打开报告"), () =>
             { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; })));
         preview.BorderThickness = new Thickness(0);
         preview.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
@@ -638,7 +637,7 @@ sealed class MainWindow : Window
             if (SelectedReport is Report report)
             {
                 var result = await bridge.Call("read_report", new { path = report.path });
-                if (!exitRequested && generation == previewGeneration) preview.Text = result.GetString() ?? "";
+                if (!exitRequested && generation == previewGeneration) preview.Show(result.GetString() ?? "", Path.GetExtension(report.path).Equals(".md", StringComparison.OrdinalIgnoreCase));
             }
         });
         search.TextChanged += (_, _) =>
@@ -1139,6 +1138,14 @@ sealed class MainWindow : Window
             var content = await bridge.Call("read_report", new { report.path });
             preview.Text = content.GetString() ?? "";
             Check(preview.Text.Contains("建议回复") && preview.Text.Contains("附件实际内容"), "Full report preview");
+            var fixturePreview = preview.Text;
+            preview.Show("## 1. Summary\n\n**Important**\n\n- first\n- second\n\n[Contact](mailto:demo@example.invalid)\n\n```text\ncode\n```\n\n| Name | Value |\n| --- | --- |\n| A | B |\n\n![remote](https://example.invalid/image.png)\n\n[unsafe](javascript:alert(1))\n\n<script>alert(1)</script>", true);
+            Check(preview.HeadingCount == 1 && preview.BoldCount == 1 && preview.ListCount == 1 &&
+                preview.LinkCount == 1 && preview.CodeCount == 1 && preview.TableCount == 1,
+                "Native Markdown renders headings, bold, lists, safe links, code and tables; image and unsafe link excluded");
+            await Task.Delay(80);
+            preview.Show(fixturePreview, false);
+
             await bridge.Call("interval", new { seconds = 35 });
             var config = await bridge.Call("config");
             Check(config.GetProperty("interval").GetInt32() == 35, "Custom interval reaches backend");

@@ -93,7 +93,7 @@ class MultipleMailTests(unittest.TestCase):
             with ThreadPoolExecutor(max_workers=2) as pool:
                 for future in [pool.submit(s.check_once) for s in services]:
                     future.result()
-            paths = list((root / 'reports').glob('*/*.txt'))
+            paths = list((root / 'reports').glob('*/*.md'))
             self.assertEqual(len(paths), 2)
             self.assertEqual({p.read_text(encoding='utf-8').split()[-1] for p in paths},
                              {'first@example.invalid', 'second@example.invalid'})

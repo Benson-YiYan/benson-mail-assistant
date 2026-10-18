@@ -4,7 +4,9 @@ import tempfile
 import threading
 import unittest
 from benson_mail.report_index import report_entry,matches
-from benson_mail.core import Service
+from benson_mail.core import Service, export_report
+from benson_mail.bridge import Controller
+from benson_mail.uninstall import report_files
 
 class LocalReportTests(unittest.TestCase):
     def test_subject_time_and_combined_search(self):
@@ -27,6 +29,30 @@ class LocalReportTests(unittest.TestCase):
             entry=report_entry(path)
             self.assertEqual(entry['title'],'test'); self.assertEqual(entry['time'],'2026-10-14 19:02')
             self.assertTrue(matches(entry,'正文')); self.assertFalse(matches(entry,attachments='无附件'))
+    def test_markdown_and_legacy_collision_and_mixed_search(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); output=root/'reports'; day=output/'2026-10-15'; day.mkdir(parents=True)
+            legacy=day/'Shared-09-02.txt'; legacy.write_text('Legacy Zebra',encoding='utf-8')
+            old_metadata={'subject':'Shared','sender':'legacy@example.invalid','received':'2026-10-15T09:02:00+08:00','body':'legacy','attachments':[]}
+            sidecar=legacy.with_suffix('.mail.json'); sidecar.write_text(json.dumps(old_metadata),encoding='utf-8')
+            before=sidecar.read_bytes()
+            message=dict(old_metadata,sender='new@example.invalid',body='New Zebra',attachments=[{'name':'contract.pdf'}])
+            new=export_report(output,message,'## 1. Zebra','other-account-7')
+            self.assertEqual(new.suffix,'.md'); self.assertNotEqual(new.stem,legacy.stem)
+            new.with_suffix('.mail.json').write_text(json.dumps(message),encoding='utf-8')
+            self.assertEqual(sidecar.read_bytes(),before)
+            controller=Controller(root/'state',lambda event:None); controller.config['output_dir']=str(output)
+            entries=controller.command('reports',{'query':'Zebra'})
+            self.assertEqual({Path(entry['path']).suffix for entry in entries},{'.txt','.md'})
+            filtered=controller.command('reports',{'query':'contract.pdf','sender':'new@','attachments':'有附件','start':'2026-10-15','end':'2026-10-15'})
+            self.assertEqual(len(filtered),1); self.assertEqual(Path(filtered[0]['path']),new)
+            self.assertIn('## 1.',controller.command('read_report',{'path':str(new)}))
+            self.assertIn(legacy.resolve(),report_files(output)); self.assertIn(new.resolve(),report_files(output))
+            # An orphan metadata file must also reserve its stem.
+            reserved=day/'Reserved-09-02.mail.json'; reserved.write_text('{}')
+            collision=export_report(output,dict(message,subject='Reserved'),'report','8')
+            self.assertNotEqual(collision.stem,'Reserved-09-02')
+
     def test_idle_manual_check_wakes_without_ai(self):
         with tempfile.TemporaryDirectory() as temporary:
             done=threading.Event(); calls=[]

@@ -845,5 +845,6 @@
       "pattern": "^检查更新失败：(.*)$",
       "en": "Update check failed: {0}"
     }
-  ]
+  ],
+  "打开报告": "Open report"
 }

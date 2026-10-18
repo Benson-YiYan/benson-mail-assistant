@@ -57,7 +57,7 @@ class ExitPreparationTests(unittest.TestCase):
                 self.assertFalse(service.cancel.is_set())
             finally:
                 finish.set(); service.thread.join(5)
-            reports = list((root/'reports').rglob('*.txt'))
+            reports = list((root/'reports').rglob('*.md'))
             self.assertEqual(len(reports), 1)
             self.assertEqual(reports[0].read_text(), 'Synthetic complete report')
             self.assertTrue(controller.command('prepare_exit', {})['prepared'])

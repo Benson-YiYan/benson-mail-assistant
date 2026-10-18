@@ -50,7 +50,7 @@ class CoreTests(unittest.TestCase):
     def test_cancellation_and_monotonic_highwater(self):
         self.service().check_once(); self.mb.messages[2]=mail()
         def cancel(message,stop): stop.set(); return 'discarded'
-        self.service(cancel).check_once(); self.assertFalse(list((self.root/'报告').glob('*/*.txt')))
+        self.service(cancel).check_once(); self.assertFalse(list((self.root/'报告').glob('*/*.md')))
         self.mb.messages.pop(1); self.service().check_once(); self.assertEqual(len(self.calls),1)
         self.mb.messages={}; self.service().check_once(); self.mb.messages={2:mail()}; self.service().check_once(); self.assertEqual(len(self.calls),1)
     def test_export_recovery_after_written_before_commit(self):
@@ -62,7 +62,7 @@ class CoreTests(unittest.TestCase):
             original()
         with patch.object(s,'persist',side_effect=fail_final):
             with self.assertRaises(OSError): s.check_once()
-        self.service().check_once(); self.assertEqual(len(self.calls),1); self.assertEqual(len(list((self.root/'报告').glob('*/*.txt'))),1)
+        self.service().check_once(); self.assertEqual(len(self.calls),1); self.assertEqual(len(list((self.root/'报告').glob('*/*.md'))),1)
     def test_office_attachment_and_limits(self):
         import io,zipfile
         from benson_mail.core import attachment_text

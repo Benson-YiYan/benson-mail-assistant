@@ -336,7 +336,7 @@ class Controller:
             return '已请求立即检查。'
         if name == 'reports':
             output = self.config.get('output_dir')
-            paths = sorted(Path(output).glob('*/*.txt'), key=lambda p: p.stat().st_mtime,
+            paths = sorted((p for p in Path(output).glob('*/*') if p.suffix.lower() in ('.txt', '.md')), key=lambda p: p.stat().st_mtime,
                            reverse=True) if output else []
             entries = []
             for path in paths:
@@ -349,7 +349,7 @@ class Controller:
         if name == 'read_report':
             path = Path(data['path']).resolve()
             output = Path(self.config['output_dir']).resolve()
-            if not path.is_relative_to(output) or path.suffix != '.txt':
+            if not path.is_relative_to(output) or path.suffix.lower() not in ('.txt', '.md'):
                 raise ValueError('请选择报告列表中的文件。')
             return path.read_text(encoding='utf-8')
         raise ValueError('未知操作。')

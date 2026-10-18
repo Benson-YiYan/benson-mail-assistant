@@ -43,11 +43,10 @@ def report_files(directory):
                     continue
             except (ValueError, OSError):
                 continue
-            text = metadata.with_name(metadata.name[:-10] + '.txt')
-            if text.is_symlink():
-                continue
-            if text.is_file():
-                found.append(text)
+            for suffix in ('.txt', '.md'):
+                text = metadata.with_name(metadata.name[:-10] + suffix)
+                if text.is_file() and not text.is_symlink():
+                    found.append(text)
             found.append(metadata)
     return found
 
