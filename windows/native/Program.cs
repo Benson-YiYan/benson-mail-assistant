@@ -222,6 +222,7 @@ sealed class MainWindow : Window
     Button oauthTokenButton = null!;
     readonly ComboBox mailAuth = new() { Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly TextBox mailUsername = new() { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址") };
+    readonly TextBlock mailLoginSummary = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Visibility = Visibility.Collapsed };
     readonly TextBox mailFolder = new() { Header = L.T("邮件文件夹"), Text = "INBOX" };
     readonly List<JsonElement> mailPresets = new();
     readonly ComboBox savedMailboxes = new() { Header = L.T("已添加的邮箱"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -298,6 +299,7 @@ sealed class MainWindow : Window
         Content = new ContentControl { Content = frame, FontFamily = MailTypography.Font, FontSize = 14,
             Language = L.Locale, UseLayoutRounding = true, IsTabStop = false,
             HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch };
+        BindMailLogin(account, mailUsername, mailLoginSummary);
         BuildLeft();
         Program.Trace("Left controls");
         BuildRight();
@@ -552,7 +554,7 @@ sealed class MainWindow : Window
                         await Call("remove_mail", new { id = profile.GetProperty("id").GetString() }); await ReloadMailboxes();
                     }
                 })), Note(L.T("可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。")))),
-            Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
+            Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailLoginSummary, mailHost, Row(mailPort, mailSecurity), mailSecret,
                 Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), oauthTokenButton),
                 Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。")))),
@@ -742,6 +744,28 @@ sealed class MainWindow : Window
         if (!exitRequested && result.ValueKind == JsonValueKind.String) detail.Text = L.T(result.GetString());
         return result;
     }
+    static string OptionalMailUsername(string address, string username) =>
+        string.Equals(address.Trim(), username.Trim(), StringComparison.OrdinalIgnoreCase) ? "" : username;
+    static void RefreshMailLogin(TextBox address, TextBox username, TextBlock summary)
+    {
+        var custom = username.Text.Trim();
+        summary.Visibility = custom.Length > 0 && !string.Equals(custom, address.Text.Trim(), StringComparison.OrdinalIgnoreCase)
+            ? Visibility.Visible : Visibility.Collapsed;
+        summary.Text = L.T("当前使用自定义登录用户名：") + custom + "\n" +
+            L.T("修改邮箱地址不会更改此登录名；请在“高级连接选项”中确认。");
+    }
+    static void BindMailLogin(TextBox address, TextBox username, TextBlock summary)
+    {
+        var previousAddress = address.Text.Trim();
+        address.TextChanged += (_, _) => {
+            // An explicitly repeated old default must not become a custom username after editing the address.
+            if (string.Equals(username.Text.Trim(), previousAddress, StringComparison.OrdinalIgnoreCase)) username.Text = "";
+            previousAddress = address.Text.Trim();
+            RefreshMailLogin(address, username, summary);
+        };
+        username.TextChanged += (_, _) => RefreshMailLogin(address, username, summary);
+        RefreshMailLogin(address, username, summary);
+    }
     async Task SaveMail()
     {
         if (!int.TryParse(mailPort.Text, out var port)) throw new InvalidOperationException(L.T("请输入有效的 IMAP 端口。"));
@@ -866,7 +890,7 @@ sealed class MainWindow : Window
                 (presetId.Length == 0 ? (Text("host").Length == 0 || Text("host") == "imap.163.com" ? "163" : "custom") : presetId));
             mailHost.Text = Text("host").Length == 0 ? "imap.163.com" : Text("host");
             mailPort.Text = config.TryGetProperty("port", out var savedPort) ? savedPort.ToString() : "993";
-            mailUsername.Text = Text("username"); mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
+            mailUsername.Text = OptionalMailUsername(Text("account"), Text("username")); mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
             mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0;
             provider.SelectedIndex = Text("ai_provider") == "codex" ? 1 : Text("ai_provider") == "deepseek_harness" ? 2 : 0;
@@ -901,7 +925,9 @@ sealed class MainWindow : Window
         var presetChoice = new ComboBox { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var host = new TextBox { Header = L.T("IMAP 收件服务器"), Text = mailHost.Text };
         var port = new TextBox { Header = L.T("端口"), Text = mailPort.Text };
-        var username = new TextBox { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址"), Text = mailUsername.Text };
+        var username = new TextBox { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址"), Text = OptionalMailUsername(address.Text, mailUsername.Text) };
+        var loginSummary = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+        BindMailLogin(address, username, loginSummary);
         var mailboxFolder = new TextBox { Header = L.T("邮件文件夹"), Text = mailFolder.Text };
         var encryption = new ComboBox { Header = L.T("连接加密"), HorizontalAlignment = HorizontalAlignment.Stretch };
         encryption.Items.Add("SSL/TLS"); encryption.Items.Add("STARTTLS"); encryption.SelectedIndex = mailSecurity.SelectedIndex;
@@ -922,21 +948,23 @@ sealed class MainWindow : Window
         var advanced = Stack(username, mailboxFolder, authentication); advanced.Visibility = Visibility.Collapsed;
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T("欢迎使用邮件小秘书"),
             PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T("稍后填写"),
-            Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), secret,
+            Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, loginSummary, host, Row(port, encryption), secret,
                 Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), tokenButton),
                 Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。")), error) } };
+        async Task SaveOnboarding()
+        {
+            mailProvider.SelectedIndex = presetChoice.SelectedIndex;
+            account.Text = address.Text; mailSecret.Password = secret.Password;
+            mailHost.Text = host.Text; mailPort.Text = port.Text; mailUsername.Text = username.Text;
+            mailFolder.Text = mailboxFolder.Text; mailSecurity.SelectedIndex = encryption.SelectedIndex;
+            mailAuth.SelectedIndex = authentication.SelectedIndex;
+            await SaveMail();
+        }
         dialog.PrimaryButtonClick += async (_, e) =>
         {
             var deferral = e.GetDeferral();
-            try {
-                mailProvider.SelectedIndex = presetChoice.SelectedIndex;
-                account.Text = address.Text; mailSecret.Password = secret.Password;
-                mailHost.Text = host.Text; mailPort.Text = port.Text; mailUsername.Text = username.Text;
-                mailFolder.Text = mailboxFolder.Text; mailSecurity.SelectedIndex = encryption.SelectedIndex;
-                mailAuth.SelectedIndex = authentication.SelectedIndex;
-                await SaveMail();
-            }
+            try { await SaveOnboarding(); }
             catch (Exception ex) { e.Cancel = true; error.Text = L.T(ex.Message); }
             finally { deferral.Complete(); }
         };
@@ -950,6 +978,21 @@ sealed class MainWindow : Window
             if (presetChoice.SelectedIndex < 0 || !host.IsLoaded || !port.IsLoaded ||
                 host.Text != "imap.first-run.example.invalid")
                 throw new InvalidOperationException("First-run custom mailbox configuration unavailable");
+            address.Text = "onboard-old@example.invalid"; username.Text = address.Text;
+            address.Text = "onboard-new@example.invalid";
+            if (username.Text.Length != 0) throw new InvalidOperationException("First-run address edit retained an old default login");
+            secret.Password = "synthetic-onboarding-secret";
+            await SaveOnboarding();
+            var savedDefault = await bridge.Call("config");
+            if (savedDefault.GetProperty("username").GetString() != address.Text)
+                throw new InvalidOperationException("First-run save did not use the new address as the login");
+            username.Text = "DOMAIN\\onboard-user"; address.Text = "onboard-custom@example.invalid";
+            await SaveOnboarding();
+            var savedCustom = await bridge.Call("config");
+            if (savedCustom.GetProperty("username").GetString() != username.Text || loginSummary.Visibility != Visibility.Visible ||
+                !loginSummary.Text.Contains(username.Text) || advanced.Visibility != Visibility.Collapsed)
+                throw new InvalidOperationException("First-run save hid or changed the custom login");
+            Program.Trace("Passed: First-run actual address edits and saves follow the default login and preserve a visible custom login");
             authentication.SelectedIndex = 0;
             if (tokenButton.Visibility != Visibility.Collapsed) throw new InvalidOperationException("First-run token helper visible for password login");
             authentication.SelectedIndex = 1;
@@ -989,7 +1032,7 @@ sealed class MainWindow : Window
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == (preset.Length == 0 ? "163" : preset));
             mailHost.Text = Text("host").Length == 0 ? "imap.163.com" : Text("host");
             mailPort.Text = config.TryGetProperty("port", out var port) ? port.ToString() : "993";
-            mailUsername.Text = Text("username"); mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
+            mailUsername.Text = OptionalMailUsername(Text("account"), Text("username")); mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
             mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0;
         }
@@ -1005,6 +1048,7 @@ sealed class MainWindow : Window
             savedMailboxes.Header = savedMailboxes.Header is string mailboxHeader ? L.T(mailboxHeader) : savedMailboxes.Header;
             if (!detailIsUserSubject) detail.Text = L.T(detail.Text);
             L.Apply(filters.Content as UIElement);
+            RefreshMailLogin(account, mailUsername, mailLoginSummary);
             Title = L.T("邮件小秘书"); tray.Text = Title;
             foreach (var item in tray.Commands) item.Text = L.T(item.Text);
             languageChoice.SelectedIndex = code == "zh" ? 0 : 1;
@@ -1082,6 +1126,48 @@ sealed class MainWindow : Window
             while (account.Text != "second@example.invalid" && DateTime.UtcNow < switchDeadline) await Task.Delay(25);
             Check(account.Text == "second@example.invalid" && mailHost.Text == "imap.second.invalid",
                 "Selecting a different saved mailbox loads its own connection without overwriting the other account");
+            Check(mailUsername.Text.Length == 0 && mailLoginSummary.Visibility == Visibility.Collapsed,
+                "Stored default login is blank in the native form after profile selection");
+            mailUsername.Text = account.Text; // Defensive path: a user or old UI repeated the old address.
+            account.Text = "edited-default@example.invalid";
+            Check(mailUsername.Text.Length == 0, "Actual native address edit clears a repeated old default login");
+            mailSecret.Password = "synthetic-native-secret";
+            await SaveMail();
+            var savedDefaultLogin = await bridge.Call("config");
+            Check(savedDefaultLogin.GetProperty("username").GetString() == "edited-default@example.invalid",
+                "Native Save uses the edited address as the actual persisted default login");
+            mailUsername.Text = "DOMAIN\\custom-user";
+            account.Text = "edited-custom@example.invalid";
+            mailSecret.Password = "synthetic-native-secret";
+            await SaveMail();
+            var savedCustomLogin = await bridge.Call("config");
+            Check(savedCustomLogin.GetProperty("username").GetString() == "DOMAIN\\custom-user" &&
+                mailUsername.Text == "DOMAIN\\custom-user" && mailLoginSummary.Visibility == Visibility.Visible &&
+                mailLoginSummary.Text.Contains("DOMAIN\\custom-user"),
+                "Native address edit and Save preserve the distinct custom login and show it outside advanced options");
+            savedMailboxes.SelectedIndex = 0;
+            var loginSwitchDeadline = DateTime.UtcNow.AddSeconds(3);
+            while (account.Text != "first@example.invalid" && DateTime.UtcNow < loginSwitchDeadline) await Task.Delay(25);
+            Check(account.Text == "first@example.invalid" && mailUsername.Text.Length == 0 && mailLoginSummary.Visibility == Visibility.Collapsed,
+                "Returning to the default-login profile does not leak the custom login");
+            savedMailboxes.SelectedIndex = 1;
+            loginSwitchDeadline = DateTime.UtcNow.AddSeconds(3);
+            while (account.Text != "edited-custom@example.invalid" && DateTime.UtcNow < loginSwitchDeadline) await Task.Delay(25);
+            Check(account.Text == "edited-custom@example.invalid" && mailUsername.Text == "DOMAIN\\custom-user" && mailLoginSummary.Visibility == Visibility.Visible,
+                "Returning to the custom-login profile restores its own visible login");
+            var loginTestLanguage = L.Code;
+            await ChangeLanguage("en");
+            Check(mailLoginSummary.Text.StartsWith("Custom login username in use: ", StringComparison.Ordinal) &&
+                mailLoginSummary.Text.Contains("DOMAIN\\custom-user"),
+                "Switching to English refreshes the dynamic custom-login summary without changing the username");
+            await ChangeLanguage("zh");
+            Check(mailLoginSummary.Text.StartsWith("当前使用自定义登录用户名：", StringComparison.Ordinal) &&
+                mailUsername.Text == "DOMAIN\\custom-user",
+                "Switching to Chinese refreshes the custom-login summary without changing the username");
+            if (loginTestLanguage != "zh") await ChangeLanguage(loginTestLanguage);
+            Check(OptionalMailUsername("mixed@example.invalid", "MIXED@example.invalid") == "" &&
+                OptionalMailUsername("mixed@example.invalid", "DOMAIN\\custom-user") == "DOMAIN\\custom-user",
+                "Case-only default email logins are optional while distinct custom logins are preserved");
             var savedPreset = mailProvider.SelectedIndex;
             Check(File.Exists(OAuthTokenPath) && File.Exists(Path.Combine(AppContext.BaseDirectory, "Get-Outlook-Token.ps1")), "Interactive OAuth2 helper BAT and PowerShell script packaged without contacting Microsoft");
             mailAuth.SelectedIndex = 0;

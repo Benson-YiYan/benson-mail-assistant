@@ -52,6 +52,20 @@ class BridgeTests(unittest.TestCase):
         text = (self.root / 'config.json').read_text()
         self.assertNotIn('DUMMY', text)
 
+    def test_edited_address_default_and_custom_login_persist_without_network(self):
+        with patch('benson_mail.bridge.platform.save_secret'), patch('benson_mail.bridge.platform.set_autostart'):
+            base={'secret':'SYNTHETIC', 'output_dir':str(self.root/'reports'), 'host':'imap.example.invalid'}
+            self.controller.command('save_mail', {**base, 'account':'old@example.invalid', 'username':''})
+            self.assertEqual(self.controller.config['username'], 'old@example.invalid')
+            self.controller.command('save_mail', {**base, 'account':'new@example.invalid', 'username':''})
+            self.assertEqual(self.controller.config['username'], 'new@example.invalid')
+            self.controller.command('save_mail', {**base, 'account':'custom@example.invalid', 'username':r'DOMAIN\custom-user'})
+            self.assertEqual(self.controller.config['username'], r'DOMAIN\custom-user')
+            profiles=self.controller.profiles()
+            self.assertEqual(len(profiles), 1)
+            self.assertEqual(profiles[0]['account'], 'custom@example.invalid')
+            self.assertEqual(profiles[0]['username'], r'DOMAIN\custom-user')
+
     def test_endpoint_bound_api_key_and_no_plaintext(self):
         with patch('benson_mail.bridge.platform.save_secret') as save:
             self.controller.command('save_ai', {'ai_provider': 'api', 'api_base': 'https://example.invalid/v1',

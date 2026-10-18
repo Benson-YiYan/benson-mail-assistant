@@ -371,6 +371,9 @@ def run(launcher=None, fixture=None):
         except Exception:
             emit({'event': {'detail': '快捷方式创建失败，请检查桌面和开始菜单写入权限；软件仍可正常使用。'}})
     if fixture:
+        # Fixture saves use real validation, persistence and protected synthetic credentials,
+        # but must never touch the signed-in user's startup registration.
+        platform.set_autostart = lambda *args, **kwargs: None
         output = root / '报告' / '2026-10-17'
         output.mkdir(parents=True, exist_ok=True)
         report = output / '模拟合同检查-09-15.txt'
@@ -391,7 +394,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_language', 'prepare_exit', 'resume_after_exit_cancel'):
+                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'prepare_exit', 'resume_after_exit_cancel'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})
