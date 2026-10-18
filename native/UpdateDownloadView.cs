@@ -8,14 +8,31 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 
 namespace BensonMail;
+
+// A finite-width WinUI track avoids ProgressBar template animation failures inside ContentDialog.
+sealed class UpdateProgress : Grid
+{
+    readonly Border fill = new() { CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left,
+        Background = new SolidColorBrush(Microsoft.UI.Colors.RoyalBlue), Width = 0 };
+    double current;
+    internal double Value { get => current; set { current = Math.Clamp(value, 0, 100); fill.Width = current * 4.2; } }
+    internal bool IsIndeterminate { get; set; }
+    internal UpdateProgress()
+    {
+        Width = 420; MaxWidth = 420; Height = 6;
+        Children.Add(new Border { CornerRadius = new CornerRadius(3), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(40, 128, 128, 128)) });
+        Children.Add(fill);
+    }
+}
 
 // This is shared by the real dialog and packaged UI tests. Tests supply only synthetic HTTP data.
 sealed class UpdateDownloadView : IDisposable
 {
-    internal readonly StackPanel Content = new() { Spacing = 12, MinWidth = 360, MaxWidth = 620 };
-    internal readonly ProgressBar Bar = new() { Minimum = 0, Maximum = 100 };
+    internal readonly StackPanel Content = new() { Spacing = 12, Width = 440, MaxWidth = 440 };
+    internal readonly UpdateProgress Bar = new();
     internal readonly TextBlock Status = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
     internal readonly Button DownloadButton = new() { Content = L.T("下载更新") };
     internal readonly Button CancelButton = new() { Content = L.T("取消下载"), Visibility = Visibility.Collapsed };
