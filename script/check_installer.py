@@ -143,6 +143,30 @@ def main():
                 assert path.is_file() == (task in selected), f"First start overrode selected task {task}"
             cases.append({"tasks": list(selected), "language": language, "installed": True, "shortcuts": True,
                           "first_start_preserves_choices": True})
+            if number in (1, len(selections) - 1):
+                # A real executable from the installed product holds the application's mutex.
+                # Setup must wait for it, preserve selections and keep the same directory.
+                ready = fixture / f"update-parent-{number}.ready"
+                parent = subprocess.Popen([str(launcher), "--update-handoff-test", str(ready)],
+                    cwd=tempfile.gettempdir(), creationflags=subprocess.CREATE_NO_WINDOW)
+                try:
+                    wait_until(ready.exists, 20, "Update parent fixture did not start")
+                    assert parent.poll() is None
+                    update_log = evidence / f"installer-update-{label}.log"
+                    update = subprocess.run([str(setup), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-",
+                        "/LANG=" + language, "/DIR=" + str(program), "/UPDATE=1", "/UPDATEPID=" + str(parent.pid),
+                        "/LOG=" + str(update_log)], cwd=tempfile.gettempdir(), timeout=180)
+                    assert update.returncode == 0, f"In-app installer handoff failed: {update.returncode}"
+                    assert parent.wait(timeout=15) == 0
+                    update_text = update_log.read_text(encoding="utf-8-sig")
+                    assert "Update parent exited; installation can continue" in update_text, "Setup did not wait for parent"
+                    assert Path(registration()["InstallLocation"]).resolve() == program.resolve()
+                    for task, path in links.items():
+                        assert path.is_file() == (task in selected), f"Update changed shortcut selection: {task}"
+                    checks.append(f"In-app update waits for native parent/mutex, preserves installation directory and {label} shortcut choices")
+                finally:
+                    if parent.poll() is None:
+                        parent.terminate(); parent.wait(timeout=15)
             if number == 0:
                 # Reinstall into the same directory with all four choices cancelled,
                 # including a language change: old Chinese links must disappear.

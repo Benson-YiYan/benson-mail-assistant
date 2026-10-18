@@ -123,13 +123,6 @@ begin
   Result := GetSHA256OfFile(ExpandConstant('{srcexe}'));
 end;
 
-function InitializeSetup: Boolean;
-begin
-  RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\BensonMail',
-    'InstallLocation', PreviousInstallDirectory);
-  Result := True;
-end;
-
 function IsOurExecutable(const Name: String): Boolean;
 var
   Stem, Version: String;
@@ -147,6 +140,55 @@ begin
   for I := 1 to 12 do
     if (Version[I] < '0') or (Version[I] > '9') then Exit;
   Result := True;
+end;
+
+function OpenProcess(Access: LongWord; InheritHandle: Boolean; ProcessId: LongWord): THandle;
+  external 'OpenProcess@kernel32.dll stdcall';
+function QueryFullProcessImageName(ProcessHandle: THandle; Flags: LongWord; ExeName: String; var Size: LongWord): Boolean;
+  external 'QueryFullProcessImageNameW@kernel32.dll stdcall';
+function WaitForSingleObject(Handle: THandle; Milliseconds: LongWord): LongWord;
+  external 'WaitForSingleObject@kernel32.dll stdcall';
+function CloseHandle(Handle: THandle): Boolean;
+  external 'CloseHandle@kernel32.dll stdcall';
+
+function InitializeSetup: Boolean;
+var
+  ParentId, WaitResult, Size: LongWord;
+  Handle: THandle;
+  ParentPath, RequestedDirectory: String;
+begin
+  RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\BensonMail',
+    'InstallLocation', PreviousInstallDirectory);
+  Result := True;
+  if ExpandConstant('{param:UPDATE|0}') <> '1' then Exit;
+  Result := False;
+  ParentId := StrToIntDef(ExpandConstant('{param:UPDATEPID|0}'), 0);
+  if (ParentId = 0) or (ParentId = GetCurrentProcessId) then Exit;
+  RequestedDirectory := RemoveBackslashUnlessRoot(ExpandConstant('{param:DIR|}'));
+  Handle := OpenProcess($00101000, False, ParentId); { SYNCHRONIZE and QUERY_LIMITED_INFORMATION }
+  if Handle = 0 then
+  begin
+    { The parent can exit before Setup starts. Invalid PID means it has already exited. }
+    Result := DLLGetLastError = 87;
+    Exit;
+  end;
+  try
+    Size := 32768;
+    SetLength(ParentPath, Size);
+    if not QueryFullProcessImageName(Handle, 0, ParentPath, Size) then Exit;
+    SetLength(ParentPath, Size);
+    if not IsOurExecutable(ExtractFileName(ParentPath)) then Exit;
+    if CompareText(RemoveBackslashUnlessRoot(ExtractFileDir(ParentPath)), RequestedDirectory) <> 0 then Exit;
+    Log('Update waiting for matching application PID ' + IntToStr(ParentId));
+    WaitResult := WaitForSingleObject(Handle, 45000);
+    if WaitResult = 0 then Log('Update parent exited; installation can continue');
+    Result := WaitResult = 0;
+    if not Result then
+      MsgBox('Mail Secretary is still closing. Please close it and start the update again.' + #13#10 +
+        '邮件小秘书仍在退出，请关闭后重新安装更新。', mbError, MB_OK);
+  finally
+    CloseHandle(Handle);
+  end;
 end;
 
 function IsOurShortcut(const Filename: String): Boolean;
@@ -178,6 +220,61 @@ begin
   except
     Log('Preserving an unreadable shortcut: ' + Filename);
   end;
+end;
+
+procedure FindPreviousTasks(const Directory: String; IsDesktop: Boolean; var AppTask, UninstallTask: Boolean);
+var
+  Entry: TFindRec;
+  Filename, Target: String;
+  Shell, Link, Folder, Item: Variant;
+begin
+  if FindFirst(AddBackslash(Directory) + '*.lnk', Entry) then
+  begin
+    try
+      repeat
+        Filename := AddBackslash(Directory) + Entry.Name;
+        if IsOurShortcut(Filename) then
+        begin
+          Shell := CreateOleObject('WScript.Shell');
+          Link := Shell.CreateShortcut(Filename);
+          Target := Link.TargetPath;
+          if Target = '' then
+          begin
+            Shell := CreateOleObject('Shell.Application');
+            Folder := Shell.NameSpace(Directory);
+            Item := Folder.ParseName(Entry.Name);
+            Link := Item.GetLink;
+            Target := Link.Path;
+          end;
+          if Pos('uninstall', Lowercase(ExtractFileName(Target))) = 1 then UninstallTask := True
+          else AppTask := True;
+        end;
+      until not FindNext(Entry);
+    finally
+      FindClose(Entry);
+    end;
+  end;
+end;
+
+procedure InitializeWizard;
+var
+  DesktopApp, DesktopUninstall, StartApp, StartUninstall: Boolean;
+  Tasks: String;
+begin
+  if ExpandConstant('{param:UPDATE|0}') <> '1' then Exit;
+  DesktopApp := False; DesktopUninstall := False; StartApp := False; StartUninstall := False;
+  FindPreviousTasks(ExpandConstant('{userdesktop}'), True, DesktopApp, DesktopUninstall);
+  FindPreviousTasks(ExpandConstant('{userprograms}'), False, StartApp, StartUninstall);
+  Tasks := '';
+  if not DesktopApp then Tasks := Tasks + '!';
+  Tasks := Tasks + 'desktopapp,';
+  if not DesktopUninstall then Tasks := Tasks + '!';
+  Tasks := Tasks + 'desktopuninstall,';
+  if not StartApp then Tasks := Tasks + '!';
+  Tasks := Tasks + 'startapp,';
+  if not StartUninstall then Tasks := Tasks + '!';
+  Tasks := Tasks + 'startuninstall';
+  WizardSelectTasks(Tasks);
 end;
 
 procedure RemoveOldShortcuts(const Directory: String);

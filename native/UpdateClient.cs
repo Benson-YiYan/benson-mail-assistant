@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace BensonMail;
 
-sealed record UpdateRelease(string Version, Uri Url, string Sha256, string Notes);
+sealed record UpdateRelease(string Version, Uri Url, string Sha256, string Notes, long? Size = null);
 
 sealed class UpdateClient
 {
@@ -66,7 +66,13 @@ sealed class UpdateClient
             !Regex.IsMatch(sha, @"\A[a-fA-F0-9]{64}\z") || !Uri.TryCreate(Read("url"), UriKind.Absolute, out var url) ||
             url.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(url.Host) || url.UserInfo.Length > 0 || url.Fragment.Length > 0)
             throw new InvalidDataException("更新清单内容无效。");
-        return new(version, url, sha.ToLowerInvariant(), notes.Length <= 8000 ? notes : notes[..8000]);
+        long? size = null;
+        if (release.TryGetProperty("size", out var sizeValue)) {
+            if (sizeValue.ValueKind != JsonValueKind.Number || !sizeValue.TryGetInt64(out var length) || length <= 0 || length > UpdateDownload.MaximumBytes)
+                throw new InvalidDataException("Invalid update package size.");
+            size = length;
+        }
+        return new(version, url, sha.ToLowerInvariant(), notes.Length <= 8000 ? notes : notes[..8000], size);
     }
     internal async Task<UpdateRelease?> Check(bool manual)
     {
@@ -93,6 +99,7 @@ sealed class UpdateClient
     internal static async Task<string[]> OfflineTests(string folder)
     {
         var checks = new List<string>(await UpdateTransport.OfflineTests());
+        checks.AddRange(await UpdateDownload.OfflineTests(folder));
         void Check(bool ok, string label) { if (!ok) throw new InvalidOperationException(label); checks.Add(label); }
         string Manifest(string version, string url = "https://downloads.example.invalid/mail.exe", string? sha = null) =>
             JsonSerializer.Serialize(new { schema_version = 1, platforms = new Dictionary<string, object> {

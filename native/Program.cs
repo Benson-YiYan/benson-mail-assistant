@@ -35,6 +35,15 @@ internal static class Program
             Environment.ExitCode = UpdateTransport.NetworkProbe(args[networkProbe + 1]).GetAwaiter().GetResult();
             return;
         }
+        var handoffTest = Array.IndexOf(args, "--update-handoff-test");
+        if (handoffTest >= 0 && handoffTest + 1 < args.Length) {
+            var fixtureRoot = Directory.GetParent(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory))?.FullName;
+            if (fixtureRoot == null || !File.Exists(Path.Combine(fixtureRoot, ".benson-uninstall-fixture"))) { Environment.ExitCode = 2; return; }
+            using var heldMutex = new Mutex(false, @"Local\BensonMail-" + Environment.UserName);
+            File.WriteAllText(args[handoffTest + 1], "ready");
+            Thread.Sleep(8000); // Synthetic installer wait test only: no email, configuration, or AI access.
+            return;
+        }
         L.Initialize();
         Trace("Main");
         Forms.WindowsFormsSynchronizationContext.AutoInstall = false;
@@ -166,6 +175,15 @@ sealed class Bridge : IDisposable
         finally { writes.Release(); }
         return await source.Task;
     }
+    internal async Task WaitForUpdateExit()
+    {
+        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+    }
+    internal void KillForUpdate()
+    {
+        try { if (!process.HasExited) process.Kill(true); process.WaitForExit(5000); }
+        catch (InvalidOperationException) { }
+    }
     public void Dispose()
     {
         process.StandardInput.Close();
@@ -245,6 +263,8 @@ sealed class MainWindow : Window
     Button filterButton = null!;
     Button updateButton = null!;
     UpdateRelease? pendingUpdate;
+    bool updateBusy;
+    UpdateDownloadView? activeDownload;
     readonly TextBlock updateStatus = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
     readonly UpdateClient updates = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail", "update-state.json"), UpdateClient.InstalledVersion);
     readonly Microsoft.UI.Dispatching.DispatcherQueueTimer updateTimer;
@@ -626,9 +646,10 @@ sealed class MainWindow : Window
     }
     async Task CheckUpdates(bool manual)
     {
-        if (exitRequested || testResult != null) return;
+        if (exitRequested || testResult != null || updateBusy) return;
         if (!manual && VisualTreeHelper.GetOpenPopupsForXamlRoot(layout.XamlRoot).Count > 0) return;
-        if (manual) { updateButton.IsEnabled = false; updateStatus.Text = L.T("正在检查更新…"); }
+        updateBusy = true; updateButton.IsEnabled = false;
+        if (manual) updateStatus.Text = L.T("正在检查更新…");
         try {
             var release = manual ? await updates.Check(true) : pendingUpdate ?? await updates.Check(false);
             if (exitRequested) return;
@@ -636,18 +657,33 @@ sealed class MainWindow : Window
             pendingUpdate = release;
             if (VisualTreeHelper.GetOpenPopupsForXamlRoot(layout.XamlRoot).Count > 0) return;
             updateStatus.Text = L.T("发现新版本：") + release.Version;
+            using var view = new UpdateDownloadView(release,
+                new UpdateDownload(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail", "update-cache")),
+                async verified => {
+                    if (testResult != null) throw new InvalidOperationException("Tests cannot launch installers.");
+                    var start = UpdateInstall.StartInfo(verified, AppContext.BaseDirectory, L.Code, Environment.ProcessId);
+                    _ = Process.Start(start) ?? throw new IOException("The installer could not be started.");
+                    await Exit(true);
+                });
+            activeDownload = view;
             var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("发现新版本：") + release.Version,
-                Content = release.Notes.Length > 0 ? release.Notes : L.T("此版本没有提供更新说明。"),
-                PrimaryButtonText = L.T("下载更新"), CloseButtonText = L.T("稍后"), DefaultButton = ContentDialogButton.Close };
-            var choice = await dialog.ShowAsync();
-            await updates.MarkSeen(release.Version);
-            pendingUpdate = null;
-            if (choice == ContentDialogResult.Primary && !exitRequested) Open(release.Url.AbsoluteUri);
+                Content = view.Content, CloseButtonText = L.T("稍后"), DefaultButton = ContentDialogButton.Close };
+            dialog.Closing += (_, _) => view.Cancel();
+            try {
+                await dialog.ShowAsync();
+                await updates.MarkSeen(release.Version);
+                pendingUpdate = null;
+            }
+            finally {
+                view.Cancel();
+                if (view.ActiveTask != null) await view.ActiveTask;
+                activeDownload = null;
+            }
         }
         catch (Exception error) {
             if (manual && !exitRequested) updateStatus.Text = L.T("检查更新失败：") + UpdateTransport.ErrorDetails(error, L.Code);
         }
-        finally { if (manual && !exitRequested) updateButton.IsEnabled = true; }
+        finally { updateBusy = false; if (!exitRequested) updateButton.IsEnabled = true; }
     }
     static string OAuthTokenPath => Path.Combine(AppContext.BaseDirectory, "Get-Outlook-Token.bat");
     Button OAuthTokenButton(ComboBox authentication)
@@ -979,17 +1015,21 @@ sealed class MainWindow : Window
         } finally { changingLanguage = false; }
     }
     void Restore() { AppWindow.Show(); Activate(); }
-    async Task Exit()
+    async Task Exit(bool installingUpdate = false)
     {
         if (exiting || exitRequested) return;
         exitRequested = true;
+        activeDownload?.Cancel();
         updateTimer.Stop();
         searchTimer.Stop();
         Program.Trace("Stopping worker");
         detail.Text = L.T("正在停止后台，请稍候…");
         toggle.IsEnabled = check.IsEnabled = false;
-        try { await bridge.Call("shutdown"); }
-        catch (Exception e) { detail.Text = L.T(e.Message); }
+        try {
+            if (installingUpdate) { await bridge.Call("shutdown").WaitAsync(TimeSpan.FromSeconds(10)); await bridge.WaitForUpdateExit(); }
+            else await bridge.Call("shutdown");
+        }
+        catch (Exception e) { if (installingUpdate) bridge.KillForUpdate(); detail.Text = L.T(e.Message); }
         Program.Trace("Disposing tray and worker pipes");
         exiting = true; tray.Visible = false; tray.Dispose(); bridge.Dispose();
         Program.Trace("Exiting application");
@@ -1014,6 +1054,7 @@ sealed class MainWindow : Window
             Check(AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized },
                 "Main window starts maximized with the standard window presenter");
             checks.AddRange(await UpdateClient.OfflineTests(fixture!));
+            checks.AddRange(await UpdateDownloadView.OfflineUITests(layout.XamlRoot, fixture!));
             Check(UpdateClient.InstalledVersion.Length == 12 && File.Exists(Path.Combine(AppContext.BaseDirectory, "build-version.txt")), "Installed update version comes from actual timestamped build");
             var localRuntime = false;
             var localWinUI = false;

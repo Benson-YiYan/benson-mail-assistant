@@ -1,0 +1,134 @@
+using System;
+using System.IO;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+
+namespace BensonMail;
+
+// This is shared by the real dialog and packaged UI tests. Tests supply only synthetic HTTP data.
+sealed class UpdateDownloadView : IDisposable
+{
+    internal readonly StackPanel Content = new() { Spacing = 12, MinWidth = 360, MaxWidth = 620 };
+    internal readonly ProgressBar Bar = new() { Minimum = 0, Maximum = 100 };
+    internal readonly TextBlock Status = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+    internal readonly Button DownloadButton = new() { Content = L.T("下载更新") };
+    internal readonly Button CancelButton = new() { Content = L.T("取消下载"), Visibility = Visibility.Collapsed };
+    internal readonly Button InstallButton = new() { Content = L.T("安装更新"), Visibility = Visibility.Collapsed };
+    readonly UpdateRelease release;
+    readonly UpdateDownload download;
+    readonly Func<VerifiedUpdate, Task> install;
+    CancellationTokenSource? cancellation;
+    internal Task? ActiveTask { get; private set; }
+    internal bool Busy => ActiveTask is { IsCompleted: false };
+    internal VerifiedUpdate? Verified { get; private set; }
+    internal UpdateDownloadView(UpdateRelease release, UpdateDownload download, Func<VerifiedUpdate, Task> install)
+    {
+        this.release = release; this.download = download; this.install = install;
+        Content.Children.Add(new TextBlock { Text = release.Notes.Length > 0 ? release.Notes : L.T("此版本没有提供更新说明。"), TextWrapping = TextWrapping.Wrap, MaxHeight = 180, IsTextSelectionEnabled = true });
+        Content.Children.Add(Bar); Content.Children.Add(Status);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+        actions.Children.Add(DownloadButton); actions.Children.Add(CancelButton); actions.Children.Add(InstallButton);
+        Content.Children.Add(actions);
+        DownloadButton.Click += (_, _) => BeginDownload();
+        CancelButton.Click += (_, _) => Cancel();
+        InstallButton.Click += async (_, _) => await Install();
+    }
+    internal void BeginDownload()
+    {
+        if (Busy) return;
+        cancellation?.Dispose(); cancellation = new();
+        ActiveTask = Run(cancellation.Token);
+    }
+    async Task Run(CancellationToken token)
+    {
+        Verified = null; InstallButton.Visibility = Visibility.Collapsed;
+        DownloadButton.IsEnabled = false; CancelButton.Visibility = Visibility.Visible;
+        Bar.Value = 0; Bar.IsIndeterminate = !release.Size.HasValue;
+        Status.Text = L.T("正在连接更新服务器…");
+        var reportProgress = true;
+        try {
+            var progress = new Progress<DownloadProgress>(value => {
+                if (!reportProgress || token.IsCancellationRequested) return;
+                Bar.IsIndeterminate = !value.Total.HasValue;
+                if (value.Total is > 0) Bar.Value = value.Bytes * 100.0 / value.Total.Value;
+                var amount = (value.Bytes / 1048576.0).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+                var total = value.Total.HasValue ? " / " + (value.Total.Value / 1048576.0).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) : "";
+                Status.Text = L.T("已下载：") + amount + total + " MB";
+            });
+            Verified = await download.Download(release, progress, token);
+            reportProgress = false;
+            Bar.IsIndeterminate = false; Bar.Value = 100;
+            Status.Text = L.T("下载完成，SHA256 校验通过。点击“安装更新”后将退出当前程序并打开安装程序。");
+            InstallButton.Visibility = Visibility.Visible;
+            DownloadButton.Visibility = Visibility.Collapsed;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { Status.Text = L.T("下载已取消。可以重试。"); }
+        catch (Exception error) { Status.Text = L.T("下载更新失败：") + UpdateTransport.ErrorDetails(error, L.Code); }
+        finally {
+            reportProgress = false;
+            CancelButton.Visibility = Visibility.Collapsed;
+            Bar.IsIndeterminate = false;
+            DownloadButton.Content = L.T("重试下载"); DownloadButton.IsEnabled = true;
+        }
+    }
+    internal async Task Install()
+    {
+        if (Verified == null || Busy || !InstallButton.IsEnabled) return;
+        InstallButton.IsEnabled = false;
+        try { await UpdateDownload.VerifyBeforeInstall(Verified); await install(Verified); }
+        catch (Exception error) {
+            Status.Text = L.T("无法安装更新：") + UpdateTransport.ErrorDetails(error, L.Code);
+            InstallButton.Visibility = Visibility.Collapsed; Verified = null;
+            DownloadButton.Visibility = Visibility.Visible;
+        }
+        finally { InstallButton.IsEnabled = true; }
+    }
+    internal static async Task<string[]> OfflineUITests(XamlRoot root, string folder)
+    {
+        var checks = new List<string>();
+        void Check(bool value, string label) { if (!value) throw new InvalidOperationException(label); checks.Add(label); }
+        var bytes = System.Text.Encoding.UTF8.GetBytes("Synthetic UI fixture, not an executable");
+        var sha = Convert.ToHexString(SHA256.HashData(bytes));
+        var release = new UpdateRelease("209910180901", new Uri("https://download.example.invalid/ui.exe"), sha, "Synthetic in-app update", bytes.Length);
+        var requests = 0; var launches = 0;
+        var handler = new UpdateDownload.FixtureHandler(async (request, token) => {
+            requests++; await Task.Delay(350, token);
+            return new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new ByteArrayContent(bytes) };
+        });
+        using var view = new UpdateDownloadView(release, new UpdateDownload(Path.Combine(folder, "update-ui-cache"), handler), verified => { launches++; return Task.CompletedTask; });
+        var dialog = new ContentDialog { XamlRoot = root, Title = "Synthetic in-app update test", Content = view.Content, CloseButtonText = L.T("稍后") };
+        var showing = dialog.ShowAsync();
+        await Task.Delay(100);
+        try {
+            view.BeginDownload(); view.BeginDownload();
+            Check(view.Busy && !view.DownloadButton.IsEnabled && view.CancelButton.Visibility == Visibility.Visible && view.InstallButton.Visibility == Visibility.Collapsed,
+                "Native download UI stays responsive and disables duplicate downloads; installation is hidden before SHA256 verification");
+            await Task.Delay(30); view.Cancel(); await view.ActiveTask!;
+            Check(view.Verified == null && launches == 0 && view.DownloadButton.IsEnabled,
+                "Native Cancel restores Retry without launching any file");
+            view.BeginDownload(); await view.ActiveTask!;
+            Check(view.Verified != null && view.Bar.Value == 100 && view.InstallButton.Visibility == Visibility.Visible && launches == 0 && requests == 2,
+                "Native retry finishes with verified-install action; download completion never executes installer");
+            var info = UpdateInstall.StartInfo(view.Verified!, @"C:\Users\Fixture User\BensonMail", "en", 12345);
+            Check(!info.UseShellExecute && info.CreateNoWindow && info.FileName == view.Verified!.Path &&
+                info.ArgumentList.Contains("/DIR=C:\Users\Fixture User\BensonMail") && info.ArgumentList.Contains("/UPDATEPID=12345") && info.ArgumentList.Contains("/LANG=english"),
+                "Install handoff directly starts the verified native Setup with original directory, language and wait-for-parent arguments; no cmd");
+            await view.Install();
+            Check(launches == 1, "Only explicit Install action invokes an injected installer callback; test never executes fixture payloads");
+            File.AppendAllText(view.Verified!.Path, "changed");
+            await view.Install();
+            Check(launches == 1 && view.Verified == null && view.InstallButton.Visibility == Visibility.Collapsed,
+                "Package changed after download is rejected by native install action before launch");
+        }
+        finally { view.Cancel(); if (view.ActiveTask != null) await view.ActiveTask; dialog.Hide(); await showing; }
+        return checks.ToArray();
+    }
+    internal void Cancel() { cancellation?.Cancel(); }
+    public void Dispose() { cancellation?.Dispose(); download.Dispose(); }
+}

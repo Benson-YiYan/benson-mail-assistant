@@ -546,7 +546,16 @@
     "稍后": "Later",
     "检查更新失败：": "Update check failed: ",
     "更新清单尚未准备好。": "The update manifest is not ready yet.",
-    "更新清单内容无效。": "The update manifest is invalid."
+    "更新清单内容无效。": "The update manifest is invalid.",
+    "取消下载": "Cancel download",
+    "安装更新": "Install update",
+    "正在连接更新服务器…": "Connecting to the update server…",
+    "已下载：": "Downloaded: ",
+    "下载完成，SHA256 校验通过。点击“安装更新”后将退出当前程序并打开安装程序。": "Download complete. SHA256 verified. Click Install update to close Mail Secretary and open Setup.",
+    "下载已取消。可以重试。": "Download cancelled. You can retry.",
+    "下载更新失败：": "Update download failed: ",
+    "重试下载": "Retry download",
+    "无法安装更新：": "Cannot install update: "
   },
   "templates": [
     {
