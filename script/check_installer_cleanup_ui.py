@@ -48,12 +48,15 @@ def main():
             try:
                 wizard = wait(wizard_window)
                 deadline = time.monotonic() + 150
+                previous_buttons = None
                 while time.monotonic() < deadline:
                     buttons = {b.window_text().replace('&', '').strip(): b for b in
                         wizard.descendants(class_name='TNewButton') if b.is_visible() and b.is_enabled()}
                     if 'Finish' in buttons:
                         break
-                    print('Installer buttons:', list(buttons), flush=True)
+                    if list(buttons) != previous_buttons:
+                        previous_buttons = list(buttons)
+                        print('Installer buttons:', previous_buttons, flush=True)
                     button = next((button for name, button in buttons.items() if name.startswith('Next') or name == 'Install'), None)
                     if button:
                         button.click()

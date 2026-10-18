@@ -3,6 +3,7 @@ import argparse
 import ctypes
 from ctypes import wintypes
 import hashlib
+import os
 from pathlib import Path
 import re
 import sys
@@ -10,12 +11,12 @@ import time
 
 
 def verified_installer(path, digest):
-    path = Path(path).resolve()
+    path = Path(os.path.abspath(path))
     if path.suffix.lower() != '.exe':
         raise ValueError('Not a Mail Secretary installer')
     if not re.fullmatch(r'[a-fA-F0-9]{64}', digest):
         raise ValueError('Invalid installer fingerprint')
-    if path.parent == Path(sys.executable).resolve().parent:
+    if path.is_symlink() or path.resolve().is_relative_to(Path(sys.executable).resolve().parent):
         raise ValueError('The installer must not be an installed application file')
     if not path.is_file():
         raise ValueError('Installer is missing')

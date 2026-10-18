@@ -11,7 +11,7 @@ class InstallerValidation(unittest.TestCase):
             source = Path(directory) / 'Renamed setup.exe'
             source.write_bytes(b'MZsynthetic installer')
             digest = hashlib.sha256(source.read_bytes()).hexdigest()
-            self.assertEqual(verified_installer(source, digest), source.resolve())
+            self.assertEqual(verified_installer(source, digest), source.absolute())
             source.write_bytes(b'MZchanged after consent')
             with self.assertRaises(ValueError):
                 verified_installer(source, digest)
