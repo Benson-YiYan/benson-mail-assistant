@@ -122,6 +122,7 @@ class Controller:
                         raise ValueError('正在检查或分析邮件，请等当前任务完成后再更新或卸载。没有中断任务，也没有启动安装程序。')
                     acquired.append(service.activity)
                 # All activity locks are held before stopping any service. A new check cannot race this gate.
+                self.shutting_down = True
                 for service in services: service.stop()
                 self.prepared_exit = True
             finally:
@@ -130,6 +131,7 @@ class Controller:
             return {'prepared': True, 'resume': resume}
         if name == 'resume_after_exit_cancel':
             self.prepared_exit = False
+            self.shutting_down = False
             return self.command('start', {}) if data.get('resume') else '已取消退出。'
         if name == 'runtime_info':
             import ctypes

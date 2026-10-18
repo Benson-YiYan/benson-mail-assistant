@@ -319,5 +319,6 @@ class Service:
                 # Never expose raw server errors or credentials in UI/logs.
                 self.callback({'status':'需要检查','detail':'连接或分析失败。请测试连接；未完成邮件会自动重试。','check_done':True})
             self.check_requested=False
+            if self.cancel.is_set(): break
             self.wake.wait(self.config.get('interval',60))
         self.callback({'status':'已暂停','detail':'下次开始时会补查暂停期间的新邮件'})

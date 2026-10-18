@@ -176,6 +176,7 @@ sealed class Bridge : IDisposable
         finally { writes.Release(); }
         return await source.Task;
     }
+    internal Task WaitForExit() => process.WaitForExitAsync();
     public void Dispose()
     {
         process.StandardInput.Close();
@@ -1035,7 +1036,7 @@ sealed class MainWindow : Window
         Program.Trace("Stopping worker");
         detail.Text = L.T("正在停止后台，请稍候…");
         toggle.IsEnabled = check.IsEnabled = false;
-        try { await bridge.Call("shutdown"); }
+        try { await bridge.Call("shutdown"); await bridge.WaitForExit(); }
         catch (Exception e) { detail.Text = L.T(e.Message); }
         Program.Trace("Disposing tray and worker pipes");
         lifetime.Dispose();
