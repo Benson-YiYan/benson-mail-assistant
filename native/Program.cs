@@ -238,6 +238,7 @@ sealed class MainWindow : Window
     Button mailSaveButton = null!, aiSaveButton = null!;
     Button filterButton = null!;
     Button updateButton = null!;
+    UpdateRelease? pendingUpdate;
     readonly TextBlock updateStatus = new() { TextWrapping = TextWrapping.Wrap };
     readonly UpdateClient updates = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail", "update-state.json"), UpdateClient.InstalledVersion);
     readonly Microsoft.UI.Dispatching.DispatcherQueueTimer updateTimer;
@@ -620,17 +621,22 @@ sealed class MainWindow : Window
     async Task CheckUpdates(bool manual)
     {
         if (exitRequested || testResult != null) return;
+        if (!manual && VisualTreeHelper.GetOpenPopupsForXamlRoot(layout.XamlRoot).Count > 0) return;
         if (manual) { updateButton.IsEnabled = false; updateStatus.Text = L.T("正在检查更新…"); }
         try {
-            var release = await updates.Check(manual);
+            var release = manual ? await updates.Check(true) : pendingUpdate ?? await updates.Check(false);
             if (exitRequested) return;
             if (release == null) { if (manual) updateStatus.Text = L.T("当前已是最新版本。"); return; }
+            pendingUpdate = release;
+            if (VisualTreeHelper.GetOpenPopupsForXamlRoot(layout.XamlRoot).Count > 0) return;
             updateStatus.Text = L.T("发现新版本：") + release.Version;
             var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("发现新版本：") + release.Version,
                 Content = release.Notes.Length > 0 ? release.Notes : L.T("此版本没有提供更新说明。"),
                 PrimaryButtonText = L.T("下载更新"), CloseButtonText = L.T("稍后"), DefaultButton = ContentDialogButton.Close };
-            if (await dialog.ShowAsync() == ContentDialogResult.Primary && !exitRequested)
-                Open(release.Url.AbsoluteUri);
+            var choice = await dialog.ShowAsync();
+            await updates.MarkSeen(release.Version);
+            pendingUpdate = null;
+            if (choice == ContentDialogResult.Primary && !exitRequested) Open(release.Url.AbsoluteUri);
         }
         catch (Exception error) {
             if (manual && !exitRequested) updateStatus.Text = L.T("检查更新失败：") + L.T(error.Message);

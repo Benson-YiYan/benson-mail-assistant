@@ -74,9 +74,14 @@ sealed class UpdateClient
             var release = Parse(await fetch());
             if (string.CompareOrdinal(release.Version, current) <= 0) return null;
             if (!manual && state.SeenVersion == release.Version) return null;
-            state.SeenVersion = release.Version; Save(state);
             return release;
         }
+        finally { gate.Release(); }
+    }
+    internal async Task MarkSeen(string version)
+    {
+        await gate.WaitAsync();
+        try { var state = Load(); state.SeenVersion = version; Save(state); }
         finally { gate.Release(); }
     }
     internal static async Task<string[]> OfflineTests(string folder)
@@ -91,6 +96,7 @@ sealed class UpdateClient
         Task<string> Fetch() { calls++; return Task.FromResult(Manifest("209910180900")); }
         var client = new UpdateClient(path, "202610180900", Fetch, () => time);
         var release = await client.Check(false);
+        await client.MarkSeen(release!.Version);
         Check(release?.Url.Host == "downloads.example.invalid", "HTTPS update download can use a different host from manifest");
         Check(await new UpdateClient(path, "202610180900", Fetch, () => time).Check(false) == null && calls == 1,
             "Automatic five-hour interval persists across restarts");
@@ -111,6 +117,10 @@ sealed class UpdateClient
             "Failed checks preserve retry interval; manual errors remain available to UI");
         Check(await new UpdateClient(Path.Combine(folder, "same-version.json"), "209910180900", Fetch).Check(true) == null,
             "Current version is never offered as an update");
+        var deferred = new UpdateClient(Path.Combine(folder, "deferred-update.json"), "202610180900", Fetch, () => time);
+        Check(await deferred.Check(false) != null, "New release remains pending until UI notification succeeds");
+        time += TimeSpan.FromHours(5);
+        Check(await deferred.Check(false) != null, "A deferred notification is not incorrectly marked seen");
         return checks.ToArray();
     }
 }
