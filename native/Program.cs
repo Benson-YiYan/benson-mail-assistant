@@ -44,6 +44,7 @@ internal static class Program
             return;
         }
         if (AppLifetime.TestProcess(args)) return;
+        if (UpdateInstall.Fixture(args)) return;
         L.Initialize();
         Trace("Main");
         WinRT.ComWrappersSupport.InitializeComWrappers();
@@ -661,8 +662,7 @@ sealed class MainWindow : Window
                     try {
                         installCancellation.ThrowIfCancellationRequested();
                         await UpdateDownload.VerifyBeforeInstall(verified, installCancellation);
-                        var start = UpdateInstall.StartInfo(verified, AppContext.BaseDirectory, L.Code, Environment.ProcessId);
-                        _ = Process.Start(start) ?? throw new IOException("The installer could not be started.");
+                        using var installer = await UpdateInstall.Start(verified, AppContext.BaseDirectory, L.Code, Environment.ProcessId, installCancellation);
                     }
                     catch {
                         await bridge.Call("resume_after_exit_cancel", new { resume = prepared.GetProperty("resume").GetBoolean() });
@@ -883,6 +883,7 @@ sealed class MainWindow : Window
             {
                 await Call("start"); running = true; toggle.Content = L.T("暂停监听"); status.Text = L.T("运行中");
             }
+            updateStatus.Text = UpdateInstall.PreviousOutcome();
             updateTimer.Start();
             _ = CheckUpdates(false);
             if (Array.IndexOf(Program.Args, "--background") >= 0) AppWindow.Hide();

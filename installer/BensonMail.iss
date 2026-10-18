@@ -102,6 +102,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\BensonM
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\BensonMail"; ValueType: dword; ValueName: "NoRepair"; ValueData: "1"
 
 [Run]
+Filename: "{app}\BensonMail-{#AppVersion}.exe"; Flags: nowait skipifnotsilent; Check: RelaunchUpdatedApplication
 Filename: "{app}\BensonMail-{#AppVersion}.exe"; Description: "{cm:RunApp}"; Flags: nowait postinstall skipifsilent
 
 Filename: "{app}\MailWorker.exe"; Parameters: "--delete-installer ""{srcexe}"" --setup-pid {code:SetupProcessId} --installer-sha256 {code:SetupFingerprint}"; Description: "{cm:DeleteInstaller}"; Flags: postinstall unchecked nowait skipifsilent runhidden
@@ -143,6 +144,49 @@ begin
   Result := True;
 end;
 
+function InstallDirectoryErrorFor(const Requested: String): String;
+var
+  Directory: String;
+  Entry: TFindRec;
+begin
+  Result := '';
+  Directory := RemoveBackslashUnlessRoot(Requested);
+  { Existing owned installations may have a versioned portable or custom folder name. }
+  if DirExists(AddBackslash(Directory) + '_internal') and FileExists(AddBackslash(Directory) + 'MailWorker.exe') then
+  begin
+    if FileExists(AddBackslash(Directory) + '.benson-installed.json') then Exit;
+    if FindFirst(AddBackslash(Directory) + 'BensonMail-*.exe', Entry) then
+    begin
+      try
+        repeat
+          if IsOurExecutable(Entry.Name) then Exit;
+        until not FindNext(Entry);
+      finally FindClose(Entry); end;
+    end;
+  end;
+  if CompareText(ExtractFileName(Directory), 'BensonMail') <> 0 then
+  begin
+    Result := CustomMessage('DedicatedFolder');
+    Exit;
+  end;
+  if FileExists(AddBackslash(Directory) + '.benson-installed.json') then Exit;
+  if DirExists(AddBackslash(Directory) + '_internal') then Exit;
+  if FindFirst(AddBackslash(Directory) + '*', Entry) then
+  begin
+    try
+      repeat
+        if (Entry.Name <> '.') and (Entry.Name <> '..') then
+        begin
+          Result := CustomMessage('FolderInUse');
+          Exit;
+        end;
+      until not FindNext(Entry);
+    finally
+      FindClose(Entry);
+    end;
+  end;
+end;
+
 function DefaultInstallDirectory(Param: String): String;
 begin
   if (PreviousInstallDirectory <> '') and FileExists(AddBackslash(PreviousInstallDirectory) + '.benson-installed.json') then
@@ -159,11 +203,32 @@ function WaitForSingleObject(Handle: THandle; Milliseconds: LongWord): LongWord;
 function CloseHandle(Handle: THandle): Boolean;
   external 'CloseHandle@kernel32.dll stdcall';
 
+function WriteUpdateState(const State, Detail: String): Boolean;
+var
+  Filename: String;
+begin
+  Filename := ExpandConstant('{param:UPDATESTATUS|}');
+  Result := True;
+  if Filename = '' then Exit;
+  Result := SaveStringToFile(Filename + '.tmp', UTF8Encode(State + #10 + Detail), False);
+  if not Result then Exit;
+  DeleteFile(Filename);
+  Result := RenameFile(Filename + '.tmp', Filename);
+end;
+
+function UpdateFailure(const Reason: String): Boolean;
+begin
+  WriteUpdateState('failed', Reason);
+  SuppressibleMsgBox('Mail Secretary update could not start / 邮件小秘书更新未能启动：' + #13#10 + Reason,
+    mbError, MB_OK, IDOK);
+  Result := False;
+end;
+
 function InitializeSetup: Boolean;
 var
   ParentId, WaitResult, Size: LongWord;
   Handle: THandle;
-  ParentPath, RequestedDirectory: String;
+  ParentPath, RequestedDirectory, DirectoryError: String;
 begin
   RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\BensonMail',
     'InstallLocation', PreviousInstallDirectory);
@@ -171,32 +236,55 @@ begin
   if ExpandConstant('{param:UPDATE|0}') <> '1' then Exit;
   Result := False;
   ParentId := StrToIntDef(ExpandConstant('{param:UPDATEPID|0}'), 0);
-  if (ParentId = 0) or (ParentId = GetCurrentProcessId) then Exit;
+  if (ParentId = 0) or (ParentId = GetCurrentProcessId) then
+  begin Result := UpdateFailure('Invalid application PID / 应用进程编号无效。'); Exit; end;
   RequestedDirectory := RemoveBackslashUnlessRoot(ExpandConstant('{param:DIR|}'));
-  Handle := OpenProcess($00101000, False, ParentId); { SYNCHRONIZE and QUERY_LIMITED_INFORMATION }
+  DirectoryError := InstallDirectoryErrorFor(RequestedDirectory);
+  if DirectoryError <> '' then begin Result := UpdateFailure(DirectoryError); Exit; end;
+  Handle := OpenProcess($00101000, False, ParentId);
   if Handle = 0 then
   begin
-    { The parent can exit before Setup starts. Invalid PID means it has already exited. }
-    Result := DLLGetLastError = 87;
+    if DLLGetLastError = 87 then
+    begin
+      Result := WriteUpdateState('ready', '{#AppVersion}');
+      if not Result then Result := UpdateFailure('Cannot write update acknowledgment / 无法写入更新确认文件。');
+    end
+    else Result := UpdateFailure('Cannot inspect application PID. Windows error / 无法查询应用进程，Windows 错误：' + IntToStr(DLLGetLastError));
     Exit;
   end;
   try
     Size := 32768;
     SetLength(ParentPath, Size);
-    if not QueryFullProcessImageName(Handle, 0, ParentPath, Size) then Exit;
+    if not QueryFullProcessImageName(Handle, 0, ParentPath, Size) then
+    begin Result := UpdateFailure('Cannot verify application executable / 无法验证应用程序路径。'); Exit; end;
     SetLength(ParentPath, Size);
-    if not IsOurExecutable(ExtractFileName(ParentPath)) then Exit;
-    if CompareText(RemoveBackslashUnlessRoot(ExtractFileDir(ParentPath)), RequestedDirectory) <> 0 then Exit;
-    Log('Update waiting for matching application PID ' + IntToStr(ParentId));
+    if not IsOurExecutable(ExtractFileName(ParentPath)) then
+    begin Result := UpdateFailure('Application executable name does not match / 应用程序名称不匹配。'); Exit; end;
+    if CompareText(RemoveBackslashUnlessRoot(ExtractFileDir(ParentPath)), RequestedDirectory) <> 0 then
+    begin Result := UpdateFailure('Application directory does not match update target / 正在运行的应用与更新目标目录不匹配。'); Exit; end;
+    if not WriteUpdateState('ready', '{#AppVersion}') then
+    begin Result := UpdateFailure('Cannot write update acknowledgment / 无法写入更新确认文件。'); Exit; end;
+    Log('Update handoff acknowledged; waiting for matching application PID ' + IntToStr(ParentId));
     WaitResult := WaitForSingleObject(Handle, 45000);
     if WaitResult = 0 then Log('Update parent exited; installation can continue');
     Result := WaitResult = 0;
-    if not Result then
-      MsgBox('Mail Secretary is still closing. Please close it and start the update again.' + #13#10 +
-        '邮件小秘书仍在退出，请关闭后重新安装更新。', mbError, MB_OK);
-  finally
-    CloseHandle(Handle);
-  end;
+    if not Result then Result := UpdateFailure('Application did not finish closing within 45 seconds / 应用在45秒内未退出，请关闭后重试。');
+  finally CloseHandle(Handle); end;
+end;
+
+function InstalledVersionMatches: Boolean;
+var
+  Lines: TArrayOfString;
+begin
+  Result := LoadStringsFromFile(ExpandConstant('{app}\build-version.txt'), Lines);
+  if Result then Result := GetArrayLength(Lines) > 0;
+  if Result then Result := Trim(Lines[0]) = '{#AppVersion}';
+end;
+
+function RelaunchUpdatedApplication: Boolean;
+begin
+  Result := (ExpandConstant('{param:UPDATE|0}') = '1') and
+    (ExpandConstant('{param:UPDATENORELAUNCH|0}') <> '1') and InstalledVersionMatches;
 end;
 
 function IsOurShortcut(const Filename: String): Boolean;
@@ -329,6 +417,16 @@ begin
     RemoveOldShortcuts(ExpandConstant('{userdesktop}'));
     RemoveOldShortcuts(ExpandConstant('{userprograms}'));
   end;
+  if (CurStep = ssPostInstall) and (ExpandConstant('{param:UPDATE|0}') = '1') then
+  begin
+    if not FileExists(ExpandConstant('{app}\BensonMail-{#AppVersion}.exe')) or not InstalledVersionMatches then
+    begin
+      WriteUpdateState('failed', 'The new application executable is missing / 新版本应用程序缺失。');
+      RaiseException('New application executable missing.');
+    end;
+    WriteUpdateState('installed', '{#AppVersion}');
+    Log('Update installation completed: {#AppVersion}');
+  end;
 end;
 
 function ShortcutName(Param: String): String;
@@ -357,40 +455,10 @@ begin
   RaiseException('Unable to choose a free shortcut name.');
 end;
 
-function InstallDirectoryError: String;
-var
-  Directory: String;
-  Entry: TFindRec;
-begin
-  Result := '';
-  Directory := RemoveBackslashUnlessRoot(WizardDirValue);
-  if CompareText(ExtractFileName(Directory), 'BensonMail') <> 0 then
-  begin
-    Result := CustomMessage('DedicatedFolder');
-    Exit;
-  end;
-  if FileExists(AddBackslash(Directory) + '.benson-installed.json') then Exit;
-  if DirExists(AddBackslash(Directory) + '_internal') then Exit;
-  if FindFirst(AddBackslash(Directory) + '*', Entry) then
-  begin
-    try
-      repeat
-        if (Entry.Name <> '.') and (Entry.Name <> '..') then
-        begin
-          Result := CustomMessage('FolderInUse');
-          Exit;
-        end;
-      until not FindNext(Entry);
-    finally
-      FindClose(Entry);
-    end;
-  end;
-end;
-
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   ApplyPreviousTaskDefaults;
-  Result := InstallDirectoryError;
+  Result := InstallDirectoryErrorFor(WizardDirValue);
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -400,7 +468,7 @@ begin
   Result := True;
   if CurPageID = wpSelectDir then
   begin
-    ErrorText := InstallDirectoryError;
+    ErrorText := InstallDirectoryErrorFor(WizardDirValue);
     if ErrorText <> '' then
     begin
       MsgBox(ErrorText, mbError, MB_OK);

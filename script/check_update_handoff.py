@@ -1,0 +1,100 @@
+"""Real Setup plus production native handoff, against a synthetic legacy installation."""
+import ctypes
+from ctypes import wintypes
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from benson_mail import platform_windows as platform
+from benson_mail.uninstall import remove_shortcuts
+
+
+def wait_until(predicate, seconds, message):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if predicate(): return
+        time.sleep(.1)
+    raise AssertionError(message)
+
+
+def process_exit(pid):
+    kernel=ctypes.WinDLL('kernel32',use_last_error=True)
+    kernel.OpenProcess.argtypes=[wintypes.DWORD,wintypes.BOOL,wintypes.DWORD]; kernel.OpenProcess.restype=wintypes.HANDLE
+    kernel.WaitForSingleObject.argtypes=[wintypes.HANDLE,wintypes.DWORD]
+    kernel.GetExitCodeProcess.argtypes=[wintypes.HANDLE,ctypes.POINTER(wintypes.DWORD)]
+    kernel.CloseHandle.argtypes=[wintypes.HANDLE]
+    handle=kernel.OpenProcess(0x100000|0x1000,False,pid)
+    if not handle: return 0  # Already exited after its confirmed installed marker.
+    try:
+        assert kernel.WaitForSingleObject(handle,120000)==0,'Setup did not finish'
+        result=wintypes.DWORD(); assert kernel.GetExitCodeProcess(handle,ctypes.byref(result))
+        return result.value
+    finally: kernel.CloseHandle(handle)
+
+
+def main():
+    package=Path(sys.argv[1]).resolve(); setup=Path(sys.argv[2]).resolve(); evidence=Path(sys.argv[3]).resolve()
+    version=re.fullmatch(r'BensonMail-Windows-x64-Setup-(\d{12})\.exe',setup.name).group(1)
+    fixture=Path(tempfile.mkdtemp(prefix='BensonMail-uninstall-fixture-')).resolve()
+    (fixture/'.benson-uninstall-fixture').write_text('Offline update fixture only')
+    program=fixture/'BensonMail-200001010000'
+    checks=[]
+    try:
+        shutil.copytree(package,program)
+        (program/f'BensonMail-{version}.exe').rename(program/'BensonMail-200001010000.exe')
+        (program/f'Uninstall-BensonMail-{version}.exe').rename(program/'Uninstall-BensonMail-200001010000.exe')
+        (program/'build-version.txt').write_text('200001010000')
+        (program/'.benson-installed.json').unlink(missing_ok=True)
+        data=fixture/'user-data';data.mkdir()
+        config=data/'config.json';config.write_text('{"fixture":"preserve","enabled":false}')
+        report=fixture/'reports'/'2026-10-18'/'Existing.md';report.parent.mkdir(parents=True);report.write_text('## Existing report')
+        before=(config.read_bytes(),report.read_bytes())
+        cache=fixture/'cache';cache.mkdir();cached=cache/setup.name;shutil.copy2(setup,cached)
+        digest=hashlib.sha256(cached.read_bytes()).hexdigest()
+        request=fixture/'request.json';result=fixture/'handoff.json'
+        payload={'version':version,'sha256':digest,'installer':str(cached),'result':str(result)}
+        request.write_text(json.dumps(payload))
+        launcher=program/'BensonMail-200001010000.exe'
+        parent=subprocess.Popen([str(launcher),'--install-update-fixture',str(request)],creationflags=subprocess.CREATE_NO_WINDOW)
+        assert parent.wait(timeout=35)==0,'Production handoff did not receive Setup acknowledgment'
+        assert json.loads(result.read_text())['ok']
+        attempt=json.loads((cache/'last-install-attempt.json').read_text())
+        status=Path(attempt['status'])
+        wait_until(lambda: status.exists() and status.read_text().startswith(('installed','failed')),150,'Setup completion was not reported')
+        assert status.read_text().strip()=='installed\n'+version,status.read_text()
+        assert process_exit(json.loads(result.read_text())['installer'])==0,'Setup returned a failure exit code'
+        assert (program/'build-version.txt').read_text().strip()==version
+        assert (program/f'BensonMail-{version}.exe').is_file()
+        assert not launcher.exists(),'Old versioned executable was not replaced'
+        assert before==(config.read_bytes(),report.read_bytes()),'Update changed config or report bytes'
+        log=Path(attempt['log']);shutil.copy2(log,evidence/'update-handoff-setup.log')
+        assert 'Update handoff acknowledged' in log.read_text(encoding='utf-8-sig')
+        checks.append('Production native handoff waits for real Setup acknowledgment before the old application exits')
+        checks.append('Silent native Setup upgrades the original versioned legacy folder from 200001010000 to '+version)
+        checks.append('Setup success marker follows new executable and build-version verification; original config and report bytes preserved')
+        # A rejected target must give an actionable error while the original app remains installed.
+        blocked=fixture/'OccupiedFolder';blocked.mkdir();unrelated=blocked/'user-document.txt';unrelated.write_text('keep')
+        payload.update(target=str(blocked));request.write_text(json.dumps(payload));result.unlink()
+        failure=subprocess.run([str(program/f'BensonMail-{version}.exe'),'--install-update-fixture',str(request)],timeout=35,creationflags=subprocess.CREATE_NO_WINDOW)
+        assert failure.returncode==2,'Rejected Setup incorrectly reported handoff success'
+        attempt=json.loads((cache/'last-install-attempt.json').read_text());rejected=Path(attempt['status']).read_text()
+        assert rejected.startswith('failed') and len(rejected)>10
+        assert not result.exists() and unrelated.read_text()=='keep'
+        assert (program/'build-version.txt').read_text().strip()==version
+        checks.append('Real Setup rejection is returned through the production handoff; no false success, no user file deletion')
+        (evidence/'update-handoff-result.json').write_text(json.dumps({'ok':True,'from_version':'200001010000','version':version,'checks':checks},indent=2))
+    finally:
+        remove_shortcuts(program)
+        platform.remove_uninstall_registration(program)
+        shutil.rmtree(fixture,ignore_errors=True)
+
+
+if __name__=='__main__': main()

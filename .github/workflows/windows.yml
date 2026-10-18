@@ -124,6 +124,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Installer integration test failed' }
           python script/check_installer_cleanup_ui.py "$setup" evidence
           if ($LASTEXITCODE -ne 0) { throw 'Installer cleanup UI integration test failed' }
+      - name: Real update handoff from synthetic legacy installation
+        run: |
+          $package = Get-ChildItem dist -Directory | Where-Object Name -Match '^BensonMail-\d{12}$' | Select-Object -First 1
+          $setup = (Get-ChildItem dist -Filter 'BensonMail-Windows-x64-Setup-*.exe' | Select-Object -First 1).FullName
+          python script/check_update_handoff.py $package.FullName "$setup" evidence
+          if ($LASTEXITCODE -ne 0) { throw 'Real installed update handoff failed' }
       - name: Upload verified Windows package
         uses: actions/upload-artifact@v4
         with:

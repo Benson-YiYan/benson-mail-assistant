@@ -154,6 +154,12 @@ sealed class UpdateDownloadView : IDisposable
             Program.Trace("Update fixture explicit install action");
             await view.Install();
             Check(launches == 1, "Only explicit Install action invokes an injected installer callback; test never executes fixture payloads");
+            using var rejected = new UpdateDownloadView(release, new UpdateDownload(Path.Combine(folder, "update-rejected-cache"),
+                new UpdateDownload.FixtureHandler((request, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new ByteArrayContent(bytes) }))),
+                (_, _) => throw new InvalidOperationException("Setup rejected the target directory; see installation log."));
+            rejected.BeginDownload(); await rejected.ActiveTask!; await rejected.Install();
+            Check(rejected.Status.Text.Contains("Setup rejected the target directory") && rejected.InstallButton.IsEnabled,
+                "Installer handoff rejection is actionable in native UI, restores Install and does not report success");
             File.AppendAllText(view.Verified!.Path, "changed");
             Program.Trace("Update fixture explicit install action");
             await view.Install();
