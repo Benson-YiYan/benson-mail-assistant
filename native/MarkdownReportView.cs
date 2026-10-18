@@ -12,9 +12,13 @@ using Microsoft.UI.Text;
 namespace BensonMail;
 
 // Parse Markdown as data into native controls. No HTML engine, remote images or scripts.
-internal sealed class MarkdownReportView : ScrollViewer
+internal sealed class MarkdownReportView : UserControl
 {
     static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().UsePipeTables().DisableHtml().Build();
+    readonly ScrollViewer scroller = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        HorizontalContentAlignment = HorizontalAlignment.Stretch };
+    public MarkdownReportView() { Content = scroller; }
     string text = "";
     bool markdown = true;
     public string Text { get => text; set => Show(value, markdown); }
@@ -31,9 +35,7 @@ internal sealed class MarkdownReportView : ScrollViewer
         var stack = new StackPanel { Spacing = 12, Padding = new Thickness(12) };
         if (isMarkdown) Blocks(Markdown.Parse(value, Pipeline), stack);
         else stack.Children.Add(Plain(value));
-        Content = stack;
-        HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
-        VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        scroller.Content = stack;
     }
     TextBlock Plain(string value) => new() { Text = value, IsTextSelectionEnabled = true,
         FontFamily = FontFamily, FontSize = FontSize, TextWrapping = TextWrapping.Wrap };
