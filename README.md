@@ -9,11 +9,11 @@
 
 适用于 **Windows 10 / 11，x64**。
 
-1. 双击 Benson 提供的 `BensonMail-Windows-x64-Setup-<版本号>.exe`。
+1. 从 [GitHub Releases](https://github.com/Benson-YiYan/benson-mail-assistant-windows/releases/latest) 下载 `BensonMail-Windows-x64-Setup-<版本号>.exe`，然后双击运行。
 2. 按向导选择安装位置，并选择需要的桌面、开始菜单快捷方式。
 3. 安装后打开“邮件小秘书”。完成页可选择删除本次下载的安装程序。
 
-目前没有公开安装包下载页。已安装用户可在软件内点击“检查更新”。版本号按打包时的北京时间生成，格式为“年月日时分”。
+仓库目前为私有，需要登录获授权的 GitHub 账号才能下载。已安装用户也可在软件内点击“检查更新”。版本号按打包时的北京时间生成，格式为“年月日时分”。Release 附带 `SHA256SUMS.txt`，可用于核对安装包完整性。
 
 **无需另装 Python、.NET 或 WinUI，也无需打开命令行。API 模式无需安装 Codex。** 当前安装包未做发布者代码签名；遇到 Windows 提示时，请先核对文件来源。
 
