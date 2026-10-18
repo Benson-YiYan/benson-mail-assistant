@@ -161,6 +161,15 @@ def main():
             if number in (1, len(selections) - 1):
                 # A real executable from the installed product holds the application's mutex.
                 # Setup must wait for it, preserve selections and keep the same directory.
+                # Installer updates must leave existing configuration and generated reports byte-for-byte intact.
+                user_data = fixture / "user-data"; user_data.mkdir(exist_ok=True)
+                config_fixture = user_data / "config.json"
+                preserved_config = json.dumps({"fixture": "preserve-config", "ui_language": "en", "ai_provider": "api"}).encode()
+                config_fixture.write_bytes(preserved_config)
+                report_fixture = fixture / "saved-reports" / "original.txt"
+                report_fixture.parent.mkdir(exist_ok=True)
+                preserved_report = b"Synthetic existing report to retain"
+                report_fixture.write_bytes(preserved_report)
                 ready = fixture / f"update-parent-{number}.ready"
                 parent = subprocess.Popen([str(launcher), "--update-handoff-test", str(ready)],
                     cwd=tempfile.gettempdir(), creationflags=subprocess.CREATE_NO_WINDOW)
@@ -178,6 +187,9 @@ def main():
                     assert Path(registration()["InstallLocation"]).resolve() == program.resolve()
                     for task, path in links.items():
                         assert path.is_file() == (task in selected), f"Update changed shortcut selection: {task}"
+                    assert config_fixture.read_bytes() == preserved_config, "Update changed saved configuration"
+                    assert report_fixture.read_bytes() == preserved_report, "Update changed existing reports"
+                    checks.append(f"In-app update preserves configuration and generated report bytes for {label} choices")
                     checks.append(f"In-app update waits for native parent/mutex, preserves installation directory and {label} shortcut choices")
                 finally:
                     if parent.poll() is None:

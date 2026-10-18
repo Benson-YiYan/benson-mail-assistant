@@ -109,6 +109,7 @@ Filename: "{app}\MailWorker.exe"; Parameters: "--delete-installer ""{srcexe}"" -
 [Code]
 var
   PreviousInstallDirectory: String;
+  TaskDefaultsApplied: Boolean;
 
 function GetCurrentProcessId: LongWord;
   external 'GetCurrentProcessId@kernel32.dll stdcall';
@@ -225,7 +226,7 @@ begin
         (CompareText(Directory, RemoveBackslashUnlessRoot(PreviousInstallDirectory)) = 0)));
     Log('Shortcut owned=' + IntToStr(Ord(Result)));
   except
-    Log('Preserving an unreadable shortcut: ' + Filename);
+    Log('Preserving an unreadable shortcut: ' + Filename + '; ' + GetExceptionMessage);
   end;
 end;
 
@@ -263,11 +264,13 @@ begin
   end;
 end;
 
-procedure InitializeWizard;
+procedure ApplyPreviousTaskDefaults;
 var
   DesktopApp, DesktopUninstall, StartApp, StartUninstall: Boolean;
   Tasks: String;
 begin
+  if TaskDefaultsApplied then Exit;
+  TaskDefaultsApplied := True;
   if (ExpandConstant('{param:UPDATE|0}') <> '1') and
     not FileExists(AddBackslash(WizardDirValue) + '.benson-installed.json') then Exit;
   if ExpandConstant('{param:TASKS|__unspecified__}') <> '__unspecified__' then Exit;
@@ -275,15 +278,24 @@ begin
   FindPreviousTasks(ExpandConstant('{userdesktop}'), True, DesktopApp, DesktopUninstall);
   FindPreviousTasks(ExpandConstant('{userprograms}'), False, StartApp, StartUninstall);
   Tasks := '';
-  if not DesktopApp then Tasks := Tasks + '!';
-  Tasks := Tasks + 'desktopapp,';
-  if not DesktopUninstall then Tasks := Tasks + '!';
-  Tasks := Tasks + 'desktopuninstall,';
-  if not StartApp then Tasks := Tasks + '!';
-  Tasks := Tasks + 'startapp,';
-  if not StartUninstall then Tasks := Tasks + '!';
-  Tasks := Tasks + 'startuninstall';
-  WizardSelectTasks(Tasks);
+  if DesktopApp then Tasks := Tasks + 'desktopapp,';
+  if DesktopUninstall then Tasks := Tasks + 'desktopuninstall,';
+  if StartApp then Tasks := Tasks + 'startapp,';
+  if StartUninstall then Tasks := Tasks + 'startuninstall,';
+  if Length(Tasks) > 0 then SetLength(Tasks, Length(Tasks) - 1);
+  { Apply after Inno has populated defaults. WizardSelectTasks expects selected names, not command-line ! exclusions. }
+  if not WizardSelectTasks(Tasks) then RaiseException('Unable to restore existing shortcut choices.');
+  if (WizardIsTaskSelected('desktopapp') <> DesktopApp) or
+    (WizardIsTaskSelected('desktopuninstall') <> DesktopUninstall) or
+    (WizardIsTaskSelected('startapp') <> StartApp) or
+    (WizardIsTaskSelected('startuninstall') <> StartUninstall) then
+      RaiseException('The existing shortcut choices could not be preserved.');
+  Log('Restored shortcut choices: ' + Tasks);
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if CurPageID = wpSelectTasks then ApplyPreviousTaskDefaults;
 end;
 
 procedure RemoveOldShortcuts(const Directory: String);
@@ -374,6 +386,7 @@ end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
+  ApplyPreviousTaskDefaults;
   Result := InstallDirectoryError;
 end;
 
