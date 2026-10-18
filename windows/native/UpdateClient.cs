@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace BensonMail;
 
-sealed record UpdateRelease(string Version, Uri Url, string Sha256, string Notes, long? Size = null);
+sealed record UpdateRelease(string Version, Uri Url, string Sha256, string Notes, long? Size = null, IReadOnlyList<Uri>? Mirrors = null);
 
 sealed class UpdateClient
 {
@@ -72,7 +72,18 @@ sealed class UpdateClient
                 throw new InvalidDataException("Invalid update package size.");
             size = length;
         }
-        return new(version, url, sha.ToLowerInvariant(), notes.Length <= 8000 ? notes : notes[..8000], size);
+        var mirrors = new List<Uri>();
+        if (release.TryGetProperty("mirrors", out var mirrorValues)) {
+            if (mirrorValues.ValueKind != JsonValueKind.Array || mirrorValues.GetArrayLength() > 3)
+                throw new InvalidDataException("Invalid update mirrors.");
+            foreach (var value in mirrorValues.EnumerateArray()) {
+                if (value.ValueKind != JsonValueKind.String || !Uri.TryCreate(value.GetString(), UriKind.Absolute, out var mirror))
+                    throw new InvalidDataException("Invalid update mirror URL.");
+                UpdateDownload.ValidateUrl(mirror);
+                if (mirror != url && !mirrors.Contains(mirror)) mirrors.Add(mirror);
+            }
+        }
+        return new(version, url, sha.ToLowerInvariant(), notes.Length <= 8000 ? notes : notes[..8000], size, mirrors);
     }
     internal async Task<UpdateRelease?> Check(bool manual)
     {
@@ -110,6 +121,14 @@ sealed class UpdateClient
             "Localized release notes follow Chinese and English UI language");
         Check(Parse(bilingual.Replace("\"en\":\"English notes\"", "\"other\":\"English notes\""), "en").Notes == "中文说明",
             "Missing localized notes fall back to the available language");
+        var mirrored = bilingual.Replace("\"sha256\":", "\"mirrors\":[\"https://mirror.example.invalid/a.exe\",\"https://mirror.example.invalid/a.exe\"],\"sha256\":");
+        Check(Parse(mirrored).Mirrors is { Count: 1 } && Parse(bilingual).Mirrors is { Count: 0 },
+            "Optional HTTPS mirrors are deduplicated while manifests without mirrors keep their canonical source");
+        foreach (var badMirror in new[] { "http://unsafe.invalid/a.exe", "https://user:secret@example.invalid/a.exe", "https://mirror.invalid/a.exe#fragment" }) {
+            try { Parse(mirrored.Replace("https://mirror.example.invalid/a.exe", badMirror)); throw new Exception("Unsafe mirror accepted"); }
+            catch (InvalidDataException) { }
+        }
+        Check(true, "Mirror URLs require the same strict HTTPS, no-credentials and no-fragment rules as the primary source");
         var time = new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.Zero); var calls = 0;
         var path = Path.Combine(folder, "updates.json");
         Task<string> Fetch() { calls++; return Task.FromResult(Manifest("209910180900")); }

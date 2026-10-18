@@ -72,11 +72,17 @@ sealed class UpdateDownloadView : IDisposable
         try {
             var progress = new Progress<DownloadProgress>(value => {
                 if (!reportProgress || token.IsCancellationRequested) return;
+                if (value.Probing) {
+                    Bar.IsIndeterminate = true;
+                    Status.Text = L.T("正在比较下载线路…");
+                    return;
+                }
                 Bar.IsIndeterminate = !value.Total.HasValue;
                 if (value.Total is > 0) Bar.Value = value.Bytes * 100.0 / value.Total.Value;
                 var amount = (value.Bytes / 1048576.0).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
                 var total = value.Total.HasValue ? " / " + (value.Total.Value / 1048576.0).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) : "";
-                Status.Text = L.T("已下载：") + amount + total + " MB";
+                Status.Text = (value.SourceHost == null ? "" : L.T("下载线路：") + value.SourceHost + "\n") +
+                    L.T("已下载：") + amount + total + " MB";
             });
             Verified = await download.Download(release, progress, token);
             reportProgress = false;

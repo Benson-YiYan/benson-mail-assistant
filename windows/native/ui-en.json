@@ -574,7 +574,9 @@
     "已取消安装等待，可以继续使用邮件小秘书。": "Installation cancelled. You can continue using Mail Secretary.",
     "正在取消安装等待…": "Cancelling installation wait…",
     "当前使用自定义登录用户名：": "Custom login username in use: ",
-    "修改邮箱地址不会更改此登录名；请在“高级连接选项”中确认。": "Changing the email address does not change this login. Review it in Advanced connection options."
+    "修改邮箱地址不会更改此登录名；请在“高级连接选项”中确认。": "Changing the email address does not change this login. Review it in Advanced connection options.",
+    "正在比较下载线路…": "Comparing download sources…",
+    "下载线路：": "Download source: "
   },
   "templates": [
     {
