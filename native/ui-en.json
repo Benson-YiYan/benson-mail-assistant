@@ -522,10 +522,11 @@
     "文件": "File",
     "操作失败，请检查设置与文件权限。": "Operation failed. Check settings and file permissions.",
     "新报告使用所选界面语言，六项分析要求保持一致。无新邮件不调用 AI；手动测试连接会发送一条简短测试消息，可能消耗少量 Token。": "New reports use the selected interface language with the same six analysis requirements. No new mail means no AI calls. A manual connection test sends a short message and may use a few tokens.",
-    "如何获取授权码？": "How do I get an authorization code?",
+    "如何获取授权码？": "Authorization code help",
     "无法打开邮箱设置教程，请重新安装邮件小秘书。": "Cannot open the email setup guide. Please reinstall Mail Secretary.",
-    "获取 OAuth2 Token": "Get OAuth2 Token",
-    "无法打开 OAuth2 获取工具，请重新安装邮件小秘书。": "Unable to open the OAuth2 helper. Please reinstall Mail Secretary."
+    "无法打开 OAuth2 获取工具，请重新安装邮件小秘书。": "Unable to open the OAuth2 helper. Please reinstall Mail Secretary.",
+    "获取微软 OAuth2 Token": "Get Microsoft OAuth2 Token",
+    "仅适用于 Outlook / Microsoft 365": "For Outlook / Microsoft 365 only"
   },
   "templates": [
     {

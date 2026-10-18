@@ -610,7 +610,10 @@ sealed class MainWindow : Window
     static string OAuthTokenPath => Path.Combine(AppContext.BaseDirectory, "Get-Outlook-Token.bat");
     Button OAuthTokenButton(ComboBox authentication)
     {
-        var button = Action(L.T("获取 OAuth2 Token"), OpenOAuthToken);
+        var button = Action(L.T("获取微软 OAuth2 Token"), OpenOAuthToken);
+        button.MaxWidth = 220;
+        button.Content = Stack(new TextBlock { Text = L.T("获取微软 OAuth2 Token"), MaxWidth = 180, TextWrapping = TextWrapping.Wrap },
+            new TextBlock { Text = L.T("仅适用于 Outlook / Microsoft 365"), MaxWidth = 180, TextWrapping = TextWrapping.Wrap, FontSize = 11, Opacity = .7 });
         void Update() => button.Visibility = authentication.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
         authentication.SelectionChanged += (_, _) => Update();
         Update();
@@ -867,6 +870,10 @@ sealed class MainWindow : Window
             if (tokenButton.Visibility != Visibility.Visible) throw new InvalidOperationException("First-run custom OAuth2 token helper missing");
             presetChoice.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "outlook");
             if (authentication.SelectedIndex != 1 || tokenButton.Visibility != Visibility.Visible) throw new InvalidOperationException("First-run Outlook token helper missing");
+            dialog.UpdateLayout();
+            var tokenPosition = tokenButton.TransformToVisual(dialog).TransformPoint(new Windows.Foundation.Point(0, 0));
+            if (tokenPosition.X < 0 || tokenPosition.X + tokenButton.ActualWidth > dialog.ActualWidth + 1)
+                throw new InvalidOperationException("First-run OAuth2 helper clipped horizontally");
             Program.Trace("Passed: First-run password hides token tool; custom OAuth2 and Outlook expose token tool");
             Program.Trace("Passed: First-run provider picker includes custom IMAP and editable server/port");
             dialog.Hide();
@@ -1087,7 +1094,7 @@ sealed class MainWindow : Window
             Check(File.Exists(AccountGuidePath) && Path.GetFileName(AccountGuidePath) == "Mail-account-setup-zh.txt", "Chinese local account setup guide packaged and selected");
             await ChangeLanguage("en");
             Check(File.Exists(AccountGuidePath) && Path.GetFileName(AccountGuidePath) == "Mail-account-setup-en.txt", "English local account setup guide selected without opening editor");
-            Check(oauthTokenButton.Content?.ToString() == "Get OAuth2 Token", "OAuth2 helper label follows interface language");
+            Check(((TextBlock)((StackPanel)oauthTokenButton.Content).Children[0]).Text == "Get Microsoft OAuth2 Token", "OAuth2 helper label follows interface language");
             Check(Title == "Mail Secretary" && account.Header?.ToString() == "Email address" && languageChoice.Header?.ToString() == "Interface language" && savedMailboxes.Header?.ToString() == L.T("已添加的邮箱"), "English labels applied immediately");
             Check(preview.Text == rawPreview && account.Text == rawAccount && mailHost.Text == rawHost && model.Text == rawModel && folder.Text == rawFolder && running == wasRunning, "Language change preserves report text, inputs and monitoring state");
             config = await bridge.Call("config");
