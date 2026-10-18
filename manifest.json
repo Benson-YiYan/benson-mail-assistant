@@ -2,14 +2,14 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610181157",
-      "sha256": "fa3341ac37e93990c02146c88bf91a9d84e4ccffb7ff0a54d1c16fef51676721",
-      "size": 108736543,
+      "version": "202610181431",
+      "sha256": "871b636c5dd31380d1a4a90515644a05fca95884941111605e28fd3ac82eaf59",
+      "size": 108736274,
       "notes": {
-        "zh": "新增应用内下载更新、进度、取消及SHA256校验；运行中卸载先询问退出；覆盖安装保留原配置及快捷方式选择。报告改为Markdown（.md），原生预览支持标题、列表、表格和代码，兼容旧TXT。",
-        "en": "Adds in-app update downloads, progress, cancellation and SHA256 verification; uninstall asks before exiting a running app, and updates preserve settings and shortcut choices. Reports use Markdown (.md) with native formatted previews and legacy TXT compatibility."
+        "zh": "修复邮箱错误被通用文件权限提示隐藏的问题。显示脱敏的服务器响应、连接阶段及异常类型，支持复制；登录后重新协商IMAP能力并发送客户端标识，改善163兼容。",
+        "en": "Shows sanitized mailbox server responses, connection stages and exception types instead of a generic file-permission error. Refreshes IMAP capabilities after login and sends client identification when supported."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181157.exe"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181431.exe"
     },
     "macos-arm64": {
       "version": "202610181158",
