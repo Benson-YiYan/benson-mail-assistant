@@ -523,7 +523,7 @@ sealed class MainWindow : Window
         aiSaveButton = Action(L.T("保存 AI 设置"), SaveAI);
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
         oauthTokenButton = OAuthTokenButton(mailAuth);
-        var advanced = Stack(mailUsername, mailFolder, mailAuth); advanced.Visibility = Visibility.Collapsed;
+        var advanced = Stack(mailUsername, mailLoginSummary, mailFolder, mailAuth); advanced.Visibility = Visibility.Collapsed;
         savedMailboxes.SelectionChanged += async (_, _) =>
         {
             if (changingLanguage || loadingMailboxes || savedMailboxes.SelectedIndex < 0) return;
@@ -554,7 +554,7 @@ sealed class MainWindow : Window
                         await Call("remove_mail", new { id = profile.GetProperty("id").GetString() }); await ReloadMailboxes();
                     }
                 })), Note(L.T("可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。")))),
-            Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailLoginSummary, mailHost, Row(mailPort, mailSecurity), mailSecret,
+            Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
                 Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), oauthTokenButton),
                 Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。")))),
@@ -756,13 +756,11 @@ sealed class MainWindow : Window
     }
     static void BindMailLogin(TextBox address, TextBox username, TextBlock summary)
     {
-        var previousAddress = address.Text.Trim();
-        address.TextChanged += (_, _) => {
-            // An explicitly repeated old default must not become a custom username after editing the address.
-            if (string.Equals(username.Text.Trim(), previousAddress, StringComparison.OrdinalIgnoreCase)) username.Text = "";
-            previousAddress = address.Text.Trim();
-            RefreshMailLogin(address, username, summary);
+        address.BeforeTextChanging += (_, _) => {
+            // Read the actual old Text synchronously: TextChanged may be queued until after a save.
+            if (string.Equals(username.Text.Trim(), address.Text.Trim(), StringComparison.OrdinalIgnoreCase)) username.Text = "";
         };
+        address.TextChanged += (_, _) => RefreshMailLogin(address, username, summary);
         username.TextChanged += (_, _) => RefreshMailLogin(address, username, summary);
         RefreshMailLogin(address, username, summary);
     }
@@ -945,10 +943,10 @@ sealed class MainWindow : Window
         };
         var error = Note(""); error.IsTextSelectionEnabled = true;
         var tokenButton = OAuthTokenButton(authentication);
-        var advanced = Stack(username, mailboxFolder, authentication); advanced.Visibility = Visibility.Collapsed;
+        var advanced = Stack(username, loginSummary, mailboxFolder, authentication); advanced.Visibility = Visibility.Collapsed;
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T("欢迎使用邮件小秘书"),
             PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T("稍后填写"),
-            Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, loginSummary, host, Row(port, encryption), secret,
+            Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), secret,
                 Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), tokenButton),
                 Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。")), error) } };
@@ -990,9 +988,10 @@ sealed class MainWindow : Window
             await SaveOnboarding();
             var savedCustom = await bridge.Call("config");
             if (savedCustom.GetProperty("username").GetString() != username.Text || loginSummary.Visibility != Visibility.Visible ||
-                !loginSummary.Text.Contains(username.Text) || advanced.Visibility != Visibility.Collapsed)
-                throw new InvalidOperationException("First-run save hid or changed the custom login");
-            Program.Trace("Passed: First-run actual address edits and saves follow the default login and preserve a visible custom login");
+                !loginSummary.Text.Contains(username.Text) || advanced.Visibility != Visibility.Collapsed ||
+                !ReferenceEquals(username.Parent, advanced) || !ReferenceEquals(loginSummary.Parent, advanced))
+                throw new InvalidOperationException("First-run save lost the custom login or moved it outside collapsed advanced options");
+            Program.Trace("Passed: First-run edits and saves follow the default login and preserve custom login inside collapsed advanced options");
             authentication.SelectedIndex = 0;
             if (tokenButton.Visibility != Visibility.Collapsed) throw new InvalidOperationException("First-run token helper visible for password login");
             authentication.SelectedIndex = 1;
@@ -1143,8 +1142,10 @@ sealed class MainWindow : Window
             var savedCustomLogin = await bridge.Call("config");
             Check(savedCustomLogin.GetProperty("username").GetString() == "DOMAIN\\custom-user" &&
                 mailUsername.Text == "DOMAIN\\custom-user" && mailLoginSummary.Visibility == Visibility.Visible &&
-                mailLoginSummary.Text.Contains("DOMAIN\\custom-user"),
-                "Native address edit and Save preserve the distinct custom login and show it outside advanced options");
+                mailLoginSummary.Text.Contains("DOMAIN\\custom-user") &&
+                mailUsername.Parent is StackPanel { Visibility: Visibility.Collapsed } loginAdvanced &&
+                ReferenceEquals(mailLoginSummary.Parent, loginAdvanced),
+                "Native edit and Save preserve custom login inside collapsed advanced options");
             savedMailboxes.SelectedIndex = 0;
             var loginSwitchDeadline = DateTime.UtcNow.AddSeconds(3);
             while (account.Text != "first@example.invalid" && DateTime.UtcNow < loginSwitchDeadline) await Task.Delay(25);
@@ -1154,7 +1155,7 @@ sealed class MainWindow : Window
             loginSwitchDeadline = DateTime.UtcNow.AddSeconds(3);
             while (account.Text != "edited-custom@example.invalid" && DateTime.UtcNow < loginSwitchDeadline) await Task.Delay(25);
             Check(account.Text == "edited-custom@example.invalid" && mailUsername.Text == "DOMAIN\\custom-user" && mailLoginSummary.Visibility == Visibility.Visible,
-                "Returning to the custom-login profile restores its own visible login");
+                "Returning to the custom-login profile restores its own login in advanced options");
             var loginTestLanguage = L.Code;
             await ChangeLanguage("en");
             Check(mailLoginSummary.Text.StartsWith("Custom login username in use: ", StringComparison.Ordinal) &&
