@@ -203,6 +203,7 @@ sealed class MainWindow : Window
     readonly TextBox mailHost = new() { Header = L.T("IMAP 收件服务器"), Text = "imap.163.com" };
     readonly TextBox mailPort = new() { Header = L.T("端口"), Text = "993" };
     readonly ComboBox mailSecurity = new() { Header = L.T("连接加密"), HorizontalAlignment = HorizontalAlignment.Stretch };
+    Button oauthTokenButton = null!;
     readonly ComboBox mailAuth = new() { Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly TextBox mailUsername = new() { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址") };
     readonly TextBox mailFolder = new() { Header = L.T("邮件文件夹"), Text = "INBOX" };
@@ -487,6 +488,7 @@ sealed class MainWindow : Window
         mailSaveButton = Action(L.T("保存邮箱设置"), SaveMail);
         aiSaveButton = Action(L.T("保存 AI 设置"), SaveAI);
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        oauthTokenButton = OAuthTokenButton(mailAuth);
         var advanced = Stack(mailUsername, mailFolder, mailAuth); advanced.Visibility = Visibility.Collapsed;
         savedMailboxes.SelectionChanged += async (_, _) =>
         {
@@ -517,7 +519,7 @@ sealed class MainWindow : Window
                     }
                 })), Note(L.T("可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。")))),
             Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
-                Action(L.T("如何获取授权码？"), OpenAccountGuide),
+                Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), oauthTokenButton),
                 Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。")))),
             Card(Stack(Heading(L.T("报告与后台运行")), folder, Action(L.T("浏览……"), PickFolder), startup,
@@ -604,6 +606,21 @@ sealed class MainWindow : Window
         {
             if (initialized && !exitRequested) { searchTimer.Stop(); searchTimer.Start(); }
         };
+    }
+    static string OAuthTokenPath => Path.Combine(AppContext.BaseDirectory, "Get-Outlook-Token.bat");
+    Button OAuthTokenButton(ComboBox authentication)
+    {
+        var button = Action(L.T("获取 OAuth2 Token"), OpenOAuthToken);
+        void Update() => button.Visibility = authentication.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
+        authentication.SelectionChanged += (_, _) => Update();
+        Update();
+        return button;
+    }
+    static Task OpenOAuthToken()
+    {
+        if (!File.Exists(OAuthTokenPath)) throw new FileNotFoundException(L.T("无法打开 OAuth2 获取工具，请重新安装邮件小秘书。"));
+        Process.Start(new ProcessStartInfo(OAuthTokenPath) { UseShellExecute = true, Arguments = L.Code });
+        return Task.CompletedTask;
     }
     static string AccountGuidePath => Path.Combine(AppContext.BaseDirectory, "Mail-account-setup-" + L.Code + ".txt");
     static Task OpenAccountGuide()
@@ -812,11 +829,12 @@ sealed class MainWindow : Window
             authentication.SelectedIndex = preset.TryGetProperty("mail_auth", out var auth) && auth.GetString() == "oauth2" ? 1 : 0;
         };
         var error = Note("");
+        var tokenButton = OAuthTokenButton(authentication);
         var advanced = Stack(username, mailboxFolder, authentication); advanced.Visibility = Visibility.Collapsed;
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T("欢迎使用邮件小秘书"),
             PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T("稍后填写"),
             Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), secret,
-                Action(L.T("如何获取授权码？"), OpenAccountGuide),
+                Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), tokenButton),
                 Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。")), error) } };
         dialog.PrimaryButtonClick += async (_, e) =>
@@ -843,6 +861,13 @@ sealed class MainWindow : Window
             if (presetChoice.SelectedIndex < 0 || !host.IsLoaded || !port.IsLoaded ||
                 host.Text != "imap.first-run.example.invalid")
                 throw new InvalidOperationException("First-run custom mailbox configuration unavailable");
+            authentication.SelectedIndex = 0;
+            if (tokenButton.Visibility != Visibility.Collapsed) throw new InvalidOperationException("First-run token helper visible for password login");
+            authentication.SelectedIndex = 1;
+            if (tokenButton.Visibility != Visibility.Visible) throw new InvalidOperationException("First-run custom OAuth2 token helper missing");
+            presetChoice.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "outlook");
+            if (authentication.SelectedIndex != 1 || tokenButton.Visibility != Visibility.Visible) throw new InvalidOperationException("First-run Outlook token helper missing");
+            Program.Trace("Passed: First-run password hides token tool; custom OAuth2 and Outlook expose token tool");
             Program.Trace("Passed: First-run provider picker includes custom IMAP and editable server/port");
             dialog.Hide();
         }
@@ -953,12 +978,18 @@ sealed class MainWindow : Window
             Check(account.Text == "second@example.invalid" && mailHost.Text == "imap.second.invalid",
                 "Selecting a different saved mailbox loads its own connection without overwriting the other account");
             var savedPreset = mailProvider.SelectedIndex;
+            Check(File.Exists(OAuthTokenPath) && File.Exists(Path.Combine(AppContext.BaseDirectory, "Get-Outlook-Token.ps1")), "Interactive OAuth2 helper BAT and PowerShell script packaged without contacting Microsoft");
+            mailAuth.SelectedIndex = 0;
+            Check(oauthTokenButton.Visibility == Visibility.Collapsed, "Password login hides OAuth2 token helper");
+            mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "outlook");
+            Check(mailAuth.SelectedIndex == 1 && oauthTokenButton.Visibility == Visibility.Visible, "Outlook preset exposes token helper");
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "qq");
             Check(mailHost.Text == "imap.qq.com" && mailPort.Text == "993", "QQ preset fills editable TLS server settings");
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "custom");
             mailHost.Text = "imap.example.invalid"; mailPort.Text = "1993";
             mailUsername.Text = "synthetic-login"; mailFolder.Text = "Archive";
             mailSecurity.SelectedIndex = 1; mailAuth.SelectedIndex = 1;
+            Check(oauthTokenButton.Visibility == Visibility.Visible, "Custom OAuth2 connection exposes token helper");
             Check(mailHost.Text == "imap.example.invalid" && mailPort.Text == "1993" && mailFolder.Text == "Archive",
                 "Custom host port encryption login username folder and OAuth2 controls accept configuration");
             mailProvider.SelectedIndex = savedPreset;
@@ -1056,6 +1087,7 @@ sealed class MainWindow : Window
             Check(File.Exists(AccountGuidePath) && Path.GetFileName(AccountGuidePath) == "Mail-account-setup-zh.txt", "Chinese local account setup guide packaged and selected");
             await ChangeLanguage("en");
             Check(File.Exists(AccountGuidePath) && Path.GetFileName(AccountGuidePath) == "Mail-account-setup-en.txt", "English local account setup guide selected without opening editor");
+            Check(oauthTokenButton.Content?.ToString() == "Get OAuth2 Token", "OAuth2 helper label follows interface language");
             Check(Title == "Mail Secretary" && account.Header?.ToString() == "Email address" && languageChoice.Header?.ToString() == "Interface language" && savedMailboxes.Header?.ToString() == L.T("已添加的邮箱"), "English labels applied immediately");
             Check(preview.Text == rawPreview && account.Text == rawAccount && mailHost.Text == rawHost && model.Text == rawModel && folder.Text == rawFolder && running == wasRunning, "Language change preserves report text, inputs and monitoring state");
             config = await bridge.Call("config");
