@@ -105,6 +105,12 @@ sealed class UpdateDownload : IDisposable
         internal FixtureHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> fixture) { this.fixture = fixture; }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) => fixture(request, token);
     }
+    sealed class InlineProgress : IProgress<DownloadProgress>
+    {
+        readonly Action<DownloadProgress> action;
+        internal InlineProgress(Action<DownloadProgress> action) { this.action = action; }
+        public void Report(DownloadProgress value) => action(value);
+    }
     internal static async Task<string[]> OfflineTests(string folder)
     {
         var checks = new List<string>();
@@ -132,6 +138,14 @@ sealed class UpdateDownload : IDisposable
         using var waiting = new UpdateDownload(cache, new FixtureHandler(async (r, token) => { cancel.Cancel(); await Task.Delay(1000, token); return Response(r); }));
         try { await waiting.Download(release, null, cancel.Token); throw new Exception("Cancellation ignored"); } catch (OperationCanceledException) { }
         Check(Directory.GetFiles(cache, "*.part").Length == 0, "Cancelled update removes partial files and does not execute anything");
+        using var bodyCancel = new CancellationTokenSource();
+        long partialBytes = 0;
+        try {
+            await download.Download(release, new InlineProgress(value => { partialBytes = value.Bytes; bodyCancel.Cancel(); }), bodyCancel.Token);
+            throw new Exception("Streaming cancellation ignored");
+        } catch (OperationCanceledException) { }
+        Check(partialBytes > 0 && Directory.GetFiles(cache, "*.part").Length == 0,
+            "Cancellation after body bytes have been written removes the incomplete partial installer");
         try { await download.Download(release with { Size = bytes.Length + 1 }, null, default); throw new Exception("Wrong declared size accepted"); } catch (InvalidDataException) { }
         Check(Directory.GetFiles(cache, "*.part").Length == 0, "Manifest package length is checked against headers and streamed bytes");
         var retry = await download.Download(release, null, default);

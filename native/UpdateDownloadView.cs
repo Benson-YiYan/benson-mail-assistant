@@ -80,6 +80,9 @@ sealed class UpdateDownloadView : IDisposable
     internal async Task Install()
     {
         if (Verified == null || Busy || !InstallButton.IsEnabled) return;
+        if (cancellation == null || cancellation.IsCancellationRequested) {
+            cancellation?.Dispose(); cancellation = new();
+        }
         InstallButton.IsEnabled = false;
         CancelButton.Content = L.T("取消等待"); CancelButton.Visibility = Visibility.Visible;
         Status.Text = L.T("正在确认当前邮件任务已完成…");
@@ -137,6 +140,6 @@ sealed class UpdateDownloadView : IDisposable
         finally { view.Cancel(); if (view.ActiveTask != null) await view.ActiveTask; dialog.Hide(); await showing; }
         return checks.ToArray();
     }
-    internal void Cancel() { cancellation?.Cancel(); }
+    internal void Cancel() { cancellation?.Cancel(); if (Verified != null && !InstallButton.IsEnabled) Status.Text = L.T("正在取消安装等待…"); }
     public void Dispose() { cancellation?.Dispose(); download.Dispose(); }
 }

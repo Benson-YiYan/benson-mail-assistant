@@ -571,7 +571,8 @@
     "邮件小秘书正在检查或分析邮件，请等当前任务完成后重试。没有中断任务，也没有删除文件。": "Mail Secretary is checking or analyzing email. Please retry after the current task finishes. The task was not interrupted and no files were deleted.",
     "取消等待": "Cancel waiting",
     "正在确认当前邮件任务已完成…": "Checking that current email tasks have finished…",
-    "已取消安装等待，可以继续使用邮件小秘书。": "Installation cancelled. You can continue using Mail Secretary."
+    "已取消安装等待，可以继续使用邮件小秘书。": "Installation cancelled. You can continue using Mail Secretary.",
+    "正在取消安装等待…": "Cancelling installation wait…"
   },
   "templates": [
     {
