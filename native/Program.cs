@@ -1062,8 +1062,12 @@ sealed class MainWindow : Window
         {
             Check(AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized },
                 "Main window starts maximized with the standard window presenter");
+            Program.Trace("Begin offline update transport and stream tests");
             checks.AddRange(await UpdateClient.OfflineTests(fixture!));
+            Program.Trace("Offline update transport and stream tests passed");
+            Program.Trace("Begin native update dialog tests");
             checks.AddRange(await UpdateDownloadView.OfflineUITests(layout.XamlRoot, fixture!));
+            Program.Trace("Native update dialog tests passed");
             Check(UpdateClient.InstalledVersion.Length == 12 && File.Exists(Path.Combine(AppContext.BaseDirectory, "build-version.txt")), "Installed update version comes from actual timestamped build");
             var localRuntime = false;
             var localWinUI = false;

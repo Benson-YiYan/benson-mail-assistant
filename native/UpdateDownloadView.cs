@@ -112,17 +112,21 @@ sealed class UpdateDownloadView : IDisposable
             requests++; await Task.Delay(350, token);
             return new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new ByteArrayContent(bytes) };
         });
+        Program.Trace("Update fixture constructing controls");
         using var view = new UpdateDownloadView(release, new UpdateDownload(Path.Combine(folder, "update-ui-cache"), handler), (verified, _) => { launches++; return Task.CompletedTask; });
         var dialog = new ContentDialog { XamlRoot = root, Title = "Synthetic in-app update test", Content = view.Content, CloseButtonText = L.T("稍后") };
+        Program.Trace("Update fixture showing dialog");
         var showing = dialog.ShowAsync();
         await Task.Delay(100);
         try {
+            Program.Trace("Update fixture starting cancellation case");
             view.BeginDownload(); view.BeginDownload();
             Check(view.Busy && !view.DownloadButton.IsEnabled && view.CancelButton.Visibility == Visibility.Visible && view.InstallButton.Visibility == Visibility.Collapsed,
                 "Native download UI stays responsive and disables duplicate downloads; installation is hidden before SHA256 verification");
             await Task.Delay(30); view.Cancel(); await view.ActiveTask!;
             Check(view.Verified == null && launches == 0 && view.DownloadButton.IsEnabled,
                 "Native Cancel restores Retry without launching any file");
+            Program.Trace("Update fixture starting success case");
             view.BeginDownload(); await view.ActiveTask!;
             Check(view.Verified != null && view.Bar.Value == 100 && view.InstallButton.Visibility == Visibility.Visible && launches == 0 && requests == 2,
                 "Native retry finishes with verified-install action; download completion never executes installer");
@@ -130,14 +134,16 @@ sealed class UpdateDownloadView : IDisposable
             Check(!info.UseShellExecute && info.CreateNoWindow && info.FileName == view.Verified!.Path &&
                 info.ArgumentList.Contains(@"/DIR=C:\Users\Fixture User\BensonMail") && info.ArgumentList.Contains("/UPDATEPID=12345") && info.ArgumentList.Contains("/LANG=english"),
                 "Install handoff directly starts the verified native Setup with original directory, language and wait-for-parent arguments; no cmd");
+            Program.Trace("Update fixture explicit install action");
             await view.Install();
             Check(launches == 1, "Only explicit Install action invokes an injected installer callback; test never executes fixture payloads");
             File.AppendAllText(view.Verified!.Path, "changed");
+            Program.Trace("Update fixture explicit install action");
             await view.Install();
             Check(launches == 1 && view.Verified == null && view.InstallButton.Visibility == Visibility.Collapsed,
                 "Package changed after download is rejected by native install action before launch");
         }
-        finally { view.Cancel(); if (view.ActiveTask != null) await view.ActiveTask; dialog.Hide(); await showing; }
+        finally { Program.Trace("Update fixture hiding dialog"); view.Cancel(); if (view.ActiveTask != null) await view.ActiveTask; dialog.Hide(); await showing; }
         return checks.ToArray();
     }
     internal void Cancel() { cancellation?.Cancel(); if (Verified != null && !InstallButton.IsEnabled) Status.Text = L.T("正在取消安装等待…"); }
