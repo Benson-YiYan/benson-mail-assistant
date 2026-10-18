@@ -10,6 +10,7 @@ namespace BensonMail;
 
 static class UpdateInstall
 {
+    static Process? pendingInstaller;
     internal static string Cache => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail", "update-cache");
     internal static ProcessStartInfo StartInfo(VerifiedUpdate update, string installDirectory, string language, int pid,
         string? statusPath = null, string? logPath = null)
@@ -29,8 +30,12 @@ static class UpdateInstall
         return start;
     }
     internal static async Task<Process> Start(VerifiedUpdate update, string installDirectory, string language, int pid,
-        CancellationToken cancellation, bool fixture = false)
+        CancellationToken cancellation, bool fixture = false, Action? started = null, string? fixtureRelaunch = null)
     {
+        if (pendingInstaller != null) {
+            if (!pendingInstaller.HasExited) throw new InvalidOperationException(L.T("安装已经开始，无法确认取消。请等待安装程序结束，查看日志后再重试。"));
+            pendingInstaller.Dispose(); pendingInstaller = null;
+        }
         await UpdateDownload.VerifyBeforeInstall(update, cancellation);
         var directory = Path.GetDirectoryName(update.Path)!;
         Directory.CreateDirectory(directory);
@@ -39,9 +44,17 @@ static class UpdateInstall
         var log = Path.Combine(directory, stem + ".log");
         File.WriteAllText(Path.Combine(directory, "last-install-attempt.json"), JsonSerializer.Serialize(new { version = update.Release.Version, status, log }));
         var info = StartInfo(update, installDirectory, language, pid, status, log);
-        if (fixture) { info.ArgumentList.Add("/UPDATENORELAUNCH=1"); info.ArgumentList.Add("/SUPPRESSMSGBOXES"); }
+        if (fixture) {
+            info.ArgumentList.Add("/SUPPRESSMSGBOXES");
+            if (fixtureRelaunch == null) info.ArgumentList.Add("/UPDATENORELAUNCH=1");
+            else info.ArgumentList.Add("/UPDATEFIXTURERESULT=" + fixtureRelaunch);
+            if (started != null) info.ArgumentList.Add("/UPDATEFIXTUREACKDELAY=1000");
+        }
         var process = Process.Start(info) ?? throw new IOException(L.T("安装程序未能启动，请重试。"));
+        pendingInstaller = process;
         try {
+            File.WriteAllText(Path.Combine(directory, "last-install-attempt.json"), JsonSerializer.Serialize(new { version = update.Release.Version, status, log, pid = process.Id }));
+            started?.Invoke();
             var deadline = DateTime.UtcNow.AddSeconds(20);
             while (DateTime.UtcNow < deadline) {
                 cancellation.ThrowIfCancellationRequested();
@@ -49,7 +62,7 @@ static class UpdateInstall
                     string response;
                     try { response = File.ReadAllText(status).Trim(); }
                     catch (IOException) { await Task.Delay(100, cancellation); continue; }
-                    if (response.Replace("\r\n", "\n") == "ready\n" + update.Release.Version) return process;
+                    if (response.Replace("\r\n", "\n") == "ready\n" + update.Release.Version) { pendingInstaller = null; return process; }
                     if (response.StartsWith("failed", StringComparison.Ordinal)) throw new InvalidOperationException(response + "\n" + L.T("安装日志：") + log);
                 }
                 if (process.HasExited) throw new InvalidOperationException(L.T("安装程序提前退出，尚未开始更新。退出代码：") + process.ExitCode + "\n" + L.T("安装日志：") + log);
@@ -57,7 +70,31 @@ static class UpdateInstall
             }
             throw new TimeoutException(L.T("安装程序在20秒内未确认启动，当前应用将继续运行。请检查系统安全提示后重试。") + "\n" + L.T("安装日志：") + log);
         }
-        catch { process.Dispose(); throw; }
+        catch {
+            // The parent is still running, so Setup has not committed to replacing files.
+            // Persist cancellation before waiting, including when Windows delays starting Setup.
+            try { File.WriteAllText(status + ".cancel", "cancel requested"); }
+            catch (IOException) { /* The owned installer is still stopped and awaited below. */ }
+            catch (UnauthorizedAccessException) { /* The owned installer is still stopped and awaited below. */ }
+            try {
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            catch (TimeoutException) {
+                // Terminate only this uncommitted installer tree, never email/AI or unrelated processes.
+                var current = File.Exists(status) ? File.ReadAllText(status) : "";
+                if (current.StartsWith("installing") || current.StartsWith("installed"))
+                    throw new InvalidOperationException(L.T("安装已经开始，无法确认取消。请等待安装程序结束，查看日志后再重试。") + log);
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            finally {
+                if (process.HasExited) { pendingInstaller = null; process.Dispose(); }
+            }
+            // Keep Setup rejection details; cancellation may not turn a failed install into success.
+            if (!File.Exists(status) || !File.ReadAllText(status).StartsWith("failed", StringComparison.Ordinal))
+                File.WriteAllText(status, "cancelled\nSetup exited before installation; cancellation remains recorded.");
+            throw;
+        }
     }
     internal static string PreviousOutcome()
     {
@@ -75,6 +112,14 @@ static class UpdateInstall
     }
     internal static bool Fixture(string[] args)
     {
+        var relaunch = Array.IndexOf(args, "--update-relaunch-fixture");
+        if (relaunch >= 0) {
+            var root = Directory.GetParent(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory))!.FullName;
+            var result = Path.GetFullPath(args[relaunch + 1]);
+            if (!File.Exists(Path.Combine(root, ".benson-uninstall-fixture")) || result != Path.Combine(root, "relaunch-result.json")) { Environment.ExitCode = 2; return true; }
+            File.WriteAllText(result, JsonSerializer.Serialize(new { version = UpdateClient.InstalledVersion, launcher = Environment.ProcessPath, pid = Environment.ProcessId }));
+            return true;
+        }
         var index = Array.IndexOf(args, "--install-update-fixture");
         if (index < 0) return false;
         try {
@@ -87,10 +132,15 @@ static class UpdateInstall
             using var mutex = new Mutex(false, @"Local\BensonMail-" + Environment.UserName);
             var target = data.TryGetProperty("target", out var targetValue) ? targetValue.GetString()! : AppContext.BaseDirectory;
             if (Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(target))) != root) throw new InvalidOperationException("Fixture targets must stay inside the synthetic root.");
-            using var process = Start(verified, target, "en", Environment.ProcessId, CancellationToken.None, true).GetAwaiter().GetResult();
+            using var cancellation = new CancellationTokenSource();
+            var cancel = data.TryGetProperty("cancel", out var cancelValue) && cancelValue.GetBoolean();
+            var relaunchPath = data.TryGetProperty("relaunch", out var relaunchValue) ? relaunchValue.GetString() : null;
+            using var process = Start(verified, target, "en", Environment.ProcessId, cancellation.Token, true,
+                cancel ? () => cancellation.CancelAfter(100) : null, relaunchPath).GetAwaiter().GetResult();
             File.WriteAllText(data.GetProperty("result").GetString()!, JsonSerializer.Serialize(new { ok = true, parent = Environment.ProcessId, installer = process.Id }));
             Environment.ExitCode = 0;
         }
+        catch (OperationCanceledException) { Environment.ExitCode = 0; }
         catch (Exception error) { Console.Error.WriteLine(error); Environment.ExitCode = 2; }
         return true;
     }

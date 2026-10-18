@@ -61,8 +61,20 @@ def main():
         digest=hashlib.sha256(cached.read_bytes()).hexdigest()
         request=fixture/'request.json';result=fixture/'handoff.json'
         payload={'version':version,'sha256':digest,'installer':str(cached),'result':str(result)}
-        request.write_text(json.dumps(payload))
         launcher=program/'BensonMail-200001010000.exe'
+        # Cancel only after a real Setup process starts, while its acknowledgment is deliberately delayed.
+        request.write_text(json.dumps({**payload,'cancel':True}))
+        cancelled=subprocess.run([str(launcher),'--install-update-fixture',str(request)],timeout=35,creationflags=subprocess.CREATE_NO_WINDOW)
+        assert cancelled.returncode==0 and not result.exists(),'Cancelled handoff must not report success'
+        cancel_attempt=json.loads((cache/'last-install-attempt.json').read_text())
+        assert Path(cancel_attempt['status']).read_text().startswith('cancelled')
+        process_exit(cancel_attempt['pid'])
+        time.sleep(1)
+        assert (program/'build-version.txt').read_text().strip()=='200001010000','Cancelled update ran after its parent exited'
+        assert launcher.exists()
+        checks.append('Cancellation waits for the actual uncommitted Setup process to exit; later app exit does not install anything')
+        payload['relaunch']=str(fixture/'relaunch-result.json')
+        request.write_text(json.dumps(payload))
         parent=subprocess.Popen([str(launcher),'--install-update-fixture',str(request)],creationflags=subprocess.CREATE_NO_WINDOW)
         assert parent.wait(timeout=35)==0,'Production handoff did not receive Setup acknowledgment'
         assert json.loads(result.read_text())['ok']
@@ -74,6 +86,12 @@ def main():
         assert (program/'build-version.txt').read_text().strip()==version
         assert (program/f'BensonMail-{version}.exe').is_file()
         assert not launcher.exists(),'Old versioned executable was not replaced'
+        relaunch=fixture/'relaunch-result.json'
+        wait_until(relaunch.exists,30,'Setup did not reopen the newly installed executable')
+        reopened=json.loads(relaunch.read_text())
+        assert reopened['version']==version and Path(reopened['launcher']).resolve()==(program/f'BensonMail-{version}.exe').resolve()
+        assert process_exit(reopened['pid'])==0
+        checks.append('Real Setup relaunches the newly installed native executable; its actual build version is verified without loading any accounts')
         assert before==(config.read_bytes(),report.read_bytes()),'Update changed config or report bytes'
         log=Path(attempt['log']);shutil.copy2(log,evidence/'update-handoff-setup.log')
         assert 'Update handoff acknowledged' in log.read_text(encoding='utf-8-sig')

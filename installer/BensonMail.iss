@@ -102,7 +102,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\BensonM
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\BensonMail"; ValueType: dword; ValueName: "NoRepair"; ValueData: "1"
 
 [Run]
-Filename: "{app}\BensonMail-{#AppVersion}.exe"; Flags: nowait skipifnotsilent; Check: RelaunchUpdatedApplication
+Filename: "{app}\BensonMail-{#AppVersion}.exe"; Parameters: "{code:UpdateRelaunchArguments}"; Flags: nowait skipifnotsilent; Check: RelaunchUpdatedApplication
 Filename: "{app}\BensonMail-{#AppVersion}.exe"; Description: "{cm:RunApp}"; Flags: nowait postinstall skipifsilent
 
 Filename: "{app}\MailWorker.exe"; Parameters: "--delete-installer ""{srcexe}"" --setup-pid {code:SetupProcessId} --installer-sha256 {code:SetupFingerprint}"; Description: "{cm:DeleteInstaller}"; Flags: postinstall unchecked nowait skipifsilent runhidden
@@ -216,6 +216,15 @@ begin
   Result := RenameFile(Filename + '.tmp', Filename);
 end;
 
+function UpdateCancelled: Boolean;
+var
+  Filename: String;
+begin
+  Filename := ExpandConstant('{param:UPDATESTATUS|}');
+  Result := (Filename <> '') and FileExists(Filename + '.cancel');
+  if Result then WriteUpdateState('cancelled', 'Cancelled before installation / 安装前已取消。');
+end;
+
 function UpdateFailure(const Reason: String): Boolean;
 begin
   WriteUpdateState('failed', Reason);
@@ -226,7 +235,7 @@ end;
 
 function InitializeSetup: Boolean;
 var
-  ParentId, WaitResult, Size: LongWord;
+  ParentId, WaitResult, Size, Attempt: LongWord;
   Handle: THandle;
   ParentPath, RequestedDirectory, DirectoryError: String;
 begin
@@ -235,6 +244,7 @@ begin
   Result := True;
   if ExpandConstant('{param:UPDATE|0}') <> '1' then Exit;
   Result := False;
+  if UpdateCancelled then Exit;
   ParentId := StrToIntDef(ExpandConstant('{param:UPDATEPID|0}'), 0);
   if (ParentId = 0) or (ParentId = GetCurrentProcessId) then
   begin Result := UpdateFailure('Invalid application PID / 应用进程编号无效。'); Exit; end;
@@ -262,10 +272,20 @@ begin
     begin Result := UpdateFailure('Application executable name does not match / 应用程序名称不匹配。'); Exit; end;
     if CompareText(RemoveBackslashUnlessRoot(ExtractFileDir(ParentPath)), RequestedDirectory) <> 0 then
     begin Result := UpdateFailure('Application directory does not match update target / 正在运行的应用与更新目标目录不匹配。'); Exit; end;
+    if (ExpandConstant('{param:UPDATEFIXTUREACKDELAY|0}') = '1000') and
+      FileExists(AddBackslash(ExtractFileDir(RequestedDirectory)) + '.benson-uninstall-fixture') then Sleep(1000);
+    if UpdateCancelled then Exit;
     if not WriteUpdateState('ready', '{#AppVersion}') then
     begin Result := UpdateFailure('Cannot write update acknowledgment / 无法写入更新确认文件。'); Exit; end;
     Log('Update handoff acknowledged; waiting for matching application PID ' + IntToStr(ParentId));
-    WaitResult := WaitForSingleObject(Handle, 45000);
+    WaitResult := 258;
+    for Attempt := 1 to 450 do
+    begin
+      if UpdateCancelled then Exit;
+      WaitResult := WaitForSingleObject(Handle, 100);
+      if WaitResult <> 258 then Break;
+    end;
+    if UpdateCancelled then Exit;
     if WaitResult = 0 then Log('Update parent exited; installation can continue');
     Result := WaitResult = 0;
     if not Result then Result := UpdateFailure('Application did not finish closing within 45 seconds / 应用在45秒内未退出，请关闭后重试。');
@@ -279,6 +299,18 @@ begin
   Result := LoadStringsFromFile(ExpandConstant('{app}\build-version.txt'), Lines);
   if Result then Result := GetArrayLength(Lines) > 0;
   if Result then Result := Trim(Lines[0]) = '{#AppVersion}';
+end;
+
+function UpdateRelaunchArguments(Param: String): String;
+var
+  Filename, Parent: String;
+begin
+  Result := '';
+  Filename := ExpandConstant('{param:UPDATEFIXTURERESULT|}');
+  Parent := ExtractFileDir(RemoveBackslashUnlessRoot(ExpandConstant('{app}')));
+  if (Filename <> '') and FileExists(AddBackslash(Parent) + '.benson-uninstall-fixture') and
+      (CompareText(Filename, AddBackslash(Parent) + 'relaunch-result.json') = 0) then
+    Result := '--update-relaunch-fixture "' + Filename + '"';
 end;
 
 function RelaunchUpdatedApplication: Boolean;
@@ -413,6 +445,8 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
+    if ExpandConstant('{param:UPDATE|0}') = '1' then
+      WriteUpdateState('installing', '{#AppVersion}');
     { Clear this application's old choices, including names in the other UI language. }
     RemoveOldShortcuts(ExpandConstant('{userdesktop}'));
     RemoveOldShortcuts(ExpandConstant('{userprograms}'));
@@ -458,7 +492,8 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   ApplyPreviousTaskDefaults;
-  Result := InstallDirectoryErrorFor(WizardDirValue);
+  if UpdateCancelled then Result := 'Update cancelled before installation / 安装前已取消。'
+  else Result := InstallDirectoryErrorFor(WizardDirValue);
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;

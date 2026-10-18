@@ -178,7 +178,7 @@ def main():
                     assert parent.poll() is None
                     update_log = evidence / f"installer-update-{label}.log"
                     update = subprocess.run([str(setup), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-",
-                        "/LANG=" + language, "/DIR=" + str(program), "/UPDATE=1", "/UPDATEPID=" + str(parent.pid),
+                        "/LANG=" + language, "/DIR=" + str(program), "/UPDATE=1", "/UPDATENORELAUNCH=1", "/UPDATEPID=" + str(parent.pid),
                         "/LOG=" + str(update_log)], cwd=tempfile.gettempdir(), timeout=180)
                     assert update.returncode == 0, f"In-app installer handoff failed: {update.returncode}"
                     assert parent.wait(timeout=15) == 0
