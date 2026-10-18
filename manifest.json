@@ -1,4 +1,35 @@
 {
   "schema_version": 1,
-  "platforms": {}
+  "platforms": {
+    "windows-x64": {
+      "version": "202610180948",
+      "sha256": "7062b1d0ac3d504e9ea795731a41bea6c4b63b9f6b02916603cec55930866345",
+      "size": 108532900,
+      "notes": {
+        "zh": "新增每5小时自动检查更新和手动检查；卸载选项使用固定保留标签，删除报告前再次确认；微软OAuth2辅助工具及安装完成后可选删除安装包。",
+        "en": "Adds automatic update checks every five hours and manual checks. Uninstall switches now use fixed retention labels, with confirmation before deleting reports. Includes Microsoft OAuth2 helpers and optional installer cleanup."
+      },
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610180948.exe"
+    },
+    "macos-arm64": {
+      "version": "202610180948",
+      "sha256": "79a9562688b88877a20f7520ec285469198eaec72775d1086d7d8e7255314a70",
+      "size": 22838482,
+      "notes": {
+        "zh": "新增每5小时自动检查更新和手动检查；卸载选项使用固定保留标签，删除报告前再次确认；内附微软OAuth2辅助工具。",
+        "en": "Adds automatic update checks every five hours and manual checks. Uninstall switches use fixed retention labels, with confirmation before deleting reports. Includes the Microsoft OAuth2 helper."
+      },
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610180948.dmg"
+    },
+    "macos-x86_64": {
+      "version": "202610180948",
+      "sha256": "69f0170275b9bb5303434350c225a427c1708ef486b60be21e1d109b5b56dd92",
+      "size": 15880389,
+      "notes": {
+        "zh": "新增每5小时自动检查更新和手动检查；卸载选项使用固定保留标签，删除报告前再次确认；内附微软OAuth2辅助工具。",
+        "en": "Adds automatic update checks every five hours and manual checks. Uninstall switches use fixed retention labels, with confirmation before deleting reports. Includes the Microsoft OAuth2 helper."
+      },
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610180948.dmg"
+    }
+  }
 }
