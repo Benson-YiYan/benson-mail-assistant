@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Authentication;
 using System.Text;
 using System.Text.Json;
@@ -32,8 +33,11 @@ sealed class UpdateTransport : IDisposable
         foreach (var endpoint in new[] { UpdateClient.ManifestUrl, ApiUrl }) {
             try {
                 using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+                request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
                 request.Headers.Accept.ParseAdd(endpoint == ApiUrl ? "application/vnd.github.raw+json" : "application/json");
                 using var response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead);
+                if ((response.RequestMessage?.RequestUri ?? request.RequestUri)!.Scheme != Uri.UriSchemeHttps)
+                    throw new HttpRequestException("Update source redirected to a non-HTTPS URL.");
                 response.EnsureSuccessStatusCode();
                 var body = await response.Content.ReadAsStringAsync();
                 LastSource = endpoint;
@@ -85,6 +89,7 @@ sealed class UpdateTransport : IDisposable
         }
         using (var transport = new UpdateTransport(new FixtureHandler(request => {
             requests.Add(request.RequestUri!.AbsoluteUri);
+            if (request.Headers.CacheControl?.NoCache != true) throw new InvalidOperationException("Missing update cache revalidation header");
             if (request.RequestUri.Host == "raw.githubusercontent.com")
                 throw new HttpRequestException("Synthetic SSL connection failure", new AuthenticationException("Synthetic certificate validation failed", new Win32Exception(12345)));
             if (!request.Headers.Accept.ToString().Contains("application/vnd.github.raw+json") || !request.Headers.UserAgent.ToString().StartsWith("MailSecretary/"))
@@ -104,6 +109,15 @@ sealed class UpdateTransport : IDisposable
                 if (!ErrorDetails(error, "en").Contains("Technical details")) throw new InvalidOperationException("English diagnostics missing");
             }
             checks.Add("Both endpoint failures retain recursive AuthenticationException and Win32 details in Chinese and English");
+        }
+        using (var transport = new UpdateTransport(new FixtureHandler(request => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
+            Content = new StringContent("unsafe redirect fixture"), RequestMessage = new HttpRequestMessage(HttpMethod.Get, "http://unsafe.example.invalid/manifest.json")
+        })))) {
+            try { await transport.Fetch(); throw new InvalidOperationException("Non-HTTPS redirect was accepted"); }
+            catch (AggregateException error) {
+                if (!ErrorDetails(error, "en").Contains("non-HTTPS")) throw new InvalidOperationException("HTTPS redirect rejection details missing");
+            }
+            checks.Add("Final response URL must remain HTTPS after redirects; no-cache requested on both update sources");
         }
         var timeoutText = ErrorDetails(new TimeoutException("Synthetic timeout"), "zh");
         if (!timeoutText.Contains("10 秒")) throw new InvalidOperationException("Timeout limit missing");
