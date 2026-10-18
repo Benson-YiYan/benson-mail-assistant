@@ -22,12 +22,12 @@ sealed class UpdateDownloadView : IDisposable
     internal readonly Button InstallButton = new() { Content = L.T("安装更新"), Visibility = Visibility.Collapsed };
     readonly UpdateRelease release;
     readonly UpdateDownload download;
-    readonly Func<VerifiedUpdate, Task> install;
+    readonly Func<VerifiedUpdate, CancellationToken, Task> install;
     CancellationTokenSource? cancellation;
     internal Task? ActiveTask { get; private set; }
     internal bool Busy => ActiveTask is { IsCompleted: false };
     internal VerifiedUpdate? Verified { get; private set; }
-    internal UpdateDownloadView(UpdateRelease release, UpdateDownload download, Func<VerifiedUpdate, Task> install)
+    internal UpdateDownloadView(UpdateRelease release, UpdateDownload download, Func<VerifiedUpdate, CancellationToken, Task> install)
     {
         this.release = release; this.download = download; this.install = install;
         Content.Children.Add(new TextBlock { Text = release.Notes.Length > 0 ? release.Notes : L.T("此版本没有提供更新说明。"), TextWrapping = TextWrapping.Wrap, MaxHeight = 180, IsTextSelectionEnabled = true });
@@ -69,7 +69,7 @@ sealed class UpdateDownloadView : IDisposable
             DownloadButton.Visibility = Visibility.Collapsed;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { Status.Text = L.T("下载已取消。可以重试。"); }
-        catch (Exception error) { Status.Text = L.T("下载更新失败：") + UpdateTransport.ErrorDetails(error, L.Code); }
+        catch (Exception error) { Status.Text = L.T("下载更新失败：") + UpdateTransport.ErrorDetails(error, L.Code, true); }
         finally {
             reportProgress = false;
             CancelButton.Visibility = Visibility.Collapsed;
@@ -81,13 +81,21 @@ sealed class UpdateDownloadView : IDisposable
     {
         if (Verified == null || Busy || !InstallButton.IsEnabled) return;
         InstallButton.IsEnabled = false;
-        try { await UpdateDownload.VerifyBeforeInstall(Verified); await install(Verified); }
-        catch (Exception error) {
-            Status.Text = L.T("无法安装更新：") + UpdateTransport.ErrorDetails(error, L.Code);
-            InstallButton.Visibility = Visibility.Collapsed; Verified = null;
-            DownloadButton.Visibility = Visibility.Visible;
+        CancelButton.Content = L.T("取消等待"); CancelButton.Visibility = Visibility.Visible;
+        Status.Text = L.T("正在确认当前邮件任务已完成…");
+        try {
+            var token = cancellation?.Token ?? CancellationToken.None;
+            await UpdateDownload.VerifyBeforeInstall(Verified, token); await install(Verified, token);
         }
-        finally { InstallButton.IsEnabled = true; }
+        catch (OperationCanceledException) { Status.Text = L.T("已取消安装等待，可以继续使用邮件小秘书。"); }
+        catch (Exception error) {
+            Status.Text = L.T("无法安装更新：") + (error is InvalidOperationException ? L.T(error.Message) : UpdateTransport.ErrorDetails(error, L.Code, true));
+            if (error is InvalidDataException) {
+                InstallButton.Visibility = Visibility.Collapsed; Verified = null;
+                DownloadButton.Visibility = Visibility.Visible;
+            }
+        }
+        finally { InstallButton.IsEnabled = true; CancelButton.Visibility = Visibility.Collapsed; CancelButton.Content = L.T("取消下载"); }
     }
     internal static async Task<string[]> OfflineUITests(XamlRoot root, string folder)
     {
@@ -101,7 +109,7 @@ sealed class UpdateDownloadView : IDisposable
             requests++; await Task.Delay(350, token);
             return new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new ByteArrayContent(bytes) };
         });
-        using var view = new UpdateDownloadView(release, new UpdateDownload(Path.Combine(folder, "update-ui-cache"), handler), verified => { launches++; return Task.CompletedTask; });
+        using var view = new UpdateDownloadView(release, new UpdateDownload(Path.Combine(folder, "update-ui-cache"), handler), (verified, _) => { launches++; return Task.CompletedTask; });
         var dialog = new ContentDialog { XamlRoot = root, Title = "Synthetic in-app update test", Content = view.Content, CloseButtonText = L.T("稍后") };
         var showing = dialog.ShowAsync();
         await Task.Delay(100);

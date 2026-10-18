@@ -250,6 +250,7 @@ class Service:
         self.analyzer=analyzer or (APIAnalyzer(config,api_key) if config.get('ai_provider','codex') in ('api','deepseek_harness') else CodexAnalyzer(config.get('codex_command',[]),self.root,config))
         self.cancel=threading.Event(); self.thread=None
         self.wake=threading.Event(); self.check_requested=False
+        self.activity=threading.Lock()
     def start(self):
         if self.thread and self.thread.is_alive(): return
         self.cancel.clear(); self.thread=threading.Thread(target=self.run,daemon=True); self.thread.start()
@@ -264,6 +265,10 @@ class Service:
         if self.thread: self.thread.join(timeout)
     def persist(self): save_json(self.state_path,self.state)
     def check_once(self):
+        with self.activity:
+            if self.cancel.is_set(): return
+            return self._check_once()
+    def _check_once(self):
         owned=self.mailbox is None; box=self.mailbox or IMAPMailbox(self.config,self.secret)
         try:
             validity,uids=box.snapshot()

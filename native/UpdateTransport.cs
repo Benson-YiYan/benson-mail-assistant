@@ -50,7 +50,7 @@ sealed class UpdateTransport : IDisposable
         }
         throw new AggregateException("Both HTTPS update sources failed.", failures);
     }
-    internal static string ErrorDetails(Exception error, string language)
+    internal static string ErrorDetails(Exception error, string language, bool download = false)
     {
         var output = new StringBuilder();
         var timeout = false;
@@ -70,6 +70,9 @@ sealed class UpdateTransport : IDisposable
         var summary = timeout
             ? (english ? "The update request timed out (10 seconds per source)." : "更新请求超时（每个入口最多 10 秒）。")
             : (english ? "Unable to complete the update check. Check your network, system clock and proxy settings." : "无法完成更新检查。可检查网络、系统时间和代理设置。");
+        if (download) summary = timeout
+            ? (english ? "The download server did not respond for 45 seconds. Please retry." : "下载服务器连续 45 秒未响应，请重试。")
+            : (english ? "The update could not be downloaded, verified, or installed. See details below." : "未能下载、校验或安装更新，请查看下方错误详情。");
         return summary + Environment.NewLine + (english ? "Technical details:" : "底层错误详情：") + Environment.NewLine + output.ToString().Trim();
     }
     public void Dispose() => client.Dispose();

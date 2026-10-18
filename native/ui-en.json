@@ -565,7 +565,13 @@
     "无法确认正在运行的程序身份，未执行卸载。": "The running application could not be verified. Nothing was uninstalled.",
     "程序没有确认退出请求，未执行卸载。": "The app did not acknowledge the exit request. Nothing was uninstalled.",
     "等待邮件小秘书退出超时。没有删除任何文件，请稍后重试。": "Mail Secretary did not finish closing in time. No files were deleted. Please retry later.",
-    "无法自动退出邮件小秘书。没有删除任何文件；请退出程序后重试。": "Mail Secretary could not be closed automatically. No files were deleted. Please close the app and retry."
+    "无法自动退出邮件小秘书。没有删除任何文件；请退出程序后重试。": "Mail Secretary could not be closed automatically. No files were deleted. Please close the app and retry.",
+    "正在准备退出，请稍候。": "Preparing to exit. Please wait.",
+    "正在检查或分析邮件，请等当前任务完成后再更新或卸载。没有中断任务，也没有启动安装程序。": "An email check or analysis is still in progress. Please retry the update or uninstall after it finishes. The task was not interrupted and Setup was not started.",
+    "邮件小秘书正在检查或分析邮件，请等当前任务完成后重试。没有中断任务，也没有删除文件。": "Mail Secretary is checking or analyzing email. Please retry after the current task finishes. The task was not interrupted and no files were deleted.",
+    "取消等待": "Cancel waiting",
+    "正在确认当前邮件任务已完成…": "Checking that current email tasks have finished…",
+    "已取消安装等待，可以继续使用邮件小秘书。": "Installation cancelled. You can continue using Mail Secretary."
   },
   "templates": [
     {

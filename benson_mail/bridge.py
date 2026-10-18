@@ -30,6 +30,7 @@ class Controller:
         self.service = None
         self.services = {}
         self.shutting_down = False
+        self.prepared_exit = False
         self.config_lock = threading.Lock()
 
     def persist(self):
@@ -109,6 +110,27 @@ class Controller:
         self.emit({'event': event})
 
     def command(self, name, data):
+        if self.prepared_exit and name not in ('shutdown', 'resume_after_exit_cancel', 'config', 'reports', 'read_report', 'runtime_info'):
+            raise ValueError('正在准备退出，请稍候。')
+        if name == 'prepare_exit':
+            services = self.all_services()
+            acquired = []
+            resume = self.active()
+            try:
+                for service in services:
+                    if not service.activity.acquire(blocking=False):
+                        raise ValueError('正在检查或分析邮件，请等当前任务完成后再更新或卸载。没有中断任务，也没有启动安装程序。')
+                    acquired.append(service.activity)
+                # All activity locks are held before stopping any service. A new check cannot race this gate.
+                for service in services: service.stop()
+                self.prepared_exit = True
+            finally:
+                for lock in reversed(acquired): lock.release()
+            for service in services: service.join()
+            return {'prepared': True, 'resume': resume}
+        if name == 'resume_after_exit_cancel':
+            self.prepared_exit = False
+            return self.command('start', {}) if data.get('resume') else '已取消退出。'
         if name == 'runtime_info':
             import ctypes
             from ctypes import wintypes
@@ -367,7 +389,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_language'):
+                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_language', 'prepare_exit', 'resume_after_exit_cancel'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})

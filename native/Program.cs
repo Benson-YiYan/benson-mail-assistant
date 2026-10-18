@@ -176,15 +176,6 @@ sealed class Bridge : IDisposable
         finally { writes.Release(); }
         return await source.Task;
     }
-    internal async Task WaitForUpdateExit()
-    {
-        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
-    }
-    internal void KillForUpdate()
-    {
-        try { if (!process.HasExited) process.Kill(true); process.WaitForExit(5000); }
-        catch (InvalidOperationException) { }
-    }
     public void Dispose()
     {
         process.StandardInput.Close();
@@ -349,7 +340,14 @@ sealed class MainWindow : Window
         searchTimer.IsRepeating = false;
         searchTimer.Tick += async (_, _) => await Guard(Refresh);
         bridge.Event += ev => DispatcherQueue.TryEnqueue(() => { if (!exitRequested) HandleEvent(ev); });
-        lifetime = new AppLifetime(AppContext.BaseDirectory, () => DispatcherQueue.TryEnqueue(async () => await Exit()));
+        lifetime = new AppLifetime(AppContext.BaseDirectory, () => DispatcherQueue.TryEnqueue(async () => await Exit()), async () => {
+            var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!DispatcherQueue.TryEnqueue(async () => {
+                try { await bridge.Call("prepare_exit"); completed.TrySetResult(true); }
+                catch { completed.TrySetResult(false); }
+            })) return false;
+            return await completed.Task;
+        });
         L.Apply(Content as UIElement, reports, savedMailboxes);
         L.Apply(filters.Content as UIElement);
         layout.Loaded += async (_, _) => await Initialize();
@@ -662,11 +660,20 @@ sealed class MainWindow : Window
             updateStatus.Text = L.T("发现新版本：") + release.Version;
             using var view = new UpdateDownloadView(release,
                 new UpdateDownload(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail", "update-cache")),
-                async verified => {
+                async (verified, installCancellation) => {
                     if (testResult != null) throw new InvalidOperationException("Tests cannot launch installers.");
-                    var start = UpdateInstall.StartInfo(verified, AppContext.BaseDirectory, L.Code, Environment.ProcessId);
-                    _ = Process.Start(start) ?? throw new IOException("The installer could not be started.");
-                    await Exit(true);
+                    var prepared = await bridge.Call("prepare_exit");
+                    try {
+                        installCancellation.ThrowIfCancellationRequested();
+                        await UpdateDownload.VerifyBeforeInstall(verified, installCancellation);
+                        var start = UpdateInstall.StartInfo(verified, AppContext.BaseDirectory, L.Code, Environment.ProcessId);
+                        _ = Process.Start(start) ?? throw new IOException("The installer could not be started.");
+                    }
+                    catch {
+                        await bridge.Call("resume_after_exit_cancel", new { resume = prepared.GetProperty("resume").GetBoolean() });
+                        throw;
+                    }
+                    await Exit();
                 });
             activeDownload = view;
             var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("发现新版本：") + release.Version,
@@ -1018,7 +1025,7 @@ sealed class MainWindow : Window
         } finally { changingLanguage = false; }
     }
     void Restore() { AppWindow.Show(); Activate(); }
-    async Task Exit(bool installingUpdate = false)
+    async Task Exit()
     {
         if (exiting || exitRequested) return;
         exitRequested = true;
@@ -1028,11 +1035,8 @@ sealed class MainWindow : Window
         Program.Trace("Stopping worker");
         detail.Text = L.T("正在停止后台，请稍候…");
         toggle.IsEnabled = check.IsEnabled = false;
-        try {
-            if (installingUpdate) { await bridge.Call("shutdown").WaitAsync(TimeSpan.FromSeconds(10)); await bridge.WaitForUpdateExit(); }
-            else await bridge.Call("shutdown");
-        }
-        catch (Exception e) { if (installingUpdate) bridge.KillForUpdate(); detail.Text = L.T(e.Message); }
+        try { await bridge.Call("shutdown"); }
+        catch (Exception e) { detail.Text = L.T(e.Message); }
         Program.Trace("Disposing tray and worker pipes");
         lifetime.Dispose();
         exiting = true; tray.Visible = false; tray.Dispose(); bridge.Dispose();

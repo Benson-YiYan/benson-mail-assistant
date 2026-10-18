@@ -19,11 +19,12 @@ sealed class AppLifetime : IDisposable
 {
     readonly string directory;
     readonly Action exit;
+    readonly Func<Task<bool>> prepare;
     readonly CancellationTokenSource cancellation = new();
     readonly Task server;
-    internal AppLifetime(string directory, Action exit)
+    internal AppLifetime(string directory, Action exit, Func<Task<bool>>? prepare = null)
     {
-        this.directory = Normalize(directory); this.exit = exit;
+        this.directory = Normalize(directory); this.exit = exit; this.prepare = prepare ?? (() => Task.FromResult(true));
         server = Task.Run(Listen);
     }
     static string Normalize(string directory) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)).ToUpperInvariant();
@@ -45,7 +46,9 @@ sealed class AppLifetime : IDisposable
                 using var request = JsonDocument.Parse(line ?? "{}");
                 if (request.RootElement.GetProperty("command").GetString() != "shutdown" ||
                     Normalize(request.RootElement.GetProperty("directory").GetString()!) != directory) continue;
-                await writer.WriteLineAsync(JsonSerializer.Serialize(new { ok = true, pid = Environment.ProcessId, launcher = Environment.ProcessPath }));
+                var ready = await prepare();
+                await writer.WriteLineAsync(JsonSerializer.Serialize(new { ok = ready, pid = Environment.ProcessId, launcher = Environment.ProcessPath }));
+                if (!ready) continue;
                 exit();
                 return;
             }
@@ -70,7 +73,7 @@ sealed class AppLifetime : IDisposable
     internal static async Task RequestExit(string directory, Process expected)
     {
         if (expected.HasExited) return;
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(35));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(920));
         try {
             await using var pipe = new NamedPipeClientStream(".", PipeName(directory), PipeDirection.InOut, PipeOptions.Asynchronous);
             await pipe.ConnectAsync(3000, timeout.Token);
@@ -81,7 +84,9 @@ sealed class AppLifetime : IDisposable
             await writer.WriteLineAsync(JsonSerializer.Serialize(new { command = "shutdown", directory = Normalize(directory) }));
             var reply = await reader.ReadLineAsync(timeout.Token);
             using var response = JsonDocument.Parse(reply ?? "{}");
-            if (!response.RootElement.GetProperty("ok").GetBoolean() || response.RootElement.GetProperty("pid").GetInt32() != expected.Id ||
+            if (!response.RootElement.GetProperty("ok").GetBoolean())
+                throw new InvalidOperationException(L.T("邮件小秘书正在检查或分析邮件，请等当前任务完成后重试。没有中断任务，也没有删除文件。"));
+            if (response.RootElement.GetProperty("pid").GetInt32() != expected.Id ||
                 Normalize(Path.GetDirectoryName(response.RootElement.GetProperty("launcher").GetString()!)!) != Normalize(directory))
                 throw new IOException(L.T("程序没有确认退出请求，未执行卸载。"));
             await expected.WaitForExitAsync(timeout.Token);
