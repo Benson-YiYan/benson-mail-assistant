@@ -36,6 +36,9 @@ class MailConnectionTests(unittest.TestCase):
             self.assertNotEqual(state_identity({**old, field: value}), expected)
     def test_ssl_uses_custom_port_username_and_readonly_folder(self):
         client = Mock(capabilities=(b'IMAP4rev1',))
+        client.login.return_value = ('OK', [])
+        client.authenticate.return_value = ('OK', [])
+        client.capability.return_value = ('OK', [b'IMAP4rev1'])
         client.select.return_value = ('OK', [b'0'])
         context = Mock()
         with patch('benson_mail.mailbox_config.imaplib.IMAP4_SSL', return_value=client) as ssl:
@@ -47,20 +50,26 @@ class MailConnectionTests(unittest.TestCase):
     def test_starttls_precedes_login_and_failure_never_sends_credentials(self):
         events = []
         client = Mock(capabilities=())
+        client.login.return_value = ('OK', [])
+        client.authenticate.return_value = ('OK', [])
+        client.capability.return_value = ('OK', [b'IMAP4rev1'])
         client.select.return_value = ('OK', [])
-        client.starttls.side_effect = lambda **kwargs: events.append('tls')
-        client.login.side_effect = lambda *args: events.append('login')
+        client.starttls.side_effect = lambda **kwargs: (events.append('tls') or ('OK', []))
+        client.login.side_effect = lambda *args: (events.append('login') or ('OK', []))
         with patch('benson_mail.mailbox_config.imaplib.IMAP4', return_value=client):
             connect(self.config(security='starttls', port=143), 'SYNTHETIC', Mock())
         self.assertEqual(events, ['tls', 'login'])
         client.login.reset_mock()
         client.starttls.side_effect = OSError('synthetic TLS failure')
-        with patch('benson_mail.mailbox_config.imaplib.IMAP4', return_value=client), self.assertRaises(OSError):
+        with patch('benson_mail.mailbox_config.imaplib.IMAP4', return_value=client), self.assertRaises(RuntimeError):
             connect(self.config(security='starttls'), 'SYNTHETIC', Mock())
         client.login.assert_not_called()
         client.logout.assert_called()
     def test_oauth2_is_sasl_xoauth2_not_password_login(self):
         client = Mock(capabilities=(b'AUTH=XOAUTH2',))
+        client.login.return_value = ('OK', [])
+        client.authenticate.return_value = ('OK', [])
+        client.capability.return_value = ('OK', [b'IMAP4rev1'])
         client.select.return_value = ('OK', [])
         with patch('benson_mail.mailbox_config.imaplib.IMAP4_SSL', return_value=client):
             connect(self.config(mail_auth='oauth2'), 'SYNTHETIC_TOKEN', Mock())

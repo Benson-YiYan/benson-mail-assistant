@@ -213,7 +213,7 @@ sealed class MainWindow : Window
     readonly TextBlock pageTitle = new() { Text = L.T("邮件报告"), FontSize = 28, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
     readonly TextBlock reportCount = new() { Opacity = .65, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock status = new() { Text = L.T("已暂停"), FontSize = 23, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-    readonly TextBlock detail = new() { Text = L.T("正在加载设置…"), TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock detail = new() { Text = L.T("正在加载设置…"), TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
     readonly TextBox account = new() { Header = L.T("邮箱地址"), PlaceholderText = "name@example.com" };
     readonly PasswordBox mailSecret = new() { Header = L.T("密码／授权码／OAuth2 访问令牌"), PlaceholderText = L.T("连接信息未变时可留空保留") };
     readonly ComboBox mailProvider = new() { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -921,7 +921,7 @@ sealed class MainWindow : Window
             host.Text = preset.GetProperty("host").GetString(); port.Text = "993"; encryption.SelectedIndex = 0;
             authentication.SelectedIndex = preset.TryGetProperty("mail_auth", out var auth) && auth.GetString() == "oauth2" ? 1 : 0;
         };
-        var error = Note("");
+        var error = Note(""); error.IsTextSelectionEnabled = true;
         var tokenButton = OAuthTokenButton(authentication);
         var advanced = Stack(username, mailboxFolder, authentication); advanced.Visibility = Visibility.Collapsed;
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T("欢迎使用邮件小秘书"),

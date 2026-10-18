@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta
 from email import policy
 from pathlib import Path
 from xml.etree import ElementTree
-from .mailbox_config import connect, state_identity
+from .mailbox_config import connect, state_identity, MailConnectionError
 
 BEIJING = timezone(timedelta(hours=8))
 MAX_ATTACHMENT = 20 * 1024 * 1024
@@ -316,8 +316,9 @@ class Service:
                 self.check_once()
                 self.callback({'status':'运行中','detail':'检查完成；等待新邮件，空检查不调用 AI','check_done':True})
             except Exception as error:
-                # Never expose raw server errors or credentials in UI/logs.
-                self.callback({'status':'需要检查','detail':'连接或分析失败。请测试连接；未完成邮件会自动重试。','check_done':True})
+                # Connection errors are sanitized at the credential boundary; other errors retain the safe fallback.
+                detail = str(error) if isinstance(error, MailConnectionError) else '连接或分析失败。请测试连接；未完成邮件会自动重试。'
+                self.callback({'status':'需要检查','detail':detail,'check_done':True})
             self.check_requested=False
             if self.cancel.is_set(): break
             self.wake.wait(self.config.get('interval',60))
