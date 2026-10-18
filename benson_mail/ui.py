@@ -295,7 +295,7 @@ class Application:
             if 'report' in event: self.refresh_reports()
         if not self.exiting: self.root.after(100,self.drain)
     def refresh_reports(self):
-        paths=sorted(Path(self.output.get()).glob('*/*.txt'),key=lambda p:p.stat().st_mtime,reverse=True) if self.output.get() else []
+        paths=sorted((p for p in Path(self.output.get()).glob('*/*') if p.suffix.lower() in ('.txt', '.md')),key=lambda p:p.stat().st_mtime,reverse=True) if self.output.get() else []
         selected=self.reports.selection()
         self.reports.delete(*self.reports.get_children())
         self.report_paths=[]
