@@ -2,14 +2,14 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610181527",
-      "sha256": "d4ece06034133945c24685c598b3cdfb7024f5833d721622895bc8937b191d61",
-      "size": 76453323,
+      "version": "202610181547",
+      "sha256": "acd3250d3893d935377aeff8d6ba5984910aad13b3754895a3d64205f35a5a77",
+      "size": 76545217,
       "notes": {
-        "zh": "修复下载更新后安装程序未出现、旧版本目录无法覆盖的问题；加入启动回执、可查看日志、取消安装保护及安装后自动重开。安装占用减少约30.5%，保留自带运行时；更新双语指南与详细邮箱连接诊断。",
-        "en": "Fixes update installer handoff and upgrading legacy versioned folders. Adds installer acknowledgment, diagnostic logs, safe cancellation and verified relaunch. Reduces installed payload by 30.5% while remaining self-contained; includes bilingual guides and detailed mailbox diagnostics."
+        "zh": "修复更新下载后安装程序未出现及旧版本目录无法覆盖的问题；加入启动确认、日志、取消保护与安装后自动重开。安装占用减少约30.4%；升级时按SHA256清理已停用的旧运行库，保留配置、报告及修改文件。含双语指南和详细邮箱诊断。",
+        "en": "Fixes installer handoff and legacy-folder upgrades, with startup acknowledgment, logs, safe cancellation and verified relaunch. Reduces installed payload by 30.4%; upgrades remove obsolete runtime files only when SHA256 matches, preserving configuration, reports and modified files. Includes bilingual guides and detailed mailbox diagnostics."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181527.exe"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181547.exe"
     },
     "macos-arm64": {
       "version": "202610181459",
