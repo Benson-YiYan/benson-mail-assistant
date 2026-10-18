@@ -278,13 +278,16 @@ begin
   FindPreviousTasks(ExpandConstant('{userdesktop}'), True, DesktopApp, DesktopUninstall);
   FindPreviousTasks(ExpandConstant('{userprograms}'), False, StartApp, StartUninstall);
   Tasks := '';
-  if DesktopApp then Tasks := Tasks + 'desktopapp,';
-  if DesktopUninstall then Tasks := Tasks + 'desktopuninstall,';
-  if StartApp then Tasks := Tasks + 'startapp,';
-  if StartUninstall then Tasks := Tasks + 'startuninstall,';
-  if Length(Tasks) > 0 then SetLength(Tasks, Length(Tasks) - 1);
-  { Apply after Inno has populated defaults. WizardSelectTasks expects selected names, not command-line ! exclusions. }
-  if not WizardSelectTasks(Tasks) then RaiseException('Unable to restore existing shortcut choices.');
+  if not DesktopApp then Tasks := Tasks + '!';
+  Tasks := Tasks + 'desktopapp,';
+  if not DesktopUninstall then Tasks := Tasks + '!';
+  Tasks := Tasks + 'desktopuninstall,';
+  if not StartApp then Tasks := Tasks + '!';
+  Tasks := Tasks + 'startapp,';
+  if not StartUninstall then Tasks := Tasks + '!';
+  Tasks := Tasks + 'startuninstall';
+  { Apply after Inno has populated defaults, explicitly deselecting absent shortcuts. }
+  WizardSelectTasks(Tasks);
   if (WizardIsTaskSelected('desktopapp') <> DesktopApp) or
     (WizardIsTaskSelected('desktopuninstall') <> DesktopUninstall) or
     (WizardIsTaskSelected('startapp') <> StartApp) or
