@@ -249,12 +249,12 @@
     "选择一封邮件，查看六项报告。": "Select a message to view its six-section report.",
     "打开窗口": "Open window",
     "开始／暂停监听": "Start / pause monitoring",
-    "邮箱与检查": "Email and checks",
+    "邮箱与检查": "Mailbox & checks",
     "无新邮件，不调用 AI。": "No new mail, no AI calls.",
     "API · 无需安装 Codex": "API · No Codex installation needed",
     "Codex · 已安装并登录": "Codex · Installed and signed in",
     "DeepSeek Harness · 使用已安装的应用": "DeepSeek Harness · Use installed app",
-    "管理邮箱": "Manage accounts",
+    "管理邮箱": "Manage mailboxes",
     "启用／暂停此邮箱": "Enable / pause account",
     "请先选择已添加的邮箱。": "Select a saved email account first.",
     "移除此邮箱？": "Remove this account?",
@@ -264,7 +264,7 @@
     "请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。": "Enable IMAP and use the password required by your provider. OAuth2 tokens must be entered and renewed manually; automatic login and renewal are not supported.",
     "报告与后台运行": "Reports and background monitoring",
     "请填写整数秒数。": "Enter a whole number of seconds.",
-    "选择您喜欢的 AI": "Choose your AI",
+    "选择您喜欢的 AI": "Choose your AI service",
     "检测 Harness": "Detect Harness",
     "浏览 Harness……": "Browse for Harness…",
     "查找 Codex": "Find Codex",
@@ -272,7 +272,7 @@
     "筛选邮件": "Filter messages",
     "应用筛选": "Apply filters",
     "重置": "Reset",
-    "筛选": "Filter",
+    "筛选": "Filters",
     "刷新": "Refresh",
     "运行中": "Monitoring",
     "正在处理…": "Working…",
@@ -602,7 +602,13 @@
     "ID 客户端标识协商": "ID client identification",
     "SELECT 只读打开邮件文件夹": "SELECT read-only mail folder",
     "IMAP 只读读取或同步": "IMAP read-only retrieval or synchronization",
-    "邮箱连接测试": "Email connection test"
+    "邮箱连接测试": "Email connection test",
+    "通用设置": "General settings",
+    "检查与报告": "Checks & reports",
+    "无新邮件不调用 AI": "No new mail, no AI calls",
+    "登录用户名": "Login username",
+    "登录用户名默认跟随邮箱地址；仅在服务商要求时填写不同用户名。": "The login username follows your email address by default. Enter a different username only if your provider requires it.",
+    "当前使用自定义登录用户名：": "Custom login username in use: "
   },
   "templates": [
     {
@@ -863,12 +869,5 @@
       "en": "Email connection failed ({0}). Check server, port, encryption, and credentials. OAuth2 tokens may have expired.",
       "pattern": "^邮箱连接失败（(.*?)），请检查服务器、端口、加密和登录凭据；OAuth2\\ 令牌可能已过期。$"
     }
-  ],
-  "邮箱与检查": "Mailbox & checks",
-  "通用设置": "General settings",
-  "管理邮箱": "Manage mailboxes",
-  "检查与报告": "Checks & reports",
-  "选择您喜欢的 AI": "Choose your AI service",
-  "无新邮件不调用 AI": "No new mail, no AI calls",
-  "筛选": "Filters"
+  ]
 }

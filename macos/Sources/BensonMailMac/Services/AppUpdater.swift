@@ -9,6 +9,7 @@ struct MailUpdate: Equatable {
     let notes: String
     let size: Int64?
     let translations: [String: String]
+    var mirrors: [URL] = []
     func localizedNotes(for language: String) -> String { translations[language] ?? notes }
 }
 
@@ -113,7 +114,7 @@ struct MailUpdate: Equatable {
                 let root = downloadRoot.appendingPathComponent(UUID().uuidString)
                 try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
                 workspace = root
-                downloaded = try await operation.run(url: update.url, destination: root.appendingPathComponent("update.dmg"), sha256: update.sha256, size: update.size) { [weak self] bytes, total in
+                downloaded = try await operation.run(url: update.url, mirrors: update.mirrors, destination: root.appendingPathComponent("update.dmg"), sha256: update.sha256, size: update.size) { [weak self] bytes, total in
                     Task { @MainActor in self?.received = bytes; self?.total = total }
                 }
                 verifiedRelease = update
@@ -253,7 +254,15 @@ struct MailUpdate: Equatable {
         guard version > current else { return nil }
         let size = (entry["size"] as? NSNumber)?.int64Value
         if let size, size <= 0 { throw UpdateError.invalid("Manifest size must be positive") }
-        return MailUpdate(version: version, url: url, sha256: sha.lowercased(), notes: notes, size: size, translations: translations)
+        var mirrors: [URL] = []
+        if let raw = entry["mirrors"] {
+            guard let values = raw as? [String], values.count <= 3 else { throw UpdateError.invalid("Manifest mirrors must contain at most 3 HTTPS URLs") }
+            for value in values {
+                guard let mirror = URL(string: value), secure(mirror) else { throw UpdateError.invalid("Mirror URL must use HTTPS") }
+                if mirror != url && !mirrors.contains(mirror) { mirrors.append(mirror) }
+            }
+        }
+        return MailUpdate(version: version, url: url, sha256: sha.lowercased(), notes: notes, size: size, translations: translations, mirrors: mirrors)
     }
     enum UpdateError: LocalizedError {
         case invalid(String), endpoint

@@ -3,6 +3,26 @@ import AppKit
 
 private typealias AccountState<Value> = SwiftUI.State<Value>
 
+// UI-only normalization. The persisted connection, identity and mail progress are unchanged.
+enum MailAccountDraft {
+    private static func followsAddress(_ value: MailConnection) -> Bool {
+        value.username.trimmingCharacters(in: .whitespacesAndNewlines)
+            .caseInsensitiveCompare(value.account.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
+    }
+    static func load(_ saved: MailConnection, account: String? = nil) -> MailConnection {
+        var value = saved
+        if followsAddress(value) { value.username = "" }
+        if let account { value.account = account }
+        return value
+    }
+    static func changingAccount(_ saved: MailConnection, to account: String) -> MailConnection {
+        var value = saved
+        if followsAddress(value) { value.username = "" }
+        value.account = account
+        return value
+    }
+}
+
 struct MailAccountView: View {
     @ObservedObject private var language = AppLanguage.shared
     @ObservedObject var store: MailStore
@@ -25,7 +45,7 @@ struct MailAccountView: View {
                 Picker(T("已添加的邮箱"), selection: Binding(get: { adding ? "" : (store.settings.mailbox?.identity ?? store.mailboxProfiles.first?.id ?? "") },
                     set: { id in
                         store.selectMailbox(id); adding = false
-                        draft = store.settings.mailbox ?? MailConnection(); port = String(draft.port); code = ""; saved = false
+                        loadDraft()
                     })) {
                     if adding { Text(T("正在添加新邮箱")).tag("") }
                     ForEach(store.mailboxProfiles) { profile in
@@ -54,7 +74,9 @@ struct MailAccountView: View {
             })) {
                 ForEach(MailPreset.all) { preset in Text(T(preset.name)).tag(preset.id) }
             }
-            TextField(T("邮箱地址，例如 name@example.com"), text: $draft.account)
+            TextField(T("邮箱地址，例如 name@example.com"), text: Binding(get: { draft.account }, set: {
+                draft = MailAccountDraft.changingAccount(draft, to: $0)
+            }))
                 .textContentType(.username).accessibilityLabel(T("邮箱地址"))
             TextField(T("IMAP 收件服务器，例如 imap.example.com"), text: $draft.host)
                 .accessibilityLabel(T("IMAP 收件服务器"))
@@ -85,15 +107,27 @@ struct MailAccountView: View {
                 Text(T("取令牌工具仅适用于 Outlook / Microsoft 365。"))
                     .font(.caption).foregroundStyle(.secondary)
             }
-            DisclosureGroup(T("高级连接选项")) {
+            DisclosureGroup {
                 VStack(alignment: .leading, spacing: 10) {
                     TextField(T("登录用户名；留空使用邮箱地址"), text: $draft.username)
+                        .accessibilityLabel(T("登录用户名"))
+                    if draft.username.isEmpty {
+                        Text(T("登录用户名默认跟随邮箱地址；仅在服务商要求时填写不同用户名。"))
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Text(T("当前使用自定义登录用户名：") + draft.username)
+                            .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                    }
                     TextField(T("邮件文件夹"), text: $draft.mail_folder)
                     Picker(T("登录方式"), selection: $draft.mail_auth) {
                         Text(T("密码／客户端授权码")).tag("password")
                         Text(T("OAuth2 访问令牌")).tag("oauth2")
                     }
                 }.padding(.top, 8)
+            } label: {
+                Text(T("高级连接选项")).background {
+                    if store.isTest { NativeTestAnchor(identifier: "mail-advanced-disclosure") }
+                }
             }
             Text(T("请启用 IMAP，并按服务商要求填写客户端授权码或应用专用密码。所有预设都可修改服务器和端口。"))
                 .font(.caption).foregroundStyle(.secondary)
@@ -148,16 +182,10 @@ struct MailAccountView: View {
                 }
             } else { VStack(alignment: .leading, spacing: 12) { fields; actions } }
         }.textFieldStyle(.roundedBorder)
-        .onAppear {
-            draft = store.settings.mailbox ?? MailConnection()
-            draft.account = store.mailAccount
-            port = String(draft.port)
-        }
+        .onAppear { loadDraft() }
         .onChange(of: store.needsAccountSetup) { old, new in
             if workspace && old && !new {
-                draft = store.settings.mailbox ?? MailConnection()
-                draft.account = store.mailAccount
-                port = String(draft.port); code = ""; saved = false; adding = false
+                loadDraft(); adding = false
             }
         }
         .onChange(of: draft) { _, _ in saved = false }
@@ -165,10 +193,13 @@ struct MailAccountView: View {
         .confirmationDialog(T("移除此邮箱？历史报告会保留。"), isPresented: $removing) {
             Button(T("移除"), role: .destructive) {
                 store.removeMailbox(draft.identity)
-                draft = store.settings.mailbox ?? MailConnection(); draft.account = store.mailAccount
-                port = String(draft.port); code = ""
+                loadDraft()
             }
             Button(T("取消"), role: .cancel) {}
         }
+    }
+    private func loadDraft() {
+        draft = MailAccountDraft.load(store.settings.mailbox ?? MailConnection(), account: store.mailAccount)
+        port = String(draft.port); code = ""; saved = false
     }
 }

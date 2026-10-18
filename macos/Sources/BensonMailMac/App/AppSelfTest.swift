@@ -478,6 +478,90 @@ enum AppSelfTest {
             guard allFields(root).contains(where: { $0.stringValue == "unsaved-layout@example.invalid" }),
                   allFields(root).contains(where: { $0.stringValue == "https://unsaved-layout.invalid/v1" }),
                   store.selected?.id == preservedReport, store.reportText == preservedSource else { throw Failure("navigation lost unsaved native drafts or report selection") }
+            func nativeField(_ placeholder: String) throws -> NSTextField {
+                guard let field = allFields(root).first(where: { $0.placeholderString == T(placeholder) }) else { throw Failure("login fixture native field missing") }
+                return field
+            }
+            func finishLoginSetup(_ connection: MailConnection) async throws {
+                store.needsAccountSetup = true
+                try await Task.sleep(nanoseconds: 250_000_000)
+                store.mailAccount = connection.account
+                store.settings.mailbox = connection
+                store.settings.mailboxes = [MailboxProfile(connection: connection)]
+                try store.save()
+                store.needsAccountSetup = false
+                store.workspacePage = .mailbox
+                try await Task.sleep(nanoseconds: 300_000_000)
+            }
+            func nativeViews(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap { nativeViews($0) } }
+            func openAdvanced() async throws {
+                if allFields(root).contains(where: { $0.placeholderString == T("登录用户名；留空使用邮箱地址") && !$0.isHiddenOrHasHiddenAncestor }) { return }
+                guard let anchor = nativeViews(root).first(where: { $0.identifier?.rawValue == "mail-advanced-disclosure" }) else { throw Failure("native advanced disclosure anchor missing") }
+                mainWindow.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+                anchor.scrollToVisible(anchor.bounds)
+                try await Task.sleep(nanoseconds: 150_000_000)
+                let point = anchor.convert(NSPoint(x: anchor.bounds.minX - 7, y: anchor.bounds.midY), to: nil)
+                for kind in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    guard let event = NSEvent.mouseEvent(with: kind, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                        windowNumber: mainWindow.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) else { throw Failure("native disclosure mouse event missing") }
+                    NSApp.postEvent(event, atStart: false)
+                }
+                try await Task.sleep(nanoseconds: 350_000_000)
+                guard allFields(root).contains(where: { $0.placeholderString == T("登录用户名；留空使用邮箱地址") && !$0.isHiddenOrHasHiddenAncestor }) else { throw Failure("native mouse click did not expand advanced connection options: anchor=\(anchor.frame), point=\(point)") }
+            }
+            var defaultLogin = MailConnection()
+            defaultLogin.account = "old-default@example.invalid"
+            defaultLogin.username = defaultLogin.account
+            var mixedCaseDefault = defaultLogin
+            mixedCaseDefault.username = "  OLD-DEFAULT@EXAMPLE.INVALID  "
+            let mixedCaseIdentity = mixedCaseDefault.identity
+            var explicitCustom = MailConnection()
+            explicitCustom.account = "old@example.invalid"; explicitCustom.username = "distinct-login"
+            guard MailAccountDraft.load(mixedCaseDefault).username.isEmpty,
+                  MailAccountDraft.changingAccount(mixedCaseDefault, to: "next@example.invalid").login == "next@example.invalid",
+                  mixedCaseDefault.identity == mixedCaseIdentity,
+                  MailAccountDraft.load(MailAccountDraft.changingAccount(explicitCustom, to: "next@example.invalid")).username == "distinct-login" else { throw Failure("trimmed case-insensitive default mapping changed persisted data or a distinct custom login") }
+            let persistedIdentity = defaultLogin.identity
+            try await finishLoginSetup(defaultLogin)
+            guard !allFields(root).contains(where: { $0.placeholderString == T("登录用户名；留空使用邮箱地址") && !$0.isHiddenOrHasHiddenAncestor }) else { throw Failure("login username should stay inside collapsed advanced options") }
+            try await openAdvanced()
+            guard try nativeField("登录用户名；留空使用邮箱地址").stringValue.isEmpty,
+                  MailAccountDraft.load(defaultLogin).identity == persistedIdentity,
+                  store.settings.mailbox?.username == defaultLogin.account else { throw Failure("default login was not cleared only in the editable draft") }
+            _ = try editField("邮箱地址，例如 name@example.com", "new-default@example.invalid")
+            try await Task.sleep(nanoseconds: 150_000_000)
+            var nativeDefault = defaultLogin
+            nativeDefault.account = try nativeField("邮箱地址，例如 name@example.com").stringValue
+            nativeDefault.username = try nativeField("登录用户名；留空使用邮箱地址").stringValue
+            guard try nativeDefault.validated().login == "new-default@example.invalid" else { throw Failure("native edited address retained stale default login") }
+            // Also cover a user explicitly typing the old address as the login before editing it.
+            _ = try editField("登录用户名；留空使用邮箱地址", "new-default@example.invalid")
+            try await Task.sleep(nanoseconds: 150_000_000)
+            _ = try editField("邮箱地址，例如 name@example.com", "next-default@example.invalid")
+            try await Task.sleep(nanoseconds: 150_000_000)
+            guard try nativeField("登录用户名；留空使用邮箱地址").stringValue.isEmpty else { throw Failure("explicit old-address login did not follow native address edit") }
+            var customLogin = defaultLogin
+            customLogin.account = "custom-account@example.invalid"
+            customLogin.username = "distinct-server-login"
+            try await finishLoginSetup(customLogin)
+            try await openAdvanced()
+            let nativeCustom = try nativeField("登录用户名；留空使用邮箱地址")
+            guard nativeCustom.stringValue == customLogin.username, !nativeCustom.isHiddenOrHasHiddenAncestor,
+                  MailAccountDraft.load(customLogin).identity == customLogin.identity else { throw Failure("distinct custom login was changed or missing after expanding advanced options") }
+            _ = try editField("邮箱地址，例如 name@example.com", "custom-edited@example.invalid")
+            for page in [WorkspacePage.ai, .reports, .general, .mailbox] {
+                store.workspacePage = page
+                try await Task.sleep(nanoseconds: 150_000_000)
+            }
+            guard try nativeField("登录用户名；留空使用邮箱地址").stringValue == customLogin.username,
+                  try nativeField("邮箱地址，例如 name@example.com").stringValue == "custom-edited@example.invalid" else { throw Failure("custom login or unsaved address lost across native page navigation") }
+            try capture(mainWindow, to: output.appendingPathComponent("mailbox-advanced-custom-login.png"))
+            AppLanguage.shared.select("en")
+            guard T("当前使用自定义登录用户名：") == "Custom login username in use: ",
+                  T("登录用户名") == "Login username" else { throw Failure("login guidance English translation missing") }
+            AppLanguage.shared.select("zh")
+            checks.append("actual native username fields: saved default becomes blank without changing persisted identity; edited address supplies the login; explicit old-address login clears; username stays inside collapsed advanced options; actual native mouse click expands it; distinct custom login survives address edits, setup completion and page navigation; bilingual hints")
             mainWindow.orderOut(nil)
             store.settings.ai_provider = fixtureAIProvider
             checks.append("actual native field edits survive mailbox/AI/general/report navigation; report selection and content retained; four native layout snapshots captured")
@@ -512,4 +596,13 @@ enum AppSelfTest {
         init(_ text: String) { self.text = text }
         var errorDescription: String? { text }
     }
+}
+
+// Non-interactive location marker for synthetic native mouse-event fixtures.
+// It is inserted only in --self-test mode; the production disclosure remains unchanged.
+struct NativeTestAnchor: NSViewRepresentable {
+    let identifier: String
+    final class Marker: NSView { override func hitTest(_ point: NSPoint) -> NSView? { nil } }
+    func makeNSView(context: Context) -> NSView { let view = Marker(); view.identifier = NSUserInterfaceItemIdentifier(identifier); return view }
+    func updateNSView(_ view: NSView, context: Context) {}
 }

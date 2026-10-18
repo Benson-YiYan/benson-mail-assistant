@@ -25,17 +25,31 @@ enum ServiceInstaller {
  static func stop() throws {}
 }
 final class DownloadFixture: URLProtocol {
+ var delivery: DispatchWorkItem?
+ static let lock = NSLock()
+ static var fullPaths: [String] = []
+ static var ranges: [String] = []
+ static func reset() { lock.lock(); fullPaths=[]; ranges=[]; lock.unlock() }
+
  override class func canInit(with request:URLRequest)->Bool { request.url?.host == "updates.example.invalid" }
  override class func canonicalRequest(for request:URLRequest)->URLRequest { request }
  override func startLoading() {
-  let status = request.url!.path == "/http" ? 503 : 200
+  let path = request.url!.path
+  let probe = request.value(forHTTPHeaderField:"Range") != nil
+  Self.lock.lock()
+  if probe { Self.ranges.append(request.value(forHTTPHeaderField:"Range")!) } else { Self.fullPaths.append(path) }
+  Self.lock.unlock()
+  let status = path == "/http" || (!probe && path == "/fail-full") ? 503 : 200
+  let deliver = DispatchWorkItem { [self] in
   let response = HTTPURLResponse(url:request.url!,statusCode:status,httpVersion:"HTTP/1.1",headerFields:["Content-Length":"3"])!
   client?.urlProtocol(self,didReceive:response,cacheStoragePolicy:.notAllowed)
   if request.url!.path == "/cancel" { return }
-  client?.urlProtocol(self,didLoad:Data("abc".utf8))
+  client?.urlProtocol(self,didLoad:path == "/large-probe" && probe ? Data(repeating:97,count:300000) : Data((path == "/short" && !probe ? "ab" : "abc").utf8))
   client?.urlProtocolDidFinishLoading(self)
+  }; delivery = deliver
+  DispatchQueue.global().asyncAfter(deadline:.now() + (probe && path == "/slow" ? 0.08 : 0),execute:deliver)
  }
- override func stopLoading() {}
+ override func stopLoading() { delivery?.cancel() }
 }
 @main struct Fixtures {
  @MainActor static func main() async throws {
@@ -133,6 +147,42 @@ final class DownloadFixture: URLProtocol {
   catch {precondition((error as? URLError)?.code == .cancelled)}
   do {_ = try await transfer().run(url:URL(string:"https://updates.example.invalid/ok")!,destination:cancelledTarget,sha256:expectedHash,size:2,progress:{_,_ in});fatalError("oversized download accepted")}
   catch {precondition(!FileManager.default.fileExists(atPath:cancelledTarget.path))}
+  // Mirrors remain optional; malformed or insecure arrays are rejected before transfer.
+  for values: Any in [["https://updates.example.invalid/ok"], ["http://updates.example.invalid/ok"], Array(repeating:"https://updates.example.invalid/ok",count:4), "invalid"] {
+   var body = try JSONSerialization.jsonObject(with:newer) as! [String:Any]
+   var platforms = body["platforms"] as! [String:[String:Any]]
+   platforms[AppUpdater.platform]!["mirrors"] = values; body["platforms"] = platforms
+   do {
+    let parsed=try AppUpdater.parse(JSONSerialization.data(withJSONObject:body),platform:AppUpdater.platform,current:current)!
+    precondition(parsed.mirrors.count == 1 && (values as? [String])?.count == 1)
+   } catch { precondition((values as? [String])?.first != "https://updates.example.invalid/ok" || (values as? [String])?.count == 4) }
+  }
+  func link(_ path:String)->URL { URL(string:"https://updates.example.invalid"+path)! }
+  DownloadFixture.reset()
+  _ = try await transfer().run(url:link("/slow"),mirrors:[link("/ok")],destination:output,sha256:expectedHash,size:3,progress:{_,_ in})
+  precondition(DownloadFixture.fullPaths == ["/ok"] && DownloadFixture.ranges == ["bytes=0-262143","bytes=0-262143"])
+  DownloadFixture.reset()
+  _ = try await transfer().run(url:link("/fail-full"),mirrors:[link("/slow")],destination:output,sha256:expectedHash,size:3,progress:{_,_ in})
+  precondition(DownloadFixture.fullPaths == ["/fail-full","/slow"])
+  DownloadFixture.reset()
+  _ = try await transfer().run(url:link("/short"),mirrors:[link("/slow")],destination:output,sha256:expectedHash,size:3,progress:{_,_ in})
+  precondition(DownloadFixture.fullPaths == ["/short","/slow"])
+  DownloadFixture.reset()
+  do { _ = try await transfer().run(url:link("/ok"),mirrors:[link("/slow")],destination:output,sha256:String(repeating:"0",count:64),size:3,progress:{_,_ in}); fatalError("hash mismatch accepted") } catch {}
+  precondition(DownloadFixture.fullPaths == ["/ok"])
+  DownloadFixture.reset()
+  let probeCancel=transfer()
+  let probing=Task { try await probeCancel.run(url:link("/cancel"),mirrors:[link("/cancel?mirror")],destination:cancelledTarget,sha256:expectedHash,size:3,progress:{_,_ in}) }
+  try await Task.sleep(nanoseconds:50_000_000); probeCancel.cancel()
+  do { _=try await probing.value; fatalError("probe cancellation ignored") } catch { precondition((error as? URLError)?.code == .cancelled) }
+  precondition(DownloadFixture.fullPaths.isEmpty)
+  DownloadFixture.reset()
+  _ = try await transfer().run(url:link("/large-probe"),mirrors:[link("/slow")],destination:output,sha256:expectedHash,size:3,progress:{_,_ in})
+  precondition(DownloadFixture.fullPaths == ["/large-probe"])
+  // A hanging source is bounded by the probe deadline; a usable alternate still succeeds.
+  let deadlineStart = Date()
+  _ = try await transfer().run(url:link("/cancel"),mirrors:[link("/ok")],destination:output,sha256:expectedHash,size:3,progress:{_,_ in})
+  precondition(Date().timeIntervalSince(deadlineStart) < 10)
   var releaseCount = 0
   let bound = AppUpdater(defaults:defaults,currentVersion:current,downloadRoot:downloadRoot,transferFactory:{transfer()},endpoint:{endpoint},fetch:{_ in
    releaseCount += 1
