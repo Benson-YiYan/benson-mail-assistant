@@ -2,14 +2,14 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610181011",
-      "sha256": "348e07355707a4065fe654626001a44f87ea67fd385ce4925ba300493d1a10c1",
-      "size": 108563768,
+      "version": "202610181042",
+      "sha256": "643e9b1d4c50a21db8cc3e9f2f3b0cfea84d53eb4a2f7677126fa790e639bb65",
+      "size": 108574624,
       "notes": {
-        "zh": "Windows更新检查新增GitHub API备用入口；主入口SSL连接失败时自动切换，保留系统代理与严格证书校验，并显示每个入口的底层错误详情。",
-        "en": "Adds a GitHub API fallback when the primary update source fails, preserving Windows system proxy and strict certificate validation. Shows nested diagnostics for both sources."
+        "zh": "邮件小秘书主程序和卸载程序启动时默认最大化，保留标准标题栏、任务栏和还原按钮。包含此前的更新连接备用入口修复。",
+        "en": "The main app and uninstaller now start maximized with standard window controls. Includes the previous update connection fallback fix."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181011.exe"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181042.exe"
     },
     "macos-arm64": {
       "version": "202610180948",
