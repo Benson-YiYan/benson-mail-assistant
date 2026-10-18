@@ -68,48 +68,22 @@ B. Register your own application once (IT assistance may be useful)
 3) You need access to a Microsoft Entra directory with permission to register applications; a personal mailbox alone does not guarantee this. Ask IT for help if registration is unavailable. Sign in at https://entra.microsoft.com/ . Open Identity > Applications > App registrations > New registration. Name it Mail Secretary; choose an account type matching your mailbox. Personal Outlook requires a type including personal Microsoft accounts. Record the Application (client) ID.
 4) In Authentication > Advanced settings, enable Allow public client flows. Do not create a client secret: these instructions use a public-client device flow.
 5) Under API permissions > Add a permission > APIs my organization uses, find Office 365 Exchange Online. Select Delegated permissions and IMAP.AccessAsUser.All. Obtain administrator consent if required. Microsoft Graph Mail.Read is not the required permission.
-C. Get a token on your own computer
-6) On Windows, open PowerShell and paste the script below. Replace CLIENT-ID-HERE with your application ID. For personal accounts keep consumers; for an organization-only application replace it with your tenant ID. Do not enter an email password in the script. Mac users can ask their administrator to obtain a token or use PowerShell if already installed.
+C. Get a token with the included tool
+WHAT DOES THIS TOOL DO?
+It obtains a Microsoft email OAuth2 access token (access_token), only for this Outlook / Hotmail / Microsoft 365 section. Users of 163, QQ or other providers can skip this section.
+It starts a Microsoft sign-in and displays the official URL and a one-time code. After you sign in and approve access in your browser, it waits for the token and copies it to your clipboard. The tool does not ask you to type a mailbox password, save the token to a file or display it in the window.
 
-WHAT DOES THE FOLLOWING CODE DO?
-This helper obtains a Microsoft email OAuth2 access token (access_token). It applies only to the Outlook / Hotmail / Microsoft 365 section. Users of 163, QQ or other providers can skip this section.
-It asks Microsoft to start a sign-in and displays the official sign-in URL and a one-time code. After you sign in and approve access in your browser, it waits for Microsoft's response and copies the access_token to your clipboard. Paste that value into Mail Secretary's OAuth2 access token field, save, and test.
-First complete the app registration and permission steps above. Replace CLIENT-ID-HERE with your own Application (client) ID; this is not your email address, mailbox password or AI API key. The default consumers tenant is for personal Microsoft accounts. For an organization account, use your tenant ID as described above; the app must also support that account type.
-This code does not bypass sign-in or administrator approval and does not keep Mail Secretary signed in permanently. Access tokens expire. The current app does not refresh them automatically, so obtain a new token and update it when needed. Do not paste the resulting token into a chat.
-
-$clientId = 'CLIENT-ID-HERE'
-$tenant = 'consumers'
-$scope = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access'
-$base = "https://login.microsoftonline.com/$tenant/oauth2/v2.0"
-$device = Invoke-RestMethod -Method Post -Uri "$base/devicecode" -Body @{client_id=$clientId;scope=$scope}
-Write-Host $device.message
-$until = (Get-Date).AddSeconds([int]$device.expires_in)
-$token = $null
-while ((Get-Date) -lt $until) {
-    Start-Sleep -Seconds ([int]$device.interval)
-    try {
-        $token = Invoke-RestMethod -Method Post -Uri "$base/token" -Body @{grant_type='urn:ietf:params:oauth:grant-type:device_code';client_id=$clientId;device_code=$device.device_code}
-        break
-    } catch {
-        try { $failure = $_.ErrorDetails.Message | ConvertFrom-Json } catch { throw }
-        if ($failure.error -eq 'authorization_pending') { continue }
-        if ($failure.error -eq 'slow_down') { $device.interval = [int]$device.interval + 5; continue }
-        throw
-    }
-}
-if (-not $token.access_token) { throw 'Sign-in expired; start again.' }
-$token.access_token | Set-Clipboard
-Write-Host 'Access token copied. Paste it only into Mail Secretary.'
-
-7) Follow the Microsoft sign-in URL and one-time code shown in the terminal. Sign in as the mailbox to monitor and consent. Leave PowerShell running. Verify the application is your own registered app, and do not give the device code to someone else.
-8) Once copied, select Outlook / Microsoft 365 in Mail Secretary. Enter the full email address, outlook.office365.com, 993, SSL/TLS. Choose OAuth2 access token and paste the clipboard into the credential field. Save and test; then replace the clipboard by copying ordinary text.
-9) Tokens expire according to Microsoft/organization policy. Repeat steps 6–8 to renew the access token manually. offline_access can also return a refresh_token, which this app does not accept or refresh. Do not share token responses.
-10) For consent/admin/permission/policy failures, ask your administrator to check registration, Exchange Online delegated permission, user consent and Conditional Access. There is no permanent token to buy.
+6) First complete the app registration and permission steps above. Have your Application (client) ID ready; this is not your email address, password or AI API key. Organization accounts also need their tenant ID. Ask the administrator for help with permissions.
+7) In Mail Secretary, select Outlook / Microsoft 365. When OAuth2 access token authentication is selected, a Get OAuth2 Token button appears beside How do I get an authorization code? Click it.
+   Windows: this runs Get-Outlook-Token.bat in the program directory. It launches the adjacent PowerShell script; you do not need to copy commands.
+   Mac: the button opens the equivalent included terminal tool; PowerShell is not required.
+8) Enter your client ID as prompted. For a personal Microsoft account, press Enter at the tenant prompt to use consumers. For an organization account, enter its tenant ID. Your registered app must support that account type.
+9) Open the displayed Microsoft URL in your browser, enter the one-time code, sign in as the mailbox to monitor, and approve access. Verify that the application is your own registered app. Do not share the one-time code. Leave the tool open until it finishes.
+10) When Access token copied appears, return to Mail Secretary. Enter the full email address, outlook.office365.com, port 993, SSL/TLS, and OAuth2 access token authentication. Paste into the credential field, save, and test. Then replace the clipboard by copying ordinary text. Do not paste the full token into a chat.
+11) Access tokens expire. This app does not refresh them automatically. When expired, click the button again, sign in and update the token. This tool does not register apps or bypass administrator approval. For expired sign-ins, insufficient permissions or organization policy restrictions, retry as instructed or ask the administrator.
 Official Microsoft documentation:
 https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
 https://learn.microsoft.com/entra/identity-platform/v2-oauth2-device-code
-https://learn.microsoft.com/entra/identity-platform/quickstart-register-app
-https://learn.microsoft.com/entra/identity-platform/scenario-desktop-app-registration
 https://support.microsoft.com/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040
 
 9. Other / custom IMAP: the short version

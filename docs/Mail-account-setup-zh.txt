@@ -70,48 +70,22 @@ B. 一次性注册自己的应用（不想处理这部分可让 IT 帮忙）
 3. 需要有可注册应用的 Microsoft Entra 目录和权限；个人邮箱并不保证自带此条件，不能进入或不能新注册时请 IT 协助。登录 https://entra.microsoft.com/ ，进入“标识 > 应用程序 > 应用注册 > 新注册”。取名 Mail Secretary；选支持你的邮箱类型的账户范围。个人 Outlook 要选择包括“个人 Microsoft 账户”的范围；纯组织账号可选对应组织范围。记下“应用程序(客户端) ID”。
 4. 在该应用的“身份验证 > 高级设置”启用“允许公共客户端流”。不要创建客户端密码；这里使用公共客户端设备代码流程。
 5. 在“API 权限 > 添加权限 > 我的组织使用的 API”搜索“Office 365 Exchange Online”，选“委托的权限”，添加 IMAP.AccessAsUser.All。需要时请管理员同意。不是 Microsoft Graph 的 Mail.Read。
-C. 在自己电脑取令牌（Windows PowerShell；Mac 可让管理员协助取令牌）
-6. 打开 PowerShell，复制下面整段。只把 CLIENT-ID-HERE 改成步骤3的客户端 ID；这不是秘密。个人账号保留 consumers；纯组织注册改成你的租户 ID，不要填邮箱密码。
+C. 用随软件附带的工具获取令牌
+【这个工具是做什么的？】
+它用来获取微软邮箱的 OAuth2 访问令牌（access_token），仅适用于本节的 Outlook / Hotmail / Microsoft 365。使用 163、QQ 等邮箱时跳过本节。
+它向微软申请一次登录，显示官方登录网址和一次性代码；你在浏览器登录并确认授权后，它等待微软返回令牌，并复制到剪贴板。它不需要你在工具里输入邮箱密码，也不会把令牌保存成文件或显示在窗口里。
 
-【下面这段代码是做什么的？】
-这是“获取微软邮箱 OAuth2 访问令牌（access_token）”的辅助代码，仅用于这一节的 Outlook / Hotmail / Microsoft 365。使用 163、QQ 等邮箱的用户跳过本节即可。
-它会向微软申请一次登录，显示官方登录网址和一次性代码；你在浏览器中登录并确认授权后，它等待微软返回访问令牌，并自动把 access_token 复制到剪贴板。然后把它粘贴到邮件小秘书的“OAuth2 访问令牌”框，保存并测试。
-运行前必须先完成上面的应用注册和权限配置，把 CLIENT-ID-HERE 换成自己的“应用程序(客户端) ID”；它不是邮箱地址、邮箱密码或 AI API Key。默认 consumers 用于个人微软账户；组织账户按上文改成自己的租户 ID，应用本身也必须支持对应账户类型。
-代码不会自动绕过登录或管理员审批，也不会替邮件小秘书永久登录。它取得的访问令牌会过期；当前软件不自动续期，失效后需要重新获取并更新。不要把得到的完整令牌发进聊天。
-
-$clientId = 'CLIENT-ID-HERE'
-$tenant = 'consumers'
-$scope = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access'
-$base = "https://login.microsoftonline.com/$tenant/oauth2/v2.0"
-$device = Invoke-RestMethod -Method Post -Uri "$base/devicecode" -Body @{client_id=$clientId;scope=$scope}
-Write-Host $device.message
-$until = (Get-Date).AddSeconds([int]$device.expires_in)
-$token = $null
-while ((Get-Date) -lt $until) {
-    Start-Sleep -Seconds ([int]$device.interval)
-    try {
-        $token = Invoke-RestMethod -Method Post -Uri "$base/token" -Body @{grant_type='urn:ietf:params:oauth:grant-type:device_code';client_id=$clientId;device_code=$device.device_code}
-        break
-    } catch {
-        try { $failure = $_.ErrorDetails.Message | ConvertFrom-Json } catch { throw }
-        if ($failure.error -eq 'authorization_pending') { continue }
-        if ($failure.error -eq 'slow_down') { $device.interval = [int]$device.interval + 5; continue }
-        throw
-    }
-}
-if (-not $token.access_token) { throw 'Sign-in expired; start again.' }
-$token.access_token | Set-Clipboard
-Write-Host 'Access token copied. Paste it only into Mail Secretary.'
-
-7. 按终端显示的微软登录网址和一次性代码，在浏览器登录你要监听的邮箱并同意权限；不要关闭正在等待的 PowerShell。确认应用名是你自己注册的应用，不要把代码交给他人。
-8. 终端提示已复制后，回软件选 Outlook / Microsoft 365，填完整邮箱地址；服务器 outlook.office365.com，993，SSL/TLS；登录方式 OAuth2 访问令牌，把剪贴板粘贴到凭据框，保存并测试。随后用复制普通文字的方式覆盖剪贴板。
-9. access_token 会过期（期限由微软和组织策略决定）。过期后按步骤6—8重新登录并更新软件。offline_access 可能同时返回 refresh_token，但本软件不接收它也不自动续期。不要把完整令牌或终端响应发给别人。
-10. consent_required、admin_consent、权限不足或企业策略阻止时，让管理员检查应用注册、Exchange Online 委托权限、用户同意与条件访问；不要从不明网站购买所谓“永久 token”。
+6. 先完成上面的应用注册和权限配置。记好自己的“应用程序(客户端) ID”；这不是邮箱地址、密码或 AI API Key。组织账号还要准备租户 ID，遇到权限问题先请管理员协助。
+7. 在邮件小秘书中选 Outlook / Microsoft 365。使用“OAuth2 访问令牌”登录方式时，“如何获取授权码？”旁会出现“获取 OAuth2 Token”按钮，点击它。
+   Windows：运行程序目录中的 Get-Outlook-Token.bat；它会自动调用旁边的 PowerShell 脚本，不用手动复制代码。
+   Mac：按钮打开随软件附带的对应终端工具，不需要另装 PowerShell。
+8. 按工具提示输入客户端 ID。个人微软邮箱在租户提示处直接回车（consumers）；组织账号输入自己的租户 ID，应用也必须支持对应账户类型。
+9. 用浏览器打开工具显示的微软登录网址，输入一次性代码，登录要监听的邮箱并同意权限。确认应用是你自己注册的应用，不要把一次性代码给别人；保持工具窗口开启，等待完成。
+10. 显示“访问令牌已复制”后，回软件填写完整邮箱地址；服务器 outlook.office365.com，端口 993，SSL/TLS，登录方式“OAuth2 访问令牌”。将剪贴板粘贴到凭据框，保存并测试。然后复制普通文字覆盖剪贴板，不要把完整令牌发进聊天。
+11. access_token 会过期。当前软件不自动续期，失效后重新点击按钮、登录并更新令牌。本工具不替你注册应用，也不能绕过管理员审批。登录超时、权限不足或企业策略阻止时，按工具提示重试或联系管理员。
 微软官方资料：
 https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
 https://learn.microsoft.com/entra/identity-platform/v2-oauth2-device-code
-https://learn.microsoft.com/entra/identity-platform/quickstart-register-app
-https://learn.microsoft.com/entra/identity-platform/scenario-desktop-app-registration
 https://support.microsoft.com/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040
 
 九、其他邮箱（最简单的顺序）
