@@ -143,6 +143,9 @@ def self_test(result_path,screenshot):
     return 0 if result['ok'] else 1
 
 def main():
+    if '--delete-installer' in sys.argv:
+        from benson_mail.installer_cleanup import cli
+        return cli()
     if "--harness-fixture" in sys.argv:
         from benson_mail.harness_smoke import fixture
         fixture()

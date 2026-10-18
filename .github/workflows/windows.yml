@@ -18,7 +18,7 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Dependencies
-        run: python -m pip install -r requirements.txt "trustme>=1.2,<2"
+        run: python -m pip install -r requirements.txt "trustme>=1.2,<2" "pywinauto>=0.6.9,<0.7"
       - name: Installer compiler preflight with a tiny payload
         run: |
           $ErrorActionPreference = 'Stop'
@@ -90,6 +90,8 @@ jobs:
           $setup = (Get-ChildItem dist -Filter 'BensonMail-Windows-x64-Setup-*.exe' | Select-Object -First 1).FullName
           python script/check_installer.py "$setup" evidence
           if ($LASTEXITCODE -ne 0) { throw 'Installer integration test failed' }
+          python script/check_installer_cleanup_ui.py "$setup" evidence
+          if ($LASTEXITCODE -ne 0) { throw 'Installer cleanup UI integration test failed' }
       - name: Upload verified Windows package
         uses: actions/upload-artifact@v4
         with:

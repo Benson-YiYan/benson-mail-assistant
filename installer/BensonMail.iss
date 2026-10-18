@@ -56,6 +56,7 @@ english.DesktopUninstall=Create a desktop shortcut for the uninstaller
 english.StartApp=Create a Start menu entry for Mail Secretary
 english.StartUninstall=Create a Start menu entry for the uninstaller
 english.RunApp=Open Mail Secretary
+english.DeleteInstaller=Delete this installer after closing Setup
 english.DedicatedFolder=Please use a dedicated folder named BensonMail. Browse can select its parent folder.
 chinesesimp.AppName=邮件小秘书
 chinesesimp.UninstallName=卸载邮件小秘书
@@ -65,6 +66,7 @@ chinesesimp.DesktopUninstall=创建卸载程序的桌面快捷方式
 chinesesimp.StartApp=创建开始菜单项目
 chinesesimp.StartUninstall=创建卸载程序的开始菜单项目
 chinesesimp.RunApp=打开邮件小秘书
+chinesesimp.DeleteInstaller=关闭安装程序后删除此安装程序
 chinesesimp.DedicatedFolder=请使用名为 BensonMail 的专用文件夹。“浏览”可选择它所在的位置。
 english.FolderInUse=The selected folder contains other files. Please choose an empty, dedicated BensonMail folder.
 chinesesimp.FolderInUse=所选文件夹中已有其他文件，请选择空的 BensonMail 专用文件夹。
@@ -102,7 +104,22 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Uninstall\BensonM
 [Run]
 Filename: "{app}\BensonMail-{#AppVersion}.exe"; Description: "{cm:RunApp}"; Flags: nowait postinstall skipifsilent
 
+Filename: "{app}\MailWorker.exe"; Parameters: "--delete-installer ""{srcexe}"" --setup-pid {code:SetupProcessId} --installer-sha256 {code:SetupFingerprint}"; Description: "{cm:DeleteInstaller}"; Flags: postinstall unchecked nowait skipifsilent runhidden
+
 [Code]
+function GetCurrentProcessId: LongWord;
+  external 'GetCurrentProcessId@kernel32.dll stdcall';
+
+function SetupProcessId(Param: String): String;
+begin
+  Result := IntToStr(GetCurrentProcessId);
+end;
+
+function SetupFingerprint(Param: String): String;
+begin
+  Result := GetSHA256OfFile(ExpandConstant('{srcexe}'));
+end;
+
 var
   PreviousInstallDirectory: String;
 
