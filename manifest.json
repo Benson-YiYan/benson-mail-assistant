@@ -2,43 +2,43 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610181547",
-      "sha256": "acd3250d3893d935377aeff8d6ba5984910aad13b3754895a3d64205f35a5a77",
-      "size": 76545217,
+      "version": "202610181752",
+      "sha256": "c0553133ccac0bfdde5c03df67380b33369f8d13ddbcc567c901b1089a214c77",
+      "size": 76559877,
       "notes": {
-        "zh": "修复更新下载后安装程序未出现及旧版本目录无法覆盖的问题；加入启动确认、日志、取消保护与安装后自动重开。安装占用减少约30.4%；升级时按SHA256清理已停用的旧运行库，保留配置、报告及修改文件。含双语指南和详细邮箱诊断。",
-        "en": "Fixes installer handoff and legacy-folder upgrades, with startup acknowledgment, logs, safe cancellation and verified relaunch. Reduces installed payload by 30.4%; upgrades remove obsolete runtime files only when SHA256 matches, preserving configuration, reports and modified files. Includes bilingual guides and detailed mailbox diagnostics."
+        "zh": "登录用户名默认留空并移入高级连接选项，默认认证跟随邮箱地址，自定义用户名仍可保留。下载更新时并行进行小流量测速，在Mac更新服务和GitHub之间选择较快可用来源；网络失败或下载中断时换源重试，SHA256不符则停止安装。",
+        "en": "Leaves the optional login username blank inside advanced connection settings; default authentication follows the email address while custom usernames are preserved. Bounded concurrent probes compare the Mac update service and GitHub, then download from a faster usable source. Network failures and incomplete streams retry another source; SHA256 mismatches block installation."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018/BensonMail-Windows-x64-Setup-202610181547.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018.2/BensonMail-Windows-x64-Setup-202610181752.exe"
       ],
-      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181547.exe"
+      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181752.exe"
     },
     "macos-arm64": {
-      "version": "202610181459",
-      "sha256": "c783085b6fb6e7369903407223e8e763dced13c6ef2342e6b27cebfe364380fa",
-      "size": 23292690,
+      "version": "202610181749",
+      "sha256": "85224bd209918f2c562a1d7afc3ecc9732c7724e75b2a4c045d7999a2d4d2929",
+      "size": 23360465,
       "notes": {
-        "zh": "全新四页侧栏：邮件报告、邮箱与检查、AI服务、通用设置。报告正文通高显示；切页保留未保存输入，首次配置后同步表单；新增脱敏邮箱连接诊断和双语使用指南。",
-        "en": "New four-page sidebar for reports, mailboxes, AI and general settings. Full-height Markdown reader, preserved form drafts and first-run form synchronization, detailed sanitized mailbox diagnostics and bilingual guides."
+        "zh": "登录用户名默认留空并移入高级连接选项，默认认证跟随邮箱地址，自定义用户名仍可保留。下载更新时并行进行小流量测速，在Mac更新服务和GitHub之间选择较快可用来源；网络失败或下载中断时换源重试，SHA256不符则停止安装。",
+        "en": "Leaves the optional login username blank inside advanced connection settings; default authentication follows the email address while custom usernames are preserved. Bounded concurrent probes compare the Mac update service and GitHub, then download from a faster usable source. Network failures and incomplete streams retry another source; SHA256 mismatches block installation."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018/BensonMail-Mac-AppleSilicon-202610181459.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018.2/BensonMail-Mac-AppleSilicon-202610181749.dmg"
       ],
-      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610181459.dmg"
+      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610181749.dmg"
     },
     "macos-x86_64": {
-      "version": "202610181459",
-      "sha256": "0e1fd853412b07ee7555c2f847fdd6fd813b11fd0d0e04ed8f80411787986f9a",
-      "size": 16365626,
+      "version": "202610181749",
+      "sha256": "2f315ea388b5a643662bbdc8236cce39ee06412c6d6abc337c0daedaf26d399d",
+      "size": 16435046,
       "notes": {
-        "zh": "全新四页侧栏：邮件报告、邮箱与检查、AI服务、通用设置。报告正文通高显示；切页保留未保存输入，首次配置后同步表单；新增脱敏邮箱连接诊断和双语使用指南。",
-        "en": "New four-page sidebar for reports, mailboxes, AI and general settings. Full-height Markdown reader, preserved form drafts and first-run form synchronization, detailed sanitized mailbox diagnostics and bilingual guides."
+        "zh": "登录用户名默认留空并移入高级连接选项，默认认证跟随邮箱地址，自定义用户名仍可保留。下载更新时并行进行小流量测速，在Mac更新服务和GitHub之间选择较快可用来源；网络失败或下载中断时换源重试，SHA256不符则停止安装。",
+        "en": "Leaves the optional login username blank inside advanced connection settings; default authentication follows the email address while custom usernames are preserved. Bounded concurrent probes compare the Mac update service and GitHub, then download from a faster usable source. Network failures and incomplete streams retry another source; SHA256 mismatches block installation."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018/BensonMail-Mac-Intel-202610181459.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018.2/BensonMail-Mac-Intel-202610181749.dmg"
       ],
-      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610181459.dmg"
+      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610181749.dmg"
     }
   }
 }
