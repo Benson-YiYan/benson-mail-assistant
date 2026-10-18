@@ -2,14 +2,14 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610180948",
-      "sha256": "7062b1d0ac3d504e9ea795731a41bea6c4b63b9f6b02916603cec55930866345",
-      "size": 108532900,
+      "version": "202610181011",
+      "sha256": "348e07355707a4065fe654626001a44f87ea67fd385ce4925ba300493d1a10c1",
+      "size": 108563768,
       "notes": {
-        "zh": "新增每5小时自动检查更新和手动检查；卸载选项使用固定保留标签，删除报告前再次确认；微软OAuth2辅助工具及安装完成后可选删除安装包。",
-        "en": "Adds automatic update checks every five hours and manual checks. Uninstall switches now use fixed retention labels, with confirmation before deleting reports. Includes Microsoft OAuth2 helpers and optional installer cleanup."
+        "zh": "Windows更新检查新增GitHub API备用入口；主入口SSL连接失败时自动切换，保留系统代理与严格证书校验，并显示每个入口的底层错误详情。",
+        "en": "Adds a GitHub API fallback when the primary update source fails, preserving Windows system proxy and strict certificate validation. Shows nested diagnostics for both sources."
       },
-      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610180948.exe"
+      "url": "https://difficulty-twelve-advocate-counter.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181011.exe"
     },
     "macos-arm64": {
       "version": "202610180948",
