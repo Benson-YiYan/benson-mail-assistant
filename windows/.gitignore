@@ -1,0 +1,17 @@
+.superpowers/
+__pycache__/
+*.pyc
+.venv/
+venv/
+build/
+dist/
+*.spec
+*.log
+config.json
+secret.bin
+state/
+*.tmp
+self-test*.json
+screenshots/
+native/bin/
+native/obj/

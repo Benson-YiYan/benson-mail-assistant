@@ -1,0 +1,12 @@
+.build/
+.build-intel/
+dist/
+dist-intel/
+.DS_Store
+__pycache__/
+evidence/
+Runtime/mail_watch/
+.package-venv/
+.package-venv-intel/
+build/
+*.spec

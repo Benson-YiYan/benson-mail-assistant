@@ -1,0 +1,133 @@
+{
+  "bytes": 378459840,
+  "files": 1935,
+  "components": {
+    "native_runtime_and_winui": 304696178,
+    "app_and_uninstaller": 591872,
+    "resources_and_guides": 6493388,
+    "python_worker": 66678402
+  },
+  "largest_files": [
+    {
+      "path": "Microsoft.Windows.SDK.NET.dll",
+      "bytes": 24877600
+    },
+    {
+      "path": "onnxruntime.dll",
+      "bytes": 21723896
+    },
+    {
+      "path": "DirectML.dll",
+      "bytes": 18700264
+    },
+    {
+      "path": "PresentationFramework.dll",
+      "bytes": 16135976
+    },
+    {
+      "path": "Microsoft.ui.xaml.dll",
+      "bytes": 15083832
+    },
+    {
+      "path": "System.Windows.Forms.dll",
+      "bytes": 13563728
+    },
+    {
+      "path": "System.Private.CoreLib.dll",
+      "bytes": 13174568
+    },
+    {
+      "path": "_internal/cryptography/hazmat/bindings/_rust.pyd",
+      "bytes": 9897472
+    },
+    {
+      "path": "PresentationCore.dll",
+      "bytes": 8562472
+    },
+    {
+      "path": "System.Private.Xml.dll",
+      "bytes": 7997224
+    },
+    {
+      "path": "_internal/PIL/_avif.cp312-win_amd64.pyd",
+      "bytes": 7893504
+    },
+    {
+      "path": "Microsoft.WinUI.dll",
+      "bytes": 7317304
+    },
+    {
+      "path": "_internal/python312.dll",
+      "bytes": 6945272
+    },
+    {
+      "path": "Microsoft.UI.Xaml.Controls.dll",
+      "bytes": 6592312
+    },
+    {
+      "path": "_internal/mfc140u.dll",
+      "bytes": 5597264
+    },
+    {
+      "path": "System.Windows.Forms.Design.dll",
+      "bytes": 5564200
+    },
+    {
+      "path": "_internal/libcrypto-3.dll",
+      "bytes": 5231472
+    },
+    {
+      "path": "MailWorker.exe",
+      "bytes": 5020260
+    },
+    {
+      "path": "coreclr.dll",
+      "bytes": 4995880
+    },
+    {
+      "path": "D3DCompiler_47_cor3.dll",
+      "bytes": 4741488
+    },
+    {
+      "path": "System.Linq.Expressions.dll",
+      "bytes": 3675984
+    },
+    {
+      "path": "WinUIEdit.dll",
+      "bytes": 3420000
+    },
+    {
+      "path": "DWriteCore.dll",
+      "bytes": 3098184
+    },
+    {
+      "path": "System.Windows.Forms.Primitives.dll",
+      "bytes": 3012392
+    },
+    {
+      "path": "System.Data.Common.dll",
+      "bytes": 2860880
+    },
+    {
+      "path": "dwmcorei.dll",
+      "bytes": 2852664
+    },
+    {
+      "path": "_internal/PIL/_imaging.cp312-win_amd64.pyd",
+      "bytes": 2632704
+    },
+    {
+      "path": "Microsoft.Windows.Widgets.dll",
+      "bytes": 2404896
+    },
+    {
+      "path": "Microsoft.DiaSymReader.Native.amd64.dll",
+      "bytes": 2377016
+    },
+    {
+      "path": "DwmSceneI.dll",
+      "bytes": 2365240
+    }
+  ],
+  "baseline_commit": "a7230fd5e5e174b10fa27bd2fe2d99a98d4a8847"
+}

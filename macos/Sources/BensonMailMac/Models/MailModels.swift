@@ -1,0 +1,100 @@
+import Foundation
+
+struct Report: Identifiable {
+    let url: URL
+    let modified: Date
+    var metadataModified: Date? = nil
+    var sender: String = ""
+    var body: String = ""
+    var attachmentNames: [String] = []
+    var hasAttachments: Bool? = nil
+    var text: String = ""
+    var subject: String = ""
+    var receivedAt: Date? = nil
+    var id: String { url.path }
+    var title: String {
+        if !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return subject }
+        return url.deletingPathExtension().lastPathComponent.replacingOccurrences(
+            of: #"-\d{2}-\d{2}(?:-\d+)?$"#, with: "", options: .regularExpression)
+    }
+    var receivedLabel: String {
+        if let receivedAt {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "zh_CN")
+            formatter.timeZone = TimeZone(identifier: "Asia/Shanghai")
+            formatter.dateFormat = "yyyy-MM-dd HH:mm"
+            return formatter.string(from: receivedAt) + T(" · 北京时间")
+        }
+        let stem = url.deletingPathExtension().lastPathComponent
+        if let range = stem.range(of: #"-\d{2}-\d{2}(?:-\d+)?$"#, options: .regularExpression) {
+            let parts = stem[range].split(separator: "-")
+            return dateLabel + " " + parts[0] + ":" + parts[1] + T(" · 北京时间")
+        }
+        return dateLabel
+    }
+    var dateLabel: String { url.deletingLastPathComponent().lastPathComponent }
+    var searchableText: String { [title, sender, body, attachmentNames.joined(separator: " "), text].joined(separator: "\n") }
+}
+
+enum AttachmentFilter: String, CaseIterable, Identifiable {
+    case all = "全部", withAttachments = "有附件", withoutAttachments = "无附件"
+    var id: String { rawValue }
+}
+
+struct ReportFilter {
+    var query = ""
+    var sender = ""
+    var fromDay: String? = nil
+    var toDay: String? = nil
+    var attachments: AttachmentFilter = .all
+    func matches(_ report: Report) -> Bool {
+        if let fromDay, report.dateLabel < fromDay { return false }
+        if let toDay, report.dateLabel > toDay { return false }
+        if !sender.isEmpty && !report.sender.localizedStandardContains(sender) { return false }
+        if attachments == .withAttachments && report.hasAttachments != true { return false }
+        if attachments == .withoutAttachments && report.hasAttachments != false { return false }
+        let terms = query.split(whereSeparator: { $0.isWhitespace })
+        if !terms.isEmpty {
+            let text = report.searchableText
+            if !terms.allSatisfy({ text.localizedStandardContains(String($0)) }) { return false }
+        }
+        return true
+    }
+}
+
+struct ServiceStatus: Decodable {
+    var phase: String?
+    var last_check: String?
+    var heartbeat: String?
+    var error: String?
+    var current_subject: String?
+    var pending: [Int]?
+}
+
+struct MailSettings: Codable {
+    var enabled: Bool = true
+    var output_dir: String = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Documents/邮件").path
+    var interval_seconds: Int = 60
+    var ai_provider = "api"
+    var api_base = ""
+    var api_model = ""
+    var ui_language: String? = nil
+    var harness_path = ""
+    var mailbox: MailConnection?
+    var mailboxes: [MailboxProfile]?
+    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, harness_path, mailbox, mailboxes }
+    init() {}
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try values.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        output_dir = try values.decodeIfPresent(String.self, forKey: .output_dir) ?? output_dir
+        interval_seconds = min(86400, max(10, try values.decodeIfPresent(Int.self, forKey: .interval_seconds) ?? 60))
+        ai_provider = try values.decodeIfPresent(String.self, forKey: .ai_provider) ?? "codex"
+        mailboxes = try values.decodeIfPresent([MailboxProfile].self, forKey: .mailboxes)
+        api_base = try values.decodeIfPresent(String.self, forKey: .api_base) ?? ""
+        ui_language = try values.decodeIfPresent(String.self, forKey: .ui_language)
+        api_model = try values.decodeIfPresent(String.self, forKey: .api_model) ?? ""
+        harness_path = try values.decodeIfPresent(String.self, forKey: .harness_path) ?? ""
+        mailbox = try values.decodeIfPresent(MailConnection.self, forKey: .mailbox)
+    }
+}

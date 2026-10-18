@@ -1,0 +1,7 @@
+Pillow>=10.4,<13
+pystray>=0.19.5,<1
+pypdf>=5,<7
+pyinstaller>=6.11,<7
+certifi>=2026.1.4
+truststore>=0.10.4,<1
+pywin32>=308; sys_platform == 'win32'

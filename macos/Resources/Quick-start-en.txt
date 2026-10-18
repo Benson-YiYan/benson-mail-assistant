@@ -1,0 +1,32 @@
+Mail Secretary for Mac — Quick start
+
+1. First launch
+Drag Mail Secretary into Applications, then open it there.
+Select an email preset, or choose Other email (custom IMAP).
+Enter your full email address, IMAP host, port, encryption and the app password or OAuth2 access token required by your provider.
+Click “How do I get an authorization code?” for the bundled step-by-step guide. Keep credentials and tokens private.
+Save and test the email connection.
+
+2. AI and reports
+In the main window sidebar > AI service, select an API or a supported AI tool already installed on your computer.
+For an API, enter the base address, API key and model, then test the connection.
+In General settings > Report location, use Browse to select your report folder; missing folders are created automatically.
+Each new email report covers: notification, sender, summary, your actions, attachment contents and a suggested reply. Replies are never sent automatically.
+Checks without new email do not call AI. New reports follow the interface language; existing reports remain unchanged.
+
+3. Multiple mailboxes and monitoring
+Add mailboxes in the Mailbox & checks sidebar page. Each mailbox has its own address, connection details and credentials.
+Use Start monitoring or Pause monitoring in the main window. Check now requests an immediate check.
+In Mailbox & checks, enter 10–86400 seconds in the custom check interval and apply it. 60 seconds means one minute.
+
+4. Reading, filtering and searching
+In Mail reports, select a report on the left to read it on the right. Receipt time is displayed separately; new reports use Markdown (.md) with formatted previews; older TXT reports remain readable. Filenames still include the receipt time.
+Search covers email body text, senders and attachment names.
+Click Filters to expand them. Combine date range, sender and attachment filters. Reset clears the filters.
+
+5. Updating and quitting
+Use Help > Check for updates, or the update section in General settings.
+Downloads run inside the app, with progress and cancellation. After verification, choose Install and reopen.
+The app checks the package and application, preserves settings and attempts rollback if installation fails.
+Closing the window keeps monitoring in the menu bar. Quitting through the Dock, application menu or Command-Q stops monitoring. Open the app and choose Start monitoring to resume.
+Change the interface language in General settings. First launch chooses Chinese for a Chinese system language, and English otherwise.

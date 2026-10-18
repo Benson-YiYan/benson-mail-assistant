@@ -1,0 +1,78 @@
+# 邮件小秘书 · Mail Secretary
+
+[English](README.en.md) · [下载安装包](https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest)
+
+新邮件来了，自动整理成六项：**新邮件提醒、谁发的、说了啥、我要做什么、附件内容、怎么回复**。
+
+支持 Windows 和 Mac，提供原生界面、多个邮箱和自选 AI。**没有新邮件或待重试任务时，不调用 AI；建议回复由你决定是否发送。**
+
+## 下载
+
+普通用户直接下载安装包，无需下载源码或运行命令行。
+
+| 电脑 | 选择的安装包 | 系统要求 |
+| --- | --- | --- |
+| Windows x64 | `BensonMail-Windows-x64-Setup-….exe` | Windows 10 / 11 |
+| Mac，Apple 芯片（M 系列） | `BensonMail-Mac-AppleSilicon-….dmg` | macOS 14+ |
+| Mac，Intel 处理器 | `BensonMail-Mac-Intel-….dmg` | macOS 14+ |
+
+**[前往最新 Release →](https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest)**
+
+每个安装包的文件名含版本号；同一 Release 中 Windows 和 Mac 的版本号可能不同。`SHA256SUMS.txt` 可用于核对文件完整性。
+
+- Windows：双击 EXE，选择安装位置和快捷方式。已有版本可覆盖安装。
+- Mac：打开对应 DMG，将应用拖入“应用程序”后打开。“关于本机”可查看芯片类型。
+- 软件自带运行环境，无需安装 Python、.NET 或 Homebrew。
+- 当前安装包没有发布者代码签名；Mac 未经 Apple 公证。首次打开遇到系统提示时，请核对下载来源，按系统提供的允许方式操作。
+
+## 三步开始
+
+1. **配置邮箱。**选择常见预设，或“其他邮箱（自定义 IMAP）”；启用邮箱的 IMAP 服务，填写账号及服务商要求的授权码、应用密码或 OAuth2 令牌。软件内有“如何获取授权码？”教程。
+2. **选择 AI。**填写兼容 Chat Completions 的 API 基础地址、API Key、模型名，或使用本机已安装配置好的 Codex / DeepSeek Harness。软件不捆绑 Harness，也不内置免费 AI 服务；API 模式无需安装 Codex。
+3. **选择报告目录，开始监听。**默认每 60 秒检查，可自定义；没有新邮件时只检查邮箱，不调用 AI。
+
+**新添加邮箱的第一次检查只记录收信起点，不会批量分析所有旧邮件。**之后停止、关机期间收到的邮件，在恢复监听时补查，前提是邮件仍在所选文件夹中。
+
+## 功能
+
+- 多邮箱：常见服务商预设，也支持自定义 IMAP 服务器、端口和加密方式。
+- 六项 AI 报告：新报告保存为 `.md`，兼容查看旧 `.txt`。
+- 本地搜索与筛选：正文、发件人、附件名；日期、发件人、有无附件。
+- 中文 / English：首次跟随系统语言，也能在设置中切换；新报告使用所选语言，旧报告保持原样。
+- 托盘 / 菜单栏运行、自定义检查间隔、自定义保存位置。
+- 应用内检查和下载安装更新；卸载时可选择保留配置和报告。
+
+附件分析依赖可提取的文字，不保证识别扫描图片或加密文件。搜索针对本机已保存的邮件数据和报告，不会搜索整个远端收件箱。
+
+## 界面预览
+
+以下为合成邮件测试界面，没有真实用户邮件。
+
+### Windows
+
+![Windows 邮件报告](docs/images/windows.png)
+
+### Mac
+
+![Mac 邮件报告](docs/images/macos.png)
+
+## 数据与限制
+
+- 来信正文及可读取的附件文字会发送给**你配置的 AI 服务**；使用前请确认该服务适合处理这些内容。
+- 邮箱和 AI 凭据使用系统保护机制保存；请勿在 Issue 中粘贴密码、授权码、令牌或私人邮件。
+- 软件不会自动发送回复。测试 AI 连接可能消耗少量服务商额度。
+- OAuth2 访问令牌目前需要手动填写和更新，不会自动续期。
+- Windows 安装及更新流程在 GitHub Windows runner 验证；Intel Mac 在 Rosetta 下验证，没有物理 Intel Mac 测试。
+
+## 详细说明与开发
+
+| 平台 | 使用说明 | 开发说明 |
+| --- | --- | --- |
+| Windows | [中文](windows/README.md) / [English](windows/README.en.md) | [构建与测试](windows/docs/DEVELOPMENT.md) |
+| Mac | [中文](macos/README.md) / [English](macos/README.en.md) | [构建与测试](macos/docs/DEVELOPMENT.md) |
+
+源码位于 `windows/` 和 `macos/`。公开仓库中的构建适配与下载的已验证安装包可能具有不同提交；每个 Release 会说明安装包版本及验证范围。
+
+遇到问题可以[提交 Issue](https://github.com/Benson-YiYan/benson-mail-assistant/issues)，附上系统版本、软件版本和脱敏错误信息。
+
+如果这个小秘书帮你省了时间，欢迎点个 ⭐。

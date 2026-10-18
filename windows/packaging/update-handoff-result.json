@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "from_version": "200001010000",
+  "version": "202610181547",
+  "checks": [
+    "Cancellation waits for the actual uncommitted Setup process to exit; later app exit does not install anything",
+    "Actual legacy WinForms, WPF, Tcl/Tk and Pillow files removed only after matching their baseline SHA256; unrelated and modified files preserved",
+    "Real Setup relaunches the newly installed native executable; its actual build version is verified without loading any accounts",
+    "Production native handoff waits for real Setup acknowledgment before the old application exits",
+    "Silent native Setup upgrades the original versioned legacy folder from 200001010000 to 202610181547",
+    "Setup success marker follows new executable and build-version verification; original config and report bytes preserved",
+    "Real Setup rejection is returned through the production handoff; no false success, no user file deletion"
+  ]
+}

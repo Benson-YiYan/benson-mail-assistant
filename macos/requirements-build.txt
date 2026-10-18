@@ -1,0 +1,6 @@
+pyinstaller>=6.16,<7
+pypdf>=6,<7
+certifi
+truststore
+tzdata
+markdown-it-py>=3,<5
