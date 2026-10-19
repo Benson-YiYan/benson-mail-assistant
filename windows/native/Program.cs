@@ -50,6 +50,13 @@ internal static class Program
         if (UpdateInstall.Fixture(args)) return;
         L.Initialize();
         Trace("Main");
+        if (Uninstall) {
+            try { if (UninstallWindow.StageBeforeWindow()) return; }
+            catch (Exception error) {
+                Desktop.Message(L.T("卸载未完成：") + L.T(error.Message));
+                Environment.ExitCode = 1; return;
+            }
+        }
         WinRT.ComWrappersSupport.InitializeComWrappers();
         using var mutex = new Mutex(false, Uninstall ? null : @"Local\BensonMail-" + Environment.UserName, out var created);
         if (!created) { Desktop.Message(L.T("邮件小秘书已经运行，请点击任务栏右下角的信封。")); return; }

@@ -13,6 +13,8 @@ from benson_mail import platform_windows as platform
 
 import pefile
 import pythoncom
+import win32gui
+import win32process
 from win32com.shell import shell
 
 program = Path(sys.argv[1]).resolve()
@@ -57,12 +59,25 @@ try:
     uninstaller = next(copied.glob('Uninstall-BensonMail-*.exe'))
     process = subprocess.Popen([str(uninstaller), '--e2e-test', str(result), '--delete-reports'],
                                cwd=tempfile.gettempdir())
+    # Observe actual top-level windows, not just the helper's self-report.
+    # Staging stays invisible and the helper owns one continuous visible window.
+    observed_windows = set()
     deadline = time.monotonic() + 150
     while time.monotonic() < deadline and not result.exists():
-        time.sleep(.2)
+        def observe(hwnd, _):
+            if (win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd)
+                    in {'卸载邮件小秘书', 'Uninstall Mail Secretary'}):
+                pid = win32process.GetWindowThreadProcessId(hwnd)[1]
+                assert pid != process.pid, 'Installed launcher showed a window before staging'
+                observed_windows.add((pid, hwnd))
+        win32gui.EnumWindows(observe, None)
+        time.sleep(.05)
     assert result.exists(), 'Independent uninstaller did not finish within 150 seconds'
     evidence = json.loads(result.read_text(encoding='utf-8'))
     assert evidence['ok'], evidence
+    assert evidence['initialProcess'] == evidence['finalProcess']
+    assert evidence['initialWindow'] == evidence['finalWindow'] != 0
+    assert observed_windows == {(evidence['finalProcess'], evidence['finalWindow'])}, observed_windows
     assert not copied.exists() and not data.exists()
     assert not report.exists() and not metadata.exists()
     assert unrelated.exists() and other.exists() and not owned.exists()
@@ -72,7 +87,8 @@ try:
     while time.monotonic() < deadline and helper.exists():
         time.sleep(.2)
     assert not helper.exists(), 'Temporary helper was not cleaned up'
-    evidence['checks'] += ['EXE envelope icon resources present',
+    evidence['checks'] += ['Externally observed one uninterrupted visible uninstaller HWND/PID; installed launcher stayed hidden',
+                           'EXE envelope icon resources present',
                            'registry startup value removed',
                            'owned shortcut removed and unrelated shortcut preserved',
                            'reports removed and unrelated files preserved',

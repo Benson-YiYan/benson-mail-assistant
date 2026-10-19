@@ -59,6 +59,46 @@ sealed class UninstallWindow : Window
         card.Loaded += (_, _) => Colors(); card.ActualThemeChanged += (_, _) => Colors();
         return card;
     }
+    // Stage before WinUI creates any window. The temporary process owns the
+    // only visible window for confirmation, progress and completion.
+    internal static bool StageBeforeWindow()
+    {
+        if (Argument("--uninstall-worker") != null || Argument("--uninstall-ui-test") != null) return false;
+        var start = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "MailWorker.exe")) {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+            RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8, WorkingDirectory = Path.GetTempPath()
+        };
+        foreach (var value in new[] { "--uninstall-native", "prepare", "--target", AppContext.BaseDirectory,
+            "--executable", Path.GetFileName(Environment.ProcessPath!) }) start.ArgumentList.Add(value);
+        var fixture = Argument("--fixture-result") ?? Argument("--e2e-test");
+        if (fixture != null) { start.ArgumentList.Add("--fixture-result"); start.ArgumentList.Add(fixture); }
+        using var worker = Process.Start(start) ?? throw new IOException(L.T("无法启动卸载组件。"));
+        var output = worker.StandardOutput.ReadToEndAsync();
+        var errors = worker.StandardError.ReadToEndAsync();
+        if (!worker.WaitForExit(120000)) {
+            try { worker.Kill(entireProcessTree: true); } catch { }
+            throw new TimeoutException(L.T("卸载组件未能完成，请关闭占用文件的程序后重试。"));
+        }
+        var stderr = errors.GetAwaiter().GetResult().Trim();
+        string? helperPath = null; string? failure = null;
+        foreach (var line in output.GetAwaiter().GetResult().Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
+            using var message = JsonDocument.Parse(line);
+            if (message.RootElement.TryGetProperty("result", out var result)) helperPath = result.GetProperty("helper").GetString();
+            if (message.RootElement.TryGetProperty("error", out var error)) failure = error.GetString();
+        }
+        if (worker.ExitCode != 0 || helperPath == null)
+            throw new IOException(failure ?? (stderr.Length > 0 ? stderr[..Math.Min(stderr.Length, 1600)] : L.T("无法启动卸载组件。")));
+        var helper = new ProcessStartInfo(helperPath) { UseShellExecute = false, CreateNoWindow = true,
+            WorkingDirectory = Path.GetTempPath() };
+        foreach (var value in Program.Args) helper.ArgumentList.Add(value);
+        helper.ArgumentList.Add("--uninstall-worker"); helper.ArgumentList.Add(AppContext.BaseDirectory);
+        helper.ArgumentList.Add("--parent-pid"); helper.ArgumentList.Add(Environment.ProcessId.ToString());
+        using var process = Process.Start(helper) ?? throw new IOException(L.T("无法启动卸载组件。"));
+        return true;
+    }
+    readonly int visibleProcess = Environment.ProcessId;
+    long visibleWindow;
     public UninstallWindow()
     {
         Program.Trace("Uninstall window constructor");
@@ -209,8 +249,8 @@ sealed class UninstallWindow : Window
                 + L.T("\n仅删除可识别的报告和邮件索引，保留其他文件及自选根目录。");
             progress.Text = L.T("准备就绪"); remove.IsEnabled = true;
             detail.Text = L.T("准备就绪。可选择保留配置，方便下次安装。");
-            if (staged) await Cleanup();
-            else if (fixtureResult != null) await Start();
+            visibleWindow = WinRT.Interop.WindowNative.GetWindowHandle(this).ToInt64();
+            if (fixtureResult != null) { await Task.Delay(500); await Start(); }
         }
         catch (Exception error) { Failed(error); }
     }
@@ -261,21 +301,8 @@ sealed class UninstallWindow : Window
             if (!await StopRunningApplication()) return;
             if (fixtureResult == null && !await ConfirmUninstall()) return;
             SetBusy();
-            var start = Worker("prepare"); start.ArgumentList.Add("--executable");
-            start.ArgumentList.Add(Path.GetFileName(Environment.ProcessPath!));
-            var prepared = await RunWorker(start);
-            var helper = new ProcessStartInfo(prepared.GetProperty("helper").GetString()!) {
-                UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetTempPath()
-            };
-            helper.ArgumentList.Add("--ui-language"); helper.ArgumentList.Add(L.Code);
-            helper.ArgumentList.Add("--uninstall-worker"); helper.ArgumentList.Add(target);
-            helper.ArgumentList.Add("--parent-pid"); helper.ArgumentList.Add(Environment.ProcessId.ToString());
-            if (preserve.IsOn == true) helper.ArgumentList.Add("--keep-configuration");
-            if (keepReports.IsOn != true) helper.ArgumentList.Add("--delete-reports");
-            if (fixtureResult != null) { helper.ArgumentList.Add("--fixture-result"); helper.ArgumentList.Add(fixtureResult); }
-            using var process = Process.Start(helper) ?? throw new IOException(L.T("无法打开独立卸载窗口。"));
-            busy = false;
-            Application.Current.Exit();
+            if (!staged) throw new InvalidOperationException("Uninstall window must be staged before it is shown");
+            await Cleanup();
         }
         catch (Exception error) { Failed(error); }
         finally { starting = false; }
@@ -287,6 +314,8 @@ sealed class UninstallWindow : Window
             var start = Worker("cleanup"); start.ArgumentList.Add("--parent-pid");
             start.ArgumentList.Add(Argument("--parent-pid") ?? "0");
             await RunWorker(start);
+            if (Environment.ProcessId != visibleProcess || WinRT.Interop.WindowNative.GetWindowHandle(this).ToInt64() != visibleWindow)
+                throw new InvalidOperationException("Uninstall window changed during cleanup");
             busy = false; finished = true; progress.Text = L.T("已完成");
             detail.Text = preserve.IsOn == true ? L.T("卸载完成。邮箱及 AI 配置已保留，下次重装可继续使用。") : L.T("卸载完成。程序、配置、加密密钥和缓存已清理。");
             remove.Content = L.T("完成"); remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
@@ -309,7 +338,9 @@ sealed class UninstallWindow : Window
         if (fixtureResult != null)
             File.WriteAllText(fixtureResult, JsonSerializer.Serialize(new { ok, detail = error,
                 helper = Path.GetFullPath(AppContext.BaseDirectory), target, data,
-                checks = new[] { "independent helper outside program directory", "responsive native WinUI 3 GUI",
+                initialProcess = visibleProcess, finalProcess = Environment.ProcessId,
+                initialWindow = visibleWindow, finalWindow = WinRT.Interop.WindowNative.GetWindowHandle(this).ToInt64(),
+                checks = new[] { "independent helper outside program directory", "responsive native WinUI 3 GUI", "same visible window and process from ready through completion",
                     preserve.IsOn == true ? "encrypted configuration retained and cache removed" : "full installation and user data cleanup" } }));
     }
     bool removingHelper;

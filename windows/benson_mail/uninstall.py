@@ -543,11 +543,14 @@ def native_cli():
             emit('result', {'data': str(data), 'reports': config.get('output_dir', ''), 'target': str(folder)})
             return 0
         if args.uninstall_native == 'cleanup':
-            emit('progress', '正在等待原卸载窗口退出…')
+            emit('progress', '正在准备…')
             wait_for_parent(args.parent_pid)
-        instance = platform.SingleInstance()
-        if instance.already_running:
-            raise RuntimeError('邮件小秘书仍在运行，请先从右下角托盘退出，再重新卸载。')
+        # Preparation is non-destructive and precedes the visible confirmation
+        # window, which asks permission to close a running application later.
+        if args.uninstall_native == 'cleanup':
+            instance = platform.SingleInstance()
+            if instance.already_running:
+                raise RuntimeError('邮件小秘书仍在运行，请先从右下角托盘退出，再重新卸载。')
         if args.uninstall_native == 'prepare':
             name = Path(args.executable or '').name
             if not re.fullmatch(r'Uninstall-BensonMail-\d{12}\.exe', name):

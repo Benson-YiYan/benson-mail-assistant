@@ -1,4 +1,8 @@
 import json
+import io
+import os
+import shutil
+from unittest.mock import patch
 from pathlib import Path
 import subprocess
 import sys
@@ -8,6 +12,35 @@ from benson_mail.uninstall import report_files, remove_reports, installation, co
 
 
 class UninstallTests(unittest.TestCase):
+    def test_native_preparation_is_non_destructive_while_application_runs(self):
+        # Staging now precedes the UI's permission-to-exit prompt. It must not
+        # acquire the main app mutex or change installation/configuration bytes.
+        from benson_mail.uninstall import native_cli
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary) / 'BensonMail-202610191200'
+            (folder / '_internal').mkdir(parents=True)
+            name = 'Uninstall-BensonMail-202610191200.exe'
+            (folder / name).write_bytes(b'synthetic launcher')
+            settings = Path(temporary) / 'BensonMail'
+            settings.mkdir()
+            config = settings / 'config.json'
+            config.write_text('{"account":"synthetic@example.invalid"}')
+            captured = io.StringIO()
+            with patch('sys.argv', ['worker', '--uninstall-native', 'prepare', '--target', str(folder), '--executable', name]), \
+                    patch.dict(os.environ, {'LOCALAPPDATA': temporary}), \
+                    patch('sys.stdout', captured), \
+                    patch('benson_mail.platform_windows.SingleInstance', side_effect=AssertionError('Preparation must not lock the running app')):
+                self.assertEqual(native_cli(), 0)
+            rows = [json.loads(line) for line in captured.getvalue().splitlines()]
+            helper = Path(next(row['result']['helper'] for row in rows if 'result' in row))
+            try:
+                self.assertTrue((helper.parent / '.benson-uninstall-helper').is_file())
+                self.assertEqual(helper.read_bytes(), b'synthetic launcher')
+                self.assertEqual((folder / name).read_bytes(), b'synthetic launcher')
+                self.assertEqual(config.read_text(), '{"account":"synthetic@example.invalid"}')
+            finally:
+                shutil.rmtree(helper.parent)
+
     def test_reports_preserve_unrelated_files(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
