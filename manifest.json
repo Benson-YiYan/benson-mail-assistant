@@ -2,43 +2,43 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610191016",
-      "sha256": "e6e1019d202a5c6afd376c09d298dc5059a72311cc0afc746e1f06d636b2e707",
-      "size": 23571701,
+      "version": "202610191203",
+      "sha256": "eb5bfcf15f5691a22d351e57fcb796230fa99cdc342350c5a70d9d69dcaf9ae5",
+      "size": 23578421,
       "notes": {
-        "zh": "安装前检测共享 .NET 8 和 WinUI 3；缺少时明确列出并再次征求同意后下载，已有兼容组件直接复用。升级时按已核验的历史文件指纹清理旧内置运行库，保留配置、邮件报告及用户文件，不卸载系统共享组件。卸载从确认到完成保持同一个窗口，不再关闭后重新打开。",
-        "en": "Detects shared .NET 8 and WinUI 3 before installation; missing components are downloaded only after explicit confirmation, while compatible installed components are reused. Upgrades remove verified obsolete bundled runtime files while preserving configuration, reports and user files; system shared runtimes remain installed. Uninstallation keeps one continuous window from confirmation to completion."
+        "zh": "补全中英文 Outlook / Microsoft 365 邮箱接入指南，增加复杂度提醒及完整20步：Azure免费注册与银行卡验证、默认目录、应用ID、公共客户端流、IMAP委托权限、取令牌和失效后重取；解释AADSTS50020/50058及自动转发替代方案。",
+        "en": "Completes the Chinese and English Outlook / Microsoft 365 setup guide with a difficulty notice and 20 steps covering Azure Free signup and card verification, the default directory, application ID, public-client flows, delegated IMAP permissions, obtaining tokens and renewing expired access tokens. Explains AADSTS50020/50058 and forwarding alternatives."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019/BensonMail-Windows-x64-Setup-202610191016.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.1/BensonMail-Windows-x64-Setup-202610191203.exe"
       ],
-      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610191016.exe"
+      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610191203.exe"
     },
     "macos-arm64": {
-      "version": "202610181749",
-      "sha256": "85224bd209918f2c562a1d7afc3ecc9732c7724e75b2a4c045d7999a2d4d2929",
-      "size": 23360465,
+      "version": "202610191201",
+      "sha256": "44ea54e314b721269c86a9964a42a30989379b3222c9ab72882a75e7f0b89668",
+      "size": 23366007,
       "notes": {
-        "zh": "登录用户名默认留空并移入高级连接选项，默认认证跟随邮箱地址，自定义用户名仍可保留。下载更新时并行进行小流量测速，在Mac更新服务和GitHub之间选择较快可用来源；网络失败或下载中断时换源重试，SHA256不符则停止安装。",
-        "en": "Leaves the optional login username blank inside advanced connection settings; default authentication follows the email address while custom usernames are preserved. Bounded concurrent probes compare the Mac update service and GitHub, then download from a faster usable source. Network failures and incomplete streams retry another source; SHA256 mismatches block installation."
+        "zh": "补全中英文 Outlook / Microsoft 365 邮箱接入指南，增加复杂度提醒及完整20步：Azure免费注册与银行卡验证、默认目录、应用ID、公共客户端流、IMAP委托权限、取令牌和失效后重取；解释AADSTS50020/50058及自动转发替代方案。",
+        "en": "Completes the Chinese and English Outlook / Microsoft 365 setup guide with a difficulty notice and 20 steps covering Azure Free signup and card verification, the default directory, application ID, public-client flows, delegated IMAP permissions, obtaining tokens and renewing expired access tokens. Explains AADSTS50020/50058 and forwarding alternatives."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018.2/BensonMail-Mac-AppleSilicon-202610181749.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.1/BensonMail-Mac-AppleSilicon-202610191201.dmg"
       ],
-      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610181749.dmg"
+      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610191201.dmg"
     },
     "macos-x86_64": {
-      "version": "202610181749",
-      "sha256": "2f315ea388b5a643662bbdc8236cce39ee06412c6d6abc337c0daedaf26d399d",
-      "size": 16435046,
+      "version": "202610191201",
+      "sha256": "b4aee73d58779cf883ef99be9806d75cf0b986b3c4fd8ad1c5c63c7affaa1e8e",
+      "size": 16453099,
       "notes": {
-        "zh": "登录用户名默认留空并移入高级连接选项，默认认证跟随邮箱地址，自定义用户名仍可保留。下载更新时并行进行小流量测速，在Mac更新服务和GitHub之间选择较快可用来源；网络失败或下载中断时换源重试，SHA256不符则停止安装。",
-        "en": "Leaves the optional login username blank inside advanced connection settings; default authentication follows the email address while custom usernames are preserved. Bounded concurrent probes compare the Mac update service and GitHub, then download from a faster usable source. Network failures and incomplete streams retry another source; SHA256 mismatches block installation."
+        "zh": "补全中英文 Outlook / Microsoft 365 邮箱接入指南，增加复杂度提醒及完整20步：Azure免费注册与银行卡验证、默认目录、应用ID、公共客户端流、IMAP委托权限、取令牌和失效后重取；解释AADSTS50020/50058及自动转发替代方案。",
+        "en": "Completes the Chinese and English Outlook / Microsoft 365 setup guide with a difficulty notice and 20 steps covering Azure Free signup and card verification, the default directory, application ID, public-client flows, delegated IMAP permissions, obtaining tokens and renewing expired access tokens. Explains AADSTS50020/50058 and forwarding alternatives."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018.2/BensonMail-Mac-Intel-202610181749.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.1/BensonMail-Mac-Intel-202610191201.dmg"
       ],
-      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610181749.dmg"
+      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610191201.dmg"
     }
   }
 }
