@@ -1228,6 +1228,9 @@ sealed class MainWindow : Window
             Check(mailProxy.Host.Text.Length > 0 && mailProxy.Port.Text.Length > 0,
                 "Explicit custom proxy selection supplies editable local proxy defaults");
             mailProxy.Host.Text = "127.0.0.1"; mailProxy.Port.Text = "18082";
+            // The offline fixture starts with two credential-free profiles. Seed only
+            // this synthetic credential; later proxy-only saves must reuse it.
+            mailSecret.Password = "synthetic-proxy-native-secret";
             await SaveMail();
             var proxyProfile = await bridge.Call("config");
             var proxyProfileId = proxyProfile.GetProperty("selected_mailbox_id").GetString();
@@ -1248,8 +1251,9 @@ sealed class MainWindow : Window
             await SaveMail();
             var systemProxyProfile = await bridge.Call("config");
             Check(systemProxyProfile.GetProperty("proxy_mode").GetString() == "system" &&
-                systemProxyProfile.GetProperty("selected_mailbox_id").GetString() == proxyProfileId,
-                "System proxy mode persists while mailbox identity is unchanged");
+                systemProxyProfile.GetProperty("selected_mailbox_id").GetString() == proxyProfileId &&
+                systemProxyProfile.GetProperty("has_mail_secret").GetBoolean(),
+                "System proxy mode persists while mailbox identity and saved credentials are retained");
             mailProxy.Mode.SelectedIndex = 0; await SaveMail();
             Check(mailUsername.Text.Length == 0 && mailLoginSummary.Visibility == Visibility.Collapsed,
                 "Stored default login is blank in the native form after profile selection");
