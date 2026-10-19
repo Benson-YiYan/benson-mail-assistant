@@ -267,7 +267,7 @@ begin
     ExpandConstant('{tmp}\prerequisites.ps1') + '" -Mode ' + Operation +
     ' -MinimumDotnet "{#MinimumDotnet}" -MinimumWinUI "8000.994.2142.0" -ResultFile "' + ResultPath + '"';
   if Components <> '' then Parameters := Parameters + ' -Components "' + Components + '"';
-  Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Parameters,
+  Result := Exec(ExpandConstant('{sysnative}\WindowsPowerShell\v1.0\powershell.exe'), Parameters,
     ExpandConstant('{tmp}'), SW_HIDE, ewWaitUntilTerminated, ExitCode);
   Status := GetIniString('Prerequisites', 'Status', '', ResultPath);
   Detail := GetIniString('Prerequisites', 'Error', 'Runtime helper did not return a result. Windows exit code: ' + IntToStr(ExitCode), ResultPath);
