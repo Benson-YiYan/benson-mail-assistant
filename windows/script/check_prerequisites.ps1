@@ -222,6 +222,11 @@ try {
         $result = Join-Path $Evidence 'prerequisites-install.ini'
         & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $helper -Mode Install -Components 'dotnet,winui' -ResultFile $result
         $installExitCode = $LASTEXITCODE
+        @{
+            registry = Get-ItemProperty 'HKLM:\SOFTWARE\dotnet\Setup\InstalledVersions\x64' -ErrorAction SilentlyContinue
+            runtimes = @(& dotnet --list-runtimes)
+            state = Get-PrerequisiteState
+        } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $Evidence 'prerequisites-dotnet.json') -Encoding UTF8
         Get-AppxPackage | Where-Object { $_.Name -match 'WinApp|WindowsAppRuntime' } |
             Select-Object Name,Version,Architecture,PackageFamilyName,IsFramework,Status |
             ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Evidence 'prerequisites-appx.json') -Encoding UTF8
