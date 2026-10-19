@@ -60,33 +60,83 @@
 3. 软件选 Yahoo，完整邮箱地址，imap.mail.yahoo.com，993，SSL/TLS，“密码／客户端授权码”。填生成的应用密码，保存并测试。
 4. 若账户暂时不能生成应用密码，按 Yahoo 官网提示处理或联系其支持；不能保证所有账号都有该入口，也不要用短信验证码代替应用密码。
 
-八、Outlook.com / Hotmail / Microsoft 365（OAuth2，步骤较多）
-官网：个人邮箱 https://outlook.live.com/mail/ ；工作／学校邮箱 https://outlook.office.com/mail/ 。
-重要：该预设用 OAuth2。不要填普通密码或“应用密码”；Exchange Online 已移除 IMAP 基本认证。Graph Explorer 获取的是 Microsoft Graph 令牌，不能拿来登录 IMAP。软件目前只能接收手动取得的 access_token，没有内置微软网页登录或自动续期。
-A. 先开通邮箱 IMAP
-1. 个人 Outlook 在网页版“设置 > 邮件 > 转发和 IMAP”检查并启用 IMAP；若当前界面名称不同，在设置中搜索 IMAP。
-2. 企业 Microsoft 365 先让管理员确认邮箱启用 IMAP、允许下述应用与委托权限。组织可能要求管理员同意或禁止设备代码登录，软件无法绕过。
-B. 一次性注册自己的应用（不想处理这部分可让 IT 帮忙）
-3. 需要有可注册应用的 Microsoft Entra 目录和权限；个人邮箱并不保证自带此条件，不能进入或不能新注册时请 IT 协助。登录 https://entra.microsoft.com/ ，进入“标识 > 应用程序 > 应用注册 > 新注册”。取名 Mail Secretary；选支持你的邮箱类型的账户范围。个人 Outlook 要选择包括“个人 Microsoft 账户”的范围；纯组织账号可选对应组织范围。记下“应用程序(客户端) ID”。
-4. 在该应用的“身份验证 > 高级设置”启用“允许公共客户端流”。不要创建客户端密码；这里使用公共客户端设备代码流程。
-5. 在“API 权限 > 添加权限 > 我的组织使用的 API”搜索“Office 365 Exchange Online”，选“委托的权限”，添加 IMAP.AccessAsUser.All。需要时请管理员同意。不是 Microsoft Graph 的 Mail.Read。
-C. 用随软件附带的工具获取令牌
-【这个工具是做什么的？】
-它用来获取微软邮箱的 OAuth2 访问令牌（access_token），仅适用于本节的 Outlook / Hotmail / Microsoft 365。使用 163、QQ 等邮箱时跳过本节。
-它向微软申请一次登录，显示官方登录网址和一次性代码；你在浏览器登录并确认授权后，它等待微软返回令牌，并复制到剪贴板。它不需要你在工具里输入邮箱密码，也不会把令牌保存成文件或显示在窗口里。
+八、Outlook.com / Hotmail / Microsoft 365（OAuth2 完整步骤）
+添加Outlook/Microsoft 365邮箱极其困难，强烈不推荐，如果你爱折腾，下面有完整步骤：
 
-6. 先完成上面的应用注册和权限配置。记好自己的“应用程序(客户端) ID”；这不是邮箱地址、密码或 AI API Key。组织账号还要准备租户 ID，遇到权限问题先请管理员协助。
-7. 在邮件小秘书中选 Outlook / Microsoft 365。使用“OAuth2 访问令牌”登录方式时，“如何获取授权码？”旁会出现“获取 OAuth2 Token”按钮，点击它。
-   Windows：运行程序目录中的 Get-Outlook-Token.bat；它会自动调用旁边的 PowerShell 脚本，不用手动复制代码。
-   Mac：按钮打开随软件附带的对应终端工具，不需要另装 PowerShell。
-8. 按工具提示输入客户端 ID。个人微软邮箱在租户提示处直接回车（consumers）；组织账号输入自己的租户 ID，应用也必须支持对应账户类型。
-9. 用浏览器打开工具显示的微软登录网址，输入一次性代码，登录要监听的邮箱并同意权限。确认应用是你自己注册的应用，不要把一次性代码给别人；保持工具窗口开启，等待完成。
-10. 显示“访问令牌已复制”后，回软件填写完整邮箱地址；服务器 outlook.office365.com，端口 993，SSL/TLS，登录方式“OAuth2 访问令牌”。将剪贴板粘贴到凭据框，保存并测试。然后复制普通文字覆盖剪贴板，不要把完整令牌发进聊天。
-11. access_token 会过期。当前软件不自动续期，失效后重新点击按钮、登录并更新令牌。本工具不替你注册应用，也不能绕过管理员审批。登录超时、权限不足或企业策略阻止时，按工具提示重试或联系管理员。
-微软官方资料：
-https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
-https://learn.microsoft.com/entra/identity-platform/v2-oauth2-device-code
-https://support.microsoft.com/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040
+官网与入口：
+个人邮箱：https://outlook.live.com/mail/
+工作／学校邮箱：https://outlook.office.com/mail/
+Microsoft Entra 管理中心：https://entra.microsoft.com/
+Azure 账户注册：https://azure.microsoft.com/pricing/purchase-options/azure-account
+
+先了解：邮件小秘书目前让你使用自己注册的应用和手动取得的 OAuth2 access_token，没有内置微软网页登录或自动续期。令牌会过期，之后还要重新登录取令牌。普通邮箱密码、应用密码、应用 ID、租户 ID 和访问令牌是不同的东西，不能互相代填；Microsoft Graph / Graph Explorer 的令牌也不能拿来登录 IMAP。
+如果只想统一看邮件，支持微软登录的邮箱客户端通常更省事，但邮件小秘书不能直接读取其他客户端里的账号或邮件。若想让小秘书继续分析，可在 Outlook 网页设置自动转发到已经接入小秘书的邮箱，勾选保留副本，并发信测试是否送达。组织可能禁止转发；附件是否完整也要实测。接收方不要再自动转发回 Outlook，以免形成循环。
+
+A. 检查邮箱是否允许 IMAP
+1. 在浏览器登录要接入的邮箱。个人 Outlook 打开右上角齿轮“设置 > 邮件 > 转发和 IMAP”，启用允许设备和应用使用 IMAP 的选项，保存。若菜单不同，在设置里搜索“IMAP”。
+2. Microsoft 365 工作／学校邮箱，请管理员确认这个邮箱已启用 IMAP，并允许后面的应用、用户授权及设备代码登录。没有该权限时不能靠反复取令牌解决。
+
+B. 准备能注册应用的目录（你可能卡在这里）
+3. 打开 Microsoft Entra 管理中心，登录准备用来管理应用的账号。已有组织目录时，从右上角账号菜单的“切换目录”选择你有权限的目录。管理应用的账号与实际收邮件的账号可以不同，但应用必须支持收邮件账号的类型。
+4. 如果个人 Outlook 账号登录后报 AADSTS50020、“用户帐户在租户 Microsoft Services 中不存在”，说明当前账号不能进入该目录；截图中的 ADIbizaUX／74658136-14ec-4630-ad9b-26e160ff0fc6 是微软门户的应用 ID，不能填进邮件小秘书。重复登录和改 Cookie 都不能给你增加目录权限。请使用自己有权限的目录，或请组织管理员提供合适的应用注册权限。
+5. 如果你没有可用目录，可以打开上面的 Azure 账户注册页面，查看自己是否符合“免费账户”的注册条件。仅仅拥有 Outlook 邮箱或登录 Entra，不等于已经完成 Azure 注册。
+   注册顺序：选择“免费账户／免费开始” > 登录你的微软账号 > 按官网表单填写账户资料并验证手机 > 在微软官方页面完成银行卡验证 > 核对当前免费条款后提交。若出现购买、付费升级或与你预期不同的条件，先停止并确认，不要直接开通。
+   普通 Azure 免费账户注册通常要求手机和符合要求的信用卡／借记卡进行身份验证，可能有临时预授权。不要把银行卡信息、验证码发给 AI 或写进本软件。免费账户与“按量付费”是不同选项，按官网当时展示的条款选择；不要为了本教程直接升级付费。
+   完成首次 Azure 账户注册后，回到 Entra，重新登录并从右上角账号菜单“切换目录”，选择注册时生成的目录（常见名称为 Default Directory／默认目录）；使用这个目录注册应用，不需要另建租户。目录创建有资格限制，免费／试用账号不能在 Entra 管理中心新建额外的 Workforce 目录。若首次注册没有提供可用目录，或“新注册”被禁止，先停下来请管理员协助，或使用前面的转发方案。
+6. 进入自己可用的目录后，打开“Entra ID（旧界面可能叫‘标识’）> 应用注册”。若无“新注册”按钮、按钮灰色或提示无权限，需要管理员授予注册权限。不要把门户首页的“租户 ID”当成“应用 ID”。
+
+C. 一次性注册应用并配置 IMAP 权限
+7. 点击“应用注册 > 新注册”。名称填“Mail Secretary”；支持的账户类型按收邮件账号选择：
+   - 个人 Outlook／Hotmail：选“仅个人 Microsoft 账户”，或同时包含组织目录与个人 Microsoft 账户的选项。
+   - 仅本单位 Microsoft 365：可选“仅此组织目录中的账户（单租户）”。
+   - 需要同时支持个人和不同组织：选包含任意组织目录及个人 Microsoft 账户的选项；组织仍可能要求管理员批准。
+   本工具使用设备代码流程，“重定向 URI”留空即可，然后点击“注册”。
+8. 注册完成后进入这个应用的“概述”。复制“应用程序（客户端）ID”（形如 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx）。这是终端里要填的应用 ID。工作／学校邮箱还要记下对应的“目录（租户）ID”。不要复制“对象 ID”，也不要复制其他应用的 ID。
+9. 在这个应用的“身份验证 > 高级设置”（界面也可能显示为“设置／高级设置”）中，将“允许公共客户端流”设为“是”，点击“保存”。本工具不需要创建客户端密码或证书，不要在终端填邮箱密码或客户端密码。
+10. 打开“API 权限 > 添加权限 > 我的组织使用的 API”，搜索“Office 365 Exchange Online”，选择它，再选择“委托的权限”，展开 IMAP 并勾选“IMAP.AccessAsUser.All”，点击“添加权限”。不要选 Microsoft Graph 的 Mail.Read，也不要选应用程序权限或 IMAP.AccessAsApp。
+    随软件附带的工具会自动请求 https://outlook.office.com/IMAP.AccessAsUser.All offline_access，不需要你修改脚本或复制 PowerShell 代码。
+11. 若目录要求管理员同意，请管理员审查后批准。没有管理员按钮或不能点击时不要勉强；个人账号通常在后面的登录授权页同意。组织禁止该应用或设备代码流程时，需要管理员处理。
+
+D. 用随软件附带的工具取得访问令牌
+工具用途：向微软申请设备代码登录，显示官方网址和一次性代码；你在浏览器确认授权后，它把 access_token 复制到剪贴板。不显示令牌全文，不写入令牌文件，也不需要你在工具里输入邮箱密码。163、QQ 等不需要微软 OAuth2 的邮箱跳过本节。
+12. 回邮件小秘书，选 Outlook／Microsoft 365 预设及“OAuth2 访问令牌”。点击“如何获取授权码？”旁的“获取 OAuth2 Token”按钮。
+    Windows：按钮运行安装目录中的 Get-Outlook-Token.bat，它会调用旁边的 PowerShell 脚本；保持两个文件在一起，不用手动粘贴代码。
+    Mac：按钮打开随软件附带的 Get-Outlook-Token.command 和内置取令牌工具，不需要另装 PowerShell。
+13. 工具询问“应用程序（客户端）ID”时，粘贴第 8 步复制的 ID，按回车。不能填邮箱地址、租户 ID、普通密码或 AI API Key。
+14. 工具询问“租户”时：
+    - 个人 Outlook／Hotmail：直接回车，使用默认 consumers。
+    - 工作／学校邮箱：输入收邮件账号所在组织的目录（租户）ID，并确保该应用支持该组织。
+15. 浏览器打开工具显示的微软官方登录网址（通常是 https://microsoft.com/devicelogin ），输入本次工具显示的一次性代码；此代码不是邮箱密码，也不是访问令牌。登录要监听的邮箱，核对应用名称和权限，再同意。不要将别人发来的代码用于这一步。
+16. 保持终端窗口开启，等它显示“访问令牌已复制”。如果代码或登录超时，重新运行工具，从头取得新代码。
+
+E. 把令牌填回邮件小秘书并测试
+17. 邮箱地址：填写刚才授权的完整邮箱地址。
+    IMAP 服务器：outlook.office365.com
+    端口：993
+    加密：SSL/TLS
+    登录方式：OAuth2 访问令牌
+    凭据框：粘贴刚复制的 access_token。
+    “高级连接选项 > 登录用户名”通常留空，默认跟随邮箱地址；管理员有明确要求时再填写。
+18. 点击保存，再点击“测试邮箱连接”。成功后开始监听。首次检查只记录起点，之后的新邮件才生成报告；可以另发一封新邮件验证。
+19. 保存后复制一段普通文字覆盖剪贴板；不要把完整令牌贴到聊天、截图或教程中。
+20. 访问令牌会过期，常见默认有效期为 60～90 分钟，实际以微软返回值及组织策略为准。即使申请了 offline_access，当前工具也不会保存或使用刷新令牌；需要重新点击取令牌按钮、重新授权，并更新软件里的凭据。因此当前微软邮箱直连方式不适合希望长期无人值守的用户。
+
+F. 常见卡点（按错误处理，不要只反复重试）
+- AADSTS50020／Microsoft Services：回第 3～6 步检查目录及权限。你不能自行把账号加入微软拥有的 Microsoft Services 租户；换一个自己有权访问的目录。若错误发生在取令牌登录阶段，也检查第 7、14 步的账户类型和租户是否匹配。
+- AADSTS50058／“需要交互”：先点“重新登录”，主动选择账号。仍重复时检查浏览器会话、Cookie 或拦截扩展；必要时换一个已正常登录的浏览器。Safari 若临时关闭“防止跨站跟踪”排查，完成后恢复。这个操作无法解决 AADSTS50020 的目录权限问题。
+- 找不到应用 ID：打开你自己注册的那个应用的“概述”，找“应用程序（客户端）ID”；不是租户 ID、对象 ID，也不是网页错误里的门户应用 ID。
+- invalid_client／unauthorized_client：核对应用 ID、账户类型和“允许公共客户端流”，确认已保存。
+- consent_required／需要管理员批准／access_denied：检查委托权限及组织策略；请管理员审查，不要改用普通密码。
+- 取令牌成功但 IMAP 认证失败：核对邮箱是否已开 IMAP、令牌是否对应同一邮箱且尚未过期，以及申请的是 Exchange Online 的 IMAP scope，而不是 Microsoft Graph 的令牌。组织策略仍可能阻止登录。
+
+微软官方资料（界面及注册资格可能变化，以官网为准）：
+应用注册：https://learn.microsoft.com/entra/identity-platform/quickstart-register-app
+目录创建资格：https://learn.microsoft.com/entra/fundamentals/create-new-tenant
+Azure 免费账户：https://azure.microsoft.com/free/free-account-faq/
+IMAP OAuth：https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
+设备代码流程：https://learn.microsoft.com/entra/identity-platform/v2-oauth2-device-code
+访问令牌有效期：https://learn.microsoft.com/entra/identity-platform/access-tokens
+Outlook IMAP 设置：https://support.microsoft.com/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040
 
 九、其他邮箱（最简单的顺序）
 1. 进这个邮箱服务商自己的官方网页版邮箱，登录。

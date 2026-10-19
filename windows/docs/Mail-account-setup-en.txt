@@ -58,33 +58,83 @@ Official webmail: https://mail.yahoo.com/ . App-password help: https://help.yaho
 3) Select Yahoo in the app. Enter the full address, imap.mail.yahoo.com, 993, SSL/TLS, Password / app password, and the generated password. Save and test.
 4) Some accounts may temporarily be unable to generate app passwords. Follow Yahoo's official instructions or contact support; availability is not guaranteed. SMS verification codes are not app passwords.
 
-8. Outlook.com / Hotmail / Microsoft 365: OAuth2
-Personal webmail: https://outlook.live.com/mail/ . Work/school: https://outlook.office.com/mail/ .
-Use OAuth2, not an account password or app password. Exchange Online removed IMAP basic authentication. Microsoft Graph tokens from Graph Explorer are not IMAP tokens. Mail Secretary accepts a manually obtained access_token; it does not perform Microsoft web sign-in or refresh tokens automatically.
-A. Enable IMAP
-1) In personal Outlook webmail, open Settings > Mail > Forwarding and IMAP and enable IMAP. Search Settings for IMAP if labels differ.
-2) For Microsoft 365, ask your administrator to confirm IMAP is enabled and the application/delegated permission below is allowed. Admin consent or device-code restrictions may apply.
-B. Register your own application once (IT assistance may be useful)
-3) You need access to a Microsoft Entra directory with permission to register applications; a personal mailbox alone does not guarantee this. Ask IT for help if registration is unavailable. Sign in at https://entra.microsoft.com/ . Open Identity > Applications > App registrations > New registration. Name it Mail Secretary; choose an account type matching your mailbox. Personal Outlook requires a type including personal Microsoft accounts. Record the Application (client) ID.
-4) In Authentication > Advanced settings, enable Allow public client flows. Do not create a client secret: these instructions use a public-client device flow.
-5) Under API permissions > Add a permission > APIs my organization uses, find Office 365 Exchange Online. Select Delegated permissions and IMAP.AccessAsUser.All. Obtain administrator consent if required. Microsoft Graph Mail.Read is not the required permission.
-C. Get a token with the included tool
-WHAT DOES THIS TOOL DO?
-It obtains a Microsoft email OAuth2 access token (access_token), only for this Outlook / Hotmail / Microsoft 365 section. Users of 163, QQ or other providers can skip this section.
-It starts a Microsoft sign-in and displays the official URL and a one-time code. After you sign in and approve access in your browser, it waits for the token and copies it to your clipboard. The tool does not ask you to type a mailbox password, save the token to a file or display it in the window.
+8. Outlook.com / Hotmail / Microsoft 365: complete OAuth2 instructions
+Adding an Outlook/Microsoft 365 mailbox is extremely difficult and strongly discouraged. If you enjoy tinkering, the complete steps are below:
 
-6) First complete the app registration and permission steps above. Have your Application (client) ID ready; this is not your email address, password or AI API key. Organization accounts also need their tenant ID. Ask the administrator for help with permissions.
-7) In Mail Secretary, select Outlook / Microsoft 365. When OAuth2 access token authentication is selected, a Get OAuth2 Token button appears beside How do I get an authorization code? Click it.
-   Windows: this runs Get-Outlook-Token.bat in the program directory. It launches the adjacent PowerShell script; you do not need to copy commands.
-   Mac: the button opens the equivalent included terminal tool; PowerShell is not required.
-8) Enter your client ID as prompted. For a personal Microsoft account, press Enter at the tenant prompt to use consumers. For an organization account, enter its tenant ID. Your registered app must support that account type.
-9) Open the displayed Microsoft URL in your browser, enter the one-time code, sign in as the mailbox to monitor, and approve access. Verify that the application is your own registered app. Do not share the one-time code. Leave the tool open until it finishes.
-10) When Access token copied appears, return to Mail Secretary. Enter the full email address, outlook.office365.com, port 993, SSL/TLS, and OAuth2 access token authentication. Paste into the credential field, save, and test. Then replace the clipboard by copying ordinary text. Do not paste the full token into a chat.
-11) Access tokens expire. This app does not refresh them automatically. When expired, click the button again, sign in and update the token. This tool does not register apps or bypass administrator approval. For expired sign-ins, insufficient permissions or organization policy restrictions, retry as instructed or ask the administrator.
-Official Microsoft documentation:
-https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
-https://learn.microsoft.com/entra/identity-platform/v2-oauth2-device-code
-https://support.microsoft.com/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040
+Official websites:
+Personal webmail: https://outlook.live.com/mail/
+Work/school webmail: https://outlook.office.com/mail/
+Microsoft Entra admin center: https://entra.microsoft.com/
+Azure account registration: https://azure.microsoft.com/pricing/purchase-options/azure-account
+
+Before starting: Mail Secretary currently requires your own registered application and a manually obtained OAuth2 access_token. It has no built-in Microsoft web sign-in or automatic token renewal. Tokens expire, so you will need to sign in again. Your mailbox password, app password, application ID, tenant ID and access token are different values and cannot replace one another. A Microsoft Graph / Graph Explorer token cannot authenticate to IMAP.
+For simply viewing several mailboxes, an email client with Microsoft sign-in is usually easier. Mail Secretary cannot directly read accounts or mail stored in another client. To keep using its analysis, an alternative is to enable forwarding in Outlook webmail to an address already monitored by Mail Secretary, retain a copy, and send a test message. Organization policy may block forwarding; also check that attachments arrive intact. Do not automatically forward the receiving mailbox back to Outlook, which could create a loop.
+
+A. Check whether your mailbox permits IMAP
+1) Sign in to the mailbox in your browser. In personal Outlook, open the Settings gear > Mail > Forwarding and IMAP, enable access for devices and apps using IMAP, and save. Search Settings for IMAP if the labels differ.
+2) For Microsoft 365 work/school mail, ask the administrator to confirm IMAP is enabled for this mailbox and that the application, user consent and device-code sign-in below are permitted. Repeatedly obtaining tokens will not fix a policy restriction.
+
+B. Obtain access to a directory where you can register an app
+3) Open the Microsoft Entra admin center and sign in with the account that will manage the application. If you already have an organization directory, use the account menu > Switch directory to select one you can access. The app-management account and the mailbox account may differ, but the app must support the mailbox account type.
+4) If a personal Outlook account encounters AADSTS50020, stating that the account does not exist in the Microsoft Services tenant, it cannot access that directory. ADIbizaUX / 74658136-14ec-4630-ad9b-26e160ff0fc6 in that error is Microsoft's portal application ID; do not enter it into Mail Secretary. Repeated sign-ins and Cookie changes cannot grant directory permissions. Use a directory you can access or ask an organization administrator for suitable app-registration permissions.
+5) If you have no usable directory, visit the Azure account registration page above and check your eligibility for a Free account. Having an Outlook mailbox or signing in to Entra does not mean you have completed Azure registration.
+   Registration order: choose Free account / Start free > sign in with your Microsoft account > fill in the official account form and verify your phone > complete card verification on Microsoft's official page > review the current free-account terms and submit. Stop and check if the page instead asks you to purchase, upgrade to a paid plan, or accept unexpected conditions.
+   Standard Azure Free account registration generally asks for a phone and an eligible credit/debit card for identity verification; a temporary authorization may appear. Never send card details or verification codes to AI or enter them in Mail Secretary. Free account and pay-as-you-go are different options: read the current terms instead of upgrading to a paid plan just to follow this guide.
+   After completing your first Azure account registration, return to Entra, sign in again and use the account menu > Switch directory to select the directory created during registration (often named Default Directory). Register the application there; you do not need another tenant. Tenant creation has eligibility restrictions: free/trial accounts cannot create additional Workforce tenants in the Entra admin center. If your first signup provides no usable directory or New registration is blocked, stop and ask an administrator for help, or use the forwarding alternative above.
+6) Once inside a usable directory, open Entra ID (called Identity in some older interfaces) > App registrations. A missing or disabled New registration button, or a permissions error, requires administrator assistance. The Tenant ID on the portal home page is not an application ID.
+
+C. Register an application once and configure delegated IMAP access
+7) Open App registrations > New registration. Enter Mail Secretary as the name, then choose Supported account types for the mailbox:
+   - Personal Outlook / Hotmail: Personal Microsoft accounts only, or an option including both organization directories and personal Microsoft accounts.
+   - Microsoft 365 within one organization: Accounts in this organizational directory only (Single tenant) may be appropriate.
+   - Personal mailboxes and different organizations: choose the option including any organizational directory and personal Microsoft accounts; organizations may still require administrator approval.
+   This helper uses the device-code flow. Leave Redirect URI empty and click Register.
+8) On this application's Overview page, copy Application (client) ID, in the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx. This is the ID requested by the terminal tool. For work/school mail, also record the relevant Directory (tenant) ID. Do not copy Object ID or the ID of another application.
+9) Open this application's Authentication > Advanced settings (some interfaces use Settings / Advanced settings), set Allow public client flows to Yes, and save. This tool requires no client secret or certificate. Do not type a mailbox password or client secret into the terminal.
+10) Open API permissions > Add a permission > APIs my organization uses, search for Office 365 Exchange Online and select it. Choose Delegated permissions, expand IMAP, select IMAP.AccessAsUser.All, and click Add permissions. Do not select Microsoft Graph Mail.Read, Application permissions, or IMAP.AccessAsApp.
+    The included helper automatically requests https://outlook.office.com/IMAP.AccessAsUser.All offline_access. You do not need to edit a script or copy PowerShell commands.
+11) If administrator consent is required, ask the administrator to review and grant it. If the button is unavailable, ask for help; personal accounts generally consent during the later sign-in. An organization blocking the app or device-code flow must resolve that policy before proceeding.
+
+D. Obtain an access token with the included helper
+What it does: requests Microsoft device-code sign-in and displays an official URL and one-time code. After you approve access in your browser, it copies access_token to your clipboard. It does not print the full token, save a token file or ask for your mailbox password. Skip this section for providers such as 163 or QQ that do not require Microsoft's OAuth2.
+12) In Mail Secretary, choose the Outlook / Microsoft 365 preset and OAuth2 access token authentication. Click Get OAuth2 Token beside How do I get an authorization code?
+    Windows: this runs Get-Outlook-Token.bat in the installation folder, which calls the adjacent PowerShell script. Keep both files together; no manual command copying is needed.
+    Mac: this opens the included Get-Outlook-Token.command and bundled token helper. You do not need to install PowerShell.
+13) At Application (client) ID, paste the ID from step 8 and press Enter. Do not enter an email address, tenant ID, account password or AI API key.
+14) At the Tenant prompt:
+    - Personal Outlook / Hotmail: press Enter to use the default, consumers.
+    - Work/school mail: enter the Directory (tenant) ID of the mailbox's organization and ensure the registered app supports it.
+15) Open the official Microsoft sign-in URL shown by the helper (usually https://microsoft.com/devicelogin ) in your browser. Enter the one-time code shown by this run of the helper; it is neither your mailbox password nor the access token. Sign in as the mailbox you want to monitor, verify the app name and permissions, then approve. Do not use a code supplied by someone else.
+16) Leave the terminal window open until it confirms Access token copied. If the code or sign-in expires, rerun the tool to obtain a new code.
+
+E. Enter the token in Mail Secretary and test
+17) Email address: the complete address of the mailbox you just authorized.
+    IMAP server: outlook.office365.com
+    Port: 993
+    Encryption: SSL/TLS
+    Authentication: OAuth2 access token
+    Credential field: paste the copied access_token.
+    Advanced connection settings > Login name: normally leave empty so it follows the email address; set it only if your administrator requires it.
+18) Save, then click Test mailbox connection. Start monitoring after success. The first check only records a starting point; subsequent new mail generates reports. Send a new test message to check the full flow.
+19) After saving, copy ordinary text to replace the clipboard. Do not paste the full token into a chat, screenshot or guide.
+20) Access tokens expire, with a common default lifetime of 60-90 minutes; the actual lifetime depends on Microsoft's response and organization policy. Even though offline_access is requested, this helper does not save or use refresh tokens. Click the helper button again, sign in again and update the credential when needed. This direct Microsoft mailbox connection is therefore unsuitable for users expecting long-term unattended operation.
+
+F. Troubleshooting: follow the error instead of repeatedly retrying
+- AADSTS50020 / Microsoft Services: review steps 3-6 for directory access. You cannot add yourself to Microsoft's Microsoft Services tenant; select a directory you are allowed to access. If this occurs during token sign-in, also check the supported account types and tenant in steps 7 and 14.
+- AADSTS50058 / Interaction required: first click Sign in again and explicitly choose your account. If it repeats, investigate browser sessions, Cookies and blocking extensions, or try a browser with a working signed-in session. If you temporarily disable Safari's Prevent cross-site tracking to troubleshoot, restore it afterward. That setting cannot fix AADSTS50020 directory permissions.
+- Cannot find the app ID: open your own registered application's Overview and copy Application (client) ID. Do not use Tenant ID, Object ID or the portal's app ID from an error message.
+- invalid_client / unauthorized_client: verify the client ID, supported account types and saved Allow public client flows setting.
+- consent_required / Administrator approval required / access_denied: check delegated permissions and organization policy with the administrator; do not substitute an ordinary password.
+- Token obtained but IMAP authentication fails: check IMAP is enabled, the token belongs to the same mailbox and has not expired, and the requested scope is Exchange Online IMAP rather than Microsoft Graph. Organization policy may still block access.
+
+Official Microsoft documentation (interfaces and signup eligibility may change):
+Application registration: https://learn.microsoft.com/entra/identity-platform/quickstart-register-app
+Tenant-creation eligibility: https://learn.microsoft.com/entra/fundamentals/create-new-tenant
+Azure Free account: https://azure.microsoft.com/free/free-account-faq/
+IMAP OAuth: https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
+Device-code flow: https://learn.microsoft.com/entra/identity-platform/v2-oauth2-device-code
+Access-token lifetime: https://learn.microsoft.com/entra/identity-platform/access-tokens
+Outlook IMAP settings: https://support.microsoft.com/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040
 
 9. Other / custom IMAP: the short version
 1) Open your provider's own official webmail and sign in.
