@@ -1,0 +1,12 @@
+{
+  "version": "202610181752",
+  "installer_sha256": "c0553133ccac0bfdde5c03df67380b33369f8d13ddbcc567c901b1089a214c77",
+  "runtime_samples": {
+    "coreclr.dll": "7fc8457f13ec008995422500685b7997efee80878f59419b76ef50a0e67327d9",
+    "Microsoft.ui.xaml.dll": "95f5f5b7cec1ca2fa30580121f5298122e32db96ed5f04d9d1a74224511e5f0c",
+    "System.Private.CoreLib.dll": "e7816c58140bfae07f2a046779c7049048daa94fcd042cd866849865e5cff054"
+  },
+  "file_count": 698,
+  "reads_mail": false,
+  "ai_calls": 0
+}

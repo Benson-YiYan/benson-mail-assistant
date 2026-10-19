@@ -81,6 +81,12 @@ english.RuntimeFailed=Could not prepare the required runtimes. No application fi
 chinesesimp.RuntimeFailed=必要运行时准备失败，软件文件未修改。请检查网络和 Windows 安全授权提示后重试。%n%1
 english.RuntimeRestart=Microsoft requires a Windows restart to finish installing the runtime. No application files were changed. Restart Windows, then run this installer again.
 chinesesimp.RuntimeRestart=微软运行时需要重启 Windows 才能完成安装。软件文件未修改。请重启电脑后重新运行此安装程序。
+english.RuntimeProgressTitle=Preparing required components
+chinesesimp.RuntimeProgressTitle=正在准备必要组件
+english.RuntimeProgressDescription=Downloading and installing the Microsoft components you approved.
+chinesesimp.RuntimeProgressDescription=正在下载并安装你已同意安装的微软组件。
+english.RuntimeProgressText=Please wait. This may take several minutes. Approve the Windows administrator prompt if it appears.
+chinesesimp.RuntimeProgressText=请稍候，这可能需要几分钟。如果出现 Windows 管理员授权提示，请确认。
 
 [Tasks]
 Name: "desktopapp"; Description: "{cm:DesktopApp}"; GroupDescription: "{cm:ShortcutChoices}"
@@ -271,7 +277,8 @@ end;
 function EnsurePrerequisites: String;
 var
   Detail, Status, Missing, Components, ResultPath: String;
-  Approved: Boolean;
+  Approved, WasVisible: Boolean;
+  ProgressPage: TOutputMarqueeProgressWizardPage;
 begin
   Result := '';
   if DependenciesReady then Exit;
@@ -296,8 +303,23 @@ begin
       mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES;
   if not Approved or UpdateCancelled then
   begin Result := CustomMessage('RuntimeDeclined'); Exit; end;
-  if not RunPrerequisiteHelper('Install', Components, Detail, Status) then
-  begin Result := FmtMessage(CustomMessage('RuntimeFailed'), [Detail]); Exit; end;
+  { PrepareToInstall runs after WizardForm exists. Keep the installation visible
+    during the potentially long helper call, including a /SILENT update. }
+  ProgressPage := CreateOutputMarqueeProgressPage(CustomMessage('RuntimeProgressTitle'),
+    CustomMessage('RuntimeProgressDescription'));
+  ProgressPage.SetText(CustomMessage('RuntimeProgressText'), Missing);
+  WasVisible := WizardForm.Visible;
+  WizardForm.Show;
+  ProgressPage.Show;
+  try
+    ProgressPage.Animate;
+    WizardForm.Update;
+    if not RunPrerequisiteHelper('Install', Components, Detail, Status) then
+    begin Result := FmtMessage(CustomMessage('RuntimeFailed'), [Detail]); Exit; end;
+  finally
+    ProgressPage.Hide;
+    if not WasVisible then WizardForm.Hide;
+  end;
   if Status = 'reboot' then
   begin DependenciesRestart := True; Result := CustomMessage('RuntimeRestart'); Exit; end;
   if Status <> 'ready' then
@@ -330,11 +352,6 @@ begin
     begin
       Result := WriteUpdateState('ready', '{#AppVersion}');
       if not Result then Result := UpdateFailure('Cannot write update acknowledgment / 无法写入更新确认文件。');
-      if Result then
-      begin
-        DirectoryError := EnsurePrerequisites;
-        if DirectoryError <> '' then Result := UpdateFailure(DirectoryError);
-      end;
     end
     else Result := UpdateFailure('Cannot inspect application PID. Windows error / 无法查询应用进程，Windows 错误：' + IntToStr(DLLGetLastError));
     Exit;
@@ -366,11 +383,6 @@ begin
     if WaitResult = 0 then Log('Update parent exited; installation can continue');
     Result := WaitResult = 0;
     if not Result then Result := UpdateFailure('Application did not finish closing within 45 seconds / 应用在45秒内未退出，请关闭后重试。');
-    if Result then
-    begin
-      DirectoryError := EnsurePrerequisites;
-      if DirectoryError <> '' then Result := UpdateFailure(DirectoryError);
-    end;
   finally CloseHandle(Handle); end;
 end;
 
@@ -646,6 +658,7 @@ begin
   if UpdateCancelled then Result := 'Update cancelled before installation / 安装前已取消。'
   else Result := InstallDirectoryErrorFor(WizardDirValue);
   if Result = '' then Result := EnsurePrerequisites;
+  if Result <> '' then WriteUpdateState('failed', Result);
   NeedsRestart := DependenciesRestart;
 end;
 
