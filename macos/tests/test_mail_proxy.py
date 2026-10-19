@@ -57,6 +57,7 @@ class ProxyTests(unittest.TestCase):
                 result+=data
             return result
         def worker():
+            tls_handshake = False
             try:
                 sock,_=listener.accept(); sock.settimeout(5)
                 with sock:
@@ -70,7 +71,10 @@ class ProxyTests(unittest.TestCase):
                         self.assertEqual(exact(sock,4),b'\x05\x01\x00\x03')
                         destinations.append(exact(sock,exact(sock,1)[0])+exact(sock,2))
                         sock.sendall(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
-                    if security=='ssl': sock=server_tls.wrap_socket(sock,server_side=True)
+                    if security=='ssl':
+                        tls_handshake = True
+                        sock=server_tls.wrap_socket(sock,server_side=True)
+                        tls_handshake = False
                     sock.sendall(b'* OK fixture ready\r\n')
                     while True:
                         line=b''
@@ -79,14 +83,19 @@ class ProxyTests(unittest.TestCase):
                         tag,op,*_=line.rstrip().split(b' '); op=op.upper()
                         if op==b'CAPABILITY': sock.sendall(b'* CAPABILITY IMAP4rev1 STARTTLS\r\n'+tag+b' OK done\r\n')
                         elif op==b'STARTTLS':
-                            sock.sendall(tag+b' OK begin TLS\r\n'); sock=server_tls.wrap_socket(sock,server_side=True)
+                            sock.sendall(tag+b' OK begin TLS\r\n')
+                            tls_handshake = True
+                            sock=server_tls.wrap_socket(sock,server_side=True)
+                            tls_handshake = False
                         elif op==b'LOGIN': sock.sendall(tag+b' OK authenticated\r\n')
                         elif op==b'EXAMINE': sock.sendall(b'* 0 EXISTS\r\n'+tag+b' OK opened\r\n')
                         elif op==b'LOGOUT': sock.sendall(b'* BYE done\r\n'+tag+b' OK logout\r\n'); break
                         else: raise AssertionError(op)
                     sock.close()
-            except ssl.SSLError:
-                if trusted: errors.append('unexpected TLS failure')
+            except (ssl.SSLError, ConnectionResetError):
+                # Windows can report WSAECONNRESET instead of a TLS alert when
+                # the client rejects this deliberately untrusted certificate.
+                if trusted or not tls_handshake: errors.append('unexpected TLS failure or reset')
             except Exception as error: errors.append(repr(error))
         thread=threading.Thread(target=worker,daemon=True); thread.start()
         config={'account':'a@example.com','host':'imap.test.invalid','security':security,'proxy_mode':kind,'proxy_host':'127.0.0.1','proxy_port':listener.getsockname()[1]}
