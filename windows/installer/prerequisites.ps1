@@ -64,8 +64,8 @@ function Get-PrerequisiteState {
         })
         if (!$framework.Count -or !$ddlm.Count) { $winui = $false }
     }
-    foreach ($family in @('MicrosoftCorporationII.WindowsAppRuntime.Main.1.8_8wekyb3d8bbwe',
-                          'Microsoft.WindowsAppRuntime.Singleton_8wekyb3d8bbwe')) {
+    foreach ($family in @('MicrosoftCorporationII.WinAppRuntime.Main.1.8_8wekyb3d8bbwe',
+                          'MicrosoftCorporationII.WinAppRuntime.Singleton_8wekyb3d8bbwe')) {
         if (!@($packages | Where-Object {
             $_.Architecture -eq $nativeArchitecture -and !$_.IsFramework -and $_.PackageFamilyName -eq $family
         }).Count) { $winui = $false }

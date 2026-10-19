@@ -79,8 +79,8 @@ try {
     foreach ($architecture in @('X86','X64','ARM64')) {
         foreach ($family in @('Microsoft.WindowsAppRuntime.1.8_8wekyb3d8bbwe',
                              'Microsoft.WinAppRuntime.DDLM.8000.994.2142.0-x6_8wekyb3d8bbwe',
-                             'MicrosoftCorporationII.WindowsAppRuntime.Main.1.8_8wekyb3d8bbwe',
-                             'Microsoft.WindowsAppRuntime.Singleton_8wekyb3d8bbwe')) {
+                             'MicrosoftCorporationII.WinAppRuntime.Main.1.8_8wekyb3d8bbwe',
+                             'MicrosoftCorporationII.WinAppRuntime.Singleton_8wekyb3d8bbwe')) {
             $script:fakePackages += [pscustomobject]@{Architecture=$architecture;Status='Ok';IsFramework=($family -eq 'Microsoft.WindowsAppRuntime.1.8_8wekyb3d8bbwe');PackageFamilyName=$family;Version='8000.994.2142.0'}
         }
     }
