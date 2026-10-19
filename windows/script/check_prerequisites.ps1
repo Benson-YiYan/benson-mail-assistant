@@ -219,9 +219,14 @@ try {
     }
     if ($ProvisionSharedRuntimes) {
         # Explicit CI opt-in. Production helper re-detects and installs only missing components.
-        $result = Join-Path $fixture 'actual.ini'
+        $result = Join-Path $Evidence 'prerequisites-install.ini'
         & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $helper -Mode Install -Components 'dotnet,winui' -ResultFile $result
-        Check ($LASTEXITCODE -eq 0) 'official shared runtime installation succeeded'
+        $installExitCode = $LASTEXITCODE
+        Get-AppxPackage | Where-Object { $_.Name -match 'WinApp|WindowsAppRuntime' } |
+            Select-Object Name,Version,Architecture,PackageFamilyName,IsFramework,Status |
+            ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Evidence 'prerequisites-appx.json') -Encoding UTF8
+        if (Test-Path -LiteralPath $result) { Write-Host (Get-Content -LiteralPath $result -Raw) }
+        Check ($installExitCode -eq 0) 'official shared runtime installation succeeded'
         Check ((Get-Content $result -Raw) -match '(?m)^Status=ready') 'official runtime installation requires no outstanding reboot'
         $actualAfter = Get-PrerequisiteState
         Check ($actualAfter.dotnet -and $actualAfter.winui) 'real Windows shared runtimes meet published minimums'

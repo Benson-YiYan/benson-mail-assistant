@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
-if (!(Test-Path 'evidence/legacy-payload-manifest.json')) {
+if (!(Test-Path 'evidence/legacy-payload-manifest.json') -or
+    !(Test-Path 'evidence/self-contained-payload-manifest.json')) {
     & "$PSScriptRoot/script/prepare_legacy_baseline.ps1"
     if ($LASTEXITCODE -ne 0) { throw 'Legacy migration baseline preparation failed' }
 }
