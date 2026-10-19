@@ -44,6 +44,8 @@ jobs:
           foreach ($name in @('BensonMail-200001010000.exe', 'Uninstall-BensonMail-200001010000.exe', 'MailWorker.exe')) {
             Set-Content -LiteralPath (Join-Path $tiny $name) -Value 'synthetic compiler preflight only' -Encoding ascii
           }
+          @{ runtimeOptions = @{ tfm = 'net8.0'; framework = @{ name = 'Microsoft.NETCore.App'; version = '8.0.32' }; rollForward = 'LatestPatch' } } |
+            ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $tiny 'BensonMail.runtimeconfig.json') -Encoding utf8
           try {
             ./script/build_installer.ps1 -PackageDir $tiny -Version '200001010000' 2>&1 | Tee-Object evidence/installer-preflight.txt
             if ($LASTEXITCODE -ne 0) { throw 'Installer compiler preflight failed' }
@@ -67,6 +69,12 @@ jobs:
         run: ./script/prepare_legacy_baseline.ps1
       - name: Build standalone application
         run: ./build.ps1
+      - name: Verify prerequisite consent and provision missing shared runtimes
+        run: |
+          $setup = (Get-ChildItem dist -Filter 'BensonMail-Windows-x64-Setup-*.exe' | Select-Object -First 1).FullName
+          powershell -NoProfile -ExecutionPolicy Bypass -File script/check_prerequisites.ps1 -Evidence evidence -Setup "$setup" -ProvisionSharedRuntimes
+          if ($LASTEXITCODE -ne 0) { throw 'Prerequisite detection, consent or official runtime provisioning failed' }
+          if (!(Get-Content evidence/prerequisites-result.json -Raw | ConvertFrom-Json).ok) { throw 'Missing prerequisite verification result' }
       - name: Measure installed payload reduction
         run: |
           $package = Get-ChildItem dist -Directory | Where-Object Name -Match '^BensonMail-\d{12}$' | Select-Object -First 1

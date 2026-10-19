@@ -8,4 +8,4 @@ These files make the public source build independent of the earlier repository's
 
 The public CI still runs the real installer/uninstaller and production update handoff, cancellation, relaunch, rejected-target and preservation tests. It explicitly reports that actual legacy-binary removal replay is not run when the historical binary fixture directory is absent. Those binaries are deliberately not duplicated in the source tree. Manifest generation and traversal rejection tests run on every build.
 
-For local builds from this source tree, run `./build.ps1` from `windows/`. It loads the checked-in metadata automatically; the app remains self-contained for end users.
+For local builds from this source tree, run `./build.ps1` from `windows/`. It loads the checked-in metadata automatically; the Windows app uses shared .NET 8 and Windows App Runtime 1.8 components, detected by Setup before installation. CI captures the pinned 202610181752 self-contained release fingerprints and exercises removal of actual obsolete runtime files. Shared system runtimes are never removed.

@@ -20,7 +20,7 @@ Windows and Mac packages in one release may have different version numbers. Veri
 
 - **Windows:** run Setup and choose the installation folder and shortcuts. Existing installations can be upgraded in place.
 - **Mac:** open the matching DMG and drag the app into Applications. Check your processor in About This Mac.
-- Runtimes are included: no Python, .NET or Homebrew installation is required.
+- Windows Setup checks .NET 8 and Windows App Runtime 1.8 (WinUI 3), asks for confirmation before downloading missing components, and reuses compatible installations. Mac includes its required runtime. Neither platform requires Python or Homebrew setup.
 - Installers are not publisher code-signed, and the Mac app is not Apple-notarized. Verify the download source and follow the operating system's approval controls if prompted.
 
 ## Get started

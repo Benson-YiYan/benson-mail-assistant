@@ -8,7 +8,7 @@ Each new email becomes six useful sections: **notice, sender, summary, actions, 
 
 Requires **Windows 10 / 11, x64**. Download `BensonMail-Windows-x64-Setup-<version>.exe` from [GitHub Releases](https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest), run it, choose the installation folder and shortcuts, then open the app. The final page can optionally delete the downloaded installer after it closes.
 Installers are available from the public releases. Existing users can also use **Check for updates**. Version numbers use the actual build time in Beijing time: `yyyyMMddHHmm`. Each release includes `SHA256SUMS.txt` to verify the installer.
-The installer includes its runtimes: no Python, .NET, WinUI or terminal setup is needed. API mode does not require Codex. The installer is not publisher code-signed; check its source if Windows displays a warning.
+No Python or terminal setup is needed. API mode does not require Codex. Setup checks **.NET 8 (x64)** and **Windows App Runtime 1.8 (x64, providing WinUI 3)**. Missing components are listed for explicit confirmation before download and installation; compatible installed components are reused. Shared component installation may require administrator approval. Declining or a failed prerequisite installation leaves the old application untouched. Successful upgrades remove obsolete bundled runtime copies only when their recorded paths and SHA256 match. Uninstalling the app keeps system shared runtimes. The installer is not publisher code-signed; check its source if Windows displays a warning.
 
 ## First setup
 

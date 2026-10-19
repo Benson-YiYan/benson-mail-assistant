@@ -28,3 +28,15 @@ class PayloadManifestTests(unittest.TestCase):
             root=Path(temporary);baseline=root/'baseline.json'
             baseline.write_text(json.dumps({'../user-report.txt':'0'*64}))
             with self.assertRaises(ValueError):manifest.migration(root,baseline)
+    def test_multiple_runtime_versions_keep_exact_digests_and_required_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);new=root/'new';new.mkdir()
+            baseline=root/'baseline.json'
+            baseline.write_text(json.dumps({'coreclr.dll':'1'*64,'kept.dll':'2'*64}))
+            baseline.with_name('self-contained-payload-manifest.json').write_text(
+                json.dumps({'coreclr.dll':'3'*64,'Microsoft.ui.xaml.dll':'4'*64,'kept.dll':'5'*64}))
+            (new/'kept.dll').write_bytes(b'still needed')
+            manifest.migration(new,baseline)
+            rows=set((new/'.benson-obsolete-files.tsv').read_text().splitlines())
+            self.assertEqual(rows,{'1'*64+'\tcoreclr.dll','3'*64+'\tcoreclr.dll',
+                                   '4'*64+'\tMicrosoft.ui.xaml.dll'})

@@ -28,6 +28,9 @@ internal static class Program
     [STAThread]
     static void Main(string[] args)
     {
+        // The official Windows App SDK module initializer establishes the shared
+        // runtime dependency before Main, including with DISABLE_XAML_GENERATED_MAIN.
+        // Do not call Bootstrap.Initialize again or shut it down before Application exits.
         Args = args;
         var networkProbe = Array.IndexOf(args, "--update-network-test");
         if (networkProbe >= 0 && networkProbe + 1 < args.Length) {

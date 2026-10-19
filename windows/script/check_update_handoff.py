@@ -59,14 +59,21 @@ def main():
         # Replay actual binaries only when an isolated baseline rebuild supplied them.
         replayed_legacy_samples=legacy_samples.is_dir()
         obsolete=json.loads((ROOT/'evidence'/'legacy-payload-manifest.json').read_text())
+        latest_baseline=ROOT/'evidence'/'self-contained-payload-manifest.json'
+        latest=json.loads(latest_baseline.read_text()) if latest_baseline.exists() else {}
         seeded=[]
         for source in legacy_samples.rglob('*'):
             if source.is_file():
                 relative=source.relative_to(legacy_samples)
                 target=program/relative
                 assert not target.exists(), 'Sample is still required by current payload: '+str(relative)
-                assert hashlib.sha256(source.read_bytes()).hexdigest()==obsolete[relative.as_posix()]
+                digest=hashlib.sha256(source.read_bytes()).hexdigest()
+                assert digest in (obsolete.get(relative.as_posix()),latest.get(relative.as_posix()))
                 target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target);seeded.append(target)
+        if latest:
+            assert {'coreclr.dll','Microsoft.ui.xaml.dll','System.Private.CoreLib.dll'} <= {
+                path.relative_to(program).as_posix() for path in seeded
+            }, 'Actual self-contained runtime cleanup samples are required'
         unrelated=program/'_internal'/'_tk_data'/'family-notes.txt'
         unrelated.parent.mkdir(parents=True,exist_ok=True);unrelated.write_text('Keep this unrelated user file')
         modified=program/'PresentationCore.dll'
@@ -114,7 +121,8 @@ def main():
         assert unrelated.read_text()=='Keep this unrelated user file'
         assert modified.read_bytes()==b'User-modified legacy filename must survive'
         if replayed_legacy_samples:
-            checks.append('Actual legacy WinForms, WPF, Tcl/Tk and Pillow files removed only after matching their baseline SHA256; unrelated and modified files preserved')
+            checks.append('Actual bundled historical runtime files removed only after matching their baseline SHA256: ' +
+                          ', '.join(path.relative_to(program).as_posix() for path in seeded))
         else:
             checks.append('Legacy binary removal replay not run: public source builds ship fingerprints only; actual binary replay evidence is packaging/update-handoff-result.json from 202610181547')
         checks.append('Unrelated files and modified obsolete runtime filenames preserved by the real upgrade')

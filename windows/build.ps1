@@ -5,7 +5,11 @@ if (!(Test-Path 'evidence/legacy-payload-manifest.json')) {
 }
 python script/make_icon.py
 if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed' }
-dotnet publish native/BensonMail.csproj -c Release -r win-x64 -o dist/native -p:Platform=x64
+# Start clean: publish does not remove the former self-contained runtime files.
+foreach ($output in @('dist/native', 'dist/BensonMail')) {
+    if (Test-Path $output) { Remove-Item -LiteralPath $output -Recurse -Force }
+}
+dotnet publish native/BensonMail.csproj -c Release -r win-x64 --self-contained false -o dist/native -p:Platform=x64 -p:WindowsAppSDKSelfContained=false
 if ($LASTEXITCODE -ne 0) { throw 'WinUI publish failed' }
 python -m PyInstaller --noconfirm --clean --onedir --console --hide-console hide-early --name MailWorker --icon assets/mail.ico --hidden-import win32timezone --collect-all pypdf --collect-all certifi --collect-all truststore --exclude-module tkinter --exclude-module _tkinter --exclude-module PIL --exclude-module pystray --exclude-module benson_mail.ui --exclude-module benson_mail.app_icon worker.py
 if ($LASTEXITCODE -ne 0) { throw 'Headless worker build failed' }

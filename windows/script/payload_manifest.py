@@ -29,16 +29,23 @@ def snapshot(root, output, fixtures):
 
 def migration(root, baseline):
     previous = json.loads(baseline.read_text(encoding='utf-8'))
+    # The last self-contained release has some different runtime bytes from
+    # the original baseline. Accept both exact versions, never wildcard DLLs.
+    shared_baseline = baseline.with_name('self-contained-payload-manifest.json')
+    histories = [previous]
+    if shared_baseline.exists():
+        histories.append(json.loads(shared_baseline.read_text(encoding='utf-8')))
     current = fingerprint(root)
     remaining = {name.casefold() for name in current}
-    obsolete = []
-    for name, digest in previous.items():
-        if name.casefold() in remaining or re.fullmatch(r'(?:Uninstall-)?BensonMail-\d{12}\.exe', name):
-            continue
-        if '..' in name or ':' in name or '\\' in name or name.startswith('/') or not re.fullmatch('[0-9a-f]{64}', digest):
-            raise ValueError('Unsafe baseline manifest entry')
-        obsolete.append(digest + '\t' + name)
-    (root / '.benson-obsolete-files.tsv').write_text('\n'.join(obsolete), encoding='utf-8')
+    obsolete = set()
+    for history in histories:
+        for name, digest in history.items():
+            if name.casefold() in remaining or re.fullmatch(r'(?:Uninstall-)?BensonMail-\d{12}\.exe', name):
+                continue
+            if '..' in name or ':' in name or '\\' in name or name.startswith('/') or not re.fullmatch('[0-9a-f]{64}', digest):
+                raise ValueError('Unsafe baseline manifest entry')
+            obsolete.add(digest + '\t' + name)
+    (root / '.benson-obsolete-files.tsv').write_text('\n'.join(sorted(obsolete)), encoding='utf-8')
     (root / '.benson-payload.json').write_text(json.dumps(current, indent=2), encoding='utf-8')
 
 

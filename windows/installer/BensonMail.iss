@@ -4,6 +4,9 @@
 #ifndef PackageDir
   #error PackageDir is required
 #endif
+#ifndef MinimumDotnet
+  #error MinimumDotnet must be read from the published runtimeconfig.json
+#endif
 
 [Setup]
 AppId=BensonMail
@@ -70,6 +73,14 @@ chinesesimp.DeleteInstaller=关闭安装程序后删除此安装程序
 chinesesimp.DedicatedFolder=请使用名为 BensonMail 的专用文件夹。“浏览”可选择它所在的位置。
 english.FolderInUse=The selected folder contains other files. Please choose an empty, dedicated BensonMail folder.
 chinesesimp.FolderInUse=所选文件夹中已有其他文件，请选择空的 BensonMail 专用文件夹。
+english.RuntimeConsent=The following required components are missing or too old:%n%1%n%nDownload and install ONLY these components from Microsoft? .NET may request Windows administrator permission. Existing shared runtimes will be kept, including when Mail Secretary is uninstalled.%n%nNo application files or settings will be changed if you choose No.
+chinesesimp.RuntimeConsent=检测到以下必要组件缺失或版本过旧：%n%1%n%n是否仅从微软官方下载并安装这些组件？安装 .NET 时可能需要 Windows 管理员授权。已安装的共享运行时会保留，卸载邮件小秘书时也不会删除。%n%n选择“否”不会修改软件文件或配置。
+english.RuntimeDeclined=Required runtime installation was declined. No application files or settings were changed. Run Setup again to approve the missing components.
+chinesesimp.RuntimeDeclined=已取消安装必要运行时，软件文件和配置均未修改。需要时请重新运行安装程序并确认安装缺失组件。
+english.RuntimeFailed=Could not prepare the required runtimes. No application files were changed. Check the network and Windows security prompts, then retry.%n%1
+chinesesimp.RuntimeFailed=必要运行时准备失败，软件文件未修改。请检查网络和 Windows 安全授权提示后重试。%n%1
+english.RuntimeRestart=Microsoft requires a Windows restart to finish installing the runtime. No application files were changed. Restart Windows, then run this installer again.
+chinesesimp.RuntimeRestart=微软运行时需要重启 Windows 才能完成安装。软件文件未修改。请重启电脑后重新运行此安装程序。
 
 [Tasks]
 Name: "desktopapp"; Description: "{cm:DesktopApp}"; GroupDescription: "{cm:ShortcutChoices}"
@@ -82,6 +93,7 @@ Type: files; Name: "{app}\BensonMail-*.exe"
 Type: files; Name: "{app}\Uninstall-BensonMail-*.exe"
 
 [Files]
+Source: "prerequisites.ps1"; Flags: dontcopy
 Source: "{#PackageDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "installed.json"; DestDir: "{app}"; DestName: ".benson-installed.json"; Flags: ignoreversion
 
@@ -112,6 +124,8 @@ var
   PreviousInstallDirectory: String;
   TaskDefaultsApplied: Boolean;
   HadLegacyPayload: Boolean;
+  DependenciesReady: Boolean;
+  DependenciesRestart: Boolean;
 
 function GetCurrentProcessId: LongWord;
   external 'GetCurrentProcessId@kernel32.dll stdcall';
@@ -234,6 +248,63 @@ begin
   Result := False;
 end;
 
+function RunPrerequisiteHelper(const Operation, Components: String; var Detail, Status: String): Boolean;
+var
+  ResultPath, Parameters: String;
+  ExitCode: Integer;
+begin
+  ExitCode := -1;
+  ResultPath := ExpandConstant('{tmp}\benson-prerequisites.ini');
+  DeleteFile(ResultPath);
+  if not FileExists(ExpandConstant('{tmp}\prerequisites.ps1')) then ExtractTemporaryFile('prerequisites.ps1');
+  Parameters := '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
+    ExpandConstant('{tmp}\prerequisites.ps1') + '" -Mode ' + Operation +
+    ' -MinimumDotnet "{#MinimumDotnet}" -MinimumWinUI "8000.994.2142.0" -ResultFile "' + ResultPath + '"';
+  if Components <> '' then Parameters := Parameters + ' -Components "' + Components + '"';
+  Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Parameters,
+    ExpandConstant('{tmp}'), SW_HIDE, ewWaitUntilTerminated, ExitCode);
+  Status := GetIniString('Prerequisites', 'Status', '', ResultPath);
+  Detail := GetIniString('Prerequisites', 'Error', 'Runtime helper did not return a result. Windows exit code: ' + IntToStr(ExitCode), ResultPath);
+  Result := Result and (ExitCode = 0) and (Status <> '');
+end;
+
+function EnsurePrerequisites: String;
+var
+  Detail, Status, Missing, Components, ResultPath: String;
+  Approved: Boolean;
+begin
+  Result := '';
+  if DependenciesReady then Exit;
+  if not RunPrerequisiteHelper('Detect', '', Detail, Status) then
+  begin Result := FmtMessage(CustomMessage('RuntimeFailed'), [Detail]); Exit; end;
+  ResultPath := ExpandConstant('{tmp}\benson-prerequisites.ini');
+  Missing := ''; Components := '';
+  if GetIniString('Prerequisites', 'DotNet', '0', ResultPath) <> '1' then
+  begin Missing := '  - .NET 8 runtime (x64)'; Components := 'dotnet'; end;
+  if GetIniString('Prerequisites', 'WinUI', '0', ResultPath) <> '1' then
+  begin
+    if Missing <> '' then begin Missing := Missing + #13#10; Components := Components + ','; end;
+    Missing := Missing + '  - WinUI 3 / Windows App Runtime 1.8 (x64)';
+    Components := Components + 'winui';
+  end;
+  if Components = '' then begin DependenciesReady := True; Exit; end;
+  WriteUpdateState('prerequisites', Missing);
+  { Silent/suppressed installs default to No. Only this explicit switch can preapprove runtime downloads. }
+  Approved := ExpandConstant('{param:INSTALLDEPENDENCIES|0}') = '1';
+  if not Approved then
+    Approved := SuppressibleMsgBox(FmtMessage(CustomMessage('RuntimeConsent'), [Missing]),
+      mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES;
+  if not Approved or UpdateCancelled then
+  begin Result := CustomMessage('RuntimeDeclined'); Exit; end;
+  if not RunPrerequisiteHelper('Install', Components, Detail, Status) then
+  begin Result := FmtMessage(CustomMessage('RuntimeFailed'), [Detail]); Exit; end;
+  if Status = 'reboot' then
+  begin DependenciesRestart := True; Result := CustomMessage('RuntimeRestart'); Exit; end;
+  if Status <> 'ready' then
+  begin Result := FmtMessage(CustomMessage('RuntimeFailed'), [Detail]); Exit; end;
+  DependenciesReady := True;
+end;
+
 function InitializeSetup: Boolean;
 var
   ParentId, WaitResult, Size, Attempt: LongWord;
@@ -259,6 +330,11 @@ begin
     begin
       Result := WriteUpdateState('ready', '{#AppVersion}');
       if not Result then Result := UpdateFailure('Cannot write update acknowledgment / 无法写入更新确认文件。');
+      if Result then
+      begin
+        DirectoryError := EnsurePrerequisites;
+        if DirectoryError <> '' then Result := UpdateFailure(DirectoryError);
+      end;
     end
     else Result := UpdateFailure('Cannot inspect application PID. Windows error / 无法查询应用进程，Windows 错误：' + IntToStr(DLLGetLastError));
     Exit;
@@ -290,6 +366,11 @@ begin
     if WaitResult = 0 then Log('Update parent exited; installation can continue');
     Result := WaitResult = 0;
     if not Result then Result := UpdateFailure('Application did not finish closing within 45 seconds / 应用在45秒内未退出，请关闭后重试。');
+    if Result then
+    begin
+      DirectoryError := EnsurePrerequisites;
+      if DirectoryError <> '' then Result := UpdateFailure(DirectoryError);
+    end;
   finally CloseHandle(Handle); end;
 end;
 
@@ -564,6 +645,8 @@ begin
   ApplyPreviousTaskDefaults;
   if UpdateCancelled then Result := 'Update cancelled before installation / 安装前已取消。'
   else Result := InstallDirectoryErrorFor(WizardDirValue);
+  if Result = '' then Result := EnsurePrerequisites;
+  NeedsRestart := DependenciesRestart;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
