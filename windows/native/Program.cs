@@ -1122,16 +1122,22 @@ sealed class MainWindow : Window
             checks.AddRange(await UpdateDownloadView.OfflineUITests(layout.XamlRoot, fixture!));
             Program.Trace("Native update dialog tests passed");
             Check(UpdateClient.InstalledVersion.Length == 12 && File.Exists(Path.Combine(AppContext.BaseDirectory, "build-version.txt")), "Installed update version comes from actual timestamped build");
-            var localRuntime = false;
-            var localWinUI = false;
+            string? runtimePath = null;
+            string? winuiPath = null;
             foreach (ProcessModule module in Process.GetCurrentProcess().Modules)
             {
                 if (module.ModuleName.Equals("coreclr.dll", StringComparison.OrdinalIgnoreCase))
-                    localRuntime = module.FileName.StartsWith(AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase);
+                    runtimePath = module.FileName;
                 if (module.ModuleName.Equals("Microsoft.UI.Xaml.dll", StringComparison.OrdinalIgnoreCase))
-                    localWinUI = module.FileName.StartsWith(AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase);
+                    winuiPath = module.FileName;
             }
-            Check(localRuntime && localWinUI, "Uses bundled .NET and WinUI runtimes");
+            Check(runtimePath != null && winuiPath != null
+                && !runtimePath.StartsWith(AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase)
+                && !winuiPath.StartsWith(AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase)
+                && !File.Exists(Path.Combine(AppContext.BaseDirectory, "coreclr.dll"))
+                && !File.Exists(Path.Combine(AppContext.BaseDirectory, "Microsoft.UI.Xaml.dll"))
+                && File.Exists(Path.Combine(AppContext.BaseDirectory, "Microsoft.WindowsAppRuntime.Bootstrap.dll")),
+                "Loaded shared .NET and WinUI modules outside the application directory with official bootstrapper and no obsolete local runtimes");
             Check(mailPresets.Count >= 10 && mailPresets.Exists(p => p.GetProperty("id").GetString() == "custom"),
                 "Common mailbox presets and custom IMAP available through bundled bridge");
             Check(savedMailboxes.Items.Count == 2, "Multiple saved accounts populate the native mailbox picker");
