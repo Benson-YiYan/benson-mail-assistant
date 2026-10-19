@@ -608,7 +608,18 @@
     "无新邮件不调用 AI": "No new mail, no AI calls",
     "登录用户名": "Login username",
     "登录用户名默认跟随邮箱地址；仅在服务商要求时填写不同用户名。": "The login username follows your email address by default. Enter a different username only if your provider requires it.",
-    "当前使用自定义登录用户名：": "Custom login username in use: "
+    "当前使用自定义登录用户名：": "Custom login username in use: ",
+    "邮箱代理": "Mailbox proxy",
+    "直连（不使用代理）": "Direct (no proxy)",
+    "使用系统代理": "Use system proxy",
+    "代理地址，例如 127.0.0.1": "Proxy host, e.g. 127.0.0.1",
+    "代理端口": "Proxy port",
+    "v2rayN 的代理地址、端口和协议必须与客户端实际设置一致。10808 仅为示例；本版不支持需要用户名或密码的代理。": "The v2rayN proxy host, port, and protocol must match your client settings. 10808 is only an example; proxies requiring a username or password are not supported.",
+    "读取 macOS 系统代理设置。先在 v2rayN 开启系统代理；无需为收邮件开启 TUN。未找到可用代理时会提示错误，不会改用直连。": "Reads macOS system proxy settings. Enable the system proxy in v2rayN first; TUN is not required for email. If no usable proxy is found, an error is shown instead of connecting directly.",
+    "此代理仅用于当前邮箱的连接测试和收信；请先保存邮箱设置，再测试连接。代理不可用时不会改用直连。": "This proxy applies to connection tests and incoming mail for this mailbox only. Save mailbox settings before testing. If the proxy is unavailable, the app will not connect directly.",
+    "请选择有效的邮箱代理方式。": "Select a valid mailbox proxy mode.",
+    "代理地址只填写域名或 IP，不要包含协议、端口或路径。": "Enter only the proxy hostname or IP, without a scheme, port, or path.",
+    "请输入有效的代理端口（1–65535）。": "Enter a valid proxy port (1–65535)."
   },
   "templates": [
     {

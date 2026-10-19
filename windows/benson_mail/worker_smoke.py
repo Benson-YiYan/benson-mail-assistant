@@ -13,6 +13,8 @@ def run():
     from .ai_api import tls_context
     from .core import attachment_text
     from . import platform_windows as platform
+    from .mailbox_config import proxy_transport_selftest
+    proxy_transport_selftest()
     context = tls_context()
     assert context.check_hostname and context.verify_mode == ssl.CERT_REQUIRED
     assert Path(certifi.where()).stat().st_size > 100000
@@ -36,6 +38,7 @@ def run():
         platform.save_secret(path, 'fixture', 'SYNTHETIC-NOT-A-CREDENTIAL')
         assert platform.load_secret(path, 'fixture') == 'SYNTHETIC-NOT-A-CREDENTIAL'
     return {'ok': True, 'checks': [
+        'Local HTTP CONNECT/SOCKS5 remote-DNS tunnels and native system proxy detection',
         'Frozen text, DOCX, PPTX, XLSX and PDF attachment readers',
         'Native certificate verification and bundled CA roots retained',
         'Current-user DPAPI round trip using synthetic local credential',

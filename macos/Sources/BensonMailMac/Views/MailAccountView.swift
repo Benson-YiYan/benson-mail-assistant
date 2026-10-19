@@ -30,6 +30,7 @@ struct MailAccountView: View {
     var workspace = false
     @AccountState private var draft = MailConnection()
     @AccountState private var port = "993"
+    @AccountState private var proxyPort = "10808"
     @AccountState private var code = ""
     @AccountState private var saved = false
     @AccountState private var error: String?
@@ -53,7 +54,7 @@ struct MailAccountView: View {
                     }
                 }
                 HStack {
-                    Button(T("添加邮箱")) { adding = true; draft = MailConnection(); port = "993"; code = ""; saved = false }
+                    Button(T("添加邮箱")) { adding = true; draft = MailConnection(); port = "993"; proxyPort = "10808"; code = ""; saved = false }
                     if !adding, let profile = store.mailboxProfiles.first(where: { $0.id == draft.identity }) {
                         Button(profile.enabled ? T("暂停此邮箱") : T("启用此邮箱")) {
                             store.setMailboxEnabled(profile.id, enabled: !profile.enabled)
@@ -107,6 +108,30 @@ struct MailAccountView: View {
                 Text(T("取令牌工具仅适用于 Outlook / Microsoft 365。"))
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Picker(T("邮箱代理"), selection: $draft.proxy_mode) {
+                Text(T("直连（不使用代理）")).tag("direct")
+                Text(T("使用系统代理")).tag("system")
+                Text("HTTP CONNECT").tag("http")
+                Text("SOCKS5").tag("socks5")
+            }.accessibilityIdentifier("mail-proxy-mode")
+            if ["http", "socks5"].contains(draft.proxy_mode) {
+                HStack {
+                    TextField(T("代理地址，例如 127.0.0.1"), text: $draft.proxy_host)
+                        .accessibilityIdentifier("mail-proxy-host")
+                    TextField(T("代理端口"), text: $proxyPort).frame(width: 100)
+                        .accessibilityIdentifier("mail-proxy-port")
+                }
+                Text(T("v2rayN 的代理地址、端口和协议必须与客户端实际设置一致。10808 仅为示例；本版不支持需要用户名或密码的代理。"))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if draft.proxy_mode == "system" {
+                Text(T("读取 macOS 系统代理设置。先在 v2rayN 开启系统代理；无需为收邮件开启 TUN。未找到可用代理时会提示错误，不会改用直连。"))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if draft.proxy_mode != "direct" {
+                Text(T("此代理仅用于当前邮箱的连接测试和收信；请先保存邮箱设置，再测试连接。代理不可用时不会改用直连。"))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             DisclosureGroup {
                 VStack(alignment: .leading, spacing: 10) {
                     TextField(T("登录用户名；留空使用邮箱地址"), text: $draft.username)
@@ -147,6 +172,10 @@ struct MailAccountView: View {
                     saved = false; error = nil
                     guard let number = Int(port) else { error = "请输入有效的 IMAP 端口。"; return }
                     draft.port = number
+                    if ["http", "socks5"].contains(draft.proxy_mode) {
+                        guard let proxyNumber = Int(proxyPort) else { error = "请输入有效的代理端口（1–65535）。"; return }
+                        draft.proxy_port = proxyNumber
+                    }
                     store.saveAccount(address: draft.account, code: code, connection: draft, adding: adding) { result in
                         switch result {
                         case .success: code = ""; saved = true; adding = false
@@ -190,6 +219,7 @@ struct MailAccountView: View {
         }
         .onChange(of: draft) { _, _ in saved = false }
         .onChange(of: code) { _, value in if !value.isEmpty { saved = false } }
+        .onChange(of: proxyPort) { _, _ in saved = false }
         .confirmationDialog(T("移除此邮箱？历史报告会保留。"), isPresented: $removing) {
             Button(T("移除"), role: .destructive) {
                 store.removeMailbox(draft.identity)
@@ -200,6 +230,6 @@ struct MailAccountView: View {
     }
     private func loadDraft() {
         draft = MailAccountDraft.load(store.settings.mailbox ?? MailConnection(), account: store.mailAccount)
-        port = String(draft.port); code = ""; saved = false
+        port = String(draft.port); proxyPort = String(draft.proxy_port); code = ""; saved = false
     }
 }

@@ -11,6 +11,14 @@ Your email credential is separate from your AI API Key. Never post either in a c
 If you already have AI software, ask it to help you obtain the authorization code.
 Use that help on the provider's official site. Do not paste credentials or access tokens into an AI chat, and complete identity verification yourself.
 
+Proxy connections (for example, Gmail from mainland China)
+1) Start your proxy app, such as v2rayN, and verify that its selected server works. Webmail working does not prove that IMAP is using the proxy.
+2) Select the email account in settings and on Windows expand Advanced connection and proxy options; on Mac find Mail proxy. Existing accounts default to Direct.
+3) Try System proxy to read the actual system/environment proxy. An unavailable system proxy produces an error; it never silently switches to Direct.
+4) Alternatively choose HTTP proxy or SOCKS5 proxy to match your proxy app. The host is usually 127.0.0.1. Check the actual local listening port in your proxy app; do not copy an example blindly. 10808 is only a common example.
+5) Save email settings, then Test email connection, and resume monitoring after success. Each account has separate proxy settings. A custom proxy does not require TUN mode.
+6) This feature proxies IMAP email connections only; it does not change AI API networking. PAC scripts and proxies requiring a username/password are not supported. Proxy failure produces an error instead of falling back to a direct connection.
+
 2. NetEase 163, 126 and Yeah
 Official sign-in: https://mail.163.com/ , https://mail.126.com/ , https://www.yeah.net/ . Official help: https://help.mail.163.com/ .
 1) Sign in to your provider's official webmail.

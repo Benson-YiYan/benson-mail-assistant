@@ -8,6 +8,8 @@ import ssl
 import socket
 import json
 import urllib.parse
+import urllib.request
+import time
 
 IMAP_ERROR = imaplib.IMAP4.error
 
@@ -53,7 +55,198 @@ def normalize(raw):
         raise ValueError('登录用户名和邮件文件夹不能包含换行或控制字符。')
     return {'account': account, 'username': username, 'host': host, 'port': port,
             'security': security, 'mail_folder': folder, 'mail_auth': auth,
-            'mail_provider': str(value.get('mail_provider', 'custom'))}
+            'mail_provider': str(value.get('mail_provider', 'custom')), **normalize_proxy(value)}
+
+class ProxyConnectionError(OSError):
+    """Proxy failures never contain server-supplied text or credentials."""
+
+
+def normalize_proxy(value):
+    mode = str(value.get('proxy_mode', 'direct'))
+    if mode not in ('direct', 'system', 'http', 'socks5'):
+        raise ValueError('请选择直连、系统代理、HTTP CONNECT 或 SOCKS5。')
+    host = str(value.get('proxy_host', '')).strip()
+    if mode in ('http', 'socks5'):
+        if not host or len(host) > 253 or any(c in host for c in '/@?#\\\r\n\t ') or '://' in host:
+            raise ValueError('代理地址只填写主机名或 IP，不要包含协议、路径或账号密码。')
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            try: host = host.encode('idna').decode('ascii')
+            except UnicodeError: raise ValueError('代理主机名无效。') from None
+            if not all(re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?', p) for p in host.split('.')):
+                raise ValueError('代理主机名无效。')
+    # Ignore inactive fields so old saved values cannot break Direct/System mode.
+    port = 10808
+    if mode in ('http', 'socks5'):
+        raw = value.get('proxy_port', 10808)
+        try:
+            port = int(raw)
+            if isinstance(raw, bool) or str(raw).strip() != str(port) or not 1 <= port <= 65535: raise ValueError()
+        except (ValueError, TypeError):
+            raise ValueError('代理端口应为1至65535的整数。') from None
+    return {'proxy_mode': mode, 'proxy_host': host if mode in ('http', 'socks5') else '', 'proxy_port': port}
+
+
+def resolve_proxy(value):
+    mode = value['proxy_mode']
+    if mode == 'direct': return None
+    if mode != 'system': return (mode, value['proxy_host'], value['proxy_port'])
+    proxies = urllib.request.getproxies()
+    selected = next((k for k in ('socks', 'https', 'http', 'all') if proxies.get(k)), None)
+    candidate = proxies[selected] if selected else None
+    if not candidate:
+        raise ProxyConnectionError('System proxy unavailable (PAC-only settings are not supported); configure HTTP CONNECT or SOCKS5. No direct fallback.')
+    try:
+        parsed = urllib.parse.urlsplit(candidate if '://' in candidate else 'http://' + candidate)
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError()
+        kind = {'http': 'http', 'socks5': 'socks5', 'socks5h': 'socks5', 'socks': 'socks5'}.get(parsed.scheme.lower())
+        # CPython's macOS _scproxy reports SOCKS settings with an http:// URL.
+        if selected == 'socks' and parsed.scheme.lower() == 'http': kind = 'socks5'
+        if not kind or not parsed.hostname or parsed.path not in ('', '/') or parsed.query or parsed.fragment:
+            raise ValueError()
+        port = parsed.port or (1080 if kind == 'socks5' else 80)
+        normalized = normalize_proxy({'proxy_mode': kind, 'proxy_host': parsed.hostname, 'proxy_port': port})
+        return (kind, normalized['proxy_host'], normalized['proxy_port'])
+    except (ValueError, TypeError):
+        raise ProxyConnectionError('Unsupported system proxy; use an unauthenticated HTTP CONNECT or SOCKS5 proxy. No direct fallback.') from None
+
+
+def proxy_socket(proxy, host, port, timeout=25):
+    kind, proxy_host, proxy_port = proxy
+    endpoint = f'{proxy_host}:{proxy_port}'
+    stage, sock = 'TCP connection', None
+    deadline = time.monotonic() + timeout
+    def remaining():
+        result = deadline - time.monotonic()
+        if result <= 0: raise TimeoutError()
+        return result
+    def receive(count):
+        result = b''
+        while len(result) < count:
+            sock.settimeout(remaining())
+            data = sock.recv(count - len(result))
+            if not data: raise ConnectionError('Proxy closed connection')
+            result += data
+        return result
+    try:
+        sock = socket.create_connection((proxy_host, proxy_port), remaining())
+        stage = 'HTTP CONNECT' if kind == 'http' else 'SOCKS5 negotiation'
+        if kind == 'http':
+            authority = f'[{host}]:{port}' if ':' in host else f'{host}:{port}'
+            sock.settimeout(remaining())
+            sock.sendall(f'CONNECT {authority} HTTP/1.1\r\nHost: {authority}\r\n\r\n'.encode('ascii'))
+            header = bytearray()
+            # Read only through the header: an IMAP greeting may follow immediately.
+            while not header.endswith(b'\r\n\r\n'):
+                if len(header) >= 16384: raise ValueError('Oversized proxy response')
+                header.extend(receive(1))
+            first = bytes(header).split(b'\r\n', 1)[0]
+            match = re.fullmatch(rb'HTTP/1\.[01] ([0-9]{3})(?: [^\r\n]*)?', first)
+            if not match: raise ValueError('Invalid proxy response')
+            status = int(match.group(1))
+            if not 200 <= status < 300: raise ProxyConnectionError(f'Proxy {endpoint}: HTTP CONNECT rejected (status {status}). No direct fallback.')
+        else:
+            sock.settimeout(remaining())
+            sock.sendall(b'\x05\x01\x00')
+            if receive(2) != b'\x05\x00': raise ValueError('Proxy requires authentication or rejected SOCKS5')
+            # Domain form delegates DNS to the proxy, even when local DNS is blocked.
+            try:
+                address = ipaddress.ip_address(host)
+                destination = bytes([1 if address.version == 4 else 4]) + address.packed
+            except ValueError:
+                domain = host.encode('idna')
+                if len(domain) > 255: raise ValueError('Invalid destination name')
+                destination = b'\x03' + bytes([len(domain)]) + domain
+            sock.settimeout(remaining())
+            sock.sendall(b'\x05\x01\x00' + destination + port.to_bytes(2, 'big'))
+            response = receive(4)
+            if response[:3] != b'\x05\x00\x00':
+                raise ProxyConnectionError(f'Proxy {endpoint}: SOCKS5 CONNECT rejected (code {response[1]}). No direct fallback.')
+            if response[3] == 1: receive(4)
+            elif response[3] == 4: receive(16)
+            elif response[3] == 3: receive(receive(1)[0])
+            else: raise ValueError('Invalid SOCKS5 address type')
+            receive(2)
+        sock.settimeout(timeout)
+        return sock
+    except Exception as error:
+        if sock is not None: sock.close()
+        if isinstance(error, ProxyConnectionError): raise
+        reason = 'timed out' if isinstance(error, (TimeoutError, socket.timeout)) else type(error).__name__
+        raise ProxyConnectionError(f'Proxy {endpoint}: {stage} failed ({reason}). No direct fallback.') from None
+
+
+class ProxyIMAP4(imaplib.IMAP4):
+    def __init__(self, host, port, proxy, timeout=25):
+        self._mail_proxy = proxy
+        super().__init__(host, port, timeout=timeout)
+
+    def _create_socket(self, timeout):
+        return proxy_socket(self._mail_proxy, self.host, self.port, timeout)
+
+
+class ProxyIMAP4SSL(imaplib.IMAP4_SSL):
+    def __init__(self, host, port, proxy, ssl_context, timeout=25):
+        self._mail_proxy = proxy
+        super().__init__(host, port, ssl_context=ssl_context, timeout=timeout)
+
+    def _create_socket(self, timeout):
+        sock = proxy_socket(self._mail_proxy, self.host, self.port, timeout)
+        try:
+            return self.ssl_context.wrap_socket(sock, server_hostname=self.host)
+        except BaseException:
+            sock.close()
+            raise
+
+
+def proxy_transport_selftest():
+    """Frozen-worker offline smoke: native proxy detection and local tunnels only."""
+    import threading
+    original_socket = socket.socket
+    # Exercise native registry/_scproxy imports without exposing proxy values.
+    assert isinstance(urllib.request.getproxies(), dict)
+    for kind in ('http', 'socks5'):
+        listener = socket.socket()
+        listener.bind(('127.0.0.1', 0)); listener.listen(); listener.settimeout(5)
+        errors = []
+        def exact(stream, count):
+            result = b''
+            while len(result) < count:
+                block = stream.recv(count - len(result))
+                if not block: raise EOFError()
+                result += block
+            return result
+        def serve():
+            try:
+                stream, _ = listener.accept()
+                with stream:
+                    stream.settimeout(5)
+                    if kind == 'http':
+                        header = b''
+                        while not header.endswith(b'\r\n\r\n'): header += exact(stream, 1)
+                        assert header.startswith(b'CONNECT offline.example.invalid:993 ')
+                        stream.sendall(b'HTTP/1.1 200 OK\r\n\r\n')
+                    else:
+                        assert exact(stream, 3) == b'\x05\x01\x00'
+                        stream.sendall(b'\x05\x00')
+                        assert exact(stream, 4) == b'\x05\x01\x00\x03'
+                        assert exact(stream, exact(stream, 1)[0]) == b'offline.example.invalid'
+                        assert exact(stream, 2) == b'\x03\xe1'
+                        stream.sendall(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
+                    assert exact(stream, 4) == b'PING'
+                    stream.sendall(b'PONG')
+            except BaseException as error: errors.append(type(error).__name__)
+        thread = threading.Thread(target=serve, daemon=True); thread.start()
+        try:
+            with proxy_socket((kind, '127.0.0.1', listener.getsockname()[1]), 'offline.example.invalid', 993, 5) as stream:
+                stream.sendall(b'PING'); assert exact(stream, 4) == b'PONG'
+            thread.join(6)
+            assert not thread.is_alive() and not errors
+        finally: listener.close()
+    assert socket.socket is original_socket
+
 
 def mailbox_id(config):
     config = normalize(config)
@@ -107,7 +300,9 @@ def redact_mail_error(error, secret, username=''):
 def mail_error(error, value, secret, stage, language='zh'):
     detail = redact_mail_error(error, secret, value['username'])
     lowered = detail.casefold()
-    if isinstance(error, ssl.SSLCertVerificationError):
+    if isinstance(error, ProxyConnectionError):
+        hint = '代理连接失败；请检查代理是否运行及地址、端口。不自动回退到直连。'
+    elif isinstance(error, ssl.SSLCertVerificationError):
         hint = 'TLS 证书验证失败；请检查系统时间、代理及服务器证书。不会跳过证书验证。'
     elif isinstance(error, ssl.SSLError):
         hint = 'TLS 加密协商失败；请核对端口和 SSL/TLS 或 STARTTLS 设置。'
@@ -128,6 +323,7 @@ def mail_error(error, value, secret, stage, language='zh'):
     error_type = ('IMAP4.' + type(error).__name__) if isinstance(error, IMAP_ERROR) else type(error).__name__
     if language == 'en':
         hints = {
+            '代理连接失败；请检查代理是否运行及地址、端口。不自动回退到直连。': 'Proxy connection failed. Check that the proxy is running and its host and port are correct. No direct fallback.',
             'TLS 证书验证失败；请检查系统时间、代理及服务器证书。不会跳过证书验证。': 'TLS certificate verification failed. Check the system clock, proxy and server certificate. Certificate verification remains enabled.',
             'TLS 加密协商失败；请核对端口和 SSL/TLS 或 STARTTLS 设置。': 'TLS negotiation failed. Check the port and SSL/TLS or STARTTLS settings.',
             'DNS 域名解析失败；请核对 IMAP 域名和网络 DNS。': 'DNS lookup failed. Check the IMAP hostname and network DNS settings.',
@@ -159,10 +355,13 @@ def connect(config, secret, context=None):
     client = None
     stage = 'SSL/TLS 连接' if value['security'] == 'ssl' else 'TCP 连接'
     try:
+        proxy = resolve_proxy(value)
         if value['security'] == 'ssl':
-            client = imaplib.IMAP4_SSL(value['host'], value['port'], ssl_context=context, timeout=25)
+            client = (ProxyIMAP4SSL(value['host'], value['port'], proxy, ssl_context=context, timeout=25) if proxy else
+                      imaplib.IMAP4_SSL(value['host'], value['port'], ssl_context=context, timeout=25))
         else:
-            client = imaplib.IMAP4(value['host'], value['port'], timeout=25)
+            client = (ProxyIMAP4(value['host'], value['port'], proxy, timeout=25) if proxy else
+                      imaplib.IMAP4(value['host'], value['port'], timeout=25))
             stage = 'STARTTLS 加密协商'
             require_ok(client.starttls(ssl_context=context), 'STARTTLS')
         if value['mail_auth'] == 'oauth2':

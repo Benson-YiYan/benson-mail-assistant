@@ -576,7 +576,18 @@
     "当前使用自定义登录用户名：": "Custom login username in use: ",
     "修改邮箱地址不会更改此登录名；请在“高级连接选项”中确认。": "Changing the email address does not change this login. Review it in Advanced connection options.",
     "正在比较下载线路…": "Comparing download sources…",
-    "下载线路：": "Download source: "
+    "下载线路：": "Download source: ",
+    "收信代理": "Mail receiving proxy",
+    "代理地址": "Proxy host",
+    "代理端口": "Proxy port",
+    "直连（不使用代理）": "Direct (no proxy)",
+    "系统代理": "System proxy",
+    "HTTP CONNECT 代理": "HTTP CONNECT proxy",
+    "SOCKS5 代理": "SOCKS5 proxy",
+    "高级连接与代理选项": "Advanced connection and proxy options",
+    "请输入代理地址。": "Enter a proxy host.",
+    "请输入 1–65535 之间的代理端口。": "Enter a proxy port between 1 and 65535.",
+    "仅用于此邮箱收信。使用 v2rayN 等工具时，请先启动代理，并确认地址和端口与代理软件一致。系统代理不可用时会报错，不会自动改为直连；暂不支持代理用户名和密码。": "Applies only to receiving mail for this mailbox. Start v2rayN or your proxy app and match its host and port. An unavailable system proxy causes an error rather than a direct connection. Proxy usernames and passwords are not supported yet."
   },
   "templates": [
     {

@@ -66,6 +66,9 @@ def run():
     home = data_home()
     assert home.name.startswith('BensonMail-package-test-'), 'isolated fixture required'
     checks = []
+    from mailbox_config import proxy_transport_selftest
+    proxy_transport_selftest()
+    checks.append('local HTTP CONNECT/SOCKS5 remote-DNS tunnels and native system proxy detection')
     assert '## 1. 新邮件提醒' in ANALYSIS_PROMPT
     for number in range(1, 7): assert f'\n{number}. ' in ANALYSIS_PROMPT
     checks.append('Markdown format selected and original six report requirements retained')

@@ -233,6 +233,7 @@ sealed class MainWindow : Window
     readonly ComboBox mailAuth = new() { Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly TextBox mailUsername = new() { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址") };
     readonly TextBlock mailLoginSummary = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Visibility = Visibility.Collapsed };
+    readonly MailProxyControls mailProxy = new();
     readonly TextBox mailFolder = new() { Header = L.T("邮件文件夹"), Text = "INBOX" };
     readonly List<JsonElement> mailPresets = new();
     readonly ComboBox savedMailboxes = new() { Header = L.T("已添加的邮箱"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -319,7 +320,7 @@ sealed class MainWindow : Window
             text.FontFamily = MailTypography.Font;
         foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model, harnessPath,
             apiKey, interval, search, sender, from, to, attachment, mailProvider, mailHost, mailPort,
-            mailSecurity, mailAuth, mailUsername, mailFolder })
+            mailSecurity, mailAuth, mailUsername, mailFolder, mailProxy.Mode, mailProxy.Host, mailProxy.Port })
         {
             field.FontFamily = MailTypography.Font;
             field.CornerRadius = new CornerRadius(4);
@@ -533,7 +534,7 @@ sealed class MainWindow : Window
         aiSaveButton = Action(L.T("保存 AI 设置"), SaveAI);
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
         oauthTokenButton = OAuthTokenButton(mailAuth);
-        var advanced = Stack(mailUsername, mailLoginSummary, mailFolder, mailAuth); advanced.Visibility = Visibility.Collapsed;
+        var advanced = Stack(mailUsername, mailLoginSummary, mailFolder, mailAuth, mailProxy.Panel); advanced.Visibility = Visibility.Collapsed;
         savedMailboxes.SelectionChanged += async (_, _) =>
         {
             if (changingLanguage || loadingMailboxes || savedMailboxes.SelectedIndex < 0) return;
@@ -566,7 +567,7 @@ sealed class MainWindow : Window
                 })), Note(L.T("可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。")))),
             Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
                 Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), oauthTokenButton),
-                Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
+                Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。")))),
             Card(Stack(Heading(L.T("报告与后台运行")), folder, Action(L.T("浏览……"), PickFolder), startup,
                 Row(interval, Action(L.T("应用间隔"), async () =>
@@ -774,13 +775,59 @@ sealed class MainWindow : Window
         username.TextChanged += (_, _) => RefreshMailLogin(address, username, summary);
         RefreshMailLogin(address, username, summary);
     }
+    // Per-mailbox proxy settings never change the mailbox's identity or progress.
+    sealed class MailProxyControls
+    {
+        internal readonly ComboBox Mode = new() { Header = L.T("收信代理"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        internal readonly TextBox Host = new() { Header = L.T("代理地址"), PlaceholderText = "127.0.0.1" };
+        internal readonly TextBox Port = new() { Header = L.T("代理端口"), PlaceholderText = "10808" };
+        internal readonly StackPanel Panel;
+        readonly StackPanel custom;
+        static readonly string[] modes = { "direct", "system", "http", "socks5" };
+        internal string Value => Mode.SelectedIndex >= 0 && Mode.SelectedIndex < modes.Length ? modes[Mode.SelectedIndex] : "direct";
+        internal MailProxyControls()
+        {
+            foreach (var label in new[] { "直连（不使用代理）", "系统代理", "HTTP CONNECT 代理", "SOCKS5 代理" }) Mode.Items.Add(L.T(label));
+            custom = Stack(Host, Port);
+            Panel = Stack(Mode, custom, Note(L.T("仅用于此邮箱收信。使用 v2rayN 等工具时，请先启动代理，并确认地址和端口与代理软件一致。系统代理不可用时会报错，不会自动改为直连；暂不支持代理用户名和密码。")));
+            foreach (var control in new Control[] { Mode, Host, Port }) control.FontFamily = MailTypography.Font;
+            Mode.SelectionChanged += (_, _) => {
+                var explicitProxy = Value is "http" or "socks5";
+                custom.Visibility = explicitProxy ? Visibility.Visible : Visibility.Collapsed;
+                if (explicitProxy && Host.Text.Trim().Length == 0) Host.Text = "127.0.0.1";
+                if (explicitProxy && Port.Text.Trim().Length == 0) Port.Text = "10808";
+            };
+            Mode.SelectedIndex = 0;
+        }
+        internal int ValidPort()
+        {
+            if (Value is not ("http" or "socks5")) return int.TryParse(Port.Text, out var optional) ? optional : 10808;
+            if (Host.Text.Trim().Length == 0) throw new InvalidOperationException(L.T("请输入代理地址。"));
+            if (!int.TryParse(Port.Text, out var port) || port < 1 || port > 65535)
+                throw new InvalidOperationException(L.T("请输入 1–65535 之间的代理端口。"));
+            return port;
+        }
+        internal void Load(JsonElement config)
+        {
+            Host.Text = config.TryGetProperty("proxy_host", out var host) ? host.GetString() ?? "" : "";
+            Port.Text = config.TryGetProperty("proxy_port", out var port) ? port.ToString() : "";
+            var mode = config.TryGetProperty("proxy_mode", out var value) ? value.GetString() : "direct";
+            Mode.SelectedIndex = Math.Max(0, Array.IndexOf(modes, mode));
+        }
+        internal void CopyFrom(MailProxyControls source)
+        {
+            Host.Text = source.Host.Text; Port.Text = source.Port.Text; Mode.SelectedIndex = source.Mode.SelectedIndex;
+        }
+    }
     async Task SaveMail()
     {
+        var proxyPort = mailProxy.ValidPort();
         if (!int.TryParse(mailPort.Text, out var port)) throw new InvalidOperationException(L.T("请输入有效的 IMAP 端口。"));
         await Call("save_mail", new { account = account.Text, secret = mailSecret.Password,
             output_dir = folder.Text, autostart = startup.IsOn,
             mail_provider = mailProvider.SelectedIndex >= 0 ? mailPresets[mailProvider.SelectedIndex].GetProperty("id").GetString() : "custom",
             host = mailHost.Text, port, security = mailSecurity.SelectedIndex == 1 ? "starttls" : "ssl",
+            proxy_mode = mailProxy.Value, proxy_host = mailProxy.Host.Text, proxy_port = proxyPort,
             username = mailUsername.Text, mail_folder = mailFolder.Text, mail_auth = mailAuth.SelectedIndex == 1 ? "oauth2" : "password" });
         mailSecret.Password = "";
         await ReloadMailboxes();
@@ -903,6 +950,7 @@ sealed class MainWindow : Window
             mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
             mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0;
+            mailProxy.Load(config);
             provider.SelectedIndex = Text("ai_provider") == "codex" ? 1 : Text("ai_provider") == "deepseek_harness" ? 2 : 0;
             interval.Text = config.GetProperty("interval").ToString();
             startup.IsOn = config.TryGetProperty("autostart", out var auto) && auto.GetBoolean();
@@ -955,12 +1003,13 @@ sealed class MainWindow : Window
         };
         var error = Note(""); error.IsTextSelectionEnabled = true;
         var tokenButton = OAuthTokenButton(authentication);
-        var advanced = Stack(username, loginSummary, mailboxFolder, authentication); advanced.Visibility = Visibility.Collapsed;
+        var firstRunProxy = new MailProxyControls(); firstRunProxy.CopyFrom(mailProxy);
+        var advanced = Stack(username, loginSummary, mailboxFolder, authentication, firstRunProxy.Panel); advanced.Visibility = Visibility.Collapsed;
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T("欢迎使用邮件小秘书"),
             PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T("稍后填写"),
             Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), secret,
                 Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), tokenButton),
-                Action(L.T("高级连接选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
+                Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。")), error) } };
         async Task SaveOnboarding()
         {
@@ -969,6 +1018,7 @@ sealed class MainWindow : Window
             mailHost.Text = host.Text; mailPort.Text = port.Text; mailUsername.Text = username.Text;
             mailFolder.Text = mailboxFolder.Text; mailSecurity.SelectedIndex = encryption.SelectedIndex;
             mailAuth.SelectedIndex = authentication.SelectedIndex;
+            mailProxy.CopyFrom(firstRunProxy);
             await SaveMail();
             RefreshMailLogin(address, username, loginSummary);
         }
@@ -992,11 +1042,25 @@ sealed class MainWindow : Window
             address.Text = "onboard-old@example.invalid"; username.Text = address.Text;
             address.Text = "onboard-new@example.invalid";
             if (username.Text.Length != 0) throw new InvalidOperationException("First-run address edit retained an old default login");
+            advanced.Visibility = Visibility.Visible;
+            firstRunProxy.Mode.SelectedIndex = 2;
+            dialog.UpdateLayout();
+            if (!firstRunProxy.Mode.IsLoaded || firstRunProxy.Host.Visibility != Visibility.Visible ||
+                firstRunProxy.Panel.Visibility != Visibility.Visible)
+                throw new InvalidOperationException("First-run proxy controls were not available in the expanded advanced options");
+            advanced.Visibility = Visibility.Collapsed;
+            firstRunProxy.Host.Text = "127.0.0.1"; firstRunProxy.Port.Text = "18081";
             secret.Password = "synthetic-onboarding-secret";
             await SaveOnboarding();
             var savedDefault = await bridge.Call("config");
             if (savedDefault.GetProperty("username").GetString() != address.Text)
                 throw new InvalidOperationException("First-run save did not use the new address as the login");
+            if (savedDefault.GetProperty("proxy_mode").GetString() != "http" ||
+                savedDefault.GetProperty("proxy_host").GetString() != "127.0.0.1" ||
+                savedDefault.GetProperty("proxy_port").GetInt32() != 18081 ||
+                !ReferenceEquals(firstRunProxy.Panel.Parent, advanced))
+                throw new InvalidOperationException("First-run proxy controls did not persist through the actual account save");
+            Program.Trace("Passed: First-run HTTP proxy fields persist per mailbox without network access");
             username.Text = "DOMAIN\\onboard-user"; address.Text = "onboard-custom@example.invalid";
             await SaveOnboarding();
             var savedCustom = await bridge.Call("config");
@@ -1049,6 +1113,7 @@ sealed class MainWindow : Window
             mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
             mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0;
+            mailProxy.Load(config);
         }
         finally { loadingMailboxes = false; }
     }
@@ -1147,6 +1212,45 @@ sealed class MainWindow : Window
             Check(account.Text == "second@example.invalid" && mailHost.Text == "imap.second.invalid",
                 "Selecting a different saved mailbox loads its own connection without overwriting the other account");
             navigation.SelectedIndex = 1; await Task.Delay(150);
+            Check(mailProxy.Value == "direct", "Existing mailbox without proxy fields retains direct connection by default");
+            var proxyAdvanced = (StackPanel)mailProxy.Panel.Parent;
+            proxyAdvanced.Visibility = Visibility.Visible;
+            mailProxy.Mode.SelectedIndex = 3;
+            layout.UpdateLayout();
+            Check(mailProxy.Mode.IsLoaded && mailProxy.Host.Parent is StackPanel { Visibility: Visibility.Visible },
+                "Expanded native advanced options expose custom proxy controls");
+            mailProxy.Port.Text = "70000";
+            var rejectedProxyPort = false;
+            try { mailProxy.ValidPort(); } catch (InvalidOperationException) { rejectedProxyPort = true; }
+            Check(rejectedProxyPort, "Invalid custom proxy port is rejected before saving or connecting");
+            mailProxy.Port.Text = "10808";
+            proxyAdvanced.Visibility = Visibility.Collapsed;
+            Check(mailProxy.Host.Text.Length > 0 && mailProxy.Port.Text.Length > 0,
+                "Explicit custom proxy selection supplies editable local proxy defaults");
+            mailProxy.Host.Text = "127.0.0.1"; mailProxy.Port.Text = "18082";
+            await SaveMail();
+            var proxyProfile = await bridge.Call("config");
+            var proxyProfileId = proxyProfile.GetProperty("selected_mailbox_id").GetString();
+            Check(proxyProfile.GetProperty("proxy_mode").GetString() == "socks5" &&
+                proxyProfile.GetProperty("proxy_port").GetInt32() == 18082 &&
+                proxyProfile.GetProperty("mailboxes").GetArrayLength() == 2,
+                "Native proxy save persists SOCKS5 settings without adding a duplicate mailbox");
+            savedMailboxes.SelectedIndex = 0;
+            var proxyDeadline = DateTime.UtcNow.AddSeconds(3);
+            while (account.Text != "first@example.invalid" && DateTime.UtcNow < proxyDeadline) await Task.Delay(25);
+            Check(mailProxy.Value == "direct", "A second mailbox does not inherit another mailbox's proxy");
+            savedMailboxes.SelectedIndex = 1;
+            proxyDeadline = DateTime.UtcNow.AddSeconds(3);
+            while (account.Text != "second@example.invalid" && DateTime.UtcNow < proxyDeadline) await Task.Delay(25);
+            Check(mailProxy.Value == "socks5" && mailProxy.Port.Text == "18082",
+                "Returning to a mailbox restores its own proxy controls");
+            mailProxy.Mode.SelectedIndex = 1;
+            await SaveMail();
+            var systemProxyProfile = await bridge.Call("config");
+            Check(systemProxyProfile.GetProperty("proxy_mode").GetString() == "system" &&
+                systemProxyProfile.GetProperty("selected_mailbox_id").GetString() == proxyProfileId,
+                "System proxy mode persists while mailbox identity is unchanged");
+            mailProxy.Mode.SelectedIndex = 0; await SaveMail();
             Check(mailUsername.Text.Length == 0 && mailLoginSummary.Visibility == Visibility.Collapsed,
                 "Stored default login is blank in the native form after profile selection");
             mailUsername.Text = account.Text; // Defensive path: a user or old UI repeated the old address.
@@ -1182,6 +1286,9 @@ sealed class MainWindow : Window
                 "Returning to the custom-login profile restores its own login in advanced options");
             var loginTestLanguage = L.Code;
             await ChangeLanguage("en");
+            Check((string)mailProxy.Mode.Header == "Mail receiving proxy" &&
+                (string)mailProxy.Mode.Items[1] == "System proxy" && (string)mailProxy.Host.Header == "Proxy host",
+                "Switching to English translates actual proxy controls and choices");
             Check(mailLoginSummary.Text.StartsWith("Custom login username in use: ", StringComparison.Ordinal) &&
                 mailLoginSummary.Text.Contains("DOMAIN\\custom-user"),
                 "Switching to English refreshes the dynamic custom-login summary without changing the username");

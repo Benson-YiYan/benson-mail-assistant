@@ -12,7 +12,7 @@ from .core import Service, IMAPMailbox, save_json
 from .report_index import report_entry, matches
 from .mailbox_config import PRESETS, normalize, mailbox_id
 MAIL_FIELDS = ('account', 'username', 'host', 'port', 'security', 'mail_folder', 'mail_auth',
-               'mail_provider', 'secret_binding', 'mail_secret_file')
+               'mail_provider', 'secret_binding', 'mail_secret_file', 'proxy_mode', 'proxy_host', 'proxy_port')
 
 
 class Controller:

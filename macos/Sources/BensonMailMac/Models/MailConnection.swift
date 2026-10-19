@@ -34,6 +34,31 @@ struct MailConnection: Codable, Equatable {
     var mail_auth = "password"
     var secret_service = "Codex-Mail-163"
     var secret_account = ""
+    var proxy_mode = "direct"
+    var proxy_host = "127.0.0.1"
+    var proxy_port = 10808
+
+    init() {}
+    enum CodingKeys: String, CodingKey {
+        case mail_provider, account, username, host, port, security, mail_folder, mail_auth
+        case secret_service, secret_account, proxy_mode, proxy_host, proxy_port
+    }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        mail_provider = try values.decodeIfPresent(String.self, forKey: .mail_provider) ?? "163"
+        account = try values.decodeIfPresent(String.self, forKey: .account) ?? ""
+        username = try values.decodeIfPresent(String.self, forKey: .username) ?? ""
+        host = try values.decodeIfPresent(String.self, forKey: .host) ?? "imap.163.com"
+        port = try values.decodeIfPresent(Int.self, forKey: .port) ?? 993
+        security = try values.decodeIfPresent(String.self, forKey: .security) ?? "ssl"
+        mail_folder = try values.decodeIfPresent(String.self, forKey: .mail_folder) ?? "INBOX"
+        mail_auth = try values.decodeIfPresent(String.self, forKey: .mail_auth) ?? "password"
+        secret_service = try values.decodeIfPresent(String.self, forKey: .secret_service) ?? "Codex-Mail-163"
+        secret_account = try values.decodeIfPresent(String.self, forKey: .secret_account) ?? ""
+        proxy_mode = try values.decodeIfPresent(String.self, forKey: .proxy_mode) ?? "direct"
+        proxy_host = try values.decodeIfPresent(String.self, forKey: .proxy_host) ?? "127.0.0.1"
+        proxy_port = try values.decodeIfPresent(Int.self, forKey: .proxy_port) ?? 10808
+    }
     var login: String { username.isEmpty ? account : username }
     var identity: String {
         let raw = [account.lowercased(), login, host.lowercased(), String(port), security, mail_folder, mail_auth].joined(separator: "\u{1f}")
@@ -63,6 +88,22 @@ struct MailConnection: Codable, Equatable {
         }
         guard !(value.login + value.mail_folder).unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 }) else {
             throw MailCredentials.Failure("登录用户名和文件夹名称不能包含换行或控制字符。")
+        }
+        guard ["direct", "system", "http", "socks5"].contains(value.proxy_mode) else {
+            throw MailCredentials.Failure("请选择有效的邮箱代理方式。")
+        }
+        if ["http", "socks5"].contains(value.proxy_mode) {
+            value.proxy_host = proxy_host.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let proxyIsIP = IPv4Address(value.proxy_host) != nil || IPv6Address(value.proxy_host) != nil
+            let proxyIsDomain = value.proxy_host.split(separator: ".", omittingEmptySubsequences: false).allSatisfy {
+                $0.range(of: #"^[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?$"#, options: .regularExpression) != nil
+            }
+            guard !value.proxy_host.isEmpty, value.proxy_host.count <= 253, proxyIsIP || proxyIsDomain else {
+                throw MailCredentials.Failure("代理地址只填写域名或 IP，不要包含协议、端口或路径。")
+            }
+            guard (1...65535).contains(value.proxy_port) else {
+                throw MailCredentials.Failure("请输入有效的代理端口（1–65535）。")
+            }
         }
         return value
     }

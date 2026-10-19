@@ -174,6 +174,31 @@ enum AppSelfTest {
             guard connection.identity == "7c0447c91e4fa209f9a4a9cd5f4227df6a6a6b486906f780e32039e5f44f67f1" else {
                 throw Failure("Swift and Python mailbox identities differ")
             }
+            let legacyMailbox = try JSONSerialization.jsonObject(with: JSONEncoder().encode(connection)) as! [String: Any]
+            let withoutProxy = legacyMailbox.filter { !$0.key.hasPrefix("proxy_") }
+            let migrated = try JSONDecoder().decode(MailConnection.self, from: JSONSerialization.data(withJSONObject: withoutProxy))
+            guard migrated.proxy_mode == "direct", migrated.identity == connection.identity else {
+                throw Failure("legacy mailbox proxy migration changed identity or default routing")
+            }
+            for mode in ["direct", "system", "http", "socks5"] {
+                var proxied = connection
+                proxied.proxy_mode = mode; proxied.proxy_host = "127.0.0.1"; proxied.proxy_port = 10808
+                let validated = try proxied.validated()
+                let roundtrip = try JSONDecoder().decode(MailConnection.self, from: JSONEncoder().encode(validated))
+                guard roundtrip == validated, validated.identity == connection.identity else {
+                    throw Failure("mailbox proxy failed persistence or changed mail progress identity")
+                }
+            }
+            var invalidProxy = connection
+            invalidProxy.proxy_mode = "socks5"; invalidProxy.proxy_port = 0
+            do { _ = try invalidProxy.validated(); throw Failure("invalid proxy port accepted") }
+            catch is MailCredentials.Failure {}
+            invalidProxy.proxy_port = 10808; invalidProxy.proxy_host = "http://127.0.0.1"
+            do { _ = try invalidProxy.validated(); throw Failure("proxy URL accepted as host") }
+            catch is MailCredentials.Failure {}
+            invalidProxy.proxy_mode = "direct"
+            _ = try invalidProxy.validated() // Disabled manual fields must not invalidate direct connections.
+            checks.append("legacy proxy defaults, all routing modes persist without changing mail progress identity, and manual proxy validation")
             let previousIdentity = connection.identity
             connection.mail_folder = "INBOX"
             guard previousIdentity != connection.identity else { throw Failure("folders share progress identity") }
@@ -186,6 +211,7 @@ enum AppSelfTest {
             var secondConnection = connection
             secondConnection.account = "second@example.invalid"
             secondConnection.host = "imap.second.invalid"
+            secondConnection.proxy_mode = "socks5"; secondConnection.proxy_host = "127.0.0.1"; secondConnection.proxy_port = 10999
             store.settings.mailboxes = [MailboxProfile(connection: connection), MailboxProfile(connection: secondConnection)]
             try store.save(); store.refresh()
             guard store.mailboxProfiles.count == 2 else { throw Failure("multiple accounts not persisted") }
@@ -194,7 +220,9 @@ enum AppSelfTest {
             store.refresh()
             guard store.mailAccount == secondConnection.account,
                   store.mailboxProfiles.first?.enabled == false,
-                  store.mailboxProfiles.last?.enabled == true else { throw Failure("per-account selection or pause mixed accounts") }
+                  store.mailboxProfiles.last?.enabled == true,
+                  store.settings.mailbox?.proxy_mode == "socks5", store.settings.mailbox?.proxy_port == 10999,
+                  store.mailboxProfiles.first?.connection.proxy_mode == "direct" else { throw Failure("per-account selection, proxy or pause mixed accounts") }
             checks.append("multiple mailbox accounts persist; selection and individual pause preserve the other account")
             let uninstallFixture = store.base.appendingPathComponent("uninstall-fixture")
             try FileManager.default.createDirectory(at: uninstallFixture, withIntermediateDirectories: true)
