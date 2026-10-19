@@ -33,7 +33,6 @@ class MultipleMailTests(unittest.TestCase):
         import io
         import shutil
         import sys
-        from unittest.mock import Mock
         from benson_mail.uninstall import native_cli
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -44,10 +43,9 @@ class MultipleMailTests(unittest.TestCase):
             (program / 'BensonMail.dll').write_bytes(b'synthetic-native-runtime')
             (program / 'MailWorker.exe').write_bytes(b'synthetic-worker')
             output = io.StringIO()
-            instance = Mock(already_running=False)
             args = ['main.py', '--uninstall-native', 'prepare', '--target', str(program), '--executable', name]
             with patch.object(sys, 'argv', args), patch.dict('os.environ', {'LOCALAPPDATA': temporary}), \
-                 patch('benson_mail.platform_windows.SingleInstance', return_value=instance), \
+                 patch('benson_mail.platform_windows.SingleInstance') as application_lock, \
                  contextlib.redirect_stdout(output):
                 self.assertEqual(native_cli(), 0)
             helper = Path(json.loads(output.getvalue().splitlines()[-1])['result']['helper'])
@@ -58,7 +56,9 @@ class MultipleMailTests(unittest.TestCase):
                 self.assertTrue(program.exists())
             finally:
                 shutil.rmtree(helper.parent)
-            instance.close.assert_called_once()
+            # Staging happens before the visible window asks permission to exit
+            # the main app; it deliberately does not acquire its lifetime lock.
+            application_lock.assert_not_called()
 
     def test_two_mailboxes_same_uid_and_subject_export_without_overwrite(self):
         from concurrent.futures import ThreadPoolExecutor

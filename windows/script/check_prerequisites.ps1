@@ -54,7 +54,7 @@ try {
     Check (!$state.dotnet -and !$state.winui) 'old .NET and missing WinUI are rejected without a network call'
     Rename-Item -LiteralPath $runtimeFolder -NewName '8.0.32'
     Check (Get-PrerequisiteState).dotnet '.NET 8.0.32 x64 registry installation is accepted'
-    Check (@($script:registryPaths | Where-Object { $_ -ne 'HKLM:\SOFTWARE\dotnet\Setup\InstalledVersions\x64' }).Count -eq 0) 'x86 registry installation cannot satisfy x64 .NET'
+    Check (@($script:registryPaths | Where-Object { $_ -ne 'HKLM:\SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64' }).Count -eq 0) 'x64 runtime registration is read from the official 32-bit registry view'
     $runtimeFolder = Join-Path $script:fakeDotnetRoot 'shared\Microsoft.NETCore.App\8.0.32'
     foreach ($name in @('coreclr.dll','System.Private.CoreLib.dll')) {
         $runtimeFile = Join-Path $runtimeFolder $name
@@ -223,7 +223,7 @@ try {
         & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $helper -Mode Install -Components 'dotnet,winui' -ResultFile $result
         $installExitCode = $LASTEXITCODE
         @{
-            registry = Get-ItemProperty 'HKLM:\SOFTWARE\dotnet\Setup\InstalledVersions\x64' -ErrorAction SilentlyContinue
+            registry = Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64' -ErrorAction SilentlyContinue
             runtimes = @(& dotnet --list-runtimes)
             state = Get-PrerequisiteState
         } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $Evidence 'prerequisites-dotnet.json') -Encoding UTF8

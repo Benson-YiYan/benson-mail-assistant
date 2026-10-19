@@ -29,7 +29,9 @@ $script:Prerequisites = @{
 
 function Get-PrerequisiteState {
     $dotnet = $false
-    $location = 'HKLM:\SOFTWARE\dotnet\Setup\InstalledVersions\x64'
+    # .NET registers all architectures in the 32-bit registry view. This
+    # helper requires 64-bit PowerShell; the final x64 key is runtime architecture.
+    $location = 'HKLM:\SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64'
     $root = (Get-ItemProperty -LiteralPath $location -Name InstallLocation -ErrorAction SilentlyContinue).InstallLocation
     if ($root) {
         $shared = Join-Path $root 'shared\Microsoft.NETCore.App'
