@@ -12,7 +12,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.1/BensonMail-Windows-x64-Setup-202610191203.exe"
       ],
-      "url": "https://improved-reward-learned-whatever.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610191203.exe"
+      "url": "https://chapters-indication-pattern-bride.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610191203.exe"
     },
     "macos-arm64": {
       "version": "202610191201",
@@ -25,7 +25,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.1/BensonMail-Mac-AppleSilicon-202610191201.dmg"
       ],
-      "url": "https://improved-reward-learned-whatever.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610191201.dmg"
+      "url": "https://chapters-indication-pattern-bride.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610191201.dmg"
     },
     "macos-x86_64": {
       "version": "202610191201",
@@ -38,7 +38,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.1/BensonMail-Mac-Intel-202610191201.dmg"
       ],
-      "url": "https://improved-reward-learned-whatever.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610191201.dmg"
+      "url": "https://chapters-indication-pattern-bride.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610191201.dmg"
     }
   }
 }
