@@ -2,17 +2,17 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610181752",
-      "sha256": "c0553133ccac0bfdde5c03df67380b33369f8d13ddbcc567c901b1089a214c77",
-      "size": 76559877,
+      "version": "202610191016",
+      "sha256": "e6e1019d202a5c6afd376c09d298dc5059a72311cc0afc746e1f06d636b2e707",
+      "size": 23571701,
       "notes": {
-        "zh": "登录用户名默认留空并移入高级连接选项，默认认证跟随邮箱地址，自定义用户名仍可保留。下载更新时并行进行小流量测速，在Mac更新服务和GitHub之间选择较快可用来源；网络失败或下载中断时换源重试，SHA256不符则停止安装。",
-        "en": "Leaves the optional login username blank inside advanced connection settings; default authentication follows the email address while custom usernames are preserved. Bounded concurrent probes compare the Mac update service and GitHub, then download from a faster usable source. Network failures and incomplete streams retry another source; SHA256 mismatches block installation."
+        "zh": "安装前检测共享 .NET 8 和 WinUI 3；缺少时明确列出并再次征求同意后下载，已有兼容组件直接复用。升级时按已核验的历史文件指纹清理旧内置运行库，保留配置、邮件报告及用户文件，不卸载系统共享组件。卸载从确认到完成保持同一个窗口，不再关闭后重新打开。",
+        "en": "Detects shared .NET 8 and WinUI 3 before installation; missing components are downloaded only after explicit confirmation, while compatible installed components are reused. Upgrades remove verified obsolete bundled runtime files while preserving configuration, reports and user files; system shared runtimes remain installed. Uninstallation keeps one continuous window from confirmation to completion."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261018.2/BensonMail-Windows-x64-Setup-202610181752.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019/BensonMail-Windows-x64-Setup-202610191016.exe"
       ],
-      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610181752.exe"
+      "url": "https://aspect-specification-sas-pull.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610191016.exe"
     },
     "macos-arm64": {
       "version": "202610181749",
