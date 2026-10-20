@@ -1,4 +1,5 @@
 """Explicit user tools. No mail sending, background AI work, or configuration export."""
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from email.utils import parseaddr
 import hashlib
@@ -37,11 +38,16 @@ def _root(root=None):
         raise RuntimeError('Automatic usage recording requires an explicit application data directory.')
     return home.parent.parent if home.parent.name == 'mailboxes' else home
 
+@contextmanager
 def _db(root=None):
     home = _root(root); home.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(home / 'usage.sqlite3', timeout=15)
-    connection.execute('CREATE TABLE IF NOT EXISTS calls (at TEXT, provider TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cost REAL, currency TEXT)')
-    return connection
+    try:
+        with connection:
+            connection.execute('CREATE TABLE IF NOT EXISTS calls (at TEXT, provider TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cost REAL, currency TEXT)')
+            yield connection
+    finally:
+        connection.close()
 
 def record_usage(provider, model, usage=None, root=None, base=None):
     """Only numeric usage metadata is persisted. Never estimate missing token counts."""

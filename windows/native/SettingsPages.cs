@@ -149,7 +149,6 @@ sealed partial class MainWindow
     }
     async Task SettingsPagesSelfTest(Action<bool, string> check)
     {
-        await bridge.Call("pause");
         await LoadPageDraft("mail");
         if (mailboxDrafts.Count == 0) await AddMailboxDraft();
         var before = await bridge.Call("config");

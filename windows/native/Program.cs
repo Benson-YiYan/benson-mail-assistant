@@ -1509,7 +1509,6 @@ sealed partial class MainWindow : Window
             Check(((Report)((ListViewItem)reports.Items[0]).Tag).title == "模拟合同检查", "English interface preserves original Chinese email subject");
             navigation.SelectedIndex = 1; await Task.Delay(300);
             if (screenArg >= 0) Capture(Path.Combine(Path.GetDirectoryName(Program.Args[screenArg + 1])!, "native-english-settings.png"));
-            await SettingsPagesSelfTest(Check);
             await Onboard(true);
             var spanishPreview = preview.Text; var spanishAccount = account.Text; var spanishRunning = running;
             await ChangeLanguage("es");

@@ -269,7 +269,7 @@ sealed partial class MainWindow
         finally {
             await bridge.Call("policy_save", originalPolicy);
             senderPolicyRecordSelection.Clear();
-            await LoadSenderPolicy();
+            await LoadPageDraft("mail");
         }
     }
 }

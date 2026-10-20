@@ -31,6 +31,36 @@ class AssistantToolTests(unittest.TestCase):
         self.report.with_suffix('.mail.json').write_text(json.dumps(self.mail))
     def save_config(self): self.config_path.write_text(json.dumps(self.config))
     def tearDown(self): self.temporary.cleanup()
+    def test_usage_database_commits_and_closes_on_success(self):
+        with tools._db(self.root) as connection:
+            connection.execute("INSERT INTO calls VALUES ('now', 'api', 'sample', 1, 2, NULL, 'USD')")
+        with self.assertRaises(tools.sqlite3.ProgrammingError):
+            connection.execute('SELECT COUNT(*) FROM calls')
+        with tools._db(self.root) as reopened:
+            self.assertEqual(reopened.execute('SELECT COUNT(*) FROM calls').fetchone()[0], 1)
+        database = self.root / 'usage.sqlite3'
+        moved = database.with_suffix('.moved')
+        database.rename(moved)
+        moved.unlink()
+    def test_usage_database_rolls_back_and_closes_on_failure(self):
+        with self.assertRaisesRegex(RuntimeError, 'synthetic failure'):
+            with tools._db(self.root) as connection:
+                connection.execute("INSERT INTO calls VALUES ('now', 'api', 'sample', 1, 2, NULL, 'USD')")
+                raise RuntimeError('synthetic failure')
+        with self.assertRaises(tools.sqlite3.ProgrammingError):
+            connection.execute('SELECT COUNT(*) FROM calls')
+        with tools._db(self.root) as reopened:
+            self.assertEqual(reopened.execute('SELECT COUNT(*) FROM calls').fetchone()[0], 0)
+    def test_usage_database_closes_if_schema_creation_fails(self):
+        connection = Mock()
+        connection.__enter__ = Mock(return_value=connection)
+        connection.__exit__ = Mock(return_value=False)
+        connection.execute.side_effect = tools.sqlite3.OperationalError('schema failure')
+        with patch.object(tools.sqlite3, 'connect', return_value=connection):
+            with self.assertRaisesRegex(tools.sqlite3.OperationalError, 'schema failure'):
+                with tools._db(self.root):
+                    self.fail('Schema failure must prevent entry')
+        connection.close.assert_called_once_with()
     def test_usage_unknown_is_not_zero_and_configured_prices_apply_prospectively(self):
         tools.record_usage('api', 'sample', {'prompt_tokens':100,'completion_tokens':50}, root=self.root)
         before = tools.usage_summary(self.root)
