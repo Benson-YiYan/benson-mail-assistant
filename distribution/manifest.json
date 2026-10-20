@@ -2,102 +2,102 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610201502",
-      "sha256": "f0462602de6786355cc159341d07d96117f349d3a1687f5438ec04413493d234",
-      "size": 23689784,
+      "version": "202610202319",
+      "sha256": "c9c4e04e31b2c66d03d037ddb2d7a77286dc202175ddaee42936e51d0e79f1f7",
+      "size": 24488905,
       "notes": {
-        "zh": "修复中英西切换漏译、Mac卡片不刷新、旧语言包缺词条、Windows翻译层级错误与安装器提示；后台通知及AI/附件错误随当前语言输出。",
-        "en": "Fix missing translations, mounted Mac card updates, old language packs, Windows catalog structure and installer messages. Localize background notifications and AI/attachment errors.",
-        "es": "Corrige traducciones, tarjetas de Mac, paquetes antiguos, catálogos de Windows y mensajes del instalador. Notificaciones y errores de IA/adjuntos en el idioma actual."
+        "zh": "新增回复草稿、附件OCR、历史补总结、报告来源、诊断导出、免打扰与独立通知；设置整页统一保存。修复Mac保存后仍标为未保存及SQLite连接；输入/输出Token和费用来源明确显示，支持手动查询受支持账户余额。Windows稍后更新继续下载。中英西界面与指南同步。",
+        "en": "Add reply drafts, attachment OCR, historical backfill, source inspection, diagnostics, quiet hours and separate notifications. Save each settings page once; fix Mac dirty state and SQLite handles. Clarify input/output tokens and cost sources, with manual supported account-balance queries. Windows update downloads continue after Later. Update Chinese, English and Spanish UI/help.",
+        "es": "Añade borradores, OCR de adjuntos, resúmenes históricos, fuentes, diagnósticos, horario silencioso y notificaciones independientes. Guardado por página; corrige el estado de Mac y las conexiones SQLite. Aclara tokens y costes e incorpora consulta manual de saldos compatibles. Más tarde mantiene la descarga de Windows. Interfaz y guías en tres idiomas."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.3/BensonMail-Windows-x64-Setup-202610201502.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Windows-x64-Setup-202610202319.exe"
       ],
-      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610201502.exe"
+      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610202319.exe"
     },
     "macos-arm64": {
-      "version": "202610201508",
-      "sha256": "488af7821014a84b647c42bde21e84b799e4ec43f7c39198570f8b01e7b7042b",
-      "size": 23964079,
+      "version": "202610202318",
+      "sha256": "21e1e10bd53ce9e0f0be46bb610449415ebb5250078081c263cffb43e59bdb08",
+      "size": 24418589,
       "notes": {
-        "zh": "修复中英西切换漏译、Mac卡片不刷新、旧语言包缺词条、Windows翻译层级错误与安装器提示；后台通知及AI/附件错误随当前语言输出。",
-        "en": "Fix missing translations, mounted Mac card updates, old language packs, Windows catalog structure and installer messages. Localize background notifications and AI/attachment errors.",
-        "es": "Corrige traducciones, tarjetas de Mac, paquetes antiguos, catálogos de Windows y mensajes del instalador. Notificaciones y errores de IA/adjuntos en el idioma actual."
+        "zh": "新增回复草稿、附件OCR、历史补总结、报告来源、诊断导出、免打扰与独立通知；设置整页统一保存。修复Mac保存后仍标为未保存及SQLite连接；输入/输出Token和费用来源明确显示，支持手动查询受支持账户余额。Windows稍后更新继续下载。中英西界面与指南同步。",
+        "en": "Add reply drafts, attachment OCR, historical backfill, source inspection, diagnostics, quiet hours and separate notifications. Save each settings page once; fix Mac dirty state and SQLite handles. Clarify input/output tokens and cost sources, with manual supported account-balance queries. Windows update downloads continue after Later. Update Chinese, English and Spanish UI/help.",
+        "es": "Añade borradores, OCR de adjuntos, resúmenes históricos, fuentes, diagnósticos, horario silencioso y notificaciones independientes. Guardado por página; corrige el estado de Mac y las conexiones SQLite. Aclara tokens y costes e incorpora consulta manual de saldos compatibles. Más tarde mantiene la descarga de Windows. Interfaz y guías en tres idiomas."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.3/BensonMail-Mac-AppleSilicon-202610201508.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Mac-AppleSilicon-202610202318.dmg"
       ],
-      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610201508.dmg"
+      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610202318.dmg"
     },
     "macos-x86_64": {
-      "version": "202610201509",
-      "sha256": "59ae486c140026bade60c88c17411e576f9e47e7878780f032cf6ab7f2b99a41",
-      "size": 17155797,
+      "version": "202610202318",
+      "sha256": "7b641bad69efb15e7fff983e8b010d1a1d7a885fbbbc8c033c9a3fb4a6d0216a",
+      "size": 18465219,
       "notes": {
-        "zh": "修复中英西切换漏译、Mac卡片不刷新、旧语言包缺词条、Windows翻译层级错误与安装器提示；后台通知及AI/附件错误随当前语言输出。",
-        "en": "Fix missing translations, mounted Mac card updates, old language packs, Windows catalog structure and installer messages. Localize background notifications and AI/attachment errors.",
-        "es": "Corrige traducciones, tarjetas de Mac, paquetes antiguos, catálogos de Windows y mensajes del instalador. Notificaciones y errores de IA/adjuntos en el idioma actual."
+        "zh": "新增回复草稿、附件OCR、历史补总结、报告来源、诊断导出、免打扰与独立通知；设置整页统一保存。修复Mac保存后仍标为未保存及SQLite连接；输入/输出Token和费用来源明确显示，支持手动查询受支持账户余额。Windows稍后更新继续下载。中英西界面与指南同步。",
+        "en": "Add reply drafts, attachment OCR, historical backfill, source inspection, diagnostics, quiet hours and separate notifications. Save each settings page once; fix Mac dirty state and SQLite handles. Clarify input/output tokens and cost sources, with manual supported account-balance queries. Windows update downloads continue after Later. Update Chinese, English and Spanish UI/help.",
+        "es": "Añade borradores, OCR de adjuntos, resúmenes históricos, fuentes, diagnósticos, horario silencioso y notificaciones independientes. Guardado por página; corrige el estado de Mac y las conexiones SQLite. Aclara tokens y costes e incorpora consulta manual de saldos compatibles. Más tarde mantiene la descarga de Windows. Interfaz y guías en tres idiomas."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.3/BensonMail-Mac-Intel-202610201509.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Mac-Intel-202610202318.dmg"
       ],
-      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610201509.dmg"
+      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610202318.dmg"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202610201510",
-      "sha256": "425e61d011bff8d4fc3b96896d984c8d9e691cefec70591487b1fedc6c8275a9",
-      "size": 26141,
+      "version": "202610202318",
+      "sha256": "5a15989c4ec8c0ed69f707f4f054f565bf4d09874c843eaa3a6082f355a19920",
+      "size": 40299,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.3/BensonMail-Language-windows-zh-202610201510.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-zh-202610202318.json"
       ],
-      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202610201510.json"
+      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202610202318.json"
     },
     "windows-en": {
-      "version": "202610201510",
-      "sha256": "e4dcde563de606efb5fbfc1368fbff50b01c57060d4e35c42fa019505d0ef90a",
-      "size": 92312,
+      "version": "202610202318",
+      "sha256": "d3cef794dfefe48218abe90644f6d38b03175e243c25f79804b2f28ace80ee2f",
+      "size": 120418,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.3/BensonMail-Language-windows-en-202610201510.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-en-202610202318.json"
       ],
-      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-windows-en-202610201510.json"
+      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-windows-en-202610202318.json"
     },
     "windows-es": {
-      "version": "202610201510",
-      "sha256": "c9c4ef43c1c3e0d0e877c50c7ecb2a4a3ca1e0de6b42770340ffaf0bccebc5e1",
-      "size": 99706,
+      "version": "202610202318",
+      "sha256": "fb5cd881f9ccd05f279801269567dc4776cda40623babcf98c6c61392bee088c",
+      "size": 130250,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.3/BensonMail-Language-windows-es-202610201510.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-es-202610202318.json"
       ],
-      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-windows-es-202610201510.json"
+      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-windows-es-202610202318.json"
     },
     "macos-zh": {
-      "version": "202610201510",
-      "sha256": "dcfde297b4256cc236eeeba4768f25ea78f3ba37bfb9bf124985d950aefb6f48",
-      "size": 26596,
+      "version": "202610202318",
+      "sha256": "441b288d50ebdc22a89fb946fc0a1d00899fcd11442d9dbfa055306f409c495f",
+      "size": 39915,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.3/BensonMail-Language-macos-zh-202610201510.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-zh-202610202318.json"
       ],
-      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202610201510.json"
+      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202610202318.json"
     },
     "macos-en": {
-      "version": "202610201510",
-      "sha256": "4a5bc0a19397bf604b541c5214304bd15f7a3faa3c80f5f31d8ef986d7ca664e",
-      "size": 96244,
+      "version": "202610202318",
+      "sha256": "7e8cdd7fd4937dc5c7dc1bd4a2cd60b52b0fbd7be1deed6cc6c32e23636a9f18",
+      "size": 121052,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.3/BensonMail-Language-macos-en-202610201510.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-en-202610202318.json"
       ],
-      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-macos-en-202610201510.json"
+      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-macos-en-202610202318.json"
     },
     "macos-es": {
-      "version": "202610201510",
-      "sha256": "a3d6e1a54bf09d32c548489b8ad6c9ff50b711c97af3e98a883a7f91f79018c0",
-      "size": 103947,
+      "version": "202610202318",
+      "sha256": "17bb20e8de3d19613028c76ac5fc171d818cf4e34cf5477cf5ba2c1f97148307",
+      "size": 131325,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.3/BensonMail-Language-macos-es-202610201510.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-es-202610202318.json"
       ],
-      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-macos-es-202610201510.json"
+      "url": "https://breakdown-prophet-loan-spent.trycloudflare.com/downloads/BensonMail-Language-macos-es-202610202318.json"
     }
   }
 }
