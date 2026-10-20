@@ -45,20 +45,21 @@ DisableReadyPage=no
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [LangOptions]
 DialogFontName=Segoe UI
 DialogFontSize=10
 
 [CustomMessages]
-english.AppName=Mail Secretary
-english.UninstallName=Uninstall Mail Secretary
+english.AppName=Email Assistant
+english.UninstallName=Uninstall Email Assistant
 english.ShortcutChoices=Choose shortcuts (each option is independent):
-english.DesktopApp=Create a desktop shortcut for Mail Secretary
+english.DesktopApp=Create a desktop shortcut for Email Assistant
 english.DesktopUninstall=Create a desktop shortcut for the uninstaller
-english.StartApp=Create a Start menu entry for Mail Secretary
+english.StartApp=Create a Start menu entry for Email Assistant
 english.StartUninstall=Create a Start menu entry for the uninstaller
-english.RunApp=Open Mail Secretary
+english.RunApp=Open Email Assistant
 english.DeleteInstaller=Delete this installer after closing Setup
 english.DedicatedFolder=Please use a dedicated folder named BensonMail. Browse can select its parent folder.
 chinesesimp.AppName=邮件小秘书
@@ -73,7 +74,7 @@ chinesesimp.DeleteInstaller=关闭安装程序后删除此安装程序
 chinesesimp.DedicatedFolder=请使用名为 BensonMail 的专用文件夹。“浏览”可选择它所在的位置。
 english.FolderInUse=The selected folder contains other files. Please choose an empty, dedicated BensonMail folder.
 chinesesimp.FolderInUse=所选文件夹中已有其他文件，请选择空的 BensonMail 专用文件夹。
-english.RuntimeConsent=The following required components are missing or too old:%n%1%n%nDownload and install ONLY these components from Microsoft? .NET may request Windows administrator permission. Existing shared runtimes will be kept, including when Mail Secretary is uninstalled.%n%nNo application files or settings will be changed if you choose No.
+english.RuntimeConsent=The following required components are missing or too old:%n%1%n%nDownload and install ONLY these components from Microsoft? .NET may request Windows administrator permission. Existing shared runtimes will be kept, including when Email Assistant is uninstalled.%n%nNo application files or settings will be changed if you choose No.
 chinesesimp.RuntimeConsent=检测到以下必要组件缺失或版本过旧：%n%1%n%n是否仅从微软官方下载并安装这些组件？安装 .NET 时可能需要 Windows 管理员授权。已安装的共享运行时会保留，卸载邮件小秘书时也不会删除。%n%n选择“否”不会修改软件文件或配置。
 english.RuntimeDeclined=Required runtime installation was declined. No application files or settings were changed. Run Setup again to approve the missing components.
 chinesesimp.RuntimeDeclined=已取消安装必要运行时，软件文件和配置均未修改。需要时请重新运行安装程序并确认安装缺失组件。
@@ -88,11 +89,49 @@ chinesesimp.RuntimeProgressDescription=正在下载并安装你已同意安装�
 english.RuntimeProgressText=Please wait. This may take several minutes. Approve the Windows administrator prompt if it appears.
 chinesesimp.RuntimeProgressText=请稍候，这可能需要几分钟。如果出现 Windows 管理员授权提示，请确认。
 
+spanish.AppName=Asistente de correo electrónico
+spanish.UninstallName=Desinstalar Asistente de correo electrónico
+spanish.ShortcutChoices=Elige los accesos directos (cada opción es independiente):
+spanish.DesktopApp=Crear un acceso directo al Asistente de correo electrónico en el escritorio
+spanish.DesktopUninstall=Crear un acceso directo al desinstalador en el escritorio
+spanish.StartApp=Crear una entrada del Asistente de correo electrónico en Inicio
+spanish.StartUninstall=Crear una entrada del desinstalador en Inicio
+spanish.RunApp=Abrir Asistente de correo electrónico
+spanish.DeleteInstaller=Eliminar este instalador al cerrar la instalación
+spanish.DedicatedFolder=Usa una carpeta exclusiva llamada BensonMail. Examinar permite elegir su ubicación.
+spanish.FolderInUse=La carpeta seleccionada contiene otros archivos. Elige una carpeta BensonMail vacía y exclusiva.
+spanish.RuntimeConsent=Faltan los siguientes componentes necesarios o son demasiado antiguos:%n%1%n%n¿Descargar e instalar SOLO estos componentes desde Microsoft? .NET puede solicitar permisos de administrador de Windows. Se conservarán los componentes compartidos, incluso al desinstalar la aplicación.%n%nSi eliges No, no se cambiarán archivos ni ajustes.
+spanish.RuntimeDeclined=Se canceló la instalación de los componentes necesarios. No se cambiaron archivos ni ajustes. Ejecuta el instalador de nuevo para autorizarla.
+spanish.RuntimeFailed=No se pudieron preparar los componentes necesarios. No se cambiaron archivos. Revisa la conexión y los avisos de seguridad de Windows y vuelve a intentarlo.%n%1
+spanish.RuntimeRestart=Microsoft requiere reiniciar Windows para terminar de instalar el componente. No se cambiaron archivos de la aplicación. Reinicia Windows y ejecuta este instalador de nuevo.
+spanish.RuntimeProgressTitle=Preparando los componentes necesarios
+spanish.RuntimeProgressDescription=Descargando e instalando los componentes de Microsoft que autorizaste.
+spanish.RuntimeProgressText=Espera. Esto puede tardar varios minutos. Acepta la solicitud de permisos de administrador si aparece.
+english.LanguageChoices=Optional interface languages (download required):
+chinesesimp.LanguageChoices=选择界面语言（需要下载）：
+spanish.LanguageChoices=Idiomas opcionales de la interfaz (requieren descarga):
+english.DownloadChinese=Download Simplified Chinese
+english.DownloadEnglish=Download English
+english.DownloadSpanish=Download Spanish
+chinesesimp.DownloadChinese=下载简体中文
+chinesesimp.DownloadEnglish=下载英文
+chinesesimp.DownloadSpanish=下载西班牙文
+spanish.DownloadChinese=Descargar chino simplificado
+spanish.DownloadEnglish=Descargar inglés
+spanish.DownloadSpanish=Descargar español
+english.LanguageDownloadFailed=The %1 language pack could not be downloaded or verified. Retry now? Cancel keeps the application installed; it will ask to download the missing language when you open it.
+chinesesimp.LanguageDownloadFailed=%1语言包下载或校验失败。是否重试？取消后软件仍已安装，打开时会提示下载缺失的语言。
+spanish.LanguageDownloadFailed=No se pudo descargar o verificar el paquete de idioma %1. ¿Reintentar? Si cancelas, la aplicación seguirá instalada y te pedirá descargar el idioma cuando la abras.
+
 [Tasks]
 Name: "desktopapp"; Description: "{cm:DesktopApp}"; GroupDescription: "{cm:ShortcutChoices}"
 Name: "desktopuninstall"; Description: "{cm:DesktopUninstall}"
 Name: "startapp"; Description: "{cm:StartApp}"
 Name: "startuninstall"; Description: "{cm:StartUninstall}"
+
+Name: "downloadzh"; Description: "{cm:DownloadChinese}"; GroupDescription: "{cm:LanguageChoices}"; Flags: unchecked
+Name: "downloaden"; Description: "{cm:DownloadEnglish}"; Flags: unchecked
+Name: "downloades"; Description: "{cm:DownloadSpanish}"; Flags: unchecked
 
 [InstallDelete]
 Type: files; Name: "{app}\BensonMail-*.exe"
@@ -129,6 +168,7 @@ Filename: "{app}\MailWorker.exe"; Parameters: "--delete-installer ""{srcexe}"" -
 var
   PreviousInstallDirectory: String;
   TaskDefaultsApplied: Boolean;
+  LanguageDefaultsApplied: Boolean;
   HadLegacyPayload: Boolean;
   DependenciesReady: Boolean;
   DependenciesRestart: Boolean;
@@ -249,7 +289,7 @@ end;
 function UpdateFailure(const Reason: String): Boolean;
 begin
   WriteUpdateState('failed', Reason);
-  SuppressibleMsgBox('Mail Secretary update could not start / 邮件小秘书更新未能启动：' + #13#10 + Reason,
+  SuppressibleMsgBox('Email Assistant update could not start / 邮件小秘书更新未能启动：' + #13#10 + Reason,
     mbError, MB_OK, IDOK);
   Result := False;
 end;
@@ -510,9 +550,29 @@ begin
   Log('Restored shortcut choices: ' + Tasks);
 end;
 
+procedure ApplyLanguageDefaults;
+var
+  Code, Existing: String;
+begin
+  if LanguageDefaultsApplied then Exit;
+  LanguageDefaultsApplied := True;
+  if ExpandConstant('{param:UPDATE|0}') = '1' then Exit;
+  if ExpandConstant('{param:TASKS|__unspecified__}') <> '__unspecified__' then Exit;
+  Code := 'en';
+  if ActiveLanguage = 'chinesesimp' then Code := 'zh';
+  if ActiveLanguage = 'spanish' then Code := 'es';
+  Existing := WizardSelectedTasks(False);
+  if Existing <> '' then Existing := Existing + ',';
+  WizardSelectTasks(Existing + 'download' + Code);
+end;
+
 procedure CurPageChanged(CurPageID: Integer);
 begin
-  if CurPageID = wpSelectTasks then ApplyPreviousTaskDefaults;
+  if CurPageID = wpSelectTasks then
+  begin
+    ApplyPreviousTaskDefaults;
+    ApplyLanguageDefaults;
+  end;
 end;
 
 procedure RemoveOldShortcuts(const Directory: String);
@@ -527,7 +587,7 @@ begin
         Filename := AddBackslash(Directory) + Entry.Name;
         if IsOurShortcut(Filename) then
           if not DeleteFile(Filename) then
-            RaiseException('Could not remove the previous Mail Secretary shortcut: ' + Filename);
+            RaiseException('Could not remove the previous Email Assistant shortcut: ' + Filename);
       until not FindNext(Entry);
     finally
       FindClose(Entry);
@@ -601,10 +661,30 @@ begin
   end;
 end;
 
+procedure DownloadLanguagePack(const Code: String);
+var
+  ExitCode, Response: Integer;
+  Success: Boolean;
+begin
+  if not WizardIsTaskSelected('download' + Code) then Exit;
+  repeat
+    Log('Downloading selected language pack: ' + Code);
+    Success := Exec(ExpandConstant('{app}\MailWorker.exe'),
+      '--home "' + ExpandConstant('{app}') + '" --download-language ' + Code,
+      ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ExitCode);
+    Success := Success and (ExitCode = 0) and FileExists(ExpandConstant('{app}\languages\') + Code + '.json');
+    if Success then Exit;
+    Log('Language pack download failed: ' + Code + ', exit code ' + IntToStr(ExitCode));
+    if WizardSilent then Exit;
+    Response := MsgBox(FmtMessage(CustomMessage('LanguageDownloadFailed'), [Code]), mbError, MB_RETRYCANCEL);
+  until Response <> IDRETRY;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
+    ApplyLanguageDefaults;
     HadLegacyPayload := FileExists(ExpandConstant('{app}\MailWorker.exe')) and
       DirExists(ExpandConstant('{app}\_internal'));
     if ExpandConstant('{param:UPDATE|0}') = '1' then
@@ -613,7 +693,19 @@ begin
     RemoveOldShortcuts(ExpandConstant('{userdesktop}'));
     RemoveOldShortcuts(ExpandConstant('{userprograms}'));
   end;
-  if CurStep = ssPostInstall then RemoveObsoletePayload;
+  if CurStep = ssPostInstall then
+  begin
+    RemoveObsoletePayload;
+    if ActiveLanguage = 'chinesesimp' then
+      SaveStringToFile(ExpandConstant('{app}\installed-language.txt'), 'zh', False)
+    else if ActiveLanguage = 'spanish' then
+      SaveStringToFile(ExpandConstant('{app}\installed-language.txt'), 'es', False)
+    else
+      SaveStringToFile(ExpandConstant('{app}\installed-language.txt'), 'en', False);
+    DownloadLanguagePack('zh');
+    DownloadLanguagePack('en');
+    DownloadLanguagePack('es');
+  end;
   if (CurStep = ssPostInstall) and (ExpandConstant('{param:UPDATE|0}') = '1') then
   begin
     if not FileExists(ExpandConstant('{app}\BensonMail-{#AppVersion}.exe')) or not InstalledVersionMatches then

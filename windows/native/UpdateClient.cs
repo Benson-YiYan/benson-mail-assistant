@@ -14,7 +14,7 @@ sealed record UpdateRelease(string Version, Uri Url, string Sha256, string Notes
 
 sealed class UpdateClient
 {
-    internal const string ManifestUrl = "https://raw.githubusercontent.com/Benson-YiYan/benson-mail-updates/main/manifest.json";
+    internal const string ManifestUrl = "https://raw.githubusercontent.com/Benson-YiYan/benson-mail-assistant/main/distribution/manifest.json";
     static readonly UpdateTransport Transport = new();
     readonly string statePath;
     readonly string current;

@@ -5,7 +5,7 @@ import threading
 import unittest
 from unittest.mock import Mock, patch
 from benson_mail.bridge import Controller
-from benson_mail.core import APIAnalyzer, CodexAnalyzer, ANALYSIS_PROMPT, ENGLISH_ANALYSIS_PROMPT, analysis_prompt
+from benson_mail.core import APIAnalyzer, CodexAnalyzer, ANALYSIS_PROMPT, ENGLISH_ANALYSIS_PROMPT, SPANISH_ANALYSIS_PROMPT, analysis_prompt
 
 class LanguageTests(unittest.TestCase):
     def test_original_default_and_english_requirements(self):
@@ -50,3 +50,17 @@ class LanguageTests(unittest.TestCase):
             self.assertEqual(analyzer({'subject': '中文主题'}, threading.Event()), 'English report')
             prompt = process.stdin.saved.decode()
             self.assertTrue(prompt.startswith(ENGLISH_ANALYSIS_PROMPT)); self.assertIn('中文主题', prompt)
+
+    def test_spanish_prompts_and_language_persistence(self):
+        self.assertEqual(analysis_prompt('es'),SPANISH_ANALYSIS_PROMPT)
+        self.assertIn('seis secciones numeradas en español',SPANISH_ANALYSIS_PROMPT)
+        self.assertIn('explicación en español',SPANISH_ANALYSIS_PROMPT)
+        for provider in ('api','deepseek_harness'):
+            target='benson_mail.ai_api.complete' if provider=='api' else 'benson_mail.deepseek_harness_ai.complete'
+            with patch(target,return_value='Informe en español') as transport:
+                APIAnalyzer({'ai_provider':provider,'ui_language':'es'},'synthetic')({'subject':'中文主题'},threading.Event())
+            self.assertTrue(transport.call_args.args[3][0]['content'].startswith(SPANISH_ANALYSIS_PROMPT))
+            self.assertIn('中文主题',transport.call_args.args[3][0]['content'])
+        with tempfile.TemporaryDirectory() as temporary:
+            Controller(temporary,lambda event:None).command('save_language',{'ui_language':'es'})
+            self.assertEqual(Controller(temporary,lambda event:None).config['ui_language'],'es')

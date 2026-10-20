@@ -75,6 +75,10 @@ def copy_runtime(folder, executable):
     try:
         shutil.copytree(source / '_internal', temporary / '_internal')
         shutil.copy2(source / executable, temporary / executable)
+        if (source / 'languages').is_dir() and not (source / 'languages').is_symlink():
+            shutil.copytree(source / 'languages', temporary / 'languages')
+        if (source / 'installed-language.txt').is_file():
+            shutil.copy2(source / 'installed-language.txt', temporary / 'installed-language.txt')
         (temporary / '.benson-uninstall-helper').write_text('temporary runtime', encoding='utf-8')
         return temporary / executable
     except Exception:

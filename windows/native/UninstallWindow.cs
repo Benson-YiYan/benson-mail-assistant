@@ -92,6 +92,7 @@ sealed class UninstallWindow : Window
         var helper = new ProcessStartInfo(helperPath) { UseShellExecute = false, CreateNoWindow = true,
             WorkingDirectory = Path.GetTempPath() };
         foreach (var value in Program.Args) helper.ArgumentList.Add(value);
+        helper.ArgumentList.Add("--ui-language"); helper.ArgumentList.Add(L.Code);
         helper.ArgumentList.Add("--uninstall-worker"); helper.ArgumentList.Add(AppContext.BaseDirectory);
         helper.ArgumentList.Add("--parent-pid"); helper.ArgumentList.Add(Environment.ProcessId.ToString());
         using var process = Process.Start(helper) ?? throw new IOException(L.T("无法启动卸载组件。"));
@@ -193,6 +194,13 @@ sealed class UninstallWindow : Window
         Program.Trace("Uninstall layout loaded");
         try {
             if (uiResult != null) {
+                if (Array.IndexOf(Program.Args, "--offline-language-test") >= 0) {
+                    if (L.Code != "es" || L.TryLoad("es")) throw new InvalidOperationException("Offline Spanish test must have no installed language pack");
+                    if (Title != "Desinstalar Asistente de correo electrónico" || preserve.Header?.ToString() != "Conservar configuración" ||
+                        keepReports.Header?.ToString() != "Conservar informes de correo" || remove.Content?.ToString() != "Desinstalar")
+                        throw new InvalidOperationException("Essential Spanish uninstall labels must render without downloading language packs");
+                    Program.Trace("Offline Spanish uninstall controls rendered without a language pack or network access");
+                }
                 locations.Text = L.T("程序目录：模拟安装目录"); reports.Text = L.T("报告默认保留；关闭“保留邮件报告”才会删除可识别的报告及索引。");
                 reportDirectory = @"C:\Synthetic-Mail-Reports";
                 detail.Text = L.T("卸载会通过独立组件执行，进度显示在此处。");
@@ -328,7 +336,7 @@ sealed class UninstallWindow : Window
     {
         busy = false; finished = true; progress.Text = L.T("未能完成");
         detail.Text = L.T("卸载未完成：") + L.T(error.Message);
-        remove.Content = L.Code == "en" ? "Close" : "关闭"; remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
+        remove.Content = L.Bootstrap("关闭", "Close", "Cerrar"); remove.IsEnabled = true; close.Visibility = Visibility.Collapsed;
         WriteFixture(false, error.Message);
         if (uiResult != null) { File.WriteAllText(uiResult, JsonSerializer.Serialize(new { ok = false, error = error.ToString() })); Finish(); }
         else if (fixtureResult != null) Finish();

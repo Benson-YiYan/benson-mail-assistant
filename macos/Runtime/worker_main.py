@@ -27,6 +27,15 @@ def main():
     import truststore
     os.environ.setdefault('SSL_CERT_FILE', certifi.where())
     truststore.inject_into_ssl()
+    if operation in ('--language-status', '--download-language'):
+        from language_packs import status, download, LanguagePackError
+        try:
+            result = status(home, 'macos') if operation == '--language-status' else download(home, args[0] if args else '', 'macos')
+            print(json.dumps(result, ensure_ascii=False))
+        except (LanguagePackError, OSError) as error:
+            print(json.dumps({'ok': False, 'error': str(error)}, ensure_ascii=False))
+            raise SystemExit(1)
+        return
     modules = {'--daemon': 'mail_daemon', '--reader': 'mail_watch',
                '--mail_watch': 'mail_watch', '--mail_export': 'mail_export',
                '--test-api': 'ai_runner'}

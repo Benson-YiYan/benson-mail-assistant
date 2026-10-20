@@ -70,7 +70,7 @@ final class MailStore: ObservableObject {
     var statusIcon: String { !settings.enabled ? "pause.circle.fill" : (!alive || status.error != nil ? "exclamationmark.circle.fill" : "checkmark.circle.fill") }
     var lastCheck: String {
         guard let raw = status.last_check, let date = Self.parseDate(raw) else { return "尚未检查" }
-        return date.formatted(.dateTime.hour().minute().second().locale(Locale(identifier: AppLanguage.shared.code == "zh" ? "zh_CN" : "en_US")))
+        return date.formatted(.dateTime.hour().minute().second().locale(Locale(identifier: AppLanguage.shared.localeIdentifier)))
     }
     var intervalLabel: String {
         settings.interval_seconds % 60 == 0 ? "每 \(settings.interval_seconds / 60) 分钟检查" : "每 \(settings.interval_seconds) 秒检查"
@@ -102,7 +102,7 @@ final class MailStore: ObservableObject {
         }
         // Load existing settings before migrating the new preference.
         refresh()
-        if settings.ui_language == nil {
+        if settings.ui_language == nil && AppLanguage.shared.canPersistInitialLanguage {
             settings.ui_language = AppLanguage.shared.code
             if !isTest { do { try save() } catch { problem = error.localizedDescription } }
         }

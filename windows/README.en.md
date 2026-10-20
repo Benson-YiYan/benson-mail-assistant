@@ -1,6 +1,6 @@
-# Mail Secretary for Windows
+# Email Assistant for Windows
 
-[简体中文](README.md)
+[简体中文](README.md) · [Español](README.es.md)
 
 Each new email becomes six useful sections: **notice, sender, summary, actions, attachment contents and a suggested reply**. Supports multiple mailboxes, your choice of AI, Markdown previews, search and filters. Empty checks do not call AI. Replies are never sent automatically.
 
@@ -50,8 +50,18 @@ If an old version only says “Operation failed. Check settings and file permiss
 ## Data and language
 
 Credentials and API keys are encrypted for the current Windows user. Messages and readable attachment contents go to your selected AI. Mailbox access is read-only. Images, scanned, encrypted and unsupported attachments have reading limits; review the original before using a reply draft.
-The first launch uses Chinese for Chinese system languages and English otherwise. You can change it later. New reports follow that language; reply drafts follow the incoming message. Existing reports remain unchanged.
+The first launch uses Chinese for Chinese system languages, Spanish for Spanish system languages and English otherwise. You can change it later. New reports follow that language; reply drafts follow the incoming message. Existing reports remain unchanged.
 
 ## Development
 
 Source is in `windows/` on the main branch. See the [development guide](docs/DEVELOPMENT.md) and [project overview](../README.en.md).
+
+## Languages and language packs
+
+The interface, installer and uninstaller support **Simplified Chinese, English and Spanish**. First use selects Chinese for Chinese system languages, Spanish for Spanish system languages and English otherwise. You can change it in General settings. Windows Setup offers **Download Simplified Chinese**, **Download English** and **Download Spanish**.
+
+Only installed language packs can be used. Choosing a missing language asks “You have not downloaded this language. Download it now?” Confirm to download; cancelling or a failed download keeps the current language. New reports use the selected language with the same six analysis requirements; existing reports are not translated. The product name is **Email Assistant** in English and **Asistente de correo electrónico** in Spanish.
+
+## Mailbox proxies
+
+Each mailbox can use Direct, System proxy, HTTP CONNECT or SOCKS5. In mailbox settings, open Advanced connection and proxy options; start v2rayN or your proxy app and use its actual listening host, port and protocol. Save and test before resuming monitoring. A failed proxy never silently switches to Direct. The setting covers IMAP tests and monitoring, not AI API traffic. PAC scripts and authenticated proxies are not supported.

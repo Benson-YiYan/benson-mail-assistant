@@ -1,4 +1,4 @@
-Mail Secretary: step-by-step email setup
+Email Assistant: step-by-step email setup
 For Windows, Apple silicon Mac and Intel Mac. Sources checked: 2026-10-17.
 Website labels can change; follow the current official page and your administrator's rules.
 
@@ -19,13 +19,21 @@ Proxy connections (for example, Gmail from mainland China)
 5) Save email settings, then Test email connection, and resume monitoring after success. Each account has separate proxy settings. A custom proxy does not require TUN mode.
 6) This feature proxies IMAP email connections only; it does not change AI API networking. PAC scripts and proxies requiring a username/password are not supported. Proxy failure produces an error instead of falling back to a direct connection.
 
+
+Languages and language packs
+
+The interface, installer and uninstaller support **Simplified Chinese, English and Spanish**. First use selects Chinese for Chinese system languages, Spanish for Spanish system languages and English otherwise. You can change it in General settings. Windows Setup offers **Download Simplified Chinese**, **Download English** and **Download Spanish**.
+
+Only installed language packs can be used. Choosing a missing language asks “You have not downloaded this language. Download it now?” Confirm to download; cancelling or a failed download keeps the current language. New reports use the selected language with the same six analysis requirements; existing reports are not translated. The product name is **Email Assistant** in English and **Asistente de correo electrónico** in Spanish.
+
+
 2. NetEase 163, 126 and Yeah
 Official sign-in: https://mail.163.com/ , https://mail.126.com/ , https://www.yeah.net/ . Official help: https://help.mail.163.com/ .
 1) Sign in to your provider's official webmail.
 2) In settings, find POP3/SMTP/IMAP or client settings and enable IMAP. Enabling POP3 alone is insufficient.
 3) Follow the site's security verification and generate a client authorization code. Enabling the service and adding a code may be combined on the current page. Complete any required phone verification. If the option is missing, consult official help or NetEase support.
 4) Save the generated code securely; it may only be shown once. Revoke and regenerate a lost code on the official site.
-5) In Mail Secretary select the matching preset, enter the full email address and authorization code, and choose Password / app password. Servers: 163 = imap.163.com; 126 = imap.126.com; Yeah = imap.yeah.net. Use 993, SSL/TLS.
+5) In Email Assistant select the matching preset, enter the full email address and authorization code, and choose Password / app password. Servers: 163 = imap.163.com; 126 = imap.126.com; Yeah = imap.yeah.net. Use 993, SSL/TLS.
 6) Save and test. Resolve account security restrictions and IMAP activation in webmail first. Your normal account password does not replace a required client authorization code.
 
 3. QQ Mail / Foxmail addresses belonging to QQ Mail
@@ -46,7 +54,7 @@ Official sign-in: https://exmail.qq.com/ . Official client configuration: https:
 5. Gmail
 Official sign-in: https://mail.google.com/ . Account security: https://myaccount.google.com/security . App-password help: https://support.google.com/accounts/answer/185833?hl=en .
 1) Sign in to your Google account, open Security and enable 2-Step Verification.
-2) Open https://myaccount.google.com/apppasswords , sign in again if asked, and create an app password named Mail Secretary.
+2) Open https://myaccount.google.com/apppasswords , sign in again if asked, and create an app password named Email Assistant.
 3) Paste the generated 16-digit app password into the app. Choose Gmail, full email address, imap.gmail.com, 993, SSL/TLS, Password / app password. Save and test. Do not use your ordinary Google password.
 4) App passwords may be unavailable for security-key-only 2-Step Verification, Advanced Protection, or administrator-managed work/school accounts. The app currently has no Google web OAuth sign-in. Ask your administrator or use a supported account if app passwords are unavailable; do not disable account protection to work around this.
 5) Changing your Google account password revokes app passwords; generate a replacement afterward.
@@ -54,7 +62,7 @@ Official sign-in: https://mail.google.com/ . Account security: https://myaccount
 6. iCloud Mail
 Official webmail: https://www.icloud.com/mail/ . App-password help: https://support.apple.com/102654 . Server settings: https://support.apple.com/102525 .
 1) Sign in at https://account.apple.com/ . Your Apple Account must have two-factor authentication enabled.
-2) Open Sign-In and Security > App-Specific Passwords. Choose Generate an app-specific password or the plus button, name it Mail Secretary, and complete verification.
+2) Open Sign-In and Security > App-Specific Passwords. Choose Generate an app-specific password or the plus button, name it Email Assistant, and complete verification.
 3) Select iCloud in the app. Enter your actual iCloud email address and generated password. Use imap.mail.me.com, 993, SSL/TLS, Password / app password.
 4) Apple says the IMAP username is usually the part before @. If the full email address fails, enter that part under the advanced Login name option and test again. For aliases/custom domains follow the valid account identity and Apple's requirements.
 5) Save and test. Resetting the Apple Account main password revokes all app-specific passwords. Generate a new one; do not substitute the main password.
@@ -62,7 +70,7 @@ Official webmail: https://www.icloud.com/mail/ . App-password help: https://supp
 7. Yahoo Mail
 Official webmail: https://mail.yahoo.com/ . App-password help: https://help.yahoo.com/kb/SLN15241.html . IMAP settings: https://help.yahoo.com/kb/SLN4075.html .
 1) Sign in and open Account Security > Generate and manage app passwords.
-2) Follow the page to name the app Mail Secretary and generate/copy its password.
+2) Follow the page to name the app Email Assistant and generate/copy its password.
 3) Select Yahoo in the app. Enter the full address, imap.mail.yahoo.com, 993, SSL/TLS, Password / app password, and the generated password. Save and test.
 4) Some accounts may temporarily be unable to generate app passwords. Follow Yahoo's official instructions or contact support; availability is not guaranteed. SMS verification codes are not app passwords.
 
@@ -75,8 +83,8 @@ Work/school webmail: https://outlook.office.com/mail/
 Microsoft Entra admin center: https://entra.microsoft.com/
 Azure account registration: https://azure.microsoft.com/pricing/purchase-options/azure-account
 
-Before starting: Mail Secretary currently requires your own registered application and a manually obtained OAuth2 access_token. It has no built-in Microsoft web sign-in or automatic token renewal. Tokens expire, so you will need to sign in again. Your mailbox password, app password, application ID, tenant ID and access token are different values and cannot replace one another. A Microsoft Graph / Graph Explorer token cannot authenticate to IMAP.
-For simply viewing several mailboxes, an email client with Microsoft sign-in is usually easier. Mail Secretary cannot directly read accounts or mail stored in another client. To keep using its analysis, an alternative is to enable forwarding in Outlook webmail to an address already monitored by Mail Secretary, retain a copy, and send a test message. Organization policy may block forwarding; also check that attachments arrive intact. Do not automatically forward the receiving mailbox back to Outlook, which could create a loop.
+Before starting: Email Assistant currently requires your own registered application and a manually obtained OAuth2 access_token. It has no built-in Microsoft web sign-in or automatic token renewal. Tokens expire, so you will need to sign in again. Your mailbox password, app password, application ID, tenant ID and access token are different values and cannot replace one another. A Microsoft Graph / Graph Explorer token cannot authenticate to IMAP.
+For simply viewing several mailboxes, an email client with Microsoft sign-in is usually easier. Email Assistant cannot directly read accounts or mail stored in another client. To keep using its analysis, an alternative is to enable forwarding in Outlook webmail to an address already monitored by Email Assistant, retain a copy, and send a test message. Organization policy may block forwarding; also check that attachments arrive intact. Do not automatically forward the receiving mailbox back to Outlook, which could create a loop.
 
 A. Check whether your mailbox permits IMAP
 1) Sign in to the mailbox in your browser. In personal Outlook, open the Settings gear > Mail > Forwarding and IMAP, enable access for devices and apps using IMAP, and save. Search Settings for IMAP if the labels differ.
@@ -84,15 +92,15 @@ A. Check whether your mailbox permits IMAP
 
 B. Obtain access to a directory where you can register an app
 3) Open the Microsoft Entra admin center and sign in with the account that will manage the application. If you already have an organization directory, use the account menu > Switch directory to select one you can access. The app-management account and the mailbox account may differ, but the app must support the mailbox account type.
-4) If a personal Outlook account encounters AADSTS50020, stating that the account does not exist in the Microsoft Services tenant, it cannot access that directory. ADIbizaUX / 74658136-14ec-4630-ad9b-26e160ff0fc6 in that error is Microsoft's portal application ID; do not enter it into Mail Secretary. Repeated sign-ins and Cookie changes cannot grant directory permissions. Use a directory you can access or ask an organization administrator for suitable app-registration permissions.
+4) If a personal Outlook account encounters AADSTS50020, stating that the account does not exist in the Microsoft Services tenant, it cannot access that directory. ADIbizaUX / 74658136-14ec-4630-ad9b-26e160ff0fc6 in that error is Microsoft's portal application ID; do not enter it into Email Assistant. Repeated sign-ins and Cookie changes cannot grant directory permissions. Use a directory you can access or ask an organization administrator for suitable app-registration permissions.
 5) If you have no usable directory, visit the Azure account registration page above and check your eligibility for a Free account. Having an Outlook mailbox or signing in to Entra does not mean you have completed Azure registration.
    Registration order: choose Free account / Start free > sign in with your Microsoft account > fill in the official account form and verify your phone > complete card verification on Microsoft's official page > review the current free-account terms and submit. Stop and check if the page instead asks you to purchase, upgrade to a paid plan, or accept unexpected conditions.
-   Standard Azure Free account registration generally asks for a phone and an eligible credit/debit card for identity verification; a temporary authorization may appear. Never send card details or verification codes to AI or enter them in Mail Secretary. Free account and pay-as-you-go are different options: read the current terms instead of upgrading to a paid plan just to follow this guide.
+   Standard Azure Free account registration generally asks for a phone and an eligible credit/debit card for identity verification; a temporary authorization may appear. Never send card details or verification codes to AI or enter them in Email Assistant. Free account and pay-as-you-go are different options: read the current terms instead of upgrading to a paid plan just to follow this guide.
    After completing your first Azure account registration, return to Entra, sign in again and use the account menu > Switch directory to select the directory created during registration (often named Default Directory). Register the application there; you do not need another tenant. Tenant creation has eligibility restrictions: free/trial accounts cannot create additional Workforce tenants in the Entra admin center. If your first signup provides no usable directory or New registration is blocked, stop and ask an administrator for help, or use the forwarding alternative above.
 6) Once inside a usable directory, open Entra ID (called Identity in some older interfaces) > App registrations. A missing or disabled New registration button, or a permissions error, requires administrator assistance. The Tenant ID on the portal home page is not an application ID.
 
 C. Register an application once and configure delegated IMAP access
-7) Open App registrations > New registration. Enter Mail Secretary as the name, then choose Supported account types for the mailbox:
+7) Open App registrations > New registration. Enter Email Assistant as the name, then choose Supported account types for the mailbox:
    - Personal Outlook / Hotmail: Personal Microsoft accounts only, or an option including both organization directories and personal Microsoft accounts.
    - Microsoft 365 within one organization: Accounts in this organizational directory only (Single tenant) may be appropriate.
    - Personal mailboxes and different organizations: choose the option including any organizational directory and personal Microsoft accounts; organizations may still require administrator approval.
@@ -105,7 +113,7 @@ C. Register an application once and configure delegated IMAP access
 
 D. Obtain an access token with the included helper
 What it does: requests Microsoft device-code sign-in and displays an official URL and one-time code. After you approve access in your browser, it copies access_token to your clipboard. It does not print the full token, save a token file or ask for your mailbox password. Skip this section for providers such as 163 or QQ that do not require Microsoft's OAuth2.
-12) In Mail Secretary, choose the Outlook / Microsoft 365 preset and OAuth2 access token authentication. Click Get OAuth2 Token beside How do I get an authorization code?
+12) In Email Assistant, choose the Outlook / Microsoft 365 preset and OAuth2 access token authentication. Click Get OAuth2 Token beside How do I get an authorization code?
     Windows: this runs Get-Outlook-Token.bat in the installation folder, which calls the adjacent PowerShell script. Keep both files together; no manual command copying is needed.
     Mac: this opens the included Get-Outlook-Token.command and bundled token helper. You do not need to install PowerShell.
 13) At Application (client) ID, paste the ID from step 8 and press Enter. Do not enter an email address, tenant ID, account password or AI API key.
@@ -115,7 +123,7 @@ What it does: requests Microsoft device-code sign-in and displays an official UR
 15) Open the official Microsoft sign-in URL shown by the helper (usually https://microsoft.com/devicelogin ) in your browser. Enter the one-time code shown by this run of the helper; it is neither your mailbox password nor the access token. Sign in as the mailbox you want to monitor, verify the app name and permissions, then approve. Do not use a code supplied by someone else.
 16) Leave the terminal window open until it confirms Access token copied. If the code or sign-in expires, rerun the tool to obtain a new code.
 
-E. Enter the token in Mail Secretary and test
+E. Enter the token in Email Assistant and test
 17) Email address: the complete address of the mailbox you just authorized.
     IMAP server: outlook.office365.com
     Port: 993
@@ -148,7 +156,7 @@ Outlook IMAP settings: https://support.microsoft.com/office/pop-imap-and-smtp-se
 1) Open your provider's own official webmail and sign in.
 2) Find IMAP/third-party-client settings or official help and enable IMAP. If missing, contact the provider or company administrator. There is no universal menu or activation button.
 3) Obtain the app password/authorization code required by the provider. If OAuth2 is mandatory, ask your administrator for an access_token valid for that IMAP service. The app has no universal OAuth sign-in or automatic refresh.
-4) Return to Mail Secretary, select Other email / Custom IMAP, and enter the full address, official IMAP hostname, port, encryption and credential. Set advanced Login name and Mail folder if required. Do not guess server names or use an SMTP sending server as IMAP.
+4) Return to Email Assistant, select Other email / Custom IMAP, and enter the full address, official IMAP hostname, port, encryption and credential. Set advanced Login name and Mail folder if required. Do not guess server names or use an SMTP sending server as IMAP.
 5) Save, test, and start monitoring after success. If the provider specifies STARTTLS, use STARTTLS and its documented port. Providers offering only POP3, unsupported authentication, or no third-party access cannot currently connect.
 
 10. Quick troubleshooting

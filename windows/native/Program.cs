@@ -212,6 +212,7 @@ sealed class MainWindow : Window
 {
     readonly ComboBox languageChoice = new() { Header = L.T("界面语言"), HorizontalAlignment = HorizontalAlignment.Stretch };
     bool changingLanguage;
+    Func<ContentDialog, Task<ContentDialogResult>>? languagePromptFixture;
     readonly Grid layout = new() { UseLayoutRounding = true, Language = L.Locale };
     readonly ListView navigation = new() { SelectionMode = ListViewSelectionMode.Single,
         BorderThickness = new Thickness(0), Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
@@ -339,6 +340,7 @@ sealed class MainWindow : Window
         {
             if (!exiting) { e.Cancel = true; AppWindow.Hide(); }
         };
+        L.FixtureHome = fixture;
         bridge = new Bridge(fixture);
         Program.Trace("Worker started");
         updateTimer = DispatcherQueue.CreateTimer();
@@ -587,11 +589,11 @@ sealed class MainWindow : Window
             check.IsEnabled = false;
             try { await Call("check"); } catch { if (!exitRequested) check.IsEnabled = true; throw; }
         });
-        languageChoice.Items.Add("中文"); languageChoice.Items.Add("English");
-        languageChoice.SelectedIndex = L.Code == "zh" ? 0 : 1;
+        languageChoice.Items.Add("简体中文"); languageChoice.Items.Add("English"); languageChoice.Items.Add("Español");
+        languageChoice.SelectedIndex = L.Code == "zh" ? 0 : L.Code == "es" ? 2 : 1;
         languageChoice.SelectionChanged += async (_, _) => {
             if (changingLanguage || !initialized) return;
-            await Guard(async () => await ChangeLanguage(languageChoice.SelectedIndex == 0 ? "zh" : "en"));
+            await Guard(async () => await ChangeLanguage(languageChoice.SelectedIndex == 0 ? "zh" : languageChoice.SelectedIndex == 2 ? "es" : "en"));
         };
         ShowPage(0);
     }
@@ -721,7 +723,7 @@ sealed class MainWindow : Window
         Process.Start(new ProcessStartInfo(OAuthTokenPath) { UseShellExecute = true, Arguments = L.Code });
         return Task.CompletedTask;
     }
-    static string AccountGuidePath => Path.Combine(AppContext.BaseDirectory, "Mail-account-setup-" + L.Code + ".txt");
+    static string AccountGuidePath => L.GuidePath("mail_account");
     static Task OpenAccountGuide()
     {
         var path = AccountGuidePath;
@@ -929,7 +931,11 @@ sealed class MainWindow : Window
         try
         {
             var config = await bridge.Call("config");
-            await bridge.Call("save_language", new { ui_language = L.Code });
+            if (await EnsureLanguage(L.Code)) {
+                L.Select(L.Code); L.Apply(Content as UIElement, reports, savedMailboxes, detail);
+                Title = L.T("邮件小秘书"); tray.Text = Title;
+                await bridge.Call("save_language", new { ui_language = L.Code });
+            }
             var presets = await bridge.Call("mail_presets");
             if (exitRequested) return;
             foreach (var preset in presets.EnumerateArray())
@@ -1117,10 +1123,47 @@ sealed class MainWindow : Window
         }
         finally { loadingMailboxes = false; }
     }
+    async Task<bool> EnsureLanguage(string code)
+    {
+        if (L.TryLoad(code)) return true;
+        var dialog = new ContentDialog { XamlRoot = layout.XamlRoot,
+            Title = L.Bootstrap("下载语言包", "Download language pack", "Descargar paquete de idioma"),
+            Content = L.Bootstrap("你没有下载这个语言，是否现在下载？", "You have not downloaded this language. Download it now?", "No has descargado este idioma. ¿Quieres descargarlo ahora?"),
+            PrimaryButtonText = L.Bootstrap("下载", "Download", "Descargar"), CloseButtonText = L.Bootstrap("取消", "Cancel", "Cancelar"), DefaultButton = ContentDialogButton.Primary };
+        var decision = testResult != null && languagePromptFixture != null
+            ? await languagePromptFixture(dialog) : await dialog.ShowAsync();
+        if (decision != ContentDialogResult.Primary) return false;
+        languageChoice.IsEnabled = false;
+        try {
+            while (true) {
+                try {
+                    detail.Text = L.Bootstrap("正在下载语言包…", "Downloading language pack…", "Descargando paquete de idioma…");
+                    await bridge.Call("download_language", new { code });
+                    if (!L.TryLoad(code)) throw new IOException(L.Bootstrap("语言包校验失败，请重试。", "Language pack verification failed. Please retry.", "No se pudo verificar el paquete de idioma. Inténtalo de nuevo."));
+                    return true;
+                } catch (Exception error) {
+                    var retry = new ContentDialog { XamlRoot = layout.XamlRoot,
+                        Title = L.Bootstrap("语言包下载失败", "Language download failed", "Error al descargar el idioma"),
+                        Content = error.Message, PrimaryButtonText = L.Bootstrap("重试", "Retry", "Reintentar"),
+                        CloseButtonText = L.Bootstrap("取消", "Cancel", "Cancelar"), DefaultButton = ContentDialogButton.Primary };
+                    if (await retry.ShowAsync() != ContentDialogResult.Primary) return false;
+                }
+            }
+        } finally { languageChoice.IsEnabled = true; }
+    }
+
     async Task ChangeLanguage(string code)
     {
-        await bridge.Call("save_language", new { ui_language = code });
-        L.Select(code);
+        try {
+            if (!await EnsureLanguage(code)) return;
+            if (!L.TryLoad(code)) throw new IOException("Language pack unavailable");
+            await bridge.Call("save_language", new { ui_language = code });
+            if (!L.Select(code)) throw new IOException("Language pack unavailable");
+        } finally {
+            changingLanguage = true;
+            languageChoice.SelectedIndex = L.Code == "zh" ? 0 : L.Code == "es" ? 2 : 1;
+            changingLanguage = false;
+        }
         changingLanguage = true;
         try {
             L.Apply(Content as UIElement, reports, savedMailboxes, detail);
@@ -1130,7 +1173,7 @@ sealed class MainWindow : Window
             RefreshMailLogin(account, mailUsername, mailLoginSummary);
             Title = L.T("邮件小秘书"); tray.Text = Title;
             foreach (var item in tray.Commands) item.Text = L.T(item.Text);
-            languageChoice.SelectedIndex = code == "zh" ? 0 : 1;
+            languageChoice.SelectedIndex = code == "zh" ? 0 : code == "es" ? 2 : 1;
             // Account names are user content; translate only the app's enabled/paused suffix.
             var selected = savedMailboxes.SelectedIndex;
             for (var i = 0; i < mailboxProfiles.Count; i++) {
@@ -1178,6 +1221,11 @@ sealed class MainWindow : Window
         }
         try
         {
+            Check(UninstallLocalization.Translate("保留配置", "en") == "Keep configuration" &&
+                UninstallLocalization.Translate("保留配置", "es") == "Conservar configuración" &&
+                UninstallLocalization.Translate("确认删除邮件报告？", "es") == "¿Eliminar los informes de correo?" &&
+                UninstallLocalization.Translate("检测到邮件小秘书正在运行，是否退出？", "es") != "检测到邮件小秘书正在运行，是否退出？",
+                "Essential offline uninstall controls remain English and Spanish without optional application packs");
             Check(AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized },
                 "Main window starts maximized with the standard window presenter");
             Program.Trace("Begin offline update transport and stream tests");
@@ -1425,14 +1473,14 @@ sealed class MainWindow : Window
                 Capture(Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "-settings.png"));
             }
             navigation.SelectedIndex = 0;
-            Check(L.Detect("zh-Hant-TW") == "zh" && L.Detect("zh-CN") == "zh" && L.Detect("es-MX") == "en" && L.Detect("en-US") == "en", "Chinese system languages select Chinese; all others select English");
+            Check(L.Detect("zh-Hant-TW") == "zh" && L.Detect("zh-CN") == "zh" && L.Detect("es-MX") == "es" && L.Detect("en-US") == "en", "Chinese and Spanish system languages select their languages; other languages select English");
             var rawPreview = preview.Text; var rawAccount = account.Text; var rawHost = mailHost.Text;
             var rawModel = model.Text; var rawFolder = folder.Text; var wasRunning = running;
             Check(File.Exists(AccountGuidePath) && Path.GetFileName(AccountGuidePath) == "Mail-account-setup-zh.txt", "Chinese local account setup guide packaged and selected");
             await ChangeLanguage("en");
             Check(File.Exists(AccountGuidePath) && Path.GetFileName(AccountGuidePath) == "Mail-account-setup-en.txt", "English local account setup guide selected without opening editor");
             Check(((TextBlock)((StackPanel)oauthTokenButton.Content).Children[0]).Text == "Get Microsoft OAuth2 Token", "OAuth2 helper label follows interface language");
-            Check(Title == "Mail Secretary" && account.Header?.ToString() == "Email address" && languageChoice.Header?.ToString() == "Interface language" && savedMailboxes.Header?.ToString() == L.T("已添加的邮箱"), "English labels applied immediately");
+            Check(Title == "Email Assistant" && account.Header?.ToString() == "Email address" && languageChoice.Header?.ToString() == "Interface language" && savedMailboxes.Header?.ToString() == L.T("已添加的邮箱"), "English labels applied immediately");
             Check(preview.Text == rawPreview && account.Text == rawAccount && mailHost.Text == rawHost && model.Text == rawModel && folder.Text == rawFolder && running == wasRunning, "Language change preserves report text, inputs and monitoring state");
             config = await bridge.Call("config");
             Check(config.GetProperty("ui_language").GetString() == "en", "Selected report and interface language persisted through bridge");
@@ -1443,7 +1491,27 @@ sealed class MainWindow : Window
             navigation.SelectedIndex = 1; await Task.Delay(300);
             if (screenArg >= 0) Capture(Path.Combine(Path.GetDirectoryName(Program.Args[screenArg + 1])!, "native-english-settings.png"));
             await Onboard(true);
+            var spanishPreview = preview.Text; var spanishAccount = account.Text; var spanishRunning = running;
+            await ChangeLanguage("es");
+            Check(Title == "Asistente de correo electrónico" && L.Code == "es" && languageChoice.SelectedIndex == 2,
+                "Spanish pack applies application title and language selection immediately");
+            config = await bridge.Call("config");
+            Check(config.GetProperty("ui_language").GetString() == "es" && File.Exists(AccountGuidePath),
+                "Spanish selection persists and provides its account guide");
+            Check(preview.Text == spanishPreview && account.Text == spanishAccount && running == spanishRunning,
+                "Spanish language change preserves report contents, accounts and monitoring");
             await ChangeLanguage("zh");
+            var promptCount = 0;
+            languagePromptFixture = dialog => {
+                promptCount++;
+                Check(dialog.Content?.ToString() == "你没有下载这个语言，是否现在下载？", "Missing language presents the requested download confirmation");
+                return Task.FromResult(ContentDialogResult.None);
+            };
+            try { await ChangeLanguage("not-installed-fixture"); }
+            finally { languagePromptFixture = null; }
+            config = await bridge.Call("config");
+            Check(promptCount == 1 && L.Code == "zh" && languageChoice.SelectedIndex == 0 && config.GetProperty("ui_language").GetString() == "zh",
+                "Cancelling missing language leaves UI selection and saved preference unchanged without network");
             Check(Title == "邮件小秘书" && account.Header?.ToString() == "邮箱地址", "Switching back to Chinese restores labels");
             navigation.SelectedIndex = 0;
             Program.Trace("Opening first-run dialog");

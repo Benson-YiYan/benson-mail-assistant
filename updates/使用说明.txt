@@ -1,0 +1,67 @@
+邮件小秘书更新服务器
+
+一、用途
+这台 Mac 验证三个安装包并更新 GitHub 的公共版本清单。
+默认保留 Mac 更新服务下载地址；安装包也在 GitHub Releases 发布时，可配置 mirrors 作为第二条线路。
+新版客户端比较可用线路并选择下载源；旧客户端仍使用主地址。
+不会公开整个“文稿”、CodexMade 目录、邮箱、配置文件或本项目源码。
+使用 GitHub Release 线路时，已发布的清单和安装包不依赖这台 Mac 在线；国内可达性和速度取决于用户网络。
+未设置 download_url 的包仍经 Cloudflare 临时隧道提供，电脑关机、睡眠、断网时无法下载。
+临时隧道公网地址可能变化，客户端使用的 GitHub 清单地址不变。
+这不是有长期在线保证的商业更新服务。
+
+二、位置
+交付源码：文稿/CodexMade/邮件小秘书更新服务器
+实际运行源码及目录：~/Library/Application Support/BensonMailUpdates/
+专属隧道运行时：~/Library/Application Support/BensonMailUpdates/runtime/cloudflared
+登录启动项：~/Library/LaunchAgents/com.benson.mail-update-server.plist
+日志：~/Library/Logs/BensonMailUpdates/service.log
+本地只监听：127.0.0.1:18765
+状态页面：http://127.0.0.1:18765/status
+稳定清单：https://raw.githubusercontent.com/Benson-YiYan/benson-mail-assistant/main/distribution/manifest.json
+
+三、发布新版（面向维护者）
+1. 把三个最终安装包放在文稿/CodexMade 的第一层，不要用符号链接。
+2. 建立一个 JSON 文件。平台名称必须为下列三项，file 是准确文件名，
+   version 为实际构建的 12 位年月日时分，notes 可为文字或 {"zh":"...","en":"...","es":"..."}。
+   {
+     "windows-x64": {"file":"实际Windows安装包.exe","version":"202610181010","notes":""},
+     "macos-arm64": {"file":"实际Apple芯片安装包.dmg","version":"202610181010","notes":""},
+     "macos-x86_64": {"file":"实际Intel芯片安装包.dmg","version":"202610181010","notes":""}
+   }
+3. 终端运行：
+   /opt/homebrew/bin/python3 "$HOME/Library/Application Support/BensonMailUpdates/server.py" --publish "/你的清单路径.json"
+4. 工具会验证全部文件、计算 SHA256，并原子切换本地清单。后台服务将更新 GitHub。
+   任一文件缺失、是符号链接或校验不符时会拒绝发布。尚无正式清单不会发布旧安装包。
+   删除旧安装包前，先发布新版本。
+5. 先将安装包上传到公开仓库 Benson-YiYan/benson-mail-assistant 的正式 Release，
+   再为每个平台添加 mirrors，例如 "mirrors": ["该安装包的GitHub-Release直接下载地址"]。
+   默认主地址仍为 Mac 更新服务；需要明确改主地址时才单独设置 download_url。
+   工具只接受该仓库的 HTTPS 正式资源路径，文件名必须与 file 一致。
+   仍使用本地原文件计算 SHA256 和大小；对外清单只保存下载 URL、版本和校验信息。
+
+四、恢复与停止（面向维护者）
+安装/重新安装服务：在本源码目录运行 /opt/homebrew/bin/python3 install.py
+安装器优先保留上述专属 cloudflared；首次安装时从这台 Mac 已安装的运行时复制一份。
+安装后运行不再依赖 DeepSeekHarnessStudent 目录；交付源码中不附带这份约 39 MB 的二进制。
+临时停止（下次登录不自动恢复，直到重新安装）：
+  launchctl bootout "gui/$(id -u)/com.benson.mail-update-server"
+完整移除服务：停止后删除上述专用 plist、专用 Application Support 目录和专用日志目录。
+不需要停止或修改其他 Cloudflare/Tailscale 服务。
+
+五、安全和限制
+只公开清单允许的三个安装包与六个语言包；禁止目录列表、路径穿越和符号链接。
+支持 GET、HEAD、单区间 HTTP Range 断点续传，下载前验证文件 SHA256。
+GitHub 仅发布版本、下载 URL、SHA256、文件大小及更新说明，不发布电脑路径或私人资料。
+服务使用这台 Mac 已登录的 gh 公开清单，失败后每五分钟重试，不记录凭据。
+外部隧道进程异常时会退避重启；服务自身异常由登录启动项最多每分钟尝试恢复。
+若家庭网络屏蔽 Cloudflare 临时隧道，则服务需要恢复联网条件才能提供公网下载。
+
+六、语言包与统一仓库
+语言包是 JSON 数据，不执行脚本或安装额外运行时。每个系统各有 zh、en、es 三份。
+在仓库根目录运行 script/build_language_packs.py 可生成测试包和正式包。
+将六份正式 JSON 放入 CodexMade，随同安装包发布到同一 GitHub Release。
+用 --publish-languages LANGUAGE-CATALOG.json 校验并启用六份语言包。
+稳定清单的 language_packs 字段包含每份包的 SHA256、大小、主下载地址及 GitHub 备用地址。
+仓库统一为 Benson-YiYan/benson-mail-assistant，服务会更新其中 distribution/manifest.json。
+旧版若只认识原更新索引仓库地址，旧仓库清理后需手动安装一次新版；不会修改用户邮箱或密钥。

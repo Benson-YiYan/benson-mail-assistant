@@ -21,7 +21,7 @@ static class UpdateInstall
         start.ArgumentList.Add("/UPDATE=1");
         start.ArgumentList.Add("/UPDATEPID=" + pid);
         start.ArgumentList.Add("/DIR=" + Path.TrimEndingDirectorySeparator(installDirectory));
-        start.ArgumentList.Add("/LANG=" + (language == "zh" ? "chinesesimp" : "english"));
+        start.ArgumentList.Add("/LANG=" + (language == "zh" ? "chinesesimp" : language == "es" ? "spanish" : "english"));
         start.ArgumentList.Add("/NORESTART");
         start.ArgumentList.Add("/SILENT"); // Native progress UI and actionable installer errors; no unattended wizard pages.
         start.ArgumentList.Add("/SP-");

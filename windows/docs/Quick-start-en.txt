@@ -1,0 +1,34 @@
+Email Assistant for Windows — Quick start
+
+1. Installation and first launch
+Requires Windows 10 / 11, x64. Run Setup and choose the installation folder, desktop / Start menu shortcuts and language packs.
+Setup checks .NET 8 and Windows App Runtime 1.8 (WinUI 3). If missing, it asks for confirmation before downloading and installing them; compatible components are reused. No Python or terminal setup is needed.
+Choose an email preset or Other email (custom IMAP). Enable IMAP with your provider, then enter the full address, IMAP server, port, encryption and required app password, authorization code or OAuth2 access token. Leave the advanced login username empty unless your provider requires a different one.
+Click How do I get an authorization code? for the complete guide. Keep credentials and tokens private. Save and test the mailbox connection.
+
+2. AI and reports
+In AI service choose an API, or Codex / DeepSeek Harness already installed and configured on your computer. An API needs a base URL, API key and model. Harness is not bundled or downloaded.
+Save and test; a manual AI test may use a few tokens. In General settings use Browse to choose the report folder; required folders are created automatically.
+Each new report covers notification, sender, summary, your actions, attachment contents and a suggested reply. Replies are never sent automatically. No new mail or pending retries means no AI calls.
+
+3. Mailboxes and monitoring
+Add accounts in Email and checks. Each has separate connection details, credentials, proxy and progress; AI, report folder and interval are shared.
+Start or pause monitoring in the main window. Check now requests an immediate check. The interval can be 10–86400 seconds; the default is 60 seconds.
+The first check of a new account records its starting point, without analyzing all old messages. On resume, messages received while paused or powered off are checked if still in the selected folder.
+
+4. Reading, filtering and searching
+Select a report on the left to read it on the right. Receipt time is displayed separately. New files are Markdown (.md), with formatted previews; old TXT reports remain readable. Filenames still include receipt time.
+Search locally saved bodies, senders and attachment names, not the entire remote inbox. Combine date, sender and attachment filters. Reset clears the filters.
+
+5. Proxy
+Start v2rayN or your proxy app. Under each mailbox's Advanced connection and proxy options, choose System proxy, HTTP CONNECT or SOCKS5 and use the client's actual host, port and protocol. Enable the client's system proxy when choosing System. Save and test. A failed proxy never silently connects directly. Explicit proxy mode does not need TUN. This affects IMAP only, not AI API traffic; PAC and username/password proxies are unsupported.
+
+6. Language
+First use selects Chinese for Chinese systems, Spanish for Spanish systems and English otherwise. Change it in General settings. If a language is missing, the app asks “You have not downloaded this language. Download it now?” Confirm to download; cancellation or failure preserves the current language.
+New reports use the selected language with the same six analysis requirements. Existing reports are not translated. Product names: 邮件小秘书 / Email Assistant / Asistente de correo electrónico.
+
+7. Updates, quitting and uninstall
+Check for updates in General settings; automatic checks also run every five hours. Downloads, progress and cancellation stay inside the app. After verification, confirm installation. Settings, reports and shortcut choices are preserved, with recovery attempted if installation fails.
+Closing the window keeps monitoring in the system tray; click the envelope to restore it. Exiting through the tray stops the current session. Windows sign-in startup is optional.
+Uninstall using its shortcut or Windows Installed apps. If running, the app asks permission to close; wait for active mail work to finish first. Settings and reports have separate retention choices; deleting reports requires another confirmation.
+The installer has no publisher signature. If Windows warns, verify the GitHub download source and SHA256 first.

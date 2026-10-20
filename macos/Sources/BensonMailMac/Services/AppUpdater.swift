@@ -15,6 +15,8 @@ struct MailUpdate: Equatable {
 
 @MainActor final class AppUpdater: ObservableObject {
     static let interval: TimeInterval = 5 * 60 * 60
+    static let canonicalManifest = "https://raw.githubusercontent.com/Benson-YiYan/benson-mail-assistant/main/distribution/manifest.json"
+    static let manifestAPI = "https://api.github.com/repos/Benson-YiYan/benson-mail-assistant/contents/distribution/manifest.json?ref=main"
     static let shared = AppUpdater()
     @Published private(set) var checking = false
     @Published private(set) var status = ""
@@ -48,7 +50,13 @@ struct MailUpdate: Equatable {
          currentVersion: String = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "000000000000",
          downloadRoot: URL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("BensonMail/Updates"),
          transferFactory: @escaping () -> UpdateTransfer = { UpdateTransfer() },
-         endpoint: @escaping () -> URL? = { (Bundle.main.infoDictionary?["BensonMailUpdateManifestURL"] as? String).flatMap(URL.init(string:)) },
+         endpoint: @escaping () -> URL? = {
+             let configured = Bundle.main.infoDictionary?["BensonMailUpdateManifestURL"] as? String
+             if configured == nil || configured?.contains("/benson-mail-updates/") == true {
+                 return URL(string: AppUpdater.canonicalManifest)
+             }
+             return configured.flatMap(URL.init(string:))
+         },
          fetch: @escaping (URLRequest) async throws -> (Data, HTTPURLResponse) = { request in
              let (data, response) = try await URLSession.shared.data(for: request)
              guard let http = response as? HTTPURLResponse else { throw UpdateError.invalid(T("更新服务器未返回 HTTP 响应。")) }
@@ -56,6 +64,17 @@ struct MailUpdate: Equatable {
          }) {
         self.defaults = defaults; self.currentVersion = currentVersion; self.endpoint = endpoint; self.fetch = fetch
         self.transferFactory = transferFactory; self.downloadRoot = downloadRoot
+    }
+    private func fetchManifest(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        // The raw and API routes are in the same public repository. Custom/test endpoints never leak to GitHub.
+        guard request.url?.absoluteString == Self.canonicalManifest else { return try await fetch(request) }
+        do {
+            let result = try await fetch(request)
+            if result.1.statusCode == 200 { return result }
+        } catch { /* Try the independent GitHub API route if the raw host is unreachable. */ }
+        var fallback = URLRequest(url: URL(string: Self.manifestAPI)!, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 25)
+        fallback.setValue("application/vnd.github.raw+json", forHTTPHeaderField: "Accept")
+        return try await fetch(fallback)
     }
     var lastCheck: Date? {
         let stamp = defaults.double(forKey: Self.lastCheckKey)
@@ -88,7 +107,7 @@ struct MailUpdate: Equatable {
             guard let address = endpoint(), Self.secure(address) else { throw UpdateError.endpoint }
             var request = URLRequest(url: address, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 25)
             request.setValue("application/json", forHTTPHeaderField: "Accept")
-            let (data, response) = try await fetch(request)
+            let (data, response) = try await fetchManifest(request)
             guard response.statusCode == 200 else { throw UpdateError.invalid(T("更新服务器返回 HTTP 状态：") + String(response.statusCode)) }
             guard response.url.map(Self.secure) == true else { throw UpdateError.invalid(T("更新响应地址必须使用 HTTPS。")) }
             guard data.count <= 1_048_576 else { throw UpdateError.invalid(T("更新清单超过 1 MB。")) }

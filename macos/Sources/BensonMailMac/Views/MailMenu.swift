@@ -11,7 +11,7 @@ struct MailMenu: View {
         Text(T(store.intervalLabel))
         Divider()
         Button(T("打开邮件小秘书")) {
-            if let window = NSApp.windows.first(where: { ["邮件小秘书", "Mail Secretary"].contains($0.title) && $0.canBecomeMain }) {
+            if let window = NSApp.windows.first(where: { AppLanguage.appNames.contains($0.title) && $0.canBecomeMain }) {
                 window.makeKeyAndOrderFront(nil)
             } else { openWindow(id: "main") }
             NSApp.activate(ignoringOtherApps: true)

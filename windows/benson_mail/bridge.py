@@ -147,9 +147,14 @@ class Controller:
                     'selected_mailbox_id': mailbox_id(self.config) if self.config.get('account') else '',
                     'output_dir': self.config.get('output_dir') or str(platform.documents_dir() / '邮件'),
                     'has_mail_secret': bool(self.config.get('account')) and self.secret_path().exists()}
+        if name in ('language_status', 'download_language'):
+            from .language_packs import status, download
+            if name == 'language_status':
+                return status(self.root, 'windows')
+            return download(self.root, data.get('code'), 'windows')
         if name == 'save_language':
             language = data.get('ui_language')
-            if language not in ('zh', 'en'):
+            if language not in ('zh', 'en', 'es'):
                 raise ValueError('Invalid interface language')
             self.config['ui_language'] = language
             self.persist()
@@ -371,6 +376,16 @@ def run(launcher=None, fixture=None):
         except Exception:
             emit({'event': {'detail': '快捷方式创建失败，请检查桌面和开始菜单写入权限；软件仍可正常使用。'}})
     if fixture:
+        # Explicit offline-test mode only. No real account or production network access.
+        import os
+        fixture_packs = os.environ.get('BENSON_MAIL_TEST_LANGUAGE_PACKS')
+        if fixture_packs:
+            from .language_packs import validate_pack
+            directory = root / 'languages'; directory.mkdir(exist_ok=True)
+            for code in ('zh', 'en', 'es'):
+                data = (Path(fixture_packs) / (code + '.json')).read_bytes()
+                validate_pack(data, code, 'windows')
+                (directory / (code + '.json')).write_bytes(data)
         # Fixture saves use real validation, persistence and protected synthetic credentials,
         # but must never touch the signed-in user's startup registration.
         platform.set_autostart = lambda *args, **kwargs: None
@@ -394,7 +409,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'prepare_exit', 'resume_after_exit_cancel'):
+                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'language_status', 'prepare_exit', 'resume_after_exit_cancel'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})

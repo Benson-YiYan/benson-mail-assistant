@@ -1,7 +1,7 @@
-Mail Secretary for Mac — Quick start
+Email Assistant for Mac — Quick start
 
 1. First launch
-Drag Mail Secretary into Applications, then open it there.
+Drag Email Assistant into Applications, then open it there.
 Select an email preset, or choose Other email (custom IMAP).
 Enter your full email address, IMAP host, port, encryption and the app password or OAuth2 access token required by your provider.
 Click “How do I get an authorization code?” for the bundled step-by-step guide. Keep credentials and tokens private.
@@ -29,4 +29,16 @@ Use Help > Check for updates, or the update section in General settings.
 Downloads run inside the app, with progress and cancellation. After verification, choose Install and reopen.
 The app checks the package and application, preserves settings and attempts rollback if installation fails.
 Closing the window keeps monitoring in the menu bar. Quitting through the Dock, application menu or Command-Q stops monitoring. Open the app and choose Start monitoring to resume.
-Change the interface language in General settings. First launch chooses Chinese for a Chinese system language, and English otherwise.
+Change the interface language in General settings. First launch chooses Chinese for a Chinese system language, Spanish for a Spanish system language, and English otherwise.
+
+Languages and language packs
+
+The interface, installer and uninstaller support **Simplified Chinese, English and Spanish**. First use selects Chinese for Chinese system languages, Spanish for Spanish system languages and English otherwise. You can change it in General settings. Windows Setup offers **Download Simplified Chinese**, **Download English** and **Download Spanish**.
+
+Only installed language packs can be used. Choosing a missing language asks “You have not downloaded this language. Download it now?” Confirm to download; cancelling or a failed download keeps the current language. New reports use the selected language with the same six analysis requirements; existing reports are not translated. The product name is **Email Assistant** in English and **Asistente de correo electrónico** in Spanish.
+
+Mailbox proxies
+
+Each mailbox can use Direct, System proxy, HTTP CONNECT or SOCKS5. In mailbox settings, open Advanced connection and proxy options; start v2rayN or your proxy app and use its actual listening host, port and protocol. Save and test before resuming monitoring. A failed proxy never silently switches to Direct. The setting covers IMAP tests and monitoring, not AI API traffic. PAC scripts and authenticated proxies are not supported.
+
+Installation and Gatekeeper: see the Mac README. macOS 14 or later is required; choose the matching Apple silicon or Intel DMG.

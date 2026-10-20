@@ -1,6 +1,6 @@
-# Mail Secretary
+# Email Assistant
 
-[简体中文](README.md) · [Download](https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest)
+[简体中文](README.md) · [Español](README.es.md) · [Download](https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest)
 
 Turn each new email into six sections: **notice, sender, summary, actions, attachment contents and a suggested reply**.
 
@@ -36,7 +36,7 @@ Windows and Mac packages in one release may have different version numbers. Veri
 - Multiple mailboxes, provider presets and custom IMAP host, port and encryption.
 - Six-section Markdown reports, with legacy TXT viewing support.
 - Local search across message bodies, senders and attachment names; date, sender and attachment filters.
-- English and Chinese interfaces and new reports; existing reports remain unchanged.
+- Simplified Chinese, English and Spanish interfaces and new reports; existing reports remain unchanged.
 - Tray/menu bar operation, configurable intervals and report locations.
 - In-app update downloads: when several sources are available, bounded speed probes select a faster route; network failures try another source. SHA256 is verified before installation. Uninstall can retain settings and reports.
 
@@ -60,11 +60,25 @@ OAuth2 access tokens must currently be supplied and renewed manually. Windows in
 
 | Platform | User guide | Build and test |
 | --- | --- | --- |
-| Windows | [English](windows/README.en.md) / [中文](windows/README.md) | [Development](windows/docs/DEVELOPMENT.md) |
-| Mac | [English](macos/README.en.md) / [中文](macos/README.md) | [Development](macos/docs/DEVELOPMENT.md) |
+| Windows | [English](windows/README.en.md) / [中文](windows/README.md) / [Español](windows/README.es.md) | [Development](windows/docs/DEVELOPMENT.md) |
+| Mac | [English](macos/README.en.md) / [中文](macos/README.md) / [Español](macos/README.es.md) | [Development](macos/docs/DEVELOPMENT.md) |
 
 Source lives in `windows/` and `macos/`. Public build adaptations may differ from the commits used for the verified downloadable packages; release notes identify their versions and test scope.
 
 [Report a problem](https://github.com/Benson-YiYan/benson-mail-assistant/issues) with your OS version, app version and sanitized error details.
 
 If this little secretary saves you time, a ⭐ is welcome.
+
+## Languages and language packs
+
+The interface, installer and uninstaller support **Simplified Chinese, English and Spanish**. First use selects Chinese for Chinese system languages, Spanish for Spanish system languages and English otherwise. You can change it in General settings. Windows Setup offers **Download Simplified Chinese**, **Download English** and **Download Spanish**.
+
+Only installed language packs can be used. Choosing a missing language asks “You have not downloaded this language. Download it now?” Confirm to download; cancelling or a failed download keeps the current language. New reports use the selected language with the same six analysis requirements; existing reports are not translated. The product name is **Email Assistant** in English and **Asistente de correo electrónico** in Spanish.
+
+## Mailbox proxies
+
+Each mailbox can use Direct, System proxy, HTTP CONNECT or SOCKS5. In mailbox settings, open Advanced connection and proxy options; start v2rayN or your proxy app and use its actual listening host, port and protocol. Save and test before resuming monitoring. A failed proxy never silently switches to Direct. The setting covers IMAP tests and monitoring, not AI API traffic. PAC scripts and authenticated proxies are not supported.
+
+## Update distribution / 更新分发
+
+Stable manifest: [`distribution/manifest.json`](distribution/manifest.json). Source, documentation, language packs and installers are maintained in this repository: [Benson-YiYan/benson-mail-assistant](https://github.com/Benson-YiYan/benson-mail-assistant). Platform packages remain separate assets in the same release.

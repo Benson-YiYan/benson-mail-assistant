@@ -94,14 +94,14 @@ def main():
     programs = Path(shell.SHGetFolderPath(0, shellcon.CSIDL_PROGRAMS, None, 0))
     places = (desktop, programs)
     def shortcut_paths(language):
-        name, uninstall = ('邮件小秘书', '卸载邮件小秘书') if language == 'chinesesimp' else ('Mail Secretary', 'Uninstall Mail Secretary')
+        name, uninstall = ('邮件小秘书', '卸载邮件小秘书') if language == 'chinesesimp' else ('Asistente de correo electrónico', 'Desinstalar Asistente de correo electrónico') if language == 'spanish' else ('Email Assistant', 'Uninstall Email Assistant')
         return {
             'desktopapp': desktop / (name + '.lnk'),
             'desktopuninstall': desktop / (uninstall + '.lnk'),
             'startapp': programs / (name + '.lnk'),
             'startuninstall': programs / (uninstall + '.lnk'),
         }
-    all_links = {*shortcut_paths('english').values(), *shortcut_paths('chinesesimp').values()}
+    all_links = {*shortcut_paths('english').values(), *shortcut_paths('chinesesimp').values(), *shortcut_paths('spanish').values()}
     assert registration() is None, "Use a disposable runner without an existing Mail Secretary installation"
     assert not platform.has_autostart(), "Use a runner without a real Mail Secretary startup entry"
     assert not any(path.exists() for path in all_links), "Existing user shortcuts must be left untouched"
@@ -114,7 +114,7 @@ def main():
         selections = [TASKS, *((task,) for task in TASKS), ()]
         for number, selected in enumerate(selections):
             label = "all" if len(selected) == 4 else selected[0] if selected else "none"
-            language = "chinesesimp" if number == 0 else "english"
+            language = "chinesesimp" if number == 0 else "spanish" if number == 2 else "english"
             links = shortcut_paths(language)
             log = evidence / f"installer-{label}.log"
             process = subprocess.run([
@@ -132,7 +132,7 @@ def main():
             installed = registration()
             assert installed and Path(installed["InstallLocation"]).resolve() == program.resolve()
             assert installed["DisplayVersion"] == version
-            assert installed["DisplayName"] == ("邮件小秘书" if language == "chinesesimp" else "Mail Secretary")
+            assert installed["DisplayName"] == ("邮件小秘书" if language == "chinesesimp" else "Asistente de correo electrónico" if language == "spanish" else "Email Assistant")
             assert installed["UninstallString"] in (str(uninstaller), f'"{uninstaller}"')
             for task, path in links.items():
                 assert path.is_file() == (task in selected), f"{label}: wrong shortcut selection {task}"

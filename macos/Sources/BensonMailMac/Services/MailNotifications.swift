@@ -104,7 +104,7 @@ final class MailNotifications: NSObject, UNUserNotificationCenterDelegate {
         store.refresh()
         store.scanReports()
         if let report, let match = store.reports.first(where: { $0.url.path == report }) { store.select(match) }
-        if let window = NSApp.windows.first(where: { ["邮件小秘书", "Mail Secretary"].contains($0.title) }) {
+        if let window = NSApp.windows.first(where: { AppLanguage.appNames.contains($0.title) }) {
             window.makeKeyAndOrderFront(nil)
             window.orderFrontRegardless()
         } else { showMainWindow?() }

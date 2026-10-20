@@ -24,10 +24,11 @@ swift build -c release --arch "$TARGET_ARCH" --scratch-path "$SWIFT_BUILD_DIR"
 BUILD_BINARY="$(swift build -c release --arch "$TARGET_ARCH" --scratch-path "$SWIFT_BUILD_DIR" --show-bin-path)/$APP_NAME"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
-cp Resources/ui-en.json "$APP_BUNDLE/Contents/Resources/ui-en.json"
+rm -f "$APP_BUNDLE/Contents/Resources/ui-en.json" "$APP_BUNDLE/Contents/Resources/ui-es.json"
 cp Resources/Mail-account-setup-zh.txt Resources/Mail-account-setup-en.txt "$APP_BUNDLE/Contents/Resources/"
 cp Resources/Quick-start-zh.txt Resources/Quick-start-en.txt "$APP_BUNDLE/Contents/Resources/"
 cp Resources/Get-Outlook-Token.command "$APP_BUNDLE/Contents/Resources/"
+cp -R Resources/zh-Hans.lproj Resources/en.lproj Resources/es.lproj "$APP_BUNDLE/Contents/Resources/"
 cp Resources/MailIcon.icns "$APP_BUNDLE/Contents/Resources/MailIcon.icns"
 cp "$BUILD_BINARY" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
@@ -42,7 +43,7 @@ PYINSTALLER_CONFIG_DIR="$ROOT_DIR/build/cache-$TARGET_ARCH" "${PYTHON_RUN[@]}" -
   --name MailWorker --paths Runtime --hidden-import mail_daemon \
   --hidden-import mail_watch --hidden-import mail_export --hidden-import ai_runner \
   --hidden-import markdown_render --collect-all markdown_it --collect-all mdurl \
-  --hidden-import update_install --hidden-import outlook_token --hidden-import worker_selftest --hidden-import harness_smoke \
+  --hidden-import language_packs --hidden-import update_install --hidden-import outlook_token --hidden-import worker_selftest --hidden-import harness_smoke \
   --collect-all pypdf --collect-all certifi --collect-all truststore \
   --collect-all tzdata \
   Runtime/worker_main.py

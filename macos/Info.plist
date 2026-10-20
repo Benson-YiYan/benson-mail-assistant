@@ -2,29 +2,35 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BensonMailUpdateManifestURL</key>
+	<string>https://raw.githubusercontent.com/Benson-YiYan/benson-mail-assistant/main/distribution/manifest.json</string>
+	<key>CFBundleDisplayName</key>
+	<string>邮件小秘书</string>
 	<key>CFBundleExecutable</key>
 	<string>BensonMailMac</string>
+	<key>CFBundleIconFile</key>
+	<string>MailIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.benson.mail-ui</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>zh-Hans</string>
+		<string>en</string>
+		<string>es</string>
+	</array>
 	<key>CFBundleName</key>
-	<string>邮件小秘书</string>
-	<key>CFBundleDisplayName</key>
 	<string>邮件小秘书</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<key>CFBundleIconFile</key>
-	<string>MailIcon</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>2</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
 	<key>NSDocumentsFolderUsageDescription</key>
 	<string>读取和保存您选择的邮件中文报告。</string>
-	<key>BensonMailUpdateManifestURL</key>
-	<string>https://raw.githubusercontent.com/Benson-YiYan/benson-mail-updates/main/manifest.json</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 </dict>
 </plist>

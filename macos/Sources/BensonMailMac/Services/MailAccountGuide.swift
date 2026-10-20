@@ -1,11 +1,10 @@
 import AppKit
 import Foundation
 
-/// Ships with the application; opening help never sends account information online.
+/// Guide text is part of the selected downloaded language pack; reading it never sends account data.
 enum MailAccountGuide {
     static func url(language: String = AppLanguage.shared.code) -> URL? {
-        Bundle.main.url(forResource: "Mail-account-setup-" + (language == "en" ? "en" : "zh"), withExtension: "txt")
-            ?? Bundle.main.url(forResource: "Mail-account-setup-zh", withExtension: "txt")
+        AppLanguage.shared.guideURL("mail_account", language: language)
     }
     static func tokenURL() -> URL? {
         Bundle.main.url(forResource: "Get-Outlook-Token", withExtension: "command")
@@ -19,7 +18,7 @@ enum MailAccountGuide {
     @MainActor static func open() throws {
         guard let file = url(), NSWorkspace.shared.open(file) else {
             throw NSError(domain: "BensonMail", code: 1,
-                userInfo: [NSLocalizedDescriptionKey: T("无法打开邮箱设置教程，请重新安装邮件小秘书。")])
+                userInfo: [NSLocalizedDescriptionKey: T("请先下载当前语言包，再打开指南。")])
         }
     }
 }

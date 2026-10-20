@@ -1,6 +1,6 @@
-# 邮件小秘书 · Mail Secretary
+# 邮件小秘书 · Email Assistant
 
-[English](README.en.md) · [下载安装包](https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest)
+[English](README.en.md) · [Español](README.es.md) · [下载安装包](https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest)
 
 新邮件来了，自动整理成六项：**新邮件提醒、谁发的、说了啥、我要做什么、附件内容、怎么回复**。
 
@@ -38,7 +38,7 @@
 - 多邮箱：常见服务商预设，也支持自定义 IMAP 服务器、端口和加密方式。
 - 六项 AI 报告：新报告保存为 `.md`，兼容查看旧 `.txt`。
 - 本地搜索与筛选：正文、发件人、附件名；日期、发件人、有无附件。
-- 中文 / English：首次跟随系统语言，也能在设置中切换；新报告使用所选语言，旧报告保持原样。
+- 简体中文 / English / Español：首次跟随系统语言，也能在设置中切换；新报告使用所选语言，旧报告保持原样。
 - 托盘 / 菜单栏运行、自定义检查间隔、自定义保存位置。
 - 应用内检查和下载安装更新；有多个下载来源时先做小流量测速，优先较快线路，网络失败时尝试另一条，安装前核对 SHA256。卸载时可选择保留配置和报告。
 
@@ -68,11 +68,25 @@
 
 | 平台 | 使用说明 | 开发说明 |
 | --- | --- | --- |
-| Windows | [中文](windows/README.md) / [English](windows/README.en.md) | [构建与测试](windows/docs/DEVELOPMENT.md) |
-| Mac | [中文](macos/README.md) / [English](macos/README.en.md) | [构建与测试](macos/docs/DEVELOPMENT.md) |
+| Windows | [中文](windows/README.md) / [English](windows/README.en.md) / [Español](windows/README.es.md) | [构建与测试](windows/docs/DEVELOPMENT.md) |
+| Mac | [中文](macos/README.md) / [English](macos/README.en.md) / [Español](macos/README.es.md) | [构建与测试](macos/docs/DEVELOPMENT.md) |
 
 源码位于 `windows/` 和 `macos/`。公开仓库中的构建适配与下载的已验证安装包可能具有不同提交；每个 Release 会说明安装包版本及验证范围。
 
 遇到问题可以[提交 Issue](https://github.com/Benson-YiYan/benson-mail-assistant/issues)，附上系统版本、软件版本和脱敏错误信息。
 
 如果这个小秘书帮你省了时间，欢迎点个 ⭐。
+
+## 语言与语言包
+
+界面、安装程序和卸载程序支持**简体中文、英文、西班牙文**。首次使用：中文系统选择中文，西班牙语系统选择西班牙文，其他系统使用英文；之后可在通用设置切换。Windows 安装程序提供“下载简体中文”“下载英文”“下载西班牙文”。
+
+切换到尚未安装的语言时，会提示“你没有下载这个语言，是否现在下载？”。确认后下载；取消或下载失败保留当前语言。新报告跟随所选语言，六项分析要求不变；已有报告不会自动翻译。英文名称为 **Email Assistant**，西班牙文名称为 **Asistente de correo electrónico**。
+
+## 邮箱代理
+
+每个邮箱可分别选择直连、系统代理、HTTP CONNECT 或 SOCKS5。在邮箱设置中打开高级连接与代理选项；启动 v2rayN 等代理软件，填写其实际监听地址、端口和协议，保存后测试连接。代理失败不会悄悄改成直连。这只影响 IMAP 测试与收信，不改变 AI API 网络；不支持 PAC 脚本或需要用户名密码的代理。
+
+## 更新分发
+
+稳定更新清单：[`distribution/manifest.json`](distribution/manifest.json)。源码、文档、语言包和安装程序统一维护在 [Benson-YiYan/benson-mail-assistant](https://github.com/Benson-YiYan/benson-mail-assistant)。不同平台安装包仍是同一 Release 中的独立附件。

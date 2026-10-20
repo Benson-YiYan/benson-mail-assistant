@@ -21,9 +21,13 @@ struct MailHelpCommands: Commands {
 @MainActor
 enum MailHelp {
     static func quickStartURL(language: String = AppLanguage.shared.code) -> URL? {
-        Bundle.main.url(forResource: "Quick-start-" + (language == "en" ? "en" : "zh"), withExtension: "txt")
+        AppLanguage.shared.guideURL("quick_start", language: language)
     }
     static func refreshTitle() {
+        if let appItem = NSApp.mainMenu?.items.first {
+            appItem.title = T("邮件小秘书")
+            appItem.submenu?.title = T("邮件小秘书")
+        }
         guard let help = NSApp.helpMenu,
               let item = NSApp.mainMenu?.items.first(where: { $0.submenu === help }) else { return }
         item.title = T("帮助")
@@ -37,7 +41,7 @@ enum MailHelp {
     }
     static func openQuickStart() {
         guard let file = quickStartURL(), NSWorkspace.shared.open(file) else {
-            MailStore.shared.problem = T("无法打开使用指南，请重新安装邮件小秘书。")
+            MailStore.shared.problem = T("请先下载当前语言包，再打开指南。")
             return
         }
     }

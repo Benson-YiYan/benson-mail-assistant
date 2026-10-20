@@ -321,6 +321,25 @@ def mail_error(error, value, secret, stage, language='zh'):
     else:
         hint = '邮箱操作失败；请结合下方阶段和服务器响应检查设置，尚不能确定原因。'
     error_type = ('IMAP4.' + type(error).__name__) if isinstance(error, IMAP_ERROR) else type(error).__name__
+    if language == 'es':
+        hints = {
+            '代理连接失败；请检查代理是否运行及地址、端口。不自动回退到直连。': 'Falló la conexión con el proxy. Comprueba que esté en ejecución y que la dirección y el puerto sean correctos. No se usará una conexión directa.',
+            'TLS 证书验证失败；请检查系统时间、代理及服务器证书。不会跳过证书验证。': 'Falló la verificación del certificado TLS. Comprueba la hora del sistema, el proxy y el certificado del servidor. La verificación sigue activada.',
+            'TLS 加密协商失败；请核对端口和 SSL/TLS 或 STARTTLS 设置。': 'Falló la negociación TLS. Comprueba el puerto y la configuración SSL/TLS o STARTTLS.',
+            'DNS 域名解析失败；请核对 IMAP 域名和网络 DNS。': 'Falló la resolución DNS. Comprueba el nombre del servidor IMAP y el DNS de la red.',
+            '连接或读取超时（单次最长等待 25 秒）；请检查网络、代理和服务器可达性。': 'Se agotó el tiempo de conexión o lectura (25 segundos por operación). Comprueba la red, el proxy y la disponibilidad del servidor.',
+            '服务器判定登录不安全并拒绝访问；请查看邮箱网页中的安全提醒或服务商说明，不能据此判断授权码错误。': 'El servidor rechazó el inicio de sesión por considerarlo inseguro. Revisa los avisos de seguridad del correo web y la ayuda del proveedor; esto no demuestra que la contraseña de aplicación sea incorrecta.',
+            '服务器明确提示 IMAP 未开启；请在邮箱网页设置中启用 IMAP。': 'El servidor indica que IMAP está desactivado. Actívalo en la configuración del correo web.',
+            '服务器拒绝认证；请核对账号、授权码或 OAuth2 令牌及邮箱服务设置。具体拒绝原因以服务器响应为准。': 'El servidor rechazó la autenticación. Comprueba la cuenta, la contraseña de aplicación o el token OAuth2 y la configuración del buzón. Consulta la respuesta del servidor para conocer el motivo.',
+            '服务器拒绝连接；请核对 IMAP 地址、端口及网络或代理设置。': 'El servidor rechazó la conexión. Comprueba la dirección IMAP, el puerto, la red y el proxy.',
+            '邮箱操作失败；请结合下方阶段和服务器响应检查设置，尚不能确定原因。': 'Falló la operación del buzón. Revisa la fase y la respuesta del servidor que aparecen abajo; todavía no se ha determinado la causa.'}
+        stages = {'SSL/TLS 连接':'Conexión SSL/TLS', 'TCP 连接':'Conexión TCP', 'STARTTLS 加密协商':'Negociación STARTTLS',
+                  'XOAUTH2 认证':'Autenticación XOAUTH2', 'LOGIN 认证':'Autenticación LOGIN',
+                  'CAPABILITY 登录后能力协商':'CAPABILITY tras la autenticación', 'ID 客户端标识协商':'Identificación del cliente ID',
+                  'SELECT 只读打开邮件文件夹':'Apertura de carpeta en modo de solo lectura',
+                  'UIDVALIDITY 读取邮件文件夹标识':'Identidad de la carpeta UIDVALIDITY', 'UID SEARCH 检查邮件编号':'Identificadores de mensajes UID SEARCH'}
+        detail = detail.replace('[已隐藏凭据]', '[credenciales ocultas]')
+        return MailConnectionError(f"No se pudo conectar al buzón: {hints[hint]}\nServidor: {value['host']}:{value['port']} ({value['security']})\nFase: {stages.get(stage, stage)}\nCausa: {error_type}: {detail}")
     if language == 'en':
         hints = {
             '代理连接失败；请检查代理是否运行及地址、端口。不自动回退到直连。': 'Proxy connection failed. Check that the proxy is running and its host and port are correct. No direct fallback.',

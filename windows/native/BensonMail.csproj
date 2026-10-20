@@ -27,7 +27,6 @@
     <!-- Scope the patch requirement to .NET; a global RuntimeFrameworkVersion
          also overrides the unrelated Microsoft.Windows.SDK.NET.Ref pack. -->
     <FrameworkReference Update="Microsoft.NETCore.App" RuntimeFrameworkVersion="8.0.32" />
-    <EmbeddedResource Include="ui-en.json" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.32" />
     <PackageReference Include="Markdig" Version="0.41.3" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260921001" />

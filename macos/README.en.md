@@ -1,6 +1,6 @@
-# Mail Secretary for Mac
+# Email Assistant for Mac
 
-[简体中文](README.md) · [Project guide](../README.en.md)
+[简体中文](README.md) · [Español](README.es.md) · [Project guide](../README.en.md)
 
 Each new email becomes six sections: **notice, sender, summary, actions, attachment contents and a suggested reply**. Supports multiple mailboxes, your choice of AI, Markdown previews, search and filters. Empty checks do not call AI; replies are never sent automatically.
 
@@ -8,7 +8,7 @@ Each new email becomes six sections: **notice, sender, summary, actions, attachm
 
 Requires **macOS 14 or later**. In Apple menu → About This Mac, check whether you have Apple silicon or Intel. Use the DMG containing `Mac-AppleSilicon` or `Mac-Intel` respectively.
 Download the matching DMG from the public [GitHub Releases](https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest). Each release includes `SHA256SUMS.txt` for integrity checks.
-Open the DMG, drag Mail Secretary into Applications, then open it there. The app includes its runtime; no Python or Homebrew setup is needed. API mode does not require Codex.
+Open the DMG, drag Email Assistant into Applications, then open it there. The app includes its runtime; no Python or Homebrew setup is needed. API mode does not require Codex.
 The app is not Developer ID-signed or Apple-notarized. Check the file's source if macOS cannot verify its developer. Version numbers use the actual build time in Beijing time.
 
 ## First setup
@@ -45,9 +45,23 @@ Uninstall is in General settings. Settings and reports have separate retention c
 
 Test the email connection and copy its stage, exception type and sanitized server response. Check credentials for authentication failures, webmail or administrator settings for disabled IMAP, provider security notices for Unsafe Login, and host, port, network, clock and proxy for DNS, timeout or TLS errors.
 Credentials and API keys are stored in the login Keychain. Message and readable attachment contents go to your chosen AI. Mailbox access is read-only; the app does not send replies. Images, scans, encrypted and unsupported attachments have reading limits. Review the original before using a draft.
-The first launch follows the system language, using Chinese for Chinese languages and English otherwise. New reports follow your selected UI language; drafts follow the incoming message. Existing reports remain unchanged.
+The first launch follows the system language, using Chinese for Chinese languages, Spanish for Spanish languages and English otherwise. New reports follow your selected UI language; drafts follow the incoming message. Existing reports remain unchanged.
 
 ## Development
 
 Sources are in `Sources` and `Runtime`. See [Development and release builds](docs/DEVELOPMENT.md) for environment setup, Apple silicon/Intel builds, offline verification and DMG packaging.
 End users can use the DMG. Intel builds are tested through Rosetta on Apple silicon, rather than on a physical Intel Mac.
+
+## Languages and language packs
+
+The interface, installer and uninstaller support **Simplified Chinese, English and Spanish**. First use selects Chinese for Chinese system languages, Spanish for Spanish system languages and English otherwise. You can change it in General settings. Windows Setup offers **Download Simplified Chinese**, **Download English** and **Download Spanish**.
+
+Only installed language packs can be used. Choosing a missing language asks “You have not downloaded this language. Download it now?” Confirm to download; cancelling or a failed download keeps the current language. New reports use the selected language with the same six analysis requirements; existing reports are not translated. The product name is **Email Assistant** in English and **Asistente de correo electrónico** in Spanish.
+
+## Mailbox proxies
+
+Each mailbox can use Direct, System proxy, HTTP CONNECT or SOCKS5. In mailbox settings, open Advanced connection and proxy options; start v2rayN or your proxy app and use its actual listening host, port and protocol. Save and test before resuming monitoring. A failed proxy never silently switches to Direct. The setting covers IMAP tests and monitoring, not AI API traffic. PAC scripts and authenticated proxies are not supported.
+
+### If macOS blocks the first launch
+
+The app has an ad-hoc signature and is not signed with an Apple Developer ID or notarized by Apple. Verify the GitHub release and its SHA256 first. Try opening it once, then open System Settings → Privacy & Security and use Open Anyway if macOS offers it; confirm the next prompt. Do not disable Gatekeeper globally. If your Mac is managed or the option is unavailable, ask its administrator.

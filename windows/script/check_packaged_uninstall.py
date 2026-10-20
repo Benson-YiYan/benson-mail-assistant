@@ -66,7 +66,7 @@ try:
     while time.monotonic() < deadline and not result.exists():
         def observe(hwnd, _):
             if (win32gui.IsWindowVisible(hwnd) and win32gui.GetWindowText(hwnd)
-                    in {'卸载邮件小秘书', 'Uninstall Mail Secretary'}):
+                    in {'卸载邮件小秘书', 'Uninstall Email Assistant', 'Desinstalar Asistente de correo electrónico'}):
                 pid = win32process.GetWindowThreadProcessId(hwnd)[1]
                 assert pid != process.pid, 'Installed launcher showed a window before staging'
                 observed_windows.add((pid, hwnd))

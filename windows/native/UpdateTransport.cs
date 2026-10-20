@@ -15,7 +15,7 @@ namespace BensonMail;
 
 sealed class UpdateTransport : IDisposable
 {
-    internal const string ApiUrl = "https://api.github.com/repos/Benson-YiYan/benson-mail-updates/contents/manifest.json?ref=main";
+    internal const string ApiUrl = "https://api.github.com/repos/Benson-YiYan/benson-mail-assistant/contents/distribution/manifest.json?ref=main";
     readonly HttpClient client;
     internal string? LastSource { get; private set; }
     internal static HttpClientHandler SystemHandler() => new() {
@@ -73,7 +73,10 @@ sealed class UpdateTransport : IDisposable
         if (download) summary = timeout
             ? (english ? "The download server did not respond for 45 seconds. Please retry." : "下载服务器连续 45 秒未响应，请重试。")
             : (english ? "The update could not be downloaded, verified, or installed. See details below." : "未能下载、校验或安装更新，请查看下方错误详情。");
-        return summary + Environment.NewLine + (english ? "Technical details:" : "底层错误详情：") + Environment.NewLine + output.ToString().Trim();
+        if (language == "es") summary = download
+            ? (timeout ? "El servidor de descarga no respondió durante 45 segundos. Inténtalo de nuevo." : "No se pudo descargar, verificar o instalar la actualización. Consulta los detalles a continuación.")
+            : (timeout ? "La solicitud de actualización agotó el tiempo de espera (10 segundos por servidor)." : "No se pudo buscar actualizaciones. Revisa la conexión, el reloj del sistema y el proxy.");
+        return summary + Environment.NewLine + (language == "es" ? "Detalles técnicos:" : english ? "Technical details:" : "底层错误详情：") + Environment.NewLine + output.ToString().Trim();
     }
     public void Dispose() => client.Dispose();
     sealed class FixtureHandler : HttpMessageHandler

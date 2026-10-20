@@ -24,6 +24,18 @@ def main():
         from benson_mail.worker_smoke import run
         Path(sys.argv[sys.argv.index('--runtime-self-test') + 1]).write_text(json.dumps(run()), encoding='utf-8')
         return 0
+    if '--language-status' in sys.argv or '--download-language' in sys.argv:
+        from benson_mail.language_packs import status, download, LanguagePackError
+        from benson_mail.platform_windows import app_dir
+        try:
+            root = Path(sys.argv[sys.argv.index('--home') + 1]) if '--home' in sys.argv else app_dir()
+            result = (download(root, sys.argv[sys.argv.index('--download-language') + 1], 'windows')
+                      if '--download-language' in sys.argv else status(root, 'windows'))
+            print(json.dumps(result, ensure_ascii=False))
+            return 0
+        except (LanguagePackError, OSError, IndexError) as error:
+            print(json.dumps({'ok': False, 'error': str(error)}, ensure_ascii=False))
+            return 1
     parser = argparse.ArgumentParser()
     parser.add_argument('--bridge', action='store_true', required=True)
     parser.add_argument('--launcher')

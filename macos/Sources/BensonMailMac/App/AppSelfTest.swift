@@ -383,16 +383,16 @@ enum AppSelfTest {
             settingsWindow.orderOut(nil)
             checks.append("native SwiftUI main/settings windows created; main window restore verified")
             checks.append(captured ? "actual window screenshots saved" : "window screenshot unavailable: macOS screen recording permission not granted")
-            guard AppLanguage.detect(["zh-Hant-TW"]) == "zh", AppLanguage.detect(["zh-CN"]) == "zh", AppLanguage.detect(["es-MX"]) == "en", AppLanguage.detect([]) == "en" else { throw Failure("system language detection failed") }
-            for code in ["zh", "en"] {
+            guard AppLanguage.detect(["zh-Hant-TW"]) == "zh", AppLanguage.detect(["zh-CN"]) == "zh", AppLanguage.detect(["es-MX"]) == "es", AppLanguage.detect(["es-ES"]) == "es", AppLanguage.detect(["fr-FR"]) == "en", AppLanguage.detect([]) == "en" else { throw Failure("system language detection failed") }
+            for code in ["zh", "en", "es"] {
                 guard let guide = MailAccountGuide.url(language: code),
                       guide.lastPathComponent == "Mail-account-setup-\(code).txt",
                       (try String(contentsOf: guide, encoding: .utf8)).count > 1000 else {
                     throw Failure("Bundled account guide missing or wrong language")
                 }
             }
-            checks.append("both bundled account setup guides exist; help resolves selected language without opening editor")
-            for code in ["zh", "en"] {
+            checks.append("three downloaded account setup guides exist; help resolves selected pack language without opening editor")
+            for code in ["zh", "en", "es"] {
                 guard let guide = MailHelp.quickStartURL(language: code),
                       (try String(contentsOf: guide, encoding: .utf8)).count > 600 else { throw Failure("quick start guide missing") }
             }
@@ -412,7 +412,7 @@ enum AppSelfTest {
                 }
             }
             try verifyHelp(["使用指南", "如何获取授权码？", "检查更新", "关于邮件小秘书"], heading: "帮助")
-            checks.append("single native Help menu contains four connected actions; bilingual bundled quick-start guides")
+            checks.append("single native Help menu contains four connected actions; three language-pack quick-start guides")
             guard MailAccountGuide.offersToken("oauth2"), !MailAccountGuide.offersToken("password"),
                   let tokenTool = MailAccountGuide.tokenURL(), FileManager.default.isExecutableFile(atPath: tokenTool.path) else {
                 throw Failure("OAuth2 conditional token button or bundled helper missing")
@@ -439,9 +439,9 @@ enum AppSelfTest {
                   translatedDiagnostic.contains("IMAP is disabled"), translatedDiagnostic.contains("[credentials hidden]"),
                   T("查看具体错误") == "Show error details" else { throw Failure("safe mailbox diagnostic English translation failed") }
             checks.append("safe structured mailbox diagnostics retain endpoint, stage and server code in English; credentials stay hidden")
-            try verifyHelp(["User guide", "How do I get an authorization code?", "Check for updates", "About Mail Secretary"], heading: "Help")
+            try verifyHelp(["User guide", "How do I get an authorization code?", "Check for updates", "About Email Assistant"], heading: "Help")
             guard T("保留配置") == "Keep configuration", T("保留邮件报告") == "Keep mail reports",
-                  T("邮件小秘书") == "Mail Secretary", T("界面语言") == "Interface language",
+                  T("邮件小秘书") == "Email Assistant", T("界面语言") == "Interface language",
                   store.settings.ui_language == "en", store.reportText == existingText,
                   store.reports.map(\.title) == existingTitles, store.settings.enabled == enabledBeforeLanguage else { throw Failure("English language switch changed content or monitoring state") }
             guard T("最近检查：\(T("尚未检查"))") == "Last check: Not checked yet" else { throw Failure("uninitialized last-check translation failed") }
@@ -452,10 +452,79 @@ enum AppSelfTest {
             RunLoop.main.run(until: Date().addingTimeInterval(0.3))
             _ = try? capture(settingsWindow, to: output.appendingPathComponent("mac-settings-english.png"))
             settingsWindow.orderOut(nil)
+            // Exercise the actual missing-pack state machine with synthetic local catalogs only.
+            // Tests never invoke the worker's network download or load a real user's settings.
+            let language = AppLanguage.shared
+            let spanishPack = store.base.appendingPathComponent("languages/es.json")
+            let spanishData = try Data(contentsOf: spanishPack)
+            let settingsBeforeMissing = try JSONSerialization.jsonObject(with: JSONEncoder().encode(store.settings)) as! NSDictionary
+            try FileManager.default.removeItem(at: spanishPack)
+            defer { try? spanishData.write(to: spanishPack, options: .atomic) }
+            guard !language.isInstalled("es") else { throw Failure("fixture must not inherit a bundled Spanish language pack") }
+            var downloaded = false
+            let cancelledLanguageChange = try await language.change(to: "es", confirmDownload: { false }, download: { _ in downloaded = true })
+            guard !cancelledLanguageChange, !downloaded, language.code == "en", store.settings.ui_language == "en" else { throw Failure("missing-pack cancellation changed selection or downloaded without consent") }
+            var caughtDownloadFailure = false
+            do {
+                try await language.change(to: "es", confirmDownload: { true }, download: { _ in throw Failure("Synthetic offline download") })
+            } catch { caughtDownloadFailure = true }
+            guard caughtDownloadFailure, language.code == "en", !language.isDownloading,
+                  (try JSONSerialization.jsonObject(with: JSONEncoder().encode(store.settings)) as! NSDictionary).isEqual(settingsBeforeMissing) else {
+                throw Failure("failed language download changed settings or left busy state")
+            }
+            var caughtInvalidPack = false
+            do {
+                try await language.change(to: "es", confirmDownload: { true }, download: { _ in try Data("{}".utf8).write(to: spanishPack, options: .atomic) })
+            } catch { caughtInvalidPack = true }
+            guard caughtInvalidPack, language.code == "en", store.settings.ui_language == "en" else { throw Failure("invalid downloaded catalog activated") }
+            try FileManager.default.removeItem(at: spanishPack)
+            let switchedSpanish = try await language.change(to: "es", confirmDownload: { true }, download: { code in
+                guard code == "es" else { throw Failure("wrong language requested") }
+                try spanishData.write(to: spanishPack, options: .atomic)
+            })
+            guard switchedSpanish, language.code == "es", store.settings.ui_language == "es",
+                  T("邮件小秘书") == "Asistente de correo electrónico", T("界面语言") == "Idioma de la interfaz",
+                  store.reportText == existingText, store.reports.map(\.title) == existingTitles,
+                  store.settings.enabled == enabledBeforeLanguage else { throw Failure("Spanish language download/switch lost report text or monitoring state") }
+            var spanishSettings = try JSONSerialization.jsonObject(with: JSONEncoder().encode(store.settings)) as! [String: Any]
+            var englishSettings = settingsBeforeMissing as! [String: Any]
+            spanishSettings.removeValue(forKey: "ui_language"); englishSettings.removeValue(forKey: "ui_language")
+            guard (spanishSettings as NSDictionary).isEqual(to: englishSettings) else { throw Failure("language switch changed mailbox, AI or report settings") }
+            guard let spanishGuide = MailAccountGuide.url(language: "es"), spanishGuide.lastPathComponent == "Mail-account-setup-es.txt",
+                  try String(contentsOf: spanishGuide, encoding: .utf8).count > 1000 else { throw Failure("Spanish downloaded guide missing") }
+            try verifyHelp([T("使用指南"), T("如何获取授权码？"), T("检查更新"), T("关于邮件小秘书")], heading: T("帮助"))
+            settingsWindow.contentView = NSHostingView(rootView: SettingsView(store: store))
+            settingsWindow.makeKeyAndOrderFront(nil)
+            try await Task.sleep(nanoseconds: 300_000_000)
+            _ = try? capture(settingsWindow, to: output.appendingPathComponent("mac-settings-spanish.png"))
+            settingsWindow.orderOut(nil)
+            checks.append("Spanish pack activation and application name; missing-pack cancel, offline failure, invalid pack and successful consented retry tested with local fixtures; mailbox/AI/report settings preserved")
             AppLanguage.shared.select("zh")
             try verifyHelp(["使用指南", "如何获取授权码？", "检查更新", "关于邮件小秘书"], heading: "帮助")
             guard T("邮件小秘书") == "邮件小秘书", store.settings.ui_language == "zh" else { throw Failure("Chinese switch failed") }
             checks.append("system language detection; live English/Chinese switch persists, preserves original email/report text and monitoring; English settings rendered")
+            let updateSuite = "BensonMailLanguageFixture-" + UUID().uuidString
+            let updateDefaults = UserDefaults(suiteName: updateSuite)!
+            defer { updateDefaults.removePersistentDomain(forName: updateSuite) }
+            let syntheticManifest: [String: Any] = ["schema_version": 1, "platforms": [AppUpdater.platform: [
+                "version": "202610200001", "url": "https://updates.example.invalid/fixture.dmg",
+                "sha256": String(repeating: "0", count: 64), "notes": ["zh": "模拟更新", "en": "Fixture update", "es": "Actualización de prueba"]
+            ]]]
+            let syntheticManifestBytes = try JSONSerialization.data(withJSONObject: syntheticManifest)
+            var manifestRequests: [URLRequest] = []
+            let migratedUpdater = AppUpdater(defaults: updateDefaults, currentVersion: "000000000000",
+                downloadRoot: store.base.appendingPathComponent("update-test"), endpoint: { URL(string: AppUpdater.canonicalManifest) },
+                fetch: { request in
+                    manifestRequests.append(request)
+                    if request.url?.absoluteString == AppUpdater.canonicalManifest { throw URLError(.timedOut) }
+                    guard request.url?.absoluteString == AppUpdater.manifestAPI else { throw Failure("unexpected manifest fallback host") }
+                    return (syntheticManifestBytes, HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: nil)!)
+                })
+            await migratedUpdater.check(manual: true)
+            guard manifestRequests.count == 2, manifestRequests.last?.value(forHTTPHeaderField: "Accept") == "application/vnd.github.raw+json",
+                  migratedUpdater.available?.version == "202610200001",
+                  migratedUpdater.available?.localizedNotes(for: "es") == "Actualización de prueba" else { throw Failure("unified repository manifest/API fallback failed") }
+            checks.append("unified repository raw manifest timeout falls back to API with correct Accept; Spanish update notes preserved; synthetic transport only")
             let fixtureAIProvider = store.settings.ai_provider
             store.settings.ai_provider = "api"
             try store.save()

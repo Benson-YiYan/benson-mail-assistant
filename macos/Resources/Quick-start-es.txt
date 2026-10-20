@@ -1,0 +1,33 @@
+Asistente de correo electrónico para Mac — Inicio rápido
+
+1. Primer inicio
+Se requiere macOS 14 o posterior. Elige el DMG de Apple silicon o Intel según Acerca de este Mac. Arrastra la aplicación a Aplicaciones y ábrela allí. Incluye su entorno; no requiere Python ni Homebrew.
+Elige un proveedor o bien Otro correo (IMAP personalizado). Activa IMAP e introduce dirección completa, servidor, puerto, cifrado y contraseña de aplicación o token OAuth2 requerido. Deja Nombre de usuario en blanco salvo que el proveedor indique lo contrario.
+Pulsa ¿Cómo obtengo un código de autorización? para abrir la guía completa. Guarda y prueba la conexión; no compartas credenciales ni tokens.
+
+2. IA e informes
+En Servicio de IA elige API o un Codex / DeepSeek Harness ya instalado y configurado. API necesita URL base, clave y modelo. Harness no se incluye ni se descarga.
+Guarda y prueba; la prueba de IA puede consumir algunos tokens. En Configuración general usa Examinar para elegir dónde guardar informes; se crean las carpetas necesarias.
+Cada correo nuevo produce seis secciones: aviso, remitente, resumen, acciones, contenido de adjuntos y propuesta de respuesta. Nunca se envían respuestas automáticamente. Sin correo nuevo no se llama a la IA.
+
+3. Buzones y supervisión
+Añade cuentas en Correo y comprobaciones. Cada buzón tiene dirección, conexión, credenciales, proxy y progreso propios; la IA, carpeta e intervalo se comparten.
+Inicia o pausa la supervisión en la ventana principal. Comprobar ahora solicita una comprobación inmediata. Ajusta el intervalo entre 10 y 86400 segundos; 60 es un minuto.
+La primera comprobación de cada cuenta nueva registra el punto de partida y no analiza todo el buzón antiguo. Al reanudar se comprueba el correo recibido durante la pausa si sigue en la carpeta.
+
+4. Lectura, filtros y búsqueda
+Selecciona un informe a la izquierda para verlo a la derecha. La hora aparece separada del título. Los nuevos archivos son Markdown (.md) con vista previa; los TXT antiguos siguen legibles. El nombre del archivo conserva la hora de recepción.
+Busca en cuerpo, remitente y nombres de adjuntos guardados localmente. Combina filtros por fechas, remitente y presencia de adjuntos. Restablecer filtros los borra.
+
+5. Proxy
+Inicia v2rayN u otro cliente. En cada buzón elige Sistema, HTTP CONNECT o SOCKS5 y utiliza su dirección, puerto y protocolo reales. Para Sistema activa el proxy del sistema. Guarda y prueba. No se usa una conexión directa si falla. Solo afecta a IMAP; no a la IA. No se admiten PAC ni proxies con usuario y contraseña.
+
+6. Idioma
+Primer uso: chino en sistemas chinos, español en sistemas españoles e inglés en los demás. Cambia en Configuración general. Si falta un idioma, pregunta «No has descargado este idioma. ¿Quieres descargarlo ahora?». Confirma para descargar; si cancelas o falla conservas el actual. Los informes nuevos siguen el idioma elegido con las mismas seis secciones. Los anteriores no se traducen.
+Nombres: 邮件小秘书 / Email Assistant / Asistente de correo electrónico.
+
+7. Actualizar, salir y desinstalar
+Usa Ayuda > Buscar actualizaciones o Configuración general. Las descargas muestran progreso y permiten cancelar. Tras verificar el paquete, pulsa Instalar y volver a abrir. Se conservan configuración e informes y se intenta restaurar la versión anterior si falla.
+Cerrar la ventana mantiene la supervisión en la barra de menús. Salir desde el Dock, menú o ⌘Q la detiene. Vuelve a abrir y pulsa Iniciar supervisión para continuar.
+Desinstala desde Configuración general. Puedes conservar configuración e informes por separado; borrar informes pide otra confirmación.
+La aplicación tiene firma ad-hoc, sin Developer ID ni certificación notarial. Si macOS bloquea, verifica origen y SHA256, intenta abrir y busca Abrir igualmente en Ajustes del Sistema > Privacidad y seguridad. No desactives Gatekeeper globalmente.

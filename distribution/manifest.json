@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "platforms": {
+    "macos-arm64": {
+      "version": "202610191813",
+      "sha256": "1dddaf4547670b405c3c65eb3acac7803a7c22287fd27ce172ef9bfd56a5de0a",
+      "size": 23397504,
+      "notes": {
+        "zh": "新增每邮箱独立的系统代理、HTTP CONNECT 和 SOCKS5 设置，支持 v2rayN；远程解析 IMAP 域名，保留 TLS 验证，代理失败不回退直连。首次配置、设置及帮助指南中英双语同步更新。旧配置默认直连，请选择代理、保存后测试连接。",
+        "en": "Adds per-account System, HTTP CONNECT and SOCKS5 proxies for tools such as v2rayN, with remote IMAP DNS and verified TLS. Proxy failures do not fall back to Direct. Bilingual first-run settings and guides are included. Existing accounts remain Direct; select a proxy, save and test."
+      },
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.2/BensonMail-Mac-AppleSilicon-202610191813.dmg"
+      ],
+      "url": "https://chapters-indication-pattern-bride.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610191813.dmg"
+    },
+    "macos-x86_64": {
+      "version": "202610191814",
+      "sha256": "a64970758d38d45940684ca0cea6da9152ea1a43f2c65c66f854bce63147e59f",
+      "size": 16465109,
+      "notes": {
+        "zh": "新增每邮箱独立的系统代理、HTTP CONNECT 和 SOCKS5 设置，支持 v2rayN；远程解析 IMAP 域名，保留 TLS 验证，代理失败不回退直连。首次配置、设置及帮助指南中英双语同步更新。旧配置默认直连，请选择代理、保存后测试连接。",
+        "en": "Adds per-account System, HTTP CONNECT and SOCKS5 proxies for tools such as v2rayN, with remote IMAP DNS and verified TLS. Proxy failures do not fall back to Direct. Bilingual first-run settings and guides are included. Existing accounts remain Direct; select a proxy, save and test."
+      },
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.2/BensonMail-Mac-Intel-202610191814.dmg"
+      ],
+      "url": "https://chapters-indication-pattern-bride.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610191814.dmg"
+    },
+    "windows-x64": {
+      "version": "202610192238",
+      "sha256": "9541c8839b1f4b22d3896972116eacc3e12b04cbf13de8d036dbaec6e608e560",
+      "size": 23574710,
+      "notes": {
+        "zh": "新增每邮箱独立的系统代理、HTTP CONNECT 和 SOCKS5 设置，支持 v2rayN；远程解析 IMAP 域名，保留 TLS 验证，代理失败不回退直连。首次配置、设置及帮助指南中英双语同步更新。旧配置默认直连，请选择代理、保存后测试连接。",
+        "en": "Adds per-account System, HTTP CONNECT and SOCKS5 proxies for tools such as v2rayN, with remote IMAP DNS and verified TLS. Proxy failures do not fall back to Direct. Bilingual first-run settings and guides are included. Existing accounts remain Direct; select a proxy, save and test."
+      },
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.2/BensonMail-Windows-x64-Setup-202610192238.exe"
+      ],
+      "url": "https://chapters-indication-pattern-bride.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610192238.exe"
+    }
+  }
+}

@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import importlib.util
 import time
 
 project = Path(__file__).resolve().parents[1]
@@ -14,6 +15,11 @@ evidence.mkdir(parents=True, exist_ok=True)
 (evidence / 'result.json').unlink(missing_ok=True)
 with tempfile.TemporaryDirectory(prefix='BensonMail-UI-test-') as temporary:
     fixture = Path(temporary)
+    spec=importlib.util.spec_from_file_location('pack_builder',project.parent/'script/build_language_packs.py')
+    builder=importlib.util.module_from_spec(spec); spec.loader.exec_module(builder)
+    (fixture/'languages').mkdir()
+    for code in ('zh','en','es'):
+        (fixture/'languages'/(code+'.json')).write_text(json.dumps(builder.payload('macos',code),ensure_ascii=False))
     data = fixture / 'mail_watch'
     data.mkdir()
     output = fixture / '模拟报告'
