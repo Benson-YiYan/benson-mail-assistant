@@ -783,7 +783,12 @@
     "保存本地草稿": "Save local draft",
     "本地草稿已保存，尚未发送。": "Local draft saved, not sent.",
     "收件人": "Recipient",
-    "主题": "Subject"
+    "主题": "Subject",
+    "费用单价": "Cost rates",
+    "每百万输入 Token 单价": "Input price per million tokens",
+    "每百万输出 Token 单价": "Output price per million tokens",
+    "查看用量记录": "View usage records",
+    "以下是计算预估费用的单价，不是 Token 用量或限额。实际调用次数、Token 用量和费用请点击“查看用量记录”。": "These are prices for cost estimates, not token usage or limits. Select View usage records to see actual request counts, tokens and costs."
   },
   "templates": [
     {

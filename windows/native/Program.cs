@@ -524,7 +524,7 @@ sealed partial class MainWindow : Window
         mailAuth.Items.Add(L.T("密码／客户端授权码")); mailAuth.Items.Add(L.T("OAuth2 访问令牌")); mailAuth.SelectedIndex = 0;
         mailProvider.SelectionChanged += (_, _) =>
         {
-            if (changingLanguage || mailProvider.SelectedIndex < 0 || mailProvider.SelectedIndex >= mailPresets.Count) return;
+            if (changingLanguage || loadingMailboxes || loadingSettingsDrafts || mailProvider.SelectedIndex < 0 || mailProvider.SelectedIndex >= mailPresets.Count) return;
             var preset = mailPresets[mailProvider.SelectedIndex];
             if (preset.GetProperty("id").GetString() == "custom") return;
             mailHost.Text = preset.GetProperty("host").GetString() ?? "";

@@ -783,7 +783,12 @@
     "保存本地草稿": "Guardar borrador local",
     "本地草稿已保存，尚未发送。": "Borrador local guardado, sin enviar.",
     "收件人": "Destinatario",
-    "主题": "Asunto"
+    "主题": "Asunto",
+    "费用单价": "Precios unitarios",
+    "每百万输入 Token 单价": "Precio por millón de tokens de entrada",
+    "每百万输出 Token 单价": "Precio por millón de tokens de salida",
+    "查看用量记录": "Ver registros de uso",
+    "以下是计算预估费用的单价，不是 Token 用量或限额。实际调用次数、Token 用量和费用请点击“查看用量记录”。": "Estos son precios para estimar costes, no el uso ni los límites de tokens. Pulsa Ver registros de uso para consultar solicitudes, tokens y costes reales."
   },
   "templates": [
     {

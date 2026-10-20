@@ -61,9 +61,9 @@ sealed partial class MainWindow
         Note(L.T("按日期补总结已有邮件；先查看数量，确认后才加入队列。会跳过已总结邮件，并遵守屏蔽及垃圾邮件设置。")),
         Row(Action(L.T("补总结历史邮件"), BackfillHistory), Action(L.T("导出诊断包"), ExportDiagnostics)),
         Note(L.T("诊断包仅包含脱敏的运行信息，不包含密钥、邮件正文或附件。"))));
-    Border UsageSettingsCard() => Card(Stack(Heading(L.T("费用与用量")),
-        Note(L.T("记录 AI 调用次数和服务商返回的 Token。未返回用量的调用会单独标记；价格由你填写，金额仅为估算。")),
-        inputRate, outputRate, rateCurrency, Note(L.T("价格仅在保存 AI 服务页后生效，并绑定当前基础地址和模型。")), Action(L.T("查看用量"), ShowUsage)));
+    Border UsageSettingsCard() => Card(Stack(Heading(L.T("费用单价")),
+        Note(L.T("以下是计算预估费用的单价，不是 Token 用量或限额。实际调用次数、Token 用量和费用请点击“查看用量记录”。")),
+        inputRate, outputRate, rateCurrency, Note(L.T("价格仅在保存 AI 服务页后生效，并绑定当前基础地址和模型。")), Action(L.T("查看用量记录"), ShowUsage)));
 
     void AssistantToolsSelfTest(Action<bool, string> check)
     {

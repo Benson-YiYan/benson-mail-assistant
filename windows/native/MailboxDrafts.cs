@@ -50,6 +50,9 @@ sealed partial class MainWindow
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => JsonText(p, "id") == Text("mail_provider", "custom"));
             mailHost.Text = Text("host", "imap.163.com"); mailPort.Text = Text("port", "993");
             mailUsername.Text = OptionalMailUsername(account.Text, Text("username"));
+            // TextChanged is dispatched later; the selected profile and its login
+            // explanation must already agree before this switch returns.
+            RefreshMailLogin(account, mailUsername, mailLoginSummary);
             mailFolder.Text = Text("mail_folder", "INBOX"); mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0; mailProxy.Load(connection);
             savedMailboxes.SelectedIndex = index;

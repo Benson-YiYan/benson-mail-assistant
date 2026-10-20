@@ -16,8 +16,8 @@ sealed partial class MainWindow
     readonly Dictionary<string, TextBlock> pageDirtyLabels = new();
     readonly Dictionary<string, ContentControl> settingsPageHosts = new();
     readonly ToggleSwitch notificationsSetting = new() { Header = L.T("系统通知"), OnContent = L.T("开启"), OffContent = L.T("关闭") };
-    readonly TextBox inputRate = new() { Header = L.T("每百万输入 Token 价格"), Text = "0" };
-    readonly TextBox outputRate = new() { Header = L.T("每百万输出 Token 价格"), Text = "0" };
+    readonly TextBox inputRate = new() { Header = L.T("每百万输入 Token 单价"), Text = "0" };
+    readonly TextBox outputRate = new() { Header = L.T("每百万输出 Token 单价"), Text = "0" };
     readonly TextBox rateCurrency = new() { Header = L.T("币种"), Text = "USD", MaxLength = 3 };
     readonly TextBox codexPath = new() { Header = L.T("Codex 启动器"), PlaceholderText = L.T("留空使用已保存的 Codex 启动器") };
     bool loadingSettingsDrafts;
@@ -179,6 +179,9 @@ sealed partial class MainWindow
             saved.GetProperty("mail_folder").GetString() == "Archive" && saved.GetProperty("interval").GetInt32() == 77 &&
             saved.GetProperty("mail_policy").GetProperty("skip_spam").GetBoolean() && !SettingsDirty("mail"),
             "The single page Save commits connection, credential, interval and policy together and clears dirty state");
+        await Task.Delay(150);
+        check(!SettingsDirty("mail") && pageDirtyLabels["mail"].Visibility == Visibility.Collapsed,
+            "Queued native field-change events keep the freshly saved mailbox page clean");
         var savedCount = saved.GetProperty("mailboxes").GetArrayLength();
         await AddMailboxDraft(); await RemoveMailboxDraftForFixture();
         check((await bridge.Call("config")).GetProperty("mailboxes").GetArrayLength() == savedCount,
