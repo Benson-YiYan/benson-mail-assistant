@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.UI.Xaml;
@@ -19,6 +21,28 @@ internal static class L
         ["Uninstall Email Assistant"] = "卸载邮件小秘书", ["Desinstalar Asistente de correo electrónico"] = "卸载邮件小秘书"
     };
     static readonly List<(Regex pattern, string english)> templates = new();
+    sealed class LabelSource
+    {
+        internal readonly Dictionary<string, (string source, string displayed)> Properties = new();
+    }
+    static readonly ConditionalWeakTable<DependencyObject, LabelSource> sources = new();
+    static readonly Dictionary<string, Dictionary<string, string>> fallbackExact = new();
+    static readonly Dictionary<string, List<(Regex pattern, string english)>> fallbackTemplates = new();
+    static L()
+    {
+        foreach (var code in new[] { "en", "es" }) {
+            var labels = new Dictionary<string, string>();
+            var patterns = new List<(Regex pattern, string english)>();
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("BensonMail.ui-" + code + ".json")
+                ?? throw new InvalidDataException("Missing built-in interface labels: " + code);
+            using var document = JsonDocument.Parse(stream);
+            foreach (var item in document.RootElement.GetProperty("exact").EnumerateObject()) labels[item.Name] = item.Value.GetString()!;
+            foreach (var row in document.RootElement.GetProperty("templates").EnumerateArray())
+                patterns.Add((new Regex(row.GetProperty("pattern").GetString()!, RegexOptions.Singleline, TimeSpan.FromMilliseconds(100)), row.GetProperty("en").GetString()!));
+            fallbackExact[code] = labels;
+            fallbackTemplates[code] = patterns;
+        }
+    }
     internal static string Detect(string name) => name.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? "zh" : name.StartsWith("es", StringComparison.OrdinalIgnoreCase) ? "es" : "en";
     internal static string? FixtureHome { get; set; }
     internal static string DataHome => FixtureHome ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail");
@@ -97,6 +121,18 @@ internal static class L
     {
         if (value == null) return "";
         if (originals.TryGetValue(value, out var original)) value = original;
+        else {
+            // Status lines concatenate an owned prefix with paths, versions or
+            // technical diagnostics. Reverse only that prefix, preserving data.
+            string? prefix = null, sourcePrefix = null;
+            foreach (var pair in originals)
+                if (pair.Value.EndsWith("：", StringComparison.Ordinal) &&
+                    value.StartsWith(pair.Key, StringComparison.Ordinal) &&
+                    (prefix == null || pair.Key.Length > prefix.Length)) {
+                    prefix = pair.Key; sourcePrefix = pair.Value;
+                }
+            if (prefix != null) value = sourcePrefix + value[prefix.Length..];
+        }
         if (Code == "zh") return value;
         if (value == "邮件小秘书") return Code == "es" ? "Asistente de correo electrónico" : "Email Assistant";
         if (value == "卸载邮件小秘书") return Code == "es" ? "Desinstalar Asistente de correo electrónico" : "Uninstall Email Assistant";
@@ -114,12 +150,45 @@ internal static class L
         // Keep update recovery usable with a language pack downloaded by an older release.
         if (translated == null && value == "前往 GitHub 下载最新版")
             translated = Bootstrap(value, "Download the latest version from GitHub", "Descargar la última versión desde GitHub");
+        if (translated == null && fallbackExact.TryGetValue(Code, out var builtIn) && builtIn.TryGetValue(value, out var fallback)) translated = fallback;
+        if (translated == null && fallbackTemplates.TryGetValue(Code, out var patterns)) foreach (var (pattern, replacement) in patterns) {
+            var match = pattern.Match(value);
+            if (!match.Success) continue;
+            translated = Regex.Replace(replacement, @"\{(\d+)\}", slot => {
+                var n = int.Parse(slot.Groups[1].Value) + 1;
+                return n < match.Groups.Count ? match.Groups[n].Value : slot.Value;
+            });
+            break;
+        }
         if (translated == null) translated = SenderPolicyLocalization.Translate(value, Code);
-        if (translated == null && exact.Count == 0 && (Program.Uninstall || Array.IndexOf(Program.Args, "--uninstall-ui-test") >= 0))
+        if (translated == null && (Program.Uninstall || Array.IndexOf(Program.Args, "--uninstall-ui-test") >= 0))
             translated = UninstallLocalization.Translate(value, Code);
+        if (translated == null) {
+            // These prefixes are often combined by the caller rather than a
+            // format template, so translate their app-owned part separately.
+            foreach (var pair in exact)
+                if (pair.Key.EndsWith("：", StringComparison.Ordinal) && value.StartsWith(pair.Key, StringComparison.Ordinal)) {
+                    translated = pair.Value + value[pair.Key.Length..]; break;
+                }
+            if (translated == null && fallbackExact.TryGetValue(Code, out var prefixLabels)) foreach (var pair in prefixLabels)
+                if (pair.Key.EndsWith("：", StringComparison.Ordinal) && value.StartsWith(pair.Key, StringComparison.Ordinal)) {
+                    translated = pair.Value + value[pair.Key.Length..]; break;
+                }
+        }
         if (translated == null) return value;
         originals[translated] = value;
         return translated;
+    }
+    static string Property(DependencyObject owner, string name, string value)
+    {
+        var properties = sources.GetValue(owner, _ => new LabelSource()).Properties;
+        // Keep the exact source for each label. Different Chinese labels can share
+        // one English/Spanish translation; a global reverse map alone loses them.
+        var source = properties.TryGetValue(name, out var previous) && previous.displayed == value
+            ? previous.source : originals.TryGetValue(value, out var original) ? original : value;
+        var displayed = T(source);
+        properties[name] = (source, displayed);
+        return displayed;
     }
     // Only application-owned labels. Never walk editable inputs or report contents.
     internal static void Apply(UIElement? element, params UIElement[] excluded)
@@ -127,23 +196,25 @@ internal static class L
         if (element == null || Array.IndexOf(excluded, element) >= 0) return;
         if (element is FrameworkElement frame) frame.Language = Locale;
         switch (element) {
-            case TextBox box: box.Header = box.Header is string h ? T(h) : box.Header; box.PlaceholderText = T(box.PlaceholderText); return;
-            case PasswordBox box: box.Header = box.Header is string passwordHeader ? T(passwordHeader) : box.Header; box.PlaceholderText = T(box.PlaceholderText); return;
-            case CalendarDatePicker date: date.Header = date.Header is string dateHeader ? T(dateHeader) : date.Header; date.PlaceholderText = T(date.PlaceholderText); return;
-            case ToggleSwitch toggle: toggle.Header = toggle.Header is string toggleHeader ? T(toggleHeader) : toggle.Header; toggle.OnContent = toggle.OnContent is string on ? T(on) : toggle.OnContent; toggle.OffContent = toggle.OffContent is string off ? T(off) : toggle.OffContent; return;
+            case TextBox box: box.Header = box.Header is string h ? Property(box, "Header", h) : box.Header; box.PlaceholderText = Property(box, "Placeholder", box.PlaceholderText); return;
+            case PasswordBox box: box.Header = box.Header is string passwordHeader ? Property(box, "Header", passwordHeader) : box.Header; box.PlaceholderText = Property(box, "Placeholder", box.PlaceholderText); return;
+            case CalendarDatePicker date: date.Header = date.Header is string dateHeader ? Property(date, "Header", dateHeader) : date.Header; date.PlaceholderText = Property(date, "Placeholder", date.PlaceholderText); return;
+            case ToggleSwitch toggle: toggle.Header = toggle.Header is string toggleHeader ? Property(toggle, "Header", toggleHeader) : toggle.Header; toggle.OnContent = toggle.OnContent is string on ? Property(toggle, "On", on) : toggle.OnContent; toggle.OffContent = toggle.OffContent is string off ? Property(toggle, "Off", off) : toggle.OffContent; return;
             case ComboBox combo:
-                combo.Header = combo.Header is string header ? T(header) : combo.Header;
+                combo.Header = combo.Header is string header ? Property(combo, "Header", header) : combo.Header;
                 var selected = combo.SelectedIndex;
                 // Updating the collection raises selection events; caller suppresses their side effects.
-                for (var i = 0; i < combo.Items.Count; i++) if (combo.Items[i] is string item) combo.Items[i] = T(item);
+                for (var i = 0; i < combo.Items.Count; i++) if (combo.Items[i] is string item) combo.Items[i] = Property(combo, "Item" + i, item);
                 combo.SelectedIndex = selected; return;
-            case TextBlock text: text.Text = T(text.Text); return;
+            case TextBlock text: text.Text = Property(text, "Text", text.Text); return;
             case Panel panel: foreach (var child in panel.Children) Apply(child, excluded); return;
             case Border border: Apply(border.Child, excluded); return;
             case ScrollViewer scroll: Apply(scroll.Content as UIElement, excluded); return;
-            case ListView list: foreach (var item in list.Items) if (item is UIElement child) Apply(child, excluded); return;
+            case ListView list:
+                if (list.Header is string listHeader) list.Header = Property(list, "Header", listHeader);
+                foreach (var item in list.Items) if (item is UIElement child) Apply(child, excluded); return;
             case ContentControl content:
-                if (content.Content is string label) content.Content = T(label);
+                if (content.Content is string label) content.Content = Property(content, "Content", label);
                 else Apply(content.Content as UIElement, excluded);
                 return;
         }

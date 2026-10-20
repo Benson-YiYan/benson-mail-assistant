@@ -679,7 +679,16 @@
     "添加": "Añadir",
     "总结此邮件": "Resumir este correo",
     "删除此记录": "Borrar este registro",
-    "拖动调整报告与聊天区域": "Arrastra para ajustar el informe y el chat"
+    "拖动调整报告与聊天区域": "Arrastra para ajustar el informe y el chat",
+    "打开报告": "Abrir informe",
+    "安装程序未能启动，请重试。": "No se pudo iniciar el instalador. Vuelve a intentarlo.",
+    "安装日志：": "Registro del instalador: ",
+    "安装程序提前退出，尚未开始更新。退出代码：": "El instalador se cerró antes de comenzar la actualización. Código de salida: ",
+    "安装程序在20秒内未确认启动，当前应用将继续运行。请检查系统安全提示后重试。": "El instalador no confirmó el inicio en 20 segundos. La aplicación seguirá funcionando. Revisa los avisos de seguridad de Windows y vuelve a intentarlo.",
+    "更新已完成：": "Actualización finalizada: ",
+    "上次更新尚未确认完成。可以重试安装；详情请查看日志：": "No se confirmó que terminara la actualización anterior. Puedes volver a intentar la instalación. Consulta el registro: ",
+    "安装已经开始，无法确认取消。请等待安装程序结束，查看日志后再重试。": "La instalación ya ha comenzado; no se puede confirmar la cancelación. Espera a que termine el instalador y consulta el registro antes de volver a intentarlo: ",
+    "语言包不可用。": "El paquete de idioma no está disponible."
   },
   "templates": [
     {
@@ -961,13 +970,5 @@
       "en": "Introduce una dirección de correo completa: {0}",
       "pattern": "^请输入完整的邮箱地址：(.*)$"
     }
-  ],
-  "打开报告": "Abrir informe",
-  "安装程序未能启动，请重试。": "No se pudo iniciar el instalador. Vuelve a intentarlo.",
-  "安装日志：": "Registro del instalador: ",
-  "安装程序提前退出，尚未开始更新。退出代码：": "El instalador se cerró antes de comenzar la actualización. Código de salida: ",
-  "安装程序在20秒内未确认启动，当前应用将继续运行。请检查系统安全提示后重试。": "El instalador no confirmó el inicio en 20 segundos. La aplicación seguirá funcionando. Revisa los avisos de seguridad de Windows y vuelve a intentarlo.",
-  "更新已完成：": "Actualización finalizada: ",
-  "上次更新尚未确认完成。可以重试安装；详情请查看日志：": "No se confirmó que terminara la actualización anterior. Puedes volver a intentar la instalación. Consulta el registro: ",
-  "安装已经开始，无法确认取消。请等待安装程序结束，查看日志后再重试。": "La instalación ya ha comenzado; no se puede confirmar la cancelación. Espera a que termine el instalador y consulta el registro antes de volver a intentarlo: "
+  ]
 }

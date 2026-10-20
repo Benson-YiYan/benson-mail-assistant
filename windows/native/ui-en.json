@@ -679,7 +679,16 @@
     "添加": "Add",
     "总结此邮件": "Summarize this email",
     "删除此记录": "Delete this record",
-    "拖动调整报告与聊天区域": "Drag to resize the report and chat panes"
+    "拖动调整报告与聊天区域": "Drag to resize the report and chat panes",
+    "打开报告": "Open report",
+    "安装程序未能启动，请重试。": "Setup could not be started. Please retry.",
+    "安装日志：": "Setup log: ",
+    "安装程序提前退出，尚未开始更新。退出代码：": "Setup exited before the update began. Exit code: ",
+    "安装程序在20秒内未确认启动，当前应用将继续运行。请检查系统安全提示后重试。": "Setup did not confirm startup within 20 seconds. The app will keep running. Check any Windows security prompt and retry.",
+    "更新已完成：": "Update completed: ",
+    "上次更新尚未确认完成。可以重试安装；详情请查看日志：": "The previous update has not been confirmed complete. You can retry installation. See the log: ",
+    "安装已经开始，无法确认取消。请等待安装程序结束，查看日志后再重试。": "Installation has already started; cancellation cannot be confirmed. Wait for Setup to finish and check the log before retrying: ",
+    "语言包不可用。": "The language pack is unavailable."
   },
   "templates": [
     {
@@ -961,13 +970,5 @@
       "en": "Enter a complete email address: {0}",
       "pattern": "^请输入完整的邮箱地址：(.*)$"
     }
-  ],
-  "打开报告": "Open report",
-  "安装程序未能启动，请重试。": "Setup could not be started. Please retry.",
-  "安装日志：": "Setup log: ",
-  "安装程序提前退出，尚未开始更新。退出代码：": "Setup exited before the update began. Exit code: ",
-  "安装程序在20秒内未确认启动，当前应用将继续运行。请检查系统安全提示后重试。": "Setup did not confirm startup within 20 seconds. The app will keep running. Check any Windows security prompt and retry.",
-  "更新已完成：": "Update completed: ",
-  "上次更新尚未确认完成。可以重试安装；详情请查看日志：": "The previous update has not been confirmed complete. You can retry installation. See the log: ",
-  "安装已经开始，无法确认取消。请等待安装程序结束，查看日志后再重试。": "Installation has already started; cancellation cannot be confirmed. Wait for Setup to finish and check the log before retrying: "
+  ]
 }

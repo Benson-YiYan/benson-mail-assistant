@@ -553,7 +553,7 @@ sealed partial class MainWindow : Window
         };
         mailPage.Children.Add(SettingsPage(Stack(
             Card(Stack(languageChoice, Note(L.T("语言更改立即生效，下次打开时保留。")),
-                Note(L.T("当前版本：") + UpdateClient.InstalledVersion), Row(updateButton), updateStatus, updateFallbackButton,
+                Note(L.T("当前版本：" + UpdateClient.InstalledVersion)), Row(updateButton), updateStatus, updateFallbackButton,
                 Note(L.T("每 5 小时自动检查更新；仅提示下载，不会自动安装。")))),
             Card(Stack(Heading(L.T("管理邮箱")), savedMailboxes,
                 Row(Action(L.T("添加邮箱"), async () => {
@@ -1181,9 +1181,9 @@ sealed partial class MainWindow : Window
     {
         try {
             if (!await EnsureLanguage(code)) return;
-            if (!L.TryLoad(code)) throw new IOException("Language pack unavailable");
+            if (!L.TryLoad(code)) throw new IOException(L.T("语言包不可用。"));
             await bridge.Call("save_language", new { ui_language = code });
-            if (!L.Select(code)) throw new IOException("Language pack unavailable");
+            if (!L.Select(code)) throw new IOException(L.T("语言包不可用。"));
         } finally {
             changingLanguage = true;
             languageChoice.SelectedIndex = L.Code == "zh" ? 0 : L.Code == "es" ? 2 : 1;
@@ -1212,6 +1212,7 @@ sealed partial class MainWindow : Window
             RefreshConversationLanguage();
             RefreshSenderPolicyLanguage();
             RenderSenderPolicyAddresses();
+            senderPolicyStatus.Text = L.T(senderPolicyStatus.Text);
         } finally { changingLanguage = false; }
     }
     void Restore() { AppWindow.Show(); Activate(); }
@@ -1256,7 +1257,7 @@ sealed partial class MainWindow : Window
                 "Essential offline uninstall controls remain English and Spanish without optional application packs");
             Check(AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized },
                 "Main window starts maximized with the standard window presenter");
-            UpdateRecoverySelfTest(Check);
+            await UpdateRecoverySelfTest(Check);
             await SenderPolicySelfTest(Check);
             Program.Trace("Begin offline update transport and stream tests");
             checks.AddRange(await UpdateClient.OfflineTests(fixture!));

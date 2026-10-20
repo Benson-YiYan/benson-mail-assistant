@@ -1,4 +1,5 @@
 """Invoke the user's installed dsh CLI; never bundle or download Harness."""
+from runtime_i18n import text as _t, localized, localized_method, localized_from_root
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ import tempfile
 import time
 
 
+@localized
 def discover(path=''):
     candidates = [Path(path).expanduser()] if path.strip() else []
     if not path.strip():
@@ -30,27 +32,29 @@ def discover(path=''):
             candidate = candidate / 'Contents/Resources/runtime/cli/bin/dsh'
         if candidate.is_file() and (os.name == 'nt' or os.access(candidate, os.X_OK)):
             return str(candidate.absolute())
-    raise RuntimeError('未找到已安装的 DeepSeek Harness。请先安装并配置，在设置中选择 dsh（Windows 为 dsh.cmd 或 dsh.exe）。不会自动下载。')
+    raise RuntimeError(_t('未找到已安装的 DeepSeek Harness。请先安装并配置，在设置中选择 dsh（Windows 为 dsh.cmd 或 dsh.exe）。不会自动下载。'))
 
 
+@localized
 def command(path, args):
     argv = [discover(path)] + args
     if os.name == 'nt' and Path(argv[0]).suffix.lower() in ('.cmd', '.bat'):
         # Only trusted launcher/patch paths and fixed flags enter cmd; mail goes to stdin.
         if any(any(c in value for c in ('%', '!', '\r', '\n', '"')) for value in argv):
-            raise RuntimeError('Harness 启动路径含不支持的字符，请换一个安装位置。')
+            raise RuntimeError(_t('Harness 启动路径含不支持的字符，请换一个安装位置。'))
         return subprocess.list2cmdline([os.environ.get('COMSPEC', 'cmd.exe')]) + ' /d /s /c "' + ' '.join('"' + value + '"' for value in argv) + '"'
     return argv
 
 
+@localized
 def complete(base='', model='', key='', messages=(), stop=None, *, cli_path=''):
     # base/model/key are intentionally unused: configuration and credentials belong to dsh.
     if stop is not None and stop.is_set():
-        raise RuntimeError('分析已停止，邮件将在下次重试。')
+        raise RuntimeError(_t('分析已停止，邮件将在下次重试。'))
     system = '\n\n'.join(m['content'] for m in messages if m['role'] == 'system')
     prompt = '\n\n'.join(m['content'] for m in messages if m['role'] != 'system')
     if len((system + prompt).encode()) > 2 * 1024 * 1024:
-        raise ValueError('本封邮件及附件文字过大，尚未发送给 AI。')
+        raise ValueError(_t('本封邮件及附件文字过大，尚未发送给 AI。'))
     with tempfile.TemporaryDirectory(prefix='BensonMail-Harness-') as temporary:
         root = Path(temporary)
         patch = root / 'mail.patch.json'
@@ -77,9 +81,9 @@ def complete(base='', model='', key='', messages=(), stop=None, *, cli_path=''):
                 deadline = time.monotonic() + 180
                 while process.poll() is None:
                     if stop is not None and stop.is_set():
-                        raise RuntimeError('分析已停止，邮件将在下次重试。')
+                        raise RuntimeError(_t('分析已停止，邮件将在下次重试。'))
                     if time.monotonic() >= deadline:
-                        raise RuntimeError('DeepSeek Harness 响应超时，请检查其网络及模型设置。')
+                        raise RuntimeError(_t('DeepSeek Harness 响应超时，请检查其网络及模型设置。'))
                     time.sleep(.1)
                 out.seek(0)
                 answer = ''
@@ -91,7 +95,7 @@ def complete(base='', model='', key='', messages=(), stop=None, *, cli_path=''):
                     if event.get('type') == 'final':
                         answer = event.get('text', '')
                 if process.returncode or not isinstance(answer, str) or not answer.strip():
-                    raise RuntimeError('已安装的 DeepSeek Harness 执行失败（退出码 ' + str(process.returncode) + '）。请在 Harness 中检查登录、模型与网络，并确认版本支持 headless --json。')
+                    raise RuntimeError(_t('已安装的 DeepSeek Harness 执行失败（退出码 ') + str(process.returncode) + _t('）。请在 Harness 中检查登录、模型与网络，并确认版本支持 headless --json。'))
                 return answer
             finally:
                 if process.poll() is None:

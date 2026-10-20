@@ -10,9 +10,9 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'windows'))
 from benson_mail import mail_chat as windows
+sys.path.insert(0, str(ROOT / 'macos/Runtime'))
 spec = importlib.util.spec_from_file_location('mac_mail_chat_tests', ROOT / 'macos/Runtime/mail_chat.py')
 mac = importlib.util.module_from_spec(spec); spec.loader.exec_module(mac)
-sys.path.insert(0, str(ROOT / 'macos/Runtime'))
 
 class MailChatTests(unittest.TestCase):
     def fixture(self, module, language='en'):

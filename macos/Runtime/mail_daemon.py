@@ -147,7 +147,7 @@ def analyze(message):
             temp.unlink(missing_ok=True)
             if settings().get('ai_provider', 'codex') in ('api', 'deepseek_harness'):
                 from ai_runner import analyze_api
-                atomic(temp, analyze_api(message, folder))
+                atomic(temp, analyze_api(message, folder, language=settings().get('ui_language', 'zh')))
                 failed = False
             else:
                 with (folder / 'analysis.log').open('w', encoding='utf-8') as out:

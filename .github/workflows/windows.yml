@@ -65,6 +65,8 @@ jobs:
       - name: Unit tests
         run: |
           New-Item -ItemType Directory -Force evidence | Out-Null
+          python ../script/test_language_catalogs.py
+          if ($LASTEXITCODE -ne 0) { throw 'Translation catalog validation failed' }
           python -m unittest discover -s tests -v 2>&1 | Tee-Object evidence/unit-tests.txt
           if ($LASTEXITCODE -ne 0) { throw 'Unit tests failed' }
       - name: Source application UI and platform self-test

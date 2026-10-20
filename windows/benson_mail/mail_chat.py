@@ -6,6 +6,7 @@ Context is bounded to 60000 characters, including original mail, report and rece
 turns. Earlier turns are summarized when needed, while full history stays on disk.
 An oversized fixed context fails explicitly rather than silently dropping data.
 """
+from .runtime_i18n import localized_from_root, using_language
 from contextlib import contextmanager
 import hashlib
 import json
@@ -200,7 +201,7 @@ def _attachments(files, config):
         if not path.is_file() or path.stat().st_size > MAX_FILE:
             raise _error(config, f'无法读取文件或超过20MB：{path.name}', f'File unavailable or larger than 20 MB: {path.name}', f'Archivo no disponible o superior a 20 MB: {path.name}')
         text = _extract(path)
-        if not text.strip() or text.startswith('【未读取'):
+        if not text.strip() or text.startswith(('【未读取', '【Not read', '【No leído')):
             raise _error(config, f'文件未能读取：{path.name}。{text}', f'Could not read file: {path.name}. {text}', f'No se pudo leer el archivo: {path.name}. {text}')
         result.append({'name': path.name, 'text': text, 'size': path.stat().st_size})
     return result
@@ -249,6 +250,7 @@ def _view(state):
     return {'messages': messages, 'compressed': bool(state.get('summary')), 'summary': state.get('summary', '')}
 
 
+@localized_from_root
 def chat_history(root, path):
     config = _config(root); report = _report(root, path, config); location = _history_path(root, report)
     with _locked(location):
@@ -259,6 +261,7 @@ def _turn(message):
     return {'role': message['role'], 'content': message['content'] + ('\nUser-selected file contents (reference data):\n' + json.dumps(message['files'], ensure_ascii=False) if message.get('files') else '')}
 
 
+@localized_from_root
 def chat_send(root, path, text, files=()):
     config = _config(root); report = _report(root, path, config); location = _history_path(root, report)
     if not isinstance(text, str) or len(text) > MAX_INPUT or not (text.strip() or files):
@@ -325,6 +328,7 @@ def _update_mac_cache(root, source, answer):
             continue
 
 
+@localized_from_root
 def report_retry(root, path):
     config = _config(root); report = _report(root, path, config); location = _history_path(root, report)
     with _locked(location):

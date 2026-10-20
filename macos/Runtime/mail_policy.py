@@ -1,4 +1,5 @@
 """Local sender policy and durable skipped-mail queue. Never modifies server mail."""
+from runtime_i18n import text as _t, localized, localized_method, localized_from_root
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from email.utils import parseaddr
@@ -19,19 +20,19 @@ def sender_address(value):
     return parseaddr(str(value or ''))[1].strip().casefold()
 
 def validate_policy(value):
-    if not isinstance(value, dict): raise ValueError('屏蔽规则无效。')
+    if not isinstance(value, dict): raise ValueError(_t('屏蔽规则无效。'))
     mode = value.get('mode', 'blacklist')
-    if mode not in ('blacklist', 'whitelist'): raise ValueError('请选择黑名单或白名单。')
+    if mode not in ('blacklist', 'whitelist'): raise ValueError(_t('请选择黑名单或白名单。'))
     raw = value.get('addresses', [])
-    if not isinstance(raw, list) or len(raw) > 10000: raise ValueError('邮箱地址列表无效。')
+    if not isinstance(raw, list) or len(raw) > 10000: raise ValueError(_t('邮箱地址列表无效。'))
     addresses = []
     for item in raw:
         address = sender_address(item)
         if not re.fullmatch(r'[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+', address) or len(address) > 254:
-            raise ValueError('请输入完整的邮箱地址：' + str(item)[:100])
+            raise ValueError(_t('请输入完整的邮箱地址：') + str(item)[:100])
         if address not in addresses: addresses.append(address)
     skip = value.get('skip_spam', False)
-    if not isinstance(skip, bool): raise ValueError('垃圾邮件选项无效。')
+    if not isinstance(skip, bool): raise ValueError(_t('垃圾邮件选项无效。'))
     return {'mode': mode, 'addresses': addresses, 'skip_spam': skip}
 
 @contextmanager
@@ -72,6 +73,7 @@ def _policy(root, state):
             if 'mail_policy' in config: return validate_policy(config['mail_policy'])
     return copy.deepcopy(DEFAULT)
 
+@localized_from_root
 def policy_status(root):
     with _store(root) as state:
         records = [{key: value for key, value in record.items() if key not in ('message', 'answer', 'new_notified')}
@@ -80,23 +82,26 @@ def policy_status(root):
         return {'policy': _policy(root, state), 'records': records, 'count': len(records),
                 'senders': sorted({record['sender'] for record in records if record.get('sender')})}
 
+@localized_from_root
 def policy_save(root, data):
     validated = validate_policy(data)
     with _store(root) as state: state['policy'] = validated
     return policy_status(root)
 
+@localized_from_root
 def policy_remove_records(root, ids):
-    if not isinstance(ids, list): raise ValueError('请选择邮件记录。')
+    if not isinstance(ids, list): raise ValueError(_t('请选择邮件记录。'))
     with _store(root) as state:
         for identifier in ids:
             record = state['records'].get(str(identifier))
-            if record and record.get('state') == 'processing': raise ValueError('邮件正在总结，请完成后再删除记录。')
+            if record and record.get('state') == 'processing': raise ValueError(_t('邮件正在总结，请完成后再删除记录。'))
         for identifier in ids: state['records'].pop(str(identifier), None)
     # Cached attachment files are intentionally retained: existing reports may reference them.
     return policy_status(root)
 
+@localized_from_root
 def policy_summarize_records(root, ids):
-    if not isinstance(ids, list): raise ValueError('请选择邮件记录。')
+    if not isinstance(ids, list): raise ValueError(_t('请选择邮件记录。'))
     with _store(root) as state:
         for identifier in ids:
             record = state['records'].get(str(identifier))

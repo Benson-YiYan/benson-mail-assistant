@@ -3,14 +3,41 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import re
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 LANGUAGES=('zh','en','es')
 
+def validate_catalog(catalog, platform, code):
+    """Reject leaked source labels and broken dynamic-message translations."""
+    if set(catalog) != {'exact', 'templates'}:
+        raise ValueError(f'{platform}/{code}: labels must be inside exact, not at the catalog root')
+    if not isinstance(catalog['exact'], dict) or not isinstance(catalog['templates'], list):
+        raise ValueError(f'{platform}/{code}: invalid catalog structure')
+    if code == 'zh':
+        return
+    for source, translated in catalog['exact'].items():
+        if not isinstance(translated, str) or not translated.strip():
+            raise ValueError(f'{platform}/{code}: empty translation for {source!r}')
+        if re.search(r'[\u3400-\u9fff]', translated):
+            raise ValueError(f'{platform}/{code}: Chinese text remains in translation for {source!r}')
+    seen = {}
+    for row in catalog['templates']:
+        pattern, translated = row['pattern'], row['en']
+        expression = re.compile(pattern)
+        if not translated.strip() or re.search(r'[\u3400-\u9fff]', translated):
+            raise ValueError(f'{platform}/{code}: untranslated dynamic message {pattern!r}')
+        if pattern in seen and seen[pattern] != translated:
+            raise ValueError(f'{platform}/{code}: conflicting translations for {pattern!r}')
+        seen[pattern] = translated
+        if any(int(slot) >= expression.groups for slot in re.findall(r'\{(\d+)\}', translated)):
+            raise ValueError(f'{platform}/{code}: invalid placeholder in {pattern!r}')
+
 def payload(platform,code):
     folder=ROOT/('macos/Resources' if platform=='macos' else 'windows/native')
     catalog={'exact':{},'templates':[]} if code=='zh' else json.loads((folder/f'ui-{code}.json').read_text(encoding='utf-8'))
+    validate_catalog(catalog, platform, code)
     docs=ROOT/('macos/Resources' if platform=='macos' else 'windows/docs')
     quick=docs/f'Quick-start-{code}.txt'
     return {'schema_version':1,'language':code,'platform':platform,**catalog,'guides':{

@@ -1,4 +1,4 @@
-#ifndef AppVersion
+﻿#ifndef AppVersion
   #error AppVersion is required
 #endif
 #ifndef PackageDir
@@ -122,6 +122,28 @@ spanish.DownloadSpanish=Descargar español
 english.LanguageDownloadFailed=The %1 language pack could not be downloaded or verified. Retry now? Cancel keeps the application installed; it will ask to download the missing language when you open it.
 chinesesimp.LanguageDownloadFailed=%1语言包下载或校验失败。是否重试？取消后软件仍已安装，打开时会提示下载缺失的语言。
 spanish.LanguageDownloadFailed=No se pudo descargar o verificar el paquete de idioma %1. ¿Reintentar? Si cancelas, la aplicación seguirá instalada y te pedirá descargar el idioma cuando la abras.
+
+english.UpdateCancelled=Update cancelled before installation.
+chinesesimp.UpdateCancelled=已在安装开始前取消更新。
+spanish.UpdateCancelled=Actualización cancelada antes de la instalación.
+english.NoShortcutName=Unable to choose an available shortcut name.
+chinesesimp.NoShortcutName=无法选择可用的快捷方式名称。
+spanish.NoShortcutName=No se pudo elegir un nombre disponible para el acceso directo.
+english.ShortcutPreserveFailed=The existing shortcut choices could not be preserved.
+chinesesimp.ShortcutPreserveFailed=无法保留原有快捷方式选择。
+spanish.ShortcutPreserveFailed=No se pudieron conservar las opciones de accesos directos existentes.
+english.ShortcutRemoveFailed=Could not remove the previous Email Assistant shortcut:
+chinesesimp.ShortcutRemoveFailed=无法移除旧版邮件小秘书快捷方式：
+spanish.ShortcutRemoveFailed=No se pudo quitar el acceso directo anterior:
+english.MigrationListFailed=Cannot read the legacy payload migration list.
+chinesesimp.MigrationListFailed=无法读取旧版文件迁移清单。
+spanish.MigrationListFailed=No se pudo leer la lista de migración de archivos anteriores.
+english.ObsoleteRuntimeFailed=Cannot remove an obsolete runtime file:
+chinesesimp.ObsoleteRuntimeFailed=无法移除旧版运行时文件：
+spanish.ObsoleteRuntimeFailed=No se pudo quitar un archivo de componente obsoleto:
+english.NewExecutableMissing=The new application executable is missing.
+chinesesimp.NewExecutableMissing=新版本应用程序文件缺失。
+spanish.NewExecutableMissing=Falta el ejecutable de la nueva versión de la aplicación.
 
 [Tasks]
 Name: "desktopapp"; Description: "{cm:DesktopApp}"; GroupDescription: "{cm:ShortcutChoices}"
@@ -546,7 +568,7 @@ begin
     (WizardIsTaskSelected('desktopuninstall') <> DesktopUninstall) or
     (WizardIsTaskSelected('startapp') <> StartApp) or
     (WizardIsTaskSelected('startuninstall') <> StartUninstall) then
-      RaiseException('The existing shortcut choices could not be preserved.');
+      RaiseException(CustomMessage('ShortcutPreserveFailed'));
   Log('Restored shortcut choices: ' + Tasks);
 end;
 
@@ -587,7 +609,7 @@ begin
         Filename := AddBackslash(Directory) + Entry.Name;
         if IsOurShortcut(Filename) then
           if not DeleteFile(Filename) then
-            RaiseException('Could not remove the previous Email Assistant shortcut: ' + Filename);
+            RaiseException(CustomMessage('ShortcutRemoveFailed') + ' ' + Filename);
       until not FindNext(Entry);
     finally
       FindClose(Entry);
@@ -627,7 +649,7 @@ var
 begin
   if not HadLegacyPayload then Exit;
   if not LoadStringsFromFile(ExpandConstant('{app}\.benson-obsolete-files.tsv'), Lines) then
-    RaiseException('Cannot read the legacy payload migration list.');
+    RaiseException(CustomMessage('MigrationListFailed'));
   Root := RemoveBackslashUnlessRoot(ExpandConstant('{app}'));
   for I := 0 to GetArrayLength(Lines) - 1 do
   begin
@@ -645,8 +667,8 @@ begin
           begin
             if not DeleteFile(Filename) then
             begin
-              WriteUpdateState('failed', 'Cannot remove obsolete runtime: ' + Relative);
-              RaiseException('Cannot remove obsolete runtime: ' + Relative);
+              WriteUpdateState('failed', CustomMessage('ObsoleteRuntimeFailed') + ' ' + Relative);
+              RaiseException(CustomMessage('ObsoleteRuntimeFailed') + ' ' + Relative);
             end;
             Log('Removed obsolete owned payload: ' + Relative);
             Parent := ExtractFileDir(Filename);
@@ -710,8 +732,8 @@ begin
   begin
     if not FileExists(ExpandConstant('{app}\BensonMail-{#AppVersion}.exe')) or not InstalledVersionMatches then
     begin
-      WriteUpdateState('failed', 'The new application executable is missing / 新版本应用程序缺失。');
-      RaiseException('New application executable missing.');
+      WriteUpdateState('failed', CustomMessage('NewExecutableMissing'));
+      RaiseException(CustomMessage('NewExecutableMissing'));
     end;
     WriteUpdateState('installed', '{#AppVersion}');
     Log('Update installation completed: {#AppVersion}');
@@ -741,13 +763,13 @@ begin
     if IsOurShortcut(Candidate + '.lnk') then Exit;
     Number := Number + 1;
   until Number > 999;
-  RaiseException('Unable to choose a free shortcut name.');
+  RaiseException(CustomMessage('NoShortcutName'));
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   ApplyPreviousTaskDefaults;
-  if UpdateCancelled then Result := 'Update cancelled before installation / 安装前已取消。'
+  if UpdateCancelled then Result := CustomMessage('UpdateCancelled')
   else Result := InstallDirectoryErrorFor(WizardDirValue);
   if Result = '' then Result := EnsurePrerequisites;
   if Result <> '' then WriteUpdateState('failed', Result);
