@@ -10,12 +10,12 @@ LANGUAGES=('zh','en','es')
 
 def payload(platform,code):
     folder=ROOT/('macos/Resources' if platform=='macos' else 'windows/native')
-    catalog={'exact':{},'templates':[]} if code=='zh' else json.loads((folder/f'ui-{code}.json').read_text())
+    catalog={'exact':{},'templates':[]} if code=='zh' else json.loads((folder/f'ui-{code}.json').read_text(encoding='utf-8'))
     docs=ROOT/('macos/Resources' if platform=='macos' else 'windows/docs')
     quick=docs/f'Quick-start-{code}.txt'
     return {'schema_version':1,'language':code,'platform':platform,**catalog,'guides':{
-        'mail_account':(docs/f'Mail-account-setup-{code}.txt').read_text(),
-        'quick_start':quick.read_text()}}
+        'mail_account':(docs/f'Mail-account-setup-{code}.txt').read_text(encoding='utf-8'),
+        'quick_start':quick.read_text(encoding='utf-8')}}
 
 def main():
     parser=argparse.ArgumentParser()
@@ -41,7 +41,7 @@ def main():
                 entries[platform+'-'+code]={'file':name,'version':args.version,'size':len(data),'sha256':hashlib.sha256(data).hexdigest(),
                     'mirrors':[f'https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/{args.tag}/{name}']}
     if entries:
-        (args.output/'language-catalog.json').write_text(json.dumps(entries,ensure_ascii=False,indent=2)+'\n')
+        (args.output/'language-catalog.json').write_text(json.dumps(entries,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(json.dumps({'ok':True,'packs':6,'output':str(args.output),'version':args.version}))
 
 if __name__=='__main__': main()
