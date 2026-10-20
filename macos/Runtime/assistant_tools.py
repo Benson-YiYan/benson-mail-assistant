@@ -13,6 +13,7 @@ import sys
 import sqlite3
 import uuid
 import zipfile
+from urllib.parse import urlsplit
 
 WINDOWS = bool(__package__)
 
@@ -45,9 +46,42 @@ def _db(root=None):
     try:
         with connection:
             connection.execute('CREATE TABLE IF NOT EXISTS calls (at TEXT, provider TEXT, model TEXT, input_tokens INTEGER, output_tokens INTEGER, cost REAL, currency TEXT)')
+            # A side table preserves the original schema and all pre-upgrade records.
+            connection.execute('CREATE TABLE IF NOT EXISTS upstream_costs (call_id INTEGER PRIMARY KEY, amount REAL, currency TEXT, source TEXT, endpoint_id TEXT)')
             yield connection
     finally:
         connection.close()
+
+def _upstream_cost(usage, base):
+    """Read explicit upstream billing metadata, never infer a charge from tokens."""
+    amount = usage.get('cost')
+    currency = usage.get('cost_currency')
+    if isinstance(amount, dict):
+        currency = amount.get('currency')
+        amount = amount.get('amount')
+    try:
+        parts = urlsplit(str(base or '').strip())
+        official_openrouter = (parts.scheme == 'https' and parts.hostname == 'openrouter.ai'
+                               and parts.port in (None, 443) and not parts.username
+                               and not parts.password and not parts.query and not parts.fragment
+                               and parts.path.rstrip('/') in ('/api/v1', '/api/v1/chat/completions'))
+    except ValueError:
+        official_openrouter = False
+    if official_openrouter:
+        # OpenRouter documents usage.cost in USD credits, including zero-cost calls.
+        currency = 'USD'
+    if not isinstance(currency, str) or not re.fullmatch('[A-Za-z]{3}', currency):
+        return None
+    if isinstance(amount, bool) or not isinstance(amount, (int, float, str)):
+        return None
+    try:
+        amount = float(amount)
+    except (ValueError, OverflowError):
+        return None
+    if not math.isfinite(amount) or not 0 <= amount <= 1e12:
+        return None
+    return amount, currency.upper(), 'openrouter_usage' if official_openrouter else 'response_usage'
+
 
 def record_usage(provider, model, usage=None, root=None, base=None):
     """Only numeric usage metadata is persisted. Never estimate missing token counts."""
@@ -59,8 +93,11 @@ def record_usage(provider, model, usage=None, root=None, base=None):
     rates = _rates(_root(root), str(model), base); cost = None
     if incoming is not None and outgoing is not None and rates.get('configured'):
         cost = (incoming * rates['input_per_million'] + outgoing * rates['output_per_million']) / 1000000
+    upstream = _upstream_cost(value, base) if provider == 'api' else None
     with _db(root) as connection:
-        connection.execute('INSERT INTO calls VALUES (?, ?, ?, ?, ?, ?, ?)', (datetime.now(timezone.utc).isoformat(), provider[:40], str(model)[:100], incoming, outgoing, cost, rates['currency']))
+        cursor = connection.execute('INSERT INTO calls VALUES (?, ?, ?, ?, ?, ?, ?)', (datetime.now(timezone.utc).isoformat(), provider[:40], str(model)[:100], incoming, outgoing, cost, rates['currency']))
+        connection.execute('INSERT INTO upstream_costs VALUES (?, ?, ?, ?, ?)',
+                           (cursor.lastrowid, *(upstream or (None, None, None)), _rate_binding(model, base)))
 
 def _rate_binding(model, base):
     return hashlib.sha256((str(base or '').strip().rstrip('/') + '\0' + str(model or '')).encode()).hexdigest()
@@ -81,17 +118,42 @@ def _rates(root, model=None, base=None):
 def usage_summary(root):
     with _db(root) as connection:
         connection.row_factory = sqlite3.Row
-        total = dict(connection.execute('SELECT COUNT(*) calls, COALESCE(SUM(input_tokens),0) input_tokens, COALESCE(SUM(output_tokens),0) output_tokens, SUM(CASE WHEN input_tokens IS NULL OR output_tokens IS NULL THEN 1 ELSE 0 END) unknown_usage_calls, SUM(cost) estimated_cost FROM calls').fetchone())
+        fields = '''COUNT(*) calls, SUM(c.input_tokens) input_tokens, SUM(c.output_tokens) output_tokens,
+            SUM(CASE WHEN c.input_tokens IS NULL OR c.output_tokens IS NULL THEN 1 ELSE 0 END) unknown_usage_calls,
+            SUM(b.amount) actual_cost, COUNT(b.amount) actual_cost_calls,
+            SUM(CASE WHEN b.amount IS NULL THEN c.cost END) estimated_cost,
+            SUM(CASE WHEN b.amount IS NULL AND c.cost IS NOT NULL THEN 1 ELSE 0 END) estimated_cost_calls,
+            SUM(CASE WHEN b.amount IS NULL AND c.cost IS NULL THEN 1 ELSE 0 END) unknown_cost_calls'''
+        joined = ' FROM calls c LEFT JOIN upstream_costs b ON b.call_id = c.rowid'
+        total = dict(connection.execute('SELECT ' + fields + joined).fetchone())
         total['unknown_usage_calls'] = total['unknown_usage_calls'] or 0
-        total['records'] = [dict(row) for row in connection.execute('SELECT * FROM calls ORDER BY rowid DESC LIMIT 200')]
-        total['groups'] = [dict(row) for row in connection.execute('SELECT provider, model, currency, COUNT(*) calls, SUM(input_tokens) input_tokens, SUM(output_tokens) output_tokens, SUM(cost) estimated_cost, SUM(CASE WHEN input_tokens IS NULL OR output_tokens IS NULL THEN 1 ELSE 0 END) unknown_usage_calls FROM calls GROUP BY provider, model, currency ORDER BY MAX(rowid) DESC')]
-        total['by_currency'] = [dict(row) for row in connection.execute('SELECT currency, SUM(cost) estimated_cost FROM calls WHERE cost IS NOT NULL GROUP BY currency')]
+        for key in ('actual_cost_calls', 'estimated_cost_calls', 'unknown_cost_calls'):
+            total[key] = total[key] or 0
+        total['records'] = [dict(row) for row in connection.execute('SELECT c.*, b.amount actual_cost, b.currency actual_currency, b.source cost_source' + joined + ' ORDER BY c.rowid DESC LIMIT 200')]
+        total['groups'] = [dict(row) for row in connection.execute(
+            'SELECT c.provider, c.model, c.currency, b.currency actual_currency, ' + fields + joined +
+            ' GROUP BY c.provider, c.model, c.currency, b.currency, b.endpoint_id ORDER BY MAX(c.rowid) DESC')]
+        total['by_currency'] = [dict(row) for row in connection.execute(
+            'SELECT c.currency, SUM(c.cost) estimated_cost' + joined +
+            ' WHERE b.amount IS NULL AND c.cost IS NOT NULL GROUP BY c.currency')]
+        total['actual_by_currency'] = [dict(row) for row in connection.execute(
+            'SELECT currency, SUM(amount) actual_cost FROM upstream_costs WHERE amount IS NOT NULL GROUP BY currency')]
     # Different currencies must never be added into a misleading single amount.
     total['currency'] = total['by_currency'][0]['currency'] if len(total['by_currency']) == 1 else None
     if len(total['by_currency']) > 1: total['estimated_cost'] = None
+    total['actual_currency'] = total['actual_by_currency'][0]['currency'] if len(total['actual_by_currency']) == 1 else None
+    if len(total['actual_by_currency']) > 1: total['actual_cost'] = None
     total['rates'] = _rates(root)
     total['since'] = 'Recording starts after this version is installed; provider usage may exclude other applications.'
     return total
+
+
+def usage_balance(root):
+    if WINDOWS:
+        from .upstream_billing import balance
+    else:
+        from upstream_billing import balance
+    return balance(root)
 
 def validate_usage_rates(request):
     value = {}
@@ -441,6 +503,10 @@ def _dispatch(root, request, controller=None):
     if action in ('reply_draft', 'draft_reply'): return reply_draft(root, request)
     if action in ('draft_save', 'reply_draft_save'): return draft_save(root, request)
     if action in ('usage', 'usage_summary'): return usage_summary(root)
+    if action == 'usage_balance':
+        if controller is not None and getattr(controller, 'fixture', False):
+            return {'status': 'unsupported', 'balances': []}
+        return usage_balance(root)
     if action == 'usage_rates': return usage_rates(root, request)
     if action in ('sources', 'report_sources'): return report_sources(root, request['path'])
     if action in ('diagnostics', 'diagnostics_export'): return diagnostics_export(root, request.get('destination') or request.get('directory', ''))

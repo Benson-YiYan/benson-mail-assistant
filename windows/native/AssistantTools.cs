@@ -75,6 +75,28 @@ sealed partial class MainWindow
         using (var usage = JsonDocument.Parse("{\"calls\":1,\"input_tokens\":0,\"output_tokens\":0,\"groups\":[{\"input_tokens\":null,\"output_tokens\":null}]}"))
             check(UsageNumber(usage.RootElement, "output_tokens") == L.T("未知"),
                 "A provider without token usage remains unknown even when the aggregate backend sum is zero");
+        using (var usage = JsonDocument.Parse("{\"provider\":\"fixture\",\"model\":\"fixture\",\"calls\":4,\"input_tokens\":3067,\"output_tokens\":627,\"actual_cost\":1.25,\"actual_currency\":\"USD\",\"actual_cost_calls\":1,\"estimated_cost\":2.5,\"currency\":\"CNY\",\"estimated_cost_calls\":2,\"unknown_cost_calls\":1}")) {
+            var text = UsageGroupText(usage.RootElement);
+            check(text.Contains(L.T("上游返回费用：") + "1.25 USD") && text.Contains(L.T("本地估算费用：") + "2.5 CNY") &&
+                text.Contains(L.T("上游费用覆盖调用数：") + "1") && text.Contains(L.T("本地估算覆盖调用数：") + "2") &&
+                text.Contains(L.T("费用未知的调用：") + "1") && !text.Contains("3.75"),
+                "Provider cost and local estimate retain distinct currencies and coverage without being summed");
+        }
+        using (var balance = JsonDocument.Parse("{\"status\":\"ok\",\"provider\":\"fixture\",\"balances\":[{\"currency\":\"USD\",\"total_balance\":\"1234.5\",\"granted_balance\":\"0\",\"topped_up_balance\":\"1234.5\"}],\"checked_at\":\"fixture-time\"}"))
+            check(UsageBalanceText(balance.RootElement).Contains(L.T("账户余额：") + "1,234.5 USD") &&
+                UsageBalanceText(balance.RootElement).Contains("fixture-time"), "Manual balance renderer preserves currency, amount and check time without generating AI content");
+        foreach (var status in new[] { "unsupported", "not_api", "error" }) {
+            using var balance = JsonDocument.Parse("{\"status\":\"" + status + "\",\"message\":\"UNTRANSLATED_MESSAGE_MUST_NOT_APPEAR\"}");
+            var text = UsageBalanceText(balance.RootElement);
+            check(text.Length > 0 && !text.Contains("UNTRANSLATED_MESSAGE_MUST_NOT_APPEAR"),
+                "Balance status is localized from protocol status without displaying upstream message: " + status);
+        }
+        using (var balance = JsonDocument.Parse("{\"status\":\"error\",\"error_code\":\"permission\"}"))
+            check(UsageBalanceText(balance.RootElement) == L.T("当前 API Key 没有查询余额的权限；AI 调用仍可能正常。"),
+                "Balance permission failures explain that inference may still work without recommending a management key");
+        using (var balance = JsonDocument.Parse("{\"status\":\"error\",\"error_code\":\"authentication\"}"))
+            check(UsageBalanceText(balance.RootElement) == L.T("余额查询的 API Key 认证失败，请检查已保存的密钥。"),
+                "Balance authentication failures have a precise localized explanation");
         var savedEnabled = notificationsEnabled; var savedQuiet = appliedQuietEnabled;
         var savedStart = appliedQuietStart; var savedEnd = appliedQuietEnd;
         try {
@@ -147,10 +169,50 @@ sealed partial class MainWindow
         }
         return number.ToString("#,0.########", CultureInfo.InvariantCulture);
     }
-    static string UsageCost(JsonElement data)
+    static string UsageCost(JsonElement data, string amountKey = "estimated_cost", string currencyKey = "currency")
     {
-        var amount = UsageNumber(data, "estimated_cost");
-        return amount == L.T("未知") ? amount : amount + " " + JsonText(data, "currency");
+        var amount = UsageNumber(data, amountKey);
+        return amount == L.T("未知") ? amount : amount + " " + JsonText(data, currencyKey);
+    }
+    static string UsageGroupText(JsonElement group) =>
+        JsonText(group, "provider") + " · " + JsonText(group, "model") + "\n" +
+        L.T("调用次数：") + UsageNumber(group, "calls") + "\n" + L.T("输入 Token：") + UsageNumber(group, "input_tokens") +
+        "\n" + L.T("输出 Token：") + UsageNumber(group, "output_tokens") + "\n" +
+        L.T("上游返回费用：") + UsageCost(group, "actual_cost", "actual_currency") + "\n" +
+        L.T("上游费用覆盖调用数：") + UsageNumber(group, "actual_cost_calls") + "\n" +
+        L.T("本地估算费用：") + UsageCost(group) + "\n" +
+        L.T("本地估算覆盖调用数：") + UsageNumber(group, "estimated_cost_calls") + "\n" +
+        L.T("费用未知的调用：") + UsageNumber(group, "unknown_cost_calls") + "\n\n";
+    static string UsageBalanceText(JsonElement data)
+    {
+        switch (JsonText(data, "status")) {
+            case "unsupported": return L.T("当前服务商或基础地址不支持查询账户余额。仅支持官方 DeepSeek 和 OpenRouter。");
+            case "not_api": return L.T("当前使用 Codex 或 Harness，无法查询 API 账户余额。");
+            case "ok": break;
+            default:
+                return JsonText(data, "error_code") switch {
+                    "permission" => L.T("当前 API Key 没有查询余额的权限；AI 调用仍可能正常。"),
+                    "authentication" or "invalid_key" => L.T("余额查询的 API Key 认证失败，请检查已保存的密钥。"),
+                    "missing_key" => L.T("尚未保存 API Key，请先在 AI 服务页保存密钥。"),
+                    "credentials" => L.T("无法读取已保存的 API Key，请检查系统凭据存储并重新保存密钥。"),
+                    "timeout" => L.T("账户余额查询超时，请稍后重试并检查网络。"),
+                    "rate_limit" => L.T("账户余额查询过于频繁，请稍后重试。"),
+                    "tls" => L.T("账户余额查询的安全连接失败，请检查网络代理与系统证书。"),
+                    "dns" => L.T("无法解析余额查询服务器地址，请检查网络与 DNS。"),
+                    "invalid_response" or "response_too_large" => L.T("服务商返回了无法识别的余额响应。"),
+                    _ => L.T("账户余额查询失败，请检查已保存的 AI 设置、网络或服务商状态。")
+                };
+        }
+        var text = JsonText(data, "provider");
+        if (data.TryGetProperty("balances", out var balances)) foreach (var balance in balances.EnumerateArray()) {
+            var currency = JsonText(balance, "currency");
+            text += "\n" + L.T("账户余额：") + UsageNumber(balance, "total_balance") + " " + currency;
+            if (balance.TryGetProperty("granted_balance", out var granted) && granted.ValueKind != JsonValueKind.Null)
+                text += "\n" + L.T("赠送余额：") + UsageNumber(balance, "granted_balance") + " " + currency;
+            if (balance.TryGetProperty("topped_up_balance", out var topped) && topped.ValueKind != JsonValueKind.Null)
+                text += "\n" + L.T("充值余额：") + UsageNumber(balance, "topped_up_balance") + " " + currency;
+        }
+        return text + "\n" + L.T("查询时间：") + JsonText(data, "checked_at");
     }
     async Task ShowUsage()
     {
@@ -158,19 +220,29 @@ sealed partial class MainWindow
         var summary = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         void Render(JsonElement data) => summary.Text = L.T("调用次数：") + UsageNumber(data, "calls") + "\n" +
             L.T("输入 Token：") + UsageNumber(data, "input_tokens") + "\n" + L.T("输出 Token：") + UsageNumber(data, "output_tokens") + "\n" +
-            L.T("用量未知的调用：") + UsageNumber(data, "unknown_usage_calls") + "\n" + L.T("估算费用：") + UsageCost(data);
+            L.T("用量未知的调用：") + UsageNumber(data, "unknown_usage_calls") + "\n" +
+            L.T("费用未知的调用：") + UsageNumber(data, "unknown_cost_calls");
         Render(snapshot);
         var breakdown = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         if (snapshot.TryGetProperty("groups", out var groups)) foreach (var group in groups.EnumerateArray())
-            breakdown.Text += JsonText(group, "provider") + " · " + JsonText(group, "model") + "\n" +
-                L.T("调用次数：") + UsageNumber(group, "calls") + "\n" + L.T("输入 Token：") + UsageNumber(group, "input_tokens") +
-                "\n" + L.T("输出 Token：") + UsageNumber(group, "output_tokens") + "\n" + L.T("估算费用：") +
-                UsageCost(group) + "\n\n";
+            breakdown.Text += UsageGroupText(group);
+        var balanceResult = new TextBlock { Text = L.T("尚未查询账户余额。"), TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+        var balanceButton = new Button { Content = L.T("查询账户余额") };
+        balanceButton.Click += async (_, _) => {
+            balanceButton.IsEnabled = false; balanceResult.Text = L.T("正在查询账户余额…");
+            try { balanceResult.Text = UsageBalanceText(await Assistant("usage_balance")); }
+            catch { balanceResult.Text = L.T("账户余额查询失败，请检查已保存的 AI 设置、网络或服务商状态。"); }
+            finally { balanceButton.IsEnabled = true; }
+        };
 
         await new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("费用与用量"), CloseButtonText = L.T("关闭"),
             Content = Scroll(Stack(summary, breakdown,
                 Note(L.T("输入 Token 是发给 AI 的内容，包括原邮件、附件和对话；输出 Token 是 AI 返回的内容。")),
-                Note(L.T("未知表示缺少价格或接口用量，不能当作免费。已知用量可能只是部分记录；金额仅为估算，不能推断实际账单。Codex 与 Harness 的订阅费用无法由本工具推算。")))) }.ShowAsync();
+                Note(L.T("上游返回费用与本地估算费用分别显示，不相加。只有缺少上游费用的调用才使用本地估算。未知不代表免费；覆盖调用数表明已知费用涉及多少次本软件调用，不能推断完整账单。")),
+                Note(L.T("Codex 与 Harness 的订阅费用无法由本工具推算。")),
+                Heading(L.T("账户余额")), balanceButton, balanceResult,
+                Note(L.T("仅手动查询，不生成 AI 内容。账户余额可能包含其他应用的消费，不能用于归属本软件费用。查询使用已保存的 AI 设置。")),
+                Note(L.T("OpenRouter 余额接口可能要求管理权限，普通推理 Key 可能返回 403。无需为了查询余额将推理 Key 换成管理 Key。")))) }.ShowAsync();
     }
     async Task ShowSources()
     {

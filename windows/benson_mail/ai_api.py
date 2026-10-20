@@ -5,6 +5,8 @@ import re
 import socket
 import ssl
 import sys
+import hashlib
+from pathlib import Path
 import certifi
 import urllib.error
 import urllib.parse
@@ -63,6 +65,14 @@ def identity(base, model=''):
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, newurl):
         return None
+
+
+def saved_api_key(root, config):
+    """Use the same OS credential and endpoint binding as email analysis."""
+    from .platform_windows import load_secret
+    binding = identity(config.get('api_base', ''))
+    key_path = Path(root) / 'api-keys' / (hashlib.sha256(binding.encode()).hexdigest() + '.bin')
+    return load_secret(key_path, binding) if key_path.exists() else ''
 
 @localized
 def complete(base, model, key, messages, stop=None):

@@ -134,10 +134,10 @@ class Controller:
             self.prepared_exit = False
             self.shutting_down = False
             return self.command('start', {}) if data.get('resume') else '已取消退出。'
-        if name in ('assistant_features', 'reply_draft', 'usage_summary', 'usage_rates', 'diagnostics_export', 'history_preview', 'history_start', 'report_sources'):
+        if name in ('assistant_features', 'reply_draft', 'usage_summary', 'usage_rates', 'usage_balance', 'diagnostics_export', 'history_preview', 'history_start', 'report_sources'):
             from .assistant_tools import dispatch
             request = data if name == 'assistant_features' else {**data, 'action': name}
-            if self.fixture and request.get('action') not in ('usage', 'usage_summary', 'usage_rates', 'sources', 'report_sources', 'diagnostics', 'diagnostics_export', 'draft_save'):
+            if self.fixture and request.get('action') not in ('usage', 'usage_summary', 'usage_rates', 'usage_balance', 'sources', 'report_sources', 'diagnostics', 'diagnostics_export', 'draft_save'):
                 raise ValueError('模拟测试禁止访问真实邮件或 AI。')
             return dispatch(self.root, request, self)
         if name == 'runtime_info':

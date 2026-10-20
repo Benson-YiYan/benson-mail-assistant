@@ -4,6 +4,7 @@ import json
 import re
 import socket
 import ssl
+import subprocess
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -55,6 +56,15 @@ def identity(base, model=''):
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, newurl):
         return None
+
+
+def saved_api_key(root, config):
+    """Use the same OS credential and endpoint binding as email analysis."""
+    binding = identity(config.get('api_base', ''))
+    result = subprocess.run(
+        ['/usr/bin/security', 'find-generic-password', '-s', 'BensonMail-AI-API', '-a', binding, '-w'],
+        capture_output=True, text=True, timeout=30)
+    return result.stdout.strip() if result.returncode == 0 else ''
 
 @localized
 def complete(base, model, key, messages, stop=None):

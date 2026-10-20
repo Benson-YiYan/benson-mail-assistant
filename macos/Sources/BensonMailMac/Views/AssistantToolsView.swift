@@ -205,43 +205,103 @@ struct UsageSettingsView: View {
     @ObservedObject private var language = AppLanguage.shared
     @Environment(\.dismiss) private var dismiss
     @ToolState private var rows: [[String: Any]] = []
+    @ToolState private var balance: [String: Any]? = nil
+    @ToolState private var queryingBalance = false
     @ObservedObject private var tools: AssistantTools
     init(store: MailStore) { self.store = store; self.tools = store.assistantTools }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack { Text(T("费用与用量记录")).font(.title2.bold()); Spacer(); Button(T("关闭")) { dismiss() } }
-            Text(T("仅记录新发生的调用。接口未返回用量时标为未知；订阅和本地工具的账单无法推算。")).font(.caption).foregroundStyle(.secondary)
-            Text(T("输入 Token 是发给 AI 的内容，包括原邮件、附件和对话；输出 Token 是 AI 返回的内容。"))
-                .font(.caption).foregroundStyle(.secondary)
-            Text(T("这些是实际记录的用量，不是使用限额。"))
-                .font(.caption).foregroundStyle(.secondary)
-            Text(T("未知表示缺少价格或接口用量，不能当作免费。已知用量可能只是部分记录；金额仅为估算，不能推断实际账单。Codex 与 Harness 的订阅费用无法由本工具推算。"))
-                .font(.caption).foregroundStyle(.secondary)
-            Text(T("在 AI 服务页面设置单价，与其他 AI 设置一起保存。")).font(.caption).foregroundStyle(.secondary)
-            Button(T("刷新")) { Task { await refresh() } }.disabled(tools.busy)
-            ToolStatus(tools: tools).font(.caption)
+            HStack {
+                Text(T("费用与用量记录")).font(.title2.bold()); Spacer()
+                Button(T("刷新")) { Task { await refresh() } }.disabled(tools.busy || queryingBalance)
+                Button(T("关闭")) { dismiss() }
+            }
             ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(T("仅记录新发生的调用。接口未返回用量时标为未知；订阅和本地工具的账单无法推算。"))
+                    Text(T("输入 Token 是发给 AI 的内容，包括原邮件、附件和对话；输出 Token 是 AI 返回的内容。"))
+                    Text(T("这些是实际记录的用量，不是使用限额。"))
+                    Text(T("上游返回费用与本地估算费用分别显示，覆盖调用不重叠；不同币种不相加。缺失费用显示未知，不代表免费。"))
+                    Text(T("在 AI 服务页面设置单价，与其他 AI 设置一起保存。"))
+                    balanceSection
+                    ToolStatus(tools: tools)
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, item in
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 5) {
                             Text((item["model"] as? String) ?? (item["provider"] as? String) ?? "").font(.headline)
-                            Text(T("调用次数") + ": " + UsagePresentation.number(item, item["calls"] == nil ? "count" : "calls")).monospacedDigit()
-                            Text(T("输入 Token：") + UsagePresentation.number(item, "input_tokens")).monospacedDigit()
-                            Text(T("输出 Token：") + UsagePresentation.number(item, "output_tokens")).monospacedDigit()
+                            Text(T("调用次数") + ": " + UsagePresentation.number(item, item["calls"] == nil ? "count" : "calls"))
+                            Text(T("输入 Token：") + UsagePresentation.number(item, "input_tokens"))
+                            Text(T("输出 Token：") + UsagePresentation.number(item, "output_tokens"))
                             Text(T("用量未知的调用") + ": " + UsagePresentation.number(item, "unknown_usage_calls"))
-                                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                            Text(T("估算费用") + ": " + UsagePresentation.cost(item)).monospacedDigit()
-                        }.frame(maxWidth: .infinity, alignment: .leading).padding(10).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                                .foregroundStyle(.secondary)
+                            Text(T("上游返回费用") + ": " + UsagePresentation.cost(item, amountKey: "actual_cost", currencyKey: "actual_currency"))
+                            Text(T("覆盖调用数") + ": " + UsagePresentation.number(item, "actual_cost_calls"))
+                                .foregroundStyle(.secondary)
+                            Text(T("本地估算费用") + ": " + UsagePresentation.cost(item))
+                            Text(T("覆盖调用数") + ": " + UsagePresentation.number(item, "estimated_cost_calls"))
+                                .foregroundStyle(.secondary)
+                            Text(T("费用未知的调用") + ": " + UsagePresentation.number(item, "unknown_cost_calls"))
+                                .foregroundStyle(.secondary)
+                        }.monospacedDigit().textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
                     }
                     if rows.isEmpty { Text(T("暂无用量记录")).foregroundStyle(.secondary) }
+                    Text(T("费用记录只覆盖本工具收到的调用结果；上游金额以服务商返回为准，本地估算不能代替实际账单。Codex 与 Harness 的订阅费用无法由本工具推算。"))
+                }.font(.callout).frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }.padding(24).frame(width: 760, height: 620).task { await refresh() }
+    }
+    private var balanceSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(T("账户余额")).font(.headline)
+                Spacer()
+                Button(T(queryingBalance ? "正在查询余额…" : "查询账户余额")) { Task { await queryBalance() } }
+                    .disabled(tools.busy || queryingBalance)
+                    .accessibilityIdentifier("usage-query-account-balance")
+            }
+            Text(T("仅支持官方 DeepSeek 和 OpenRouter 的余额接口，需手动查询；不会在后台自动请求，也不会生成 AI 内容。"))
+                .font(.caption).foregroundStyle(.secondary)
+            Text(T("OpenRouter 余额接口需要管理权限，普通推理 Key 可能无法查询；不建议为此把推理 Key 换成管理 Key。"))
+                .font(.caption).foregroundStyle(.secondary)
+            Text(T("余额属于服务商账户，可能包含其他软件的使用，不能归属于本工具。"))
+                .font(.caption).foregroundStyle(.secondary)
+            if let balance {
+                Text(UsagePresentation.provider(balance) + " · " + UsagePresentation.balanceStatus(balance))
+                    .textSelection(.enabled)
+                if balance["status"] as? String == "ok" {
+                    let amounts = balance["balances"] as? [[String: Any]] ?? []
+                    if amounts.isEmpty { Text(T("服务商未返回可用余额。")) }
+                    ForEach(Array(amounts.enumerated()), id: \.offset) { _, amount in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(T("可用余额") + ": " + UsagePresentation.cost(amount, amountKey: "total_balance", allowNegative: true))
+                            if amount["granted_balance"] != nil {
+                                Text(T("赠送余额") + ": " + UsagePresentation.cost(amount, amountKey: "granted_balance", allowNegative: true))
+                            }
+                            if amount["topped_up_balance"] != nil {
+                                Text(T("充值余额") + ": " + UsagePresentation.cost(amount, amountKey: "topped_up_balance", allowNegative: true))
+                            }
+                        }.monospacedDigit().textSelection(.enabled)
+                    }
+                }
+                if balance["checked_at"] != nil {
+                    Text(T("查询时间") + ": " + UsagePresentation.checkedAt(balance, locale: language.localeIdentifier))
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
-        }.padding(24).frame(width: 730, height: 540).task { await refresh() }
+        }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+    }
+    private func queryBalance() async {
+        guard !queryingBalance, !tools.busy else { return }
+        queryingBalance = true; defer { queryingBalance = false }
+        // Provider message is diagnostic data, not a localized user-facing status.
+        balance = await tools.perform("usage_balance") ?? ["status": "error"]
+        tools.error = ""
     }
     private func refresh() async {
         if let result = await tools.perform("usage_summary") {
             rows = result["groups"] as? [[String: Any]] ?? result["rows"] as? [[String: Any]] ?? []
-
         }
     }
 }

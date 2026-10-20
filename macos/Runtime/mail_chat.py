@@ -142,13 +142,7 @@ def _complete(root, config, messages):
     else:
         import ai_api, deepseek_harness_ai
     if provider == 'api':
-        binding = ai_api.identity(config.get('api_base', ''))
-        if IS_WINDOWS_PACKAGE:
-            key_path = Path(root) / 'api-keys' / (hashlib.sha256(binding.encode()).hexdigest() + '.bin')
-            key = platform_windows.load_secret(key_path, binding) if key_path.exists() else ''
-        else:
-            result = subprocess.run(['/usr/bin/security', 'find-generic-password', '-s', 'BensonMail-AI-API', '-a', binding, '-w'], capture_output=True, text=True, timeout=30)
-            key = result.stdout.strip() if result.returncode == 0 else ''
+        key = ai_api.saved_api_key(root, config)
         if not key:
             raise _error(config, '未找到此基础地址的API Key，请在设置中保存。', 'No API key was found for this base URL. Save it in Settings.', 'No se encontró una clave API para esta URL base. Guárdala en Configuración.')
         answer = ai_api.complete(config.get('api_base', ''), config.get('api_model', ''), key, messages, threading.Event())
