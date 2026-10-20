@@ -2,102 +2,102 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610201025",
-      "sha256": "25823550c180250e8739182eaa5920148b71f5487cd4e346af528b6200fad57a",
-      "size": 23624934,
+      "version": "202610201247",
+      "sha256": "bd0d9ad42b3639d7f398208869707518bdacf820bb53c429967572e0da844cf2",
+      "size": 23650861,
       "notes": {
-        "zh": "恢复旧版更新入口；检查更新失败时提供 GitHub 最新版下载按钮，支持中英西三语。",
-        "en": "Restores legacy update compatibility and adds a GitHub latest-version download button after failed update checks, in Chinese, English and Spanish.",
-        "es": "Restaura la compatibilidad con las actualizaciones antiguas y añade un botón para descargar desde GitHub si falla la búsqueda, en chino, inglés y español."
+        "zh": "新增黑白名单、垃圾邮件跳过及可单独/批量总结的屏蔽记录；报告与聊天分隔线支持拖动；修复Mac Markdown持续加载并细化AI错误提示。中英西三语。",
+        "en": "Sender blacklists/whitelists, optional spam skipping and local skipped records with one-time or bulk summaries. Resizable report/chat panes. Fixes Mac Markdown loading and improves AI diagnostics. Chinese, English and Spanish.",
+        "es": "Listas negras/blancas, omisión opcional de spam y registros locales con resúmenes individuales o en lote. Paneles de informe/chat ajustables. Corrige Markdown en Mac y mejora los errores de IA. Chino, inglés y español."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.1/BensonMail-Windows-x64-Setup-202610201025.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.2/BensonMail-Windows-x64-Setup-202610201247.exe"
       ],
-      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610201025.exe"
+      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610201247.exe"
     },
     "macos-arm64": {
-      "version": "202610201022",
-      "sha256": "2268b6c2a9f9188fb4de5e2f5a4e5d98378d9b25ceb55b5d6b6c25566965d306",
-      "size": 23625843,
+      "version": "202610201226",
+      "sha256": "011ca0bbdaf2dad011774e8924dfdac95d6d3d8bbd9fb64736e876f2d954d1d9",
+      "size": 23958508,
       "notes": {
-        "zh": "恢复旧版更新入口；检查更新失败时提供 GitHub 最新版下载按钮，支持中英西三语。",
-        "en": "Restores legacy update compatibility and adds a GitHub latest-version download button after failed update checks, in Chinese, English and Spanish.",
-        "es": "Restaura la compatibilidad con las actualizaciones antiguas y añade un botón para descargar desde GitHub si falla la búsqueda, en chino, inglés y español."
+        "zh": "新增黑白名单、垃圾邮件跳过及可单独/批量总结的屏蔽记录；报告与聊天分隔线支持拖动；修复Mac Markdown持续加载并细化AI错误提示。中英西三语。",
+        "en": "Sender blacklists/whitelists, optional spam skipping and local skipped records with one-time or bulk summaries. Resizable report/chat panes. Fixes Mac Markdown loading and improves AI diagnostics. Chinese, English and Spanish.",
+        "es": "Listas negras/blancas, omisión opcional de spam y registros locales con resúmenes individuales o en lote. Paneles de informe/chat ajustables. Corrige Markdown en Mac y mejora los errores de IA. Chino, inglés y español."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.1/BensonMail-Mac-AppleSilicon-202610201022.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.2/BensonMail-Mac-AppleSilicon-202610201226.dmg"
       ],
-      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610201022.dmg"
+      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610201226.dmg"
     },
     "macos-x86_64": {
-      "version": "202610201022",
-      "sha256": "eab669e101f6f23848375ea3f371eca7ef1f0fd985e5ffff72f3680d45b6e92a",
-      "size": 16794986,
+      "version": "202610201227",
+      "sha256": "579295c4c638f8985354a6bade02c6dcc940a141cb9a1a1aecfa43582e8f23d7",
+      "size": 17142668,
       "notes": {
-        "zh": "恢复旧版更新入口；检查更新失败时提供 GitHub 最新版下载按钮，支持中英西三语。",
-        "en": "Restores legacy update compatibility and adds a GitHub latest-version download button after failed update checks, in Chinese, English and Spanish.",
-        "es": "Restaura la compatibilidad con las actualizaciones antiguas y añade un botón para descargar desde GitHub si falla la búsqueda, en chino, inglés y español."
+        "zh": "新增黑白名单、垃圾邮件跳过及可单独/批量总结的屏蔽记录；报告与聊天分隔线支持拖动；修复Mac Markdown持续加载并细化AI错误提示。中英西三语。",
+        "en": "Sender blacklists/whitelists, optional spam skipping and local skipped records with one-time or bulk summaries. Resizable report/chat panes. Fixes Mac Markdown loading and improves AI diagnostics. Chinese, English and Spanish.",
+        "es": "Listas negras/blancas, omisión opcional de spam y registros locales con resúmenes individuales o en lote. Paneles de informe/chat ajustables. Corrige Markdown en Mac y mejora los errores de IA. Chino, inglés y español."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.1/BensonMail-Mac-Intel-202610201022.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.2/BensonMail-Mac-Intel-202610201227.dmg"
       ],
-      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610201022.dmg"
+      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610201227.dmg"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202610201022",
+      "version": "202610201238",
       "sha256": "425e61d011bff8d4fc3b96896d984c8d9e691cefec70591487b1fedc6c8275a9",
       "size": 26141,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.1/BensonMail-Language-windows-zh-202610201022.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.2/BensonMail-Language-windows-zh-202610201238.json"
       ],
-      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202610201022.json"
+      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202610201238.json"
     },
     "windows-en": {
-      "version": "202610201022",
-      "sha256": "02f57be6e9d6f245d8ed3978bb515b81addb0e0b9286ca310a8aa36db1e3b10b",
-      "size": 88840,
+      "version": "202610201238",
+      "sha256": "7b013f4a9abdc32229a748f1b6afd19a14a2f441435fc9ab250d23e38d6f897a",
+      "size": 92252,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.1/BensonMail-Language-windows-en-202610201022.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.2/BensonMail-Language-windows-en-202610201238.json"
       ],
-      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-windows-en-202610201022.json"
+      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-windows-en-202610201238.json"
     },
     "windows-es": {
-      "version": "202610201022",
-      "sha256": "1eb088f0d7639d3894617b5b5039b1892a5f5abda129a15e07f4687f50280196",
-      "size": 95811,
+      "version": "202610201238",
+      "sha256": "7af808cc42f1260884ccbe5849700d003637f1ee6c0cc159835dae65c6f80f64",
+      "size": 99638,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.1/BensonMail-Language-windows-es-202610201022.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.2/BensonMail-Language-windows-es-202610201238.json"
       ],
-      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-windows-es-202610201022.json"
+      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-windows-es-202610201238.json"
     },
     "macos-zh": {
-      "version": "202610201022",
+      "version": "202610201238",
       "sha256": "dcfde297b4256cc236eeeba4768f25ea78f3ba37bfb9bf124985d950aefb6f48",
       "size": 26596,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.1/BensonMail-Language-macos-zh-202610201022.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.2/BensonMail-Language-macos-zh-202610201238.json"
       ],
-      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202610201022.json"
+      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202610201238.json"
     },
     "macos-en": {
-      "version": "202610201022",
-      "sha256": "2a2cd4c38043e6680a7287c324e6ff482cbf054901af6e8aebdf809bcaf8389c",
-      "size": 92894,
+      "version": "202610201238",
+      "sha256": "4a5bc0a19397bf604b541c5214304bd15f7a3faa3c80f5f31d8ef986d7ca664e",
+      "size": 96244,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.1/BensonMail-Language-macos-en-202610201022.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.2/BensonMail-Language-macos-en-202610201238.json"
       ],
-      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-macos-en-202610201022.json"
+      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-macos-en-202610201238.json"
     },
     "macos-es": {
-      "version": "202610201022",
-      "sha256": "2616e32eb74dcb40daa7555045a84f29ee89cfb443c5a2747a061e840f1f241f",
-      "size": 100099,
+      "version": "202610201238",
+      "sha256": "a3d6e1a54bf09d32c548489b8ad6c9ff50b711c97af3e98a883a7f91f79018c0",
+      "size": 103947,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.1/BensonMail-Language-macos-es-202610201022.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.2/BensonMail-Language-macos-es-202610201238.json"
       ],
-      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-macos-es-202610201022.json"
+      "url": "https://ruth-francis-protocol-corrections.trycloudflare.com/downloads/BensonMail-Language-macos-es-202610201238.json"
     }
   }
 }
