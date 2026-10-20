@@ -17,7 +17,7 @@ sealed partial class MainWindow
     readonly TextBlock senderPolicyStatus = Note("");
     readonly StackPanel senderPolicyAddresses = new() { Spacing = 4 };
     readonly StackPanel senderPolicyRecords = new() { Spacing = 8 };
-    readonly Expander senderPolicyRecordDisclosure = new() { HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+    readonly SenderPolicyDisclosure senderPolicyRecordDisclosure = new();
     readonly HashSet<string> senderPolicyAddressSelection = new(StringComparer.OrdinalIgnoreCase);
     readonly HashSet<string> senderPolicyRecordSelection = new(StringComparer.Ordinal);
     readonly List<string> senderPolicyAddressValues = new();
@@ -31,7 +31,7 @@ sealed partial class MainWindow
         senderPolicyMode.SelectedIndex = 0;
         senderPolicyMode.FontFamily = senderPolicySpam.FontFamily = MailTypography.Font;
         senderPolicyMode.SelectionChanged += (_, _) => RefreshSenderPolicyLanguage();
-        senderPolicyRecordDisclosure.Content = Stack(
+        senderPolicyRecordDisclosure.DisclosureContent = Stack(
             Note(L.T("这里只保存本地跳过记录；删除记录不会删除邮箱服务器上的邮件。")),
             Row(Action(L.T("全选记录"), () => {
                 foreach (var record in PolicyRows("records")) senderPolicyRecordSelection.Add(PolicyText(record, "id"));
@@ -198,8 +198,8 @@ sealed partial class MainWindow
                     Row(Action(L.T("总结此邮件"), () => RunSenderPolicy(() => SummarizeSenderPolicyRecords(new[] { id }))),
                         Action(L.T("删除此记录"), () => RunSenderPolicy(() => DeleteSenderPolicyRecords(new[] { id }))))));
             }
-            senderPolicyRecords.Children.Add(new Expander { Header = group.Key + " · " + L.T($"{group.Count()} 封邮件"),
-                Content = contents, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch });
+            senderPolicyRecords.Children.Add(new SenderPolicyDisclosure { Header = group.Key + " · " + L.T($"{group.Count()} 封邮件"),
+                DisclosureContent = contents });
         }
         if (records.Length == 0) senderPolicyRecords.Children.Add(Note(L.T("还没有被跳过的邮件。")));
     }
@@ -248,11 +248,11 @@ sealed partial class MainWindow
                     new { id = "synthetic-b", sender = "blocked@example.invalid", subject = "Synthetic report B", received = "2026-10-20", reason = "spam", state = "queued" }
                 }
             }));
-            check(senderPolicyRecords.Children.Count == 1 && senderPolicyRecords.Children[0] is Expander { IsExpanded: false },
-                "Skipped records group by sender in a collapsed native expander");
+            check(senderPolicyRecords.Children.Count == 1 && senderPolicyRecords.Children[0] is SenderPolicyDisclosure { IsExpanded: false },
+                "Skipped records group by sender in a collapsed native disclosure");
             check(!senderPolicyRecordDisclosure.IsExpanded && senderPolicyRecordDisclosure.Header.ToString()!.Contains("2"),
                 "All skipped history and bulk actions stay inside a collapsed disclosure with a live total");
-            var group = (StackPanel)((Expander)senderPolicyRecords.Children[0]).Content;
+            var group = (StackPanel)((SenderPolicyDisclosure)senderPolicyRecords.Children[0]).DisclosureContent;
             check(group.Children.Count == 2, "Expanded sender groups contain each skipped email");
             var first = (CheckBox)((StackPanel)group.Children[0]).Children[0];
             first.IsChecked = true;

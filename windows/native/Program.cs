@@ -1473,8 +1473,9 @@ sealed partial class MainWindow : Window
             Check(layout.ActualWidth > 0 && preview.ActualHeight > 100 && reports.ActualHeight > 100,
                 "Native window, report list and preview rendered");
             Check(navigation.ActualWidth > 150 && navigation.SelectedIndex == 0 && reportPage.Visibility == Visibility.Visible &&
-                reports.ActualHeight > 250 && preview.ActualHeight > 250,
-                "Fluent navigation and full height side by side report reader");
+                reports.ActualHeight > 250 && preview.ActualHeight >= 139 && chatPanel.ActualHeight >= 209 &&
+                reportSplitter.ActualHeight > 0 && preview.Visibility == Visibility.Visible && chatPanel.Visibility == Visibility.Visible,
+                "Fluent navigation and full height reader preserve both report and chat with a visible divider");
             filters.ShowAt(filterButton);
             await Task.Delay(400);
             Check(from.ActualHeight > 0 && from.ActualHeight < 100 && to.ActualHeight > 0 && to.ActualHeight < 100,
