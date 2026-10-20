@@ -117,19 +117,41 @@ struct ContentView: View {
                             }
                             Button(T("打开报告"), systemImage: "arrow.up.right.square") { NSWorkspace.shared.open(selected.url) }
                         }
+                        ReportActionsView(store: store, conversation: store.reportConversation, report: selected)
                         Divider()
-                        if selected.url.pathExtension.lowercased() == "md" {
-                            MarkdownReportView(text: store.reportText)
-                        } else { ScrollView {
-                            Text(store.reportText).font(.system(size: 14)).lineSpacing(6)
-                                .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-                        } }
+                        VSplitView {
+                            Group {
+                                if selected.url.pathExtension.lowercased() == "md" { MarkdownReportView(text: store.reportText) }
+                                else { ScrollView {
+                                    Text(store.reportText).font(.system(size: 14)).lineSpacing(6)
+                                        .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                                } }
+                            }.frame(minHeight: 170, maxHeight: .infinity)
+                            ReportConversationView(conversation: store.reportConversation, path: selected.id)
+                                .frame(minHeight: 210, idealHeight: 285, maxHeight: .infinity)
+                        }
                     } else {
                         ContentUnavailableView(store.reports.isEmpty ? T("等待第一份报告") : T("没有匹配的邮件"), systemImage: "tray", description: Text(store.reports.isEmpty ? T("新来信会自动整理为六项报告。") : T("试试更换关键词，或重置筛选。")))
                     }
                 }.padding(20).frame(minWidth: 380, maxWidth: .infinity, maxHeight: .infinity)
             }
 
+        }
+    }
+}
+
+private struct ReportActionsView: View {
+    @ObservedObject var store: MailStore
+    @ObservedObject var conversation: ReportConversationStore
+    let report: Report
+    var body: some View {
+        HStack {
+            Button(T("重新总结"), systemImage: "sparkles") {
+                let path = report.id
+                Task { await conversation.regenerate(path) { original, url, text in store.applyRegeneratedReport(original, url: url, text: text) } }
+            }.disabled(conversation.state(report.id).busy).accessibilityIdentifier("mail-report-regenerate")
+            Text(T("使用当前语言和 AI 设置，替换这份报告；原邮件不变。"))
+                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
         }
     }
 }

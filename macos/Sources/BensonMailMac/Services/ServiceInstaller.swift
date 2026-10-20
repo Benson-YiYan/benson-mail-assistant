@@ -94,15 +94,16 @@ enum ServiceInstaller {
         return (stack, preserve, reports)
     }
     @MainActor static func runReportConfirmation(_ alert: NSAlert) -> NSApplication.ModalResponse {
-        // A button has one key equivalent: Return activates Cancel; handle Escape for this modal only.
+        // Both Escape and Return must cancel this destructive confirmation, including when another app had focus.
         let monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.keyCode == 53, NSApp.modalWindow === alert.window {
+            if [UInt16(53), UInt16(36), UInt16(76)].contains(event.keyCode), NSApp.modalWindow === alert.window {
                 NSApp.stopModal(withCode: .alertSecondButtonReturn)
                 return nil
             }
             return event
         }
         defer { if let monitor { NSEvent.removeMonitor(monitor) } }
+        NSApp.activate(ignoringOtherApps: true)
         return alert.runModal()
     }
     /// Authorization always precedes service, credential, report or application removal.

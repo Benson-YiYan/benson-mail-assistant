@@ -292,7 +292,7 @@ enum AppSelfTest {
                         keyResponse = ServiceInstaller.runReportConfirmation(warning)
                         return keyResponse
                     }, operation: { operated = true })
-                guard !result, !operated, keyResponse == .alertSecondButtonReturn else { throw Failure("Return or Escape failed to cancel report deletion") }
+                guard !result, !operated, keyResponse == .alertSecondButtonReturn else { throw Failure("Return or Escape failed to cancel report deletion: key=\(keyCode), response=\(keyResponse.rawValue), performed=\(operated)") }
             }
             var confirmationCount = 0
             let kept = ServiceInstaller.performWhenAuthorized(options: .init(preserveConfiguration: false, preserveReports: true),
@@ -662,6 +662,7 @@ enum AppSelfTest {
             mainWindow.orderOut(nil)
             store.settings.ai_provider = fixtureAIProvider
             checks.append("actual native field edits survive mailbox/AI/general/report navigation; report selection and content retained; four native layout snapshots captured")
+            checks.append(contentsOf: try await ReportConversationSelfTest.run(base: store.base))
             let value: [String: Any] = ["ok": true, "checks": checks]
             try JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("result.json"))
         } catch {

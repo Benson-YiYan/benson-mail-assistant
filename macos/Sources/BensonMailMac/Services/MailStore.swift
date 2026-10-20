@@ -8,6 +8,7 @@ final class MailStore: ObservableObject {
     let isTest: Bool
     var uninstalling = false
     var updating = false
+    lazy var reportConversation = ReportConversationStore(base: base, offline: isTest)
     @Published var workspacePage: WorkspacePage = .reports
     @Published var settings = MailSettings()
     @Published var status = ServiceStatus()
@@ -376,6 +377,15 @@ final class MailStore: ObservableObject {
     func select(_ report: Report) {
         selected = report
         reportText = report.text.isEmpty ? "报告无法读取，请检查文件权限。" : report.text
+    }
+    func applyRegeneratedReport(_ originalPath: String, url: URL, text: String) {
+        guard let original = reports.first(where: { $0.id == originalPath }) else { return }
+        let stamp = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? Date()
+        let updated = Report(url: url, modified: stamp, metadataModified: original.metadataModified,
+            sender: original.sender, body: original.body, attachmentNames: original.attachmentNames,
+            hasAttachments: original.hasAttachments, text: text, subject: original.subject, receivedAt: original.receivedAt)
+        reports = reports.map { $0.id == originalPath ? updated : $0 }
+        if selected?.id == originalPath { select(updated) }
     }
     func openFolder() {
         do { try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true); NSWorkspace.shared.open(output) }
