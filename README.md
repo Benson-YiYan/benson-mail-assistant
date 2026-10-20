@@ -91,7 +91,7 @@
 
 稳定更新清单：[`distribution/manifest.json`](distribution/manifest.json)。源码、文档、语言包和安装程序统一维护在 [Benson-YiYan/benson-mail-assistant](https://github.com/Benson-YiYan/benson-mail-assistant)。不同平台安装包仍是同一 Release 中的独立附件。
 
-旧仓库已合并至此。使用旧更新地址的版本需要从本仓库 Releases 手动下载安装一次新版；覆盖安装会保留邮箱及 AI 配置和报告。
+旧版更新地址 `benson-mail-updates/main/manifest.json` 保留为兼容入口，更新服务器自动同步同一份清单，旧版可继续检查更新并下载新版。项目另有一个只存兼容清单的 `benson-mail-updates` 仓库。检查更新失败时会显示“前往 GitHub 下载最新版”按钮；覆盖安装保留邮箱及 AI 配置和报告。
 
 ## 重新总结与邮件问答
 

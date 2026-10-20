@@ -111,6 +111,9 @@ internal static class L
             });
             break;
         }
+        // Keep update recovery usable with a language pack downloaded by an older release.
+        if (translated == null && value == "前往 GitHub 下载最新版")
+            translated = Bootstrap(value, "Download the latest version from GitHub", "Descargar la última versión desde GitHub");
         if (translated == null && exact.Count == 0 && (Program.Uninstall || Array.IndexOf(Program.Args, "--uninstall-ui-test") >= 0))
             translated = UninstallLocalization.Translate(value, Code);
         if (translated == null) return value;

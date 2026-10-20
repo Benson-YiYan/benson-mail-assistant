@@ -4,6 +4,9 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
+from unittest import mock
+import base64
+import subprocess
 import server
 
 
@@ -142,6 +145,66 @@ class LanguageReleaseServerTests(unittest.TestCase):
         path=self.directory/entry['file']; path.write_bytes(b'X'*entry['size'])
         self.assertEqual(self.request('/downloads/'+entry['file'])[0],409)
         with self.assertRaises(ValueError): server.validate_language_catalog(entries,self.directory)
+
+
+class ManifestPublicationTests(unittest.TestCase):
+    manifest = {"schema_version": 1, "platforms": {"windows-x64": {"version": "202610201000"}}}
+
+    def existing(self, manifest):
+        return subprocess.CompletedProcess([], 0, json.dumps({
+            "sha": "previous-sha",
+            "content": base64.b64encode(json.dumps(manifest).encode()).decode(),
+        }), "")
+
+    def test_unchanged_canonical_and_compatibility_manifests_do_not_commit(self):
+        with mock.patch.object(server.subprocess, "run", return_value=self.existing(self.manifest)) as run:
+            outcomes = server.publish_manifests(self.manifest)
+        self.assertTrue(all(outcomes.values()))
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual([call.args[0][-1] for call in run.call_args_list], [
+            "repos/Benson-YiYan/benson-mail-assistant/contents/distribution/manifest.json",
+            "repos/Benson-YiYan/benson-mail-updates/contents/manifest.json",
+        ])
+
+    def test_canonical_failure_does_not_block_compatibility_publication(self):
+        with mock.patch.object(server, "publish_manifest", side_effect=[RuntimeError("unavailable"), None]) as publish:
+            with self.assertLogs(server.LOG, level="ERROR"):
+                outcomes = server.publish_manifests(self.manifest)
+        self.assertEqual(list(outcomes.values()), [False, True])
+        self.assertEqual(publish.call_count, 2)
+
+    def test_compatibility_failure_does_not_undo_canonical_publication(self):
+        with mock.patch.object(server, "publish_manifest", side_effect=[None, subprocess.TimeoutExpired("gh", 45)]):
+            with self.assertLogs(server.LOG, level="ERROR"):
+                outcomes = server.publish_manifests(self.manifest)
+        self.assertEqual(list(outcomes.values()), [True, False])
+
+    def test_changed_compatibility_manifest_preserves_sha_and_exact_verified_content(self):
+        requests = []
+        def run(command, **kwargs):
+            requests.append(command)
+            if "--method" not in command:
+                return self.existing({"schema_version": 1, "platforms": {}})
+            payload = json.loads(Path(command[-1]).read_text(encoding="utf-8"))
+            self.assertEqual(payload["sha"], "previous-sha")
+            self.assertEqual(json.loads(base64.b64decode(payload["content"])), self.manifest)
+            return subprocess.CompletedProcess(command, 0, "", "")
+        with mock.patch.object(server.subprocess, "run", side_effect=run):
+            server.publish_manifest(self.manifest, server.COMPATIBILITY_REPOSITORY, "manifest.json")
+        self.assertEqual(len(requests), 2)
+        self.assertEqual(requests[1][-3], "repos/Benson-YiYan/benson-mail-updates/contents/manifest.json")
+
+    def test_missing_compatibility_manifest_is_created_without_sha(self):
+        def run(command, **kwargs):
+            if "--method" not in command:
+                return subprocess.CompletedProcess(command, 1, "", "HTTP 404")
+            payload = json.loads(Path(command[-1]).read_text(encoding="utf-8"))
+            self.assertNotIn("sha", payload)
+            self.assertEqual(json.loads(base64.b64decode(payload["content"])), self.manifest)
+            return subprocess.CompletedProcess(command, 0, "", "")
+        with mock.patch.object(server.subprocess, "run", side_effect=run) as api:
+            server.publish_manifest(self.manifest, server.COMPATIBILITY_REPOSITORY, "manifest.json")
+        self.assertEqual(api.call_count, 2)
 
 if __name__ == "__main__":
     unittest.main()

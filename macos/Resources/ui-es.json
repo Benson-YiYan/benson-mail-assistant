@@ -538,6 +538,7 @@
     "每 5 小时自动检查更新，无新版时不打扰。": "Busca actualizaciones cada 5 horas y no muestra avisos si ya está actualizado.",
     "正在检查更新…": "Buscando actualizaciones…",
     "检查更新": "Buscar actualizaciones",
+    "前往 GitHub 下载最新版": "Descargar la última versión desde GitHub",
     "发现新版本": "Nueva versión disponible",
     "当前已是最新版本。": "Ya tienes la última versión.",
     "检查更新失败，请检查网络后重试。": "Falló la búsqueda de actualizaciones. Revisa tu red y vuelve a intentarlo.",

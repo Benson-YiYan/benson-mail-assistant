@@ -90,7 +90,8 @@ final class AppLanguage: ObservableObject {
             "无法读取下载的语言包，请重试或检查文件权限。": "Cannot read the downloaded language pack. Retry or check file permissions.",
             "请先下载当前语言包，再打开指南。": "Download the current language pack before opening the guide.",
             "好": "OK", "帮助": "Help", "使用指南": "User guide", "如何获取授权码？": "How do I get an authorization code?",
-            "检查更新": "Check for updates", "关于邮件小秘书": "About Email Assistant"
+            "检查更新": "Check for updates", "关于邮件小秘书": "About Email Assistant",
+            "前往 GitHub 下载最新版": "Download the latest version from GitHub"
         ]
         let es = [
             "你没有下载这个语言，是否现在下载？": "No has descargado este idioma. ¿Quieres descargarlo ahora?",
@@ -103,7 +104,8 @@ final class AppLanguage: ObservableObject {
             "无法读取下载的语言包，请重试或检查文件权限。": "No se puede leer el paquete descargado. Reintenta o revisa los permisos de los archivos.",
             "请先下载当前语言包，再打开指南。": "Descarga el paquete del idioma actual antes de abrir la guía.",
             "好": "Aceptar", "帮助": "Ayuda", "使用指南": "Guía de uso", "如何获取授权码？": "¿Cómo obtener un código de autorización?",
-            "检查更新": "Buscar actualizaciones", "关于邮件小秘书": "Acerca de Asistente de correo electrónico"
+            "检查更新": "Buscar actualizaciones", "关于邮件小秘书": "Acerca de Asistente de correo electrónico",
+            "前往 GitHub 下载最新版": "Descargar la última versión desde GitHub"
         ]
         if text == "邮件小秘书" { return appName(language) }
         return (language == "es" ? es[text] : language == "en" ? en[text] : nil) ?? text

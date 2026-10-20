@@ -22,6 +22,11 @@ APP = HOME / "Library/Application Support/BensonMailUpdates"
 DOWNLOADS = HOME / "Documents/CodexMade"
 TUNNEL = APP / "runtime/cloudflared"
 REPOSITORY = "Benson-YiYan/benson-mail-assistant"
+COMPATIBILITY_REPOSITORY = "Benson-YiYan/benson-mail-updates"
+MANIFEST_TARGETS = (
+    (REPOSITORY, "distribution/manifest.json"),
+    (COMPATIBILITY_REPOSITORY, "manifest.json"),
+)
 PLATFORMS = {"windows-x64": ".exe", "macos-arm64": ".dmg", "macos-x86_64": ".dmg"}
 LOG = logging.getLogger("mail-updates")
 
@@ -253,9 +258,9 @@ def make_handler(state):
     return Handler
 
 
-def publish_manifest(manifest, repository=REPOSITORY):
+def publish_manifest(manifest, repository=REPOSITORY, path="distribution/manifest.json"):
     gh = shutil.which("gh") or "/opt/homebrew/bin/gh"
-    endpoint = f"repos/{repository}/contents/distribution/manifest.json"
+    endpoint = f"repos/{repository}/contents/{path}"
     existing = subprocess.run([gh, "api", endpoint], capture_output=True, text=True, timeout=45)
     previous = None
     if existing.returncode == 0:
@@ -276,6 +281,20 @@ def publish_manifest(manifest, repository=REPOSITORY):
                                  capture_output=True, text=True, timeout=60)
     if outcome.returncode:
         raise RuntimeError("GitHub manifest write failed; publication will retry in five minutes")
+
+
+def publish_manifests(manifest):
+    """Publish the same verified data to both addresses, attempting each independently."""
+    outcomes = {}
+    for repository, path in MANIFEST_TARGETS:
+        target = repository + "/" + path
+        try:
+            publish_manifest(manifest, repository, path)
+            outcomes[target] = True
+        except (RuntimeError, OSError, subprocess.TimeoutExpired, ValueError):
+            outcomes[target] = False
+            LOG.error("Manifest publication failed for %s; retry in five minutes", target)
+    return outcomes
 
 
 def run():
@@ -367,14 +386,23 @@ def run():
                 next_publication = 0
                 last_manifest = manifest
             if manifest and not state.published and time.monotonic() >= next_publication:
+                outcomes = publish_manifests(manifest)
+                with state.lock:
+                    # A tunnel can reconnect while the GitHub requests are in flight.
+                    state.published = all(outcomes.values()) and state.manifest() == manifest
+                canonical_ready = outcomes[REPOSITORY + "/distribution/manifest.json"]
                 try:
-                    publish_manifest(manifest)
+                    atomic_json(APP / "status.json", {
+                        "status": "ready" if canonical_ready else "publication-pending",
+                        "manifest": manifest, "publications": outcomes,
+                    })
+                except OSError:
+                    LOG.error("Publication status could not be saved; retry in five minutes")
                     with state.lock:
-                        state.published = True
-                    atomic_json(APP / "status.json", {"status": "ready", "manifest": manifest})
+                        state.published = False
+                if state.published:
                     LOG.info("Stable public manifest updated")
-                except (RuntimeError, OSError, subprocess.TimeoutExpired, ValueError):
-                    LOG.error("Manifest publication failed; retry in five minutes")
+                else:
                     next_publication = time.monotonic() + 300
     finally:
         server.shutdown()

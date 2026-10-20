@@ -103,12 +103,20 @@ final class DownloadFixture: URLProtocol {
   })
   await quiet.check(manual:true)
   precondition(quiet.available == nil && quiet.status == "当前已是最新版本。")
-  let failed = AppUpdater(defaults:UserDefaults(suiteName:suite+".offline")!,currentVersion:current,endpoint:{endpoint},fetch:{_ in throw URLError(.notConnectedToInternet)})
+  var offline = true
+  let failed = AppUpdater(defaults:UserDefaults(suiteName:suite+".offline")!,currentVersion:current,endpoint:{endpoint},fetch:{_ in
+   if offline { throw URLError(.notConnectedToInternet) }
+   return (equal,HTTPURLResponse(url:endpoint,statusCode:200,httpVersion:nil,headerFields:nil)!)
+  })
   defer { UserDefaults.standard.removePersistentDomain(forName:suite+".offline") }
   await failed.check(manual:false)
-  precondition(failed.status.isEmpty && !failed.isDue())
+  precondition(failed.status.isEmpty && !failed.isDue() && failed.checkFailed)
   await failed.check(manual:true)
-  precondition(failed.status == "检查更新失败，请检查网络后重试。")
+  precondition(failed.status == "检查更新失败，请检查网络后重试。" && failed.checkFailed)
+  precondition(AppUpdater.latestRelease.absoluteString == "https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest")
+  offline = false
+  await failed.check(manual:true)
+  precondition(!failed.checkFailed && failed.status == "当前已是最新版本。")
   let httpFailure = AppUpdater(defaults:defaults,currentVersion:current,endpoint:{endpoint},fetch:{_ in
    (equal,HTTPURLResponse(url:endpoint,statusCode:503,httpVersion:nil,headerFields:nil)!)
   })

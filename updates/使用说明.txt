@@ -19,6 +19,9 @@
 本地只监听：127.0.0.1:18765
 状态页面：http://127.0.0.1:18765/status
 稳定清单：https://raw.githubusercontent.com/Benson-YiYan/benson-mail-assistant/main/distribution/manifest.json
+旧版兼容清单：https://raw.githubusercontent.com/Benson-YiYan/benson-mail-updates/main/manifest.json
+兼容仓库只保留版本清单和说明；安装包、语言包及正式 Release 都在主仓库。
+旧地址返回与新地址一致的 JSON，旧客户端可直接读取，不依赖 HTTP 跳转。
 
 三、发布新版（面向维护者）
 1. 把三个最终安装包放在文稿/CodexMade 的第一层，不要用符号链接。
@@ -64,4 +67,8 @@ GitHub 仅发布版本、下载 URL、SHA256、文件大小及更新说明，不
 用 --publish-languages LANGUAGE-CATALOG.json 校验并启用六份语言包。
 稳定清单的 language_packs 字段包含每份包的 SHA256、大小、主下载地址及 GitHub 备用地址。
 仓库统一为 Benson-YiYan/benson-mail-assistant，服务会更新其中 distribution/manifest.json。
-旧版若只认识原更新索引仓库地址，旧仓库清理后需手动安装一次新版；不会修改用户邮箱或密钥。
+另保留 Benson-YiYan/benson-mail-updates 兼容仓库，服务同步更新其中 manifest.json。
+两个仓库独立尝试写入；一处失败不会阻止另一处更新，五分钟后重试。
+写入前比较 JSON 内容；未变更时不创建提交。状态文件 publications 字段显示两处发布结果。
+部署前须创建公开兼容仓库，默认分支设为 main，并确保本机 gh 有两处内容写入权限。
+保留该兼容仓库，才能让仍使用旧更新地址的客户端直接检查并安装新版。

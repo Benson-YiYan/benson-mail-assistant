@@ -80,7 +80,7 @@ El código está en `windows/` y `macos/`. Código, documentación, paquetes de 
 
 [Notificar un problema](https://github.com/Benson-YiYan/benson-mail-assistant/issues): incluye sistema operativo, versión y error sin datos privados. Si te ahorra tiempo, una ⭐ es bienvenida.
 
-Los repositorios anteriores se han unificado aquí. Las versiones que usan la antigua URL de actualización necesitan instalar manualmente una vez la nueva versión desde Releases de este repositorio. Instalar sobre la versión existente conserva la configuración del correo y de IA y los informes.
+La dirección antigua `benson-mail-updates/main/manifest.json` sigue disponible. El servidor sincroniza allí el mismo manifiesto para que las versiones antiguas puedan buscar y descargar actualizaciones. El repositorio adicional `benson-mail-updates` solo contiene esta entrada de compatibilidad. Si falla la búsqueda, aparece el botón «Descargar la última versión desde GitHub». Instalar sobre la versión existente conserva la configuración del correo y de IA y los informes.
 
 ## Volver a resumir y preguntar sobre un correo
 

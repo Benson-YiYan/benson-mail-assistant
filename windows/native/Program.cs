@@ -267,6 +267,7 @@ sealed partial class MainWindow : Window
     Button mailSaveButton = null!, aiSaveButton = null!;
     Button filterButton = null!;
     Button updateButton = null!;
+    Button updateFallbackButton = null!;
     UpdateRelease? pendingUpdate;
     bool updateBusy;
     UpdateDownloadView? activeDownload;
@@ -532,6 +533,11 @@ sealed partial class MainWindow : Window
             mailAuth.SelectedIndex = preset.TryGetProperty("mail_auth", out var auth) && auth.GetString() == "oauth2" ? 1 : 0;
         };
         updateButton = Action(L.T("检查更新"), () => CheckUpdates(true));
+        updateFallbackButton = Action(L.T("前往 GitHub 下载最新版"), () => {
+            Open(UpdateClient.LatestReleaseUrl);
+            return Task.CompletedTask;
+        });
+        updateFallbackButton.Visibility = Visibility.Collapsed;
         mailSaveButton = Action(L.T("保存邮箱设置"), SaveMail);
         aiSaveButton = Action(L.T("保存 AI 设置"), SaveAI);
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
@@ -547,7 +553,7 @@ sealed partial class MainWindow : Window
         };
         mailPage.Children.Add(SettingsPage(Stack(
             Card(Stack(languageChoice, Note(L.T("语言更改立即生效，下次打开时保留。")),
-                Note(L.T("当前版本：") + UpdateClient.InstalledVersion), Row(updateButton), updateStatus,
+                Note(L.T("当前版本：") + UpdateClient.InstalledVersion), Row(updateButton), updateStatus, updateFallbackButton,
                 Note(L.T("每 5 小时自动检查更新；仅提示下载，不会自动安装。")))),
             Card(Stack(Heading(L.T("管理邮箱")), savedMailboxes,
                 Row(Action(L.T("添加邮箱"), async () => {
@@ -660,19 +666,24 @@ sealed partial class MainWindow : Window
             if (initialized && !exitRequested) { searchTimer.Stop(); searchTimer.Start(); }
         };
     }
+    void SetUpdateCheckStatus(string text, bool failed = false)
+    {
+        updateStatus.Text = text;
+        updateFallbackButton.Visibility = failed ? Visibility.Visible : Visibility.Collapsed;
+    }
     async Task CheckUpdates(bool manual)
     {
         if (exitRequested || testResult != null || updateBusy) return;
         if (!manual && VisualTreeHelper.GetOpenPopupsForXamlRoot(layout.XamlRoot).Count > 0) return;
         updateBusy = true; updateButton.IsEnabled = false;
-        if (manual) updateStatus.Text = L.T("正在检查更新…");
+        SetUpdateCheckStatus(L.T("正在检查更新…"));
         try {
             var release = manual ? await updates.Check(true) : pendingUpdate ?? await updates.Check(false);
             if (exitRequested) return;
-            if (release == null) { if (manual) updateStatus.Text = L.T("当前已是最新版本。"); return; }
+            if (release == null) { SetUpdateCheckStatus(L.T("当前已是最新版本。")); return; }
             pendingUpdate = release;
             if (VisualTreeHelper.GetOpenPopupsForXamlRoot(layout.XamlRoot).Count > 0) return;
-            updateStatus.Text = L.T("发现新版本：") + release.Version;
+            SetUpdateCheckStatus(L.T("发现新版本：") + release.Version);
             using var view = new UpdateDownloadView(release,
                 new UpdateDownload(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail", "update-cache")),
                 async (verified, installCancellation) => {
@@ -705,7 +716,9 @@ sealed partial class MainWindow : Window
             }
         }
         catch (Exception error) {
-            if (manual && !exitRequested) updateStatus.Text = L.T("检查更新失败：") + UpdateTransport.ErrorDetails(error, L.Code);
+            if (!exitRequested) {
+                SetUpdateCheckStatus(L.T("检查更新失败：") + UpdateTransport.ErrorDetails(error, L.Code), failed: true);
+            }
         }
         finally { updateBusy = false; if (!exitRequested) updateButton.IsEnabled = true; }
     }
@@ -1233,6 +1246,7 @@ sealed partial class MainWindow : Window
                 "Essential offline uninstall controls remain English and Spanish without optional application packs");
             Check(AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized },
                 "Main window starts maximized with the standard window presenter");
+            UpdateRecoverySelfTest(Check);
             Program.Trace("Begin offline update transport and stream tests");
             checks.AddRange(await UpdateClient.OfflineTests(fixture!));
             Program.Trace("Offline update transport and stream tests passed");

@@ -17,10 +17,12 @@ struct MailUpdate: Equatable {
     static let interval: TimeInterval = 5 * 60 * 60
     static let canonicalManifest = "https://raw.githubusercontent.com/Benson-YiYan/benson-mail-assistant/main/distribution/manifest.json"
     static let manifestAPI = "https://api.github.com/repos/Benson-YiYan/benson-mail-assistant/contents/distribution/manifest.json?ref=main"
+    static let latestRelease = URL(string: "https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest")!
     static let shared = AppUpdater()
     @Published private(set) var checking = false
     @Published private(set) var status = ""
     @Published private(set) var detail = ""
+    @Published private(set) var checkFailed = false
     @Published private(set) var available: MailUpdate?
     private let defaults: UserDefaults
     private let currentVersion: String
@@ -100,6 +102,7 @@ struct MailUpdate: Equatable {
     func check(manual: Bool) async {
         guard !checking, !downloading, !installing, manual || isDue() else { return }
         checking = true
+        checkFailed = false
         if manual { detail = "" }
         defaults.set(Date().timeIntervalSince1970, forKey: Self.lastCheckKey)
         defer { checking = false }
@@ -116,6 +119,7 @@ struct MailUpdate: Equatable {
             if update != nil { status = "发现新版本" }
             else if manual { status = "当前已是最新版本。" }
         } catch {
+            checkFailed = true
             if manual {
                 status = "检查更新失败，请检查网络后重试。"
                 if let network = error as? URLError { detail = T("网络错误代码：") + String(network.errorCode) + " · " + network.localizedDescription }
@@ -306,6 +310,11 @@ struct UpdateSettings: View {
             }.disabled(updater.checking || updater.downloading || updater.installing).accessibilityIdentifier("check-app-updates")
             if !updater.status.isEmpty { Text(T(updater.status)).font(.callout).textSelection(.enabled) }
             if !updater.detail.isEmpty { Text(updater.detail).font(.caption).textSelection(.enabled) }
+            if updater.checkFailed {
+                Link(T("前往 GitHub 下载最新版"), destination: AppUpdater.latestRelease)
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("update-github-fallback")
+            }
             if let update = updater.verifiedRelease ?? updater.available {
                 Text(T("新版本") + " " + update.version).font(.headline)
                 Text(update.localizedNotes(for: language.code)).textSelection(.enabled)

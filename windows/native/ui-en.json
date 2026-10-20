@@ -536,6 +536,7 @@
     "\n其他文件及自选根目录会保留。此操作无法撤销。": "\nOther files and your chosen root folder will remain. This cannot be undone.",
     "删除报告并卸载": "Delete reports and uninstall",
     "检查更新": "Check for updates",
+    "前往 GitHub 下载最新版": "Download the latest version from GitHub",
     "当前版本：": "Current version: ",
     "每 5 小时自动检查更新；仅提示下载，不会自动安装。": "Checks for updates every 5 hours. Downloads are offered; updates are never installed automatically.",
     "正在检查更新…": "Checking for updates…",

@@ -83,7 +83,7 @@ Each mailbox can use Direct, System proxy, HTTP CONNECT or SOCKS5. In mailbox se
 
 Stable manifest: [`distribution/manifest.json`](distribution/manifest.json). Source, documentation, language packs and installers are maintained in this repository: [Benson-YiYan/benson-mail-assistant](https://github.com/Benson-YiYan/benson-mail-assistant). Platform packages remain separate assets in the same release.
 
-The previous repositories have been consolidated here. Versions using the old update URL need a one-time manual installation from this repository’s Releases. Installing over the existing version preserves mailbox and AI settings and reports.
+The legacy update address `benson-mail-updates/main/manifest.json` remains available. The update server synchronizes the same manifest there so older versions can continue checking for and downloading updates. The separate `benson-mail-updates` repository contains only this compatibility entry. If an update check fails, a “Download the latest version from GitHub” button appears. Installing over the existing version preserves mailbox and AI settings and reports.
 
 ## Summarize again and ask about an email
 
