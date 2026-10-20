@@ -21,7 +21,7 @@ sealed partial class MainWindow
     readonly StackPanel chatMessages = new() { Spacing = 12 };
     readonly ScrollViewer chatScroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     readonly Grid chatPanel = new() { RowSpacing = 10, Visibility = Visibility.Collapsed };
-    readonly ProgressRing conversationProgress = new() { IsActive = false, Width = 20, Height = 20 };
+    readonly ConversationBusyIndicator conversationProgress = new() { IsActive = false, Width = 20, Height = 20 };
     readonly Dictionary<string, (string text, List<string> files)> questionDrafts = new(StringComparer.OrdinalIgnoreCase);
     readonly HashSet<string> conversationBusy = new(StringComparer.OrdinalIgnoreCase);
     readonly Dictionary<string, string> conversationErrors = new(StringComparer.OrdinalIgnoreCase);
@@ -175,6 +175,12 @@ sealed partial class MainWindow
     async Task ConversationSelfTest(Action<bool, string> check)
     {
         if (fixture == null || reports.Items.Count == 0) throw new InvalidOperationException("Conversation test needs synthetic reports");
+        conversationProgress.IsActive = true;
+        await Task.Delay(200);
+        check(conversationProgress.IsLoaded && conversationProgress.Visibility == Visibility.Visible,
+            "Native busy indicator renders and animates without loading a shared ProgressRing template");
+        conversationProgress.IsActive = false;
+        check(conversationProgress.Visibility == Visibility.Collapsed, "Busy indicator hides when processing ends");
         reports.SelectedIndex = 0;
         var path = SelectedReport!.path;
         ResetConversation();

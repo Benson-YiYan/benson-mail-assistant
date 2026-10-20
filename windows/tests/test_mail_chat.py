@@ -124,4 +124,77 @@ class MailChatTests(unittest.TestCase):
         with patch.object(windows.subprocess,'run',side_effect=codex_run):
             self.assertEqual(windows._complete(root,{**config,'ai_provider':'codex','codex_command':['fixture-codex']},messages),'Codex answer')
 
+    def test_mac_retry_identity_cache_and_reexport_do_not_duplicate(self):
+        root, report, config = self.fixture(mac)
+        source = json.loads(report.with_suffix('.mail.json').read_text())
+        source.update(uid=42, mailbox_key='abcdef1234', received_at='2026-10-20T10:00:00+08:00')
+        report.with_suffix('.mail.json').write_text(json.dumps(source))
+        # Use the real export name so a later daemon export exercises identity detection.
+        import mail_export
+        report.unlink(); report.with_suffix('.mail.json').unlink()
+        with patch.object(mail_export, 'destination', return_value=Path(config['output_dir'])):
+            report = mail_export.export(source, 'Old report')
+        folder = root / 'mailboxes' / source['mailbox_key'] / 'mail_watch' / '42'
+        folder.mkdir(parents=True)
+        (folder / 'mail.json').write_text(json.dumps(source))
+        (folder / 'answer.txt').write_text('Old report')
+        with patch.object(mac, '_complete', return_value='## Regenerated report'):
+            result = mac.report_retry(root, report)
+        self.assertTrue(result['text'].startswith('邮件编号：42\n邮箱标识：abcdef1234\n'))
+        self.assertEqual((folder / 'answer.txt').read_text(), '## Regenerated report')
+        with patch.object(mail_export, 'destination', return_value=Path(config['output_dir'])):
+            again = mail_export.export(source, (folder / 'answer.txt').read_text())
+        self.assertEqual(again, report)
+        self.assertEqual(len(list(Path(config['output_dir']).rglob('*.md'))), 1)
+        before = report.read_bytes(); cache_before = (folder / 'answer.txt').read_bytes()
+        with patch.object(mac, '_complete', side_effect=RuntimeError('provider failure')):
+            with self.assertRaises(RuntimeError): mac.report_retry(root, report)
+        self.assertEqual(report.read_bytes(), before)
+        self.assertEqual((folder / 'answer.txt').read_bytes(), cache_before)
+
+    def test_multiturn_language_switch_keeps_history_and_uses_current_language(self):
+        for module in (windows, mac):
+            root, report, config = self.fixture(module)
+            configfile = root / ('config.json' if module is windows else 'settings.json')
+            for language, phrase in [('en', 'English'), ('es', 'español'), ('zh', '简体中文')]:
+                config['ui_language'] = language; configfile.write_text(json.dumps(config))
+                with patch.object(module, '_complete', return_value='Answer '+language) as provider:
+                    module.chat_send(root, report, 'Question '+language, [])
+                    sent = provider.call_args.args[2]
+                    self.assertIn(phrase, sent[0]['content'])
+                    for earlier in ['en', 'es', 'zh'][:['en','es','zh'].index(language)]:
+                        self.assertTrue(any(m['content']=='Question '+earlier for m in sent))
+                        self.assertTrue(any(m['content']=='Answer '+earlier for m in sent))
+            history = module.chat_history(root, report)
+            self.assertEqual(len(history['messages']), 6)
+            self.assertEqual([m['content'] for m in history['messages'] if m['role']=='assistant'], ['Answer en','Answer es','Answer zh'])
+
+    def test_oversized_fixed_context_never_calls_provider_or_overwrites(self):
+        for module in (windows, mac):
+            root, report, _ = self.fixture(module)
+            data = json.loads(report.with_suffix('.mail.json').read_text())
+            data['body'] = 'x'*70000
+            report.with_suffix('.mail.json').write_text(json.dumps(data))
+            before = report.read_bytes()
+            with patch.object(module, '_complete') as provider:
+                with self.assertRaisesRegex(ValueError, '60000'): module.chat_send(root, report, 'Question', [])
+                with self.assertRaisesRegex(ValueError, '60000'): module.report_retry(root, report)
+                self.assertFalse(provider.called)
+            self.assertEqual(report.read_bytes(), before)
+            self.assertEqual(module.chat_history(root, report)['messages'], [])
+
+    def test_invalid_history_preserves_original_bytes_and_does_not_send(self):
+        for module in (windows, mac):
+            root, report, _ = self.fixture(module)
+            location = module._history_path(root, report.resolve())
+            state = module._load_history(location, report.resolve())
+            for changes in [{'schema_version': 999}, {'report': str(root/'other.md')}, {'messages': {}}, {'summarized_count': 1}, {'summary': []}, {'summarized_count': True}, {'messages': [{'role':'system','content':'invalid escalation'}]}, {'messages': [{'role':'user','content':42}]}, {'messages': [{'role':'user','content':'Q','files':[{'name':'file','text':42}]}]}]:
+                broken = {**state, **changes, 'private_unknown_field':'DO-NOT-LEAK-SECRET'}
+                module._save_history(location, broken); before = location.read_bytes()
+                with patch.object(module, '_complete') as provider:
+                    with self.assertRaises(ValueError) as error: module.chat_send(root, report, 'Question', [])
+                    self.assertFalse(provider.called)
+                    self.assertNotIn('DO-NOT-LEAK-SECRET', str(error.exception))
+                self.assertEqual(location.read_bytes(), before)
+
 if __name__ == '__main__': unittest.main()

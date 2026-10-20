@@ -42,6 +42,32 @@ class BridgeTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.controller.command(name, {'path': str(attachment), 'text': 'bad'})
 
+    def test_report_retry_waits_for_active_processing_and_updates_pending_cache(self):
+        import threading
+        report = self.root / 'reports' / 'day' / 'sample.md'
+        report.parent.mkdir(parents=True)
+        report.write_text('Original report', encoding='utf-8')
+        self.controller.config['output_dir'] = str(report.parent.parent)
+        service = Mock()
+        service.activity = threading.Lock()
+        service.state = {'pending': {'42': {'target': str(report), 'answer': 'old cached answer'}}}
+        self.controller.service = service
+        service.activity.acquire()
+        try:
+            with patch('benson_mail.mail_chat.report_retry') as retry:
+                with self.assertRaisesRegex(ValueError, '当前任务'):
+                    self.controller.command('report_retry', {'path': str(report)})
+                retry.assert_not_called()
+        finally:
+            service.activity.release()
+        with patch('benson_mail.mail_chat.report_retry', return_value={'path': str(report), 'text': 'new answer'}):
+            result = self.controller.command('report_retry', {'path': str(report)})
+        self.assertEqual(result['text'], 'new answer')
+        self.assertEqual(service.state['pending']['42']['answer'], 'new answer')
+        service.persist.assert_called_once()
+        self.assertTrue(service.activity.acquire(blocking=False))
+        service.activity.release()
+
     def test_interval_persists_and_validates(self):
         self.controller.command('interval', {'seconds': 37})
         self.assertEqual(json.loads((self.root / 'config.json').read_text())['interval'], 37)

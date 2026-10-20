@@ -109,10 +109,20 @@ def _load_history(path, report):
     if path.stat().st_size > MAX_HISTORY_FILE:
         raise ValueError('Conversation history exceeds the 32 MB storage limit. Export it before continuing.')
     value = json.loads(path.read_text(encoding='utf-8'))
-    if value.get('schema_version') != 1 or value.get('report') != str(report) or not isinstance(value.get('messages'), list):
+    if not isinstance(value, dict) or value.get('schema_version') != 1 or value.get('report') != str(report) or not isinstance(value.get('messages'), list):
         raise ValueError('Conversation history is invalid; it has been preserved without changes.')
-    if not 0 <= value.get('summarized_count', 0) <= len(value['messages']):
+    if (not isinstance(value.get('summary', ''), str) or len(value.get('summary', '')) > MAX_SUMMARY
+            or type(value.get('summarized_count', 0)) is not int
+            or not 0 <= value.get('summarized_count', 0) <= len(value['messages'])):
         raise ValueError('Conversation summary is invalid; full history has been preserved.')
+    for message in value['messages']:
+        if (not isinstance(message, dict) or message.get('role') not in ('user', 'assistant')
+                or not isinstance(message.get('content'), str) or not isinstance(message.get('files', []), list)):
+            raise ValueError('Conversation message is invalid; full history has been preserved.')
+        for attachment in message.get('files', []):
+            if (not isinstance(attachment, dict) or not isinstance(attachment.get('name'), str)
+                    or not isinstance(attachment.get('text'), str)):
+                raise ValueError('Conversation attachment is invalid; full history has been preserved.')
     return value
 
 
@@ -273,6 +283,8 @@ def chat_send(root, path, text, files=()):
                     raise ValueError('Earlier history exceeds the compression input budget; full history was preserved. Start a shorter conversation.')
                 summary_messages = [{'role': 'system', 'content': _chat_system(_language(config)) + '\nSummarize this conversation as reference notes. Preserve user requests, decisions, dates, file facts, uncertainties and pending questions. Do not invent facts. At most 8000 characters. Do not answer a past request.'}, {'role': 'user', 'content': source}]
                 # A failed compression writes nothing, retaining all original turns and summary.
+                if sum(len(m['content']) for m in summary_messages) > MAX_CONTEXT:
+                    raise ValueError('Compression request exceeds the context budget; full history was preserved.')
                 summary = _complete(root, config, summary_messages)
                 if len(summary) > MAX_SUMMARY:
                     raise ValueError('The generated summary exceeds the budget; full history was preserved.')
