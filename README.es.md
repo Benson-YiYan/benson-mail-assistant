@@ -100,6 +100,22 @@ Los mensajes omitidos se agrupan por remitente en los registros locales. Puedes 
 
 Arrastra el divisor entre el informe y la conversación del correo para ajustar el tamaño de ambas áreas.
 
+## Nuevos flujos y mejoras de fiabilidad
+
+- **Borradores de respuesta:** elige tono, idioma e instrucciones, edita destinatario, asunto y cuerpo y guarda localmente o copia. La aplicación nunca envía el borrador automáticamente.
+- **Lectura mejorada de adjuntos:** las imágenes y los PDF escaneados usan primero OCR nativo local; el texto extraído se envía a la IA seleccionada. Hay límites de idioma del sistema, tamaño y calidad; se informa del contenido ilegible y no se garantiza el reconocimiento.
+- **Correos históricos:** selecciona buzón y fechas, consulta la cantidad pendiente y confirma para añadirlos a la cola. Puede generar costes de IA y respeta las reglas de remitentes y spam.
+- **Fuentes y preguntas continuas:** consulta el correo original guardado, el texto extraído y sus limitaciones. Las preguntas usan el correo original y sus adjuntos legibles como evidencia; los informes generados y las respuestas anteriores no sustituyen los originales. Se avisa si faltan fuentes de correos antiguos.
+- **Notificaciones y horario silencioso:** pausa las notificaciones del sistema independientemente de la supervisión. Durante el horario silencioso, incluso de noche, se siguen comprobando correos y guardando informes.
+- **Diagnóstico:** exporta manualmente información operativa sin datos sensibles para resolver problemas; no incluye claves, cuerpos, adjuntos ni conversaciones.
+- **Un guardado por página:** los cambios de buzón, IA y Ajustes generales se aplican al guardar su página. Salir con cambios pendientes pide confirmación. El idioma, la carpeta de informes y el inicio de sesión se gestionan en Ajustes generales.
+- **Descargas en Windows:** Ajustes generales tiene su propia página. Más tarde cierra el diálogo y mantiene la descarga y su progreso en segundo plano; solo Cancelar la detiene. Las interrupciones permiten reintentar o reanudar; se verifican tamaño y SHA256 y la instalación requiere tu acción.
+
+| Guías completas | 简体中文 | English | Español |
+| --- | --- | --- | --- |
+| Mac | [中文](macos/Resources/Quick-start-zh.txt) | [English](macos/Resources/Quick-start-en.txt) | [Español](macos/Resources/Quick-start-es.txt) |
+| Windows | [中文](windows/docs/Quick-start-zh.txt) | [English](windows/docs/Quick-start-en.txt) | [Español](windows/docs/Quick-start-es.txt) |
+
 ## Guía completa de funciones y ajustes
 
 Pasos de acceso a todas las funciones y ajustes:

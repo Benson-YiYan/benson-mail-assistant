@@ -103,6 +103,22 @@ Skipped emails are grouped by sender in the local records. Summarize one or seve
 
 Drag the divider between the report and the email conversation to resize both areas.
 
+## New workflows and reliability improvements
+
+- **Reply drafts:** choose tone, language and instructions, then edit the recipient, subject and body before saving locally or copying. The app never sends the draft automatically.
+- **Enhanced attachment reading:** images and scanned PDFs first use native local OCR; extracted text then goes to the selected AI. System language support, file limits and recognition quality apply. Unreadable content is reported, and recognition is not guaranteed.
+- **Older-mail processing:** select a mailbox and date range, preview the pending count, then confirm to queue. Processing may incur AI charges and still follows sender and spam rules.
+- **Sources and continuous questions:** inspect saved original mail, attachment extraction and reading limitations. Questions use the original message and readable original attachments as factual evidence; generated reports and earlier AI replies do not replace originals. Missing sources for older mail are reported.
+- **Notifications and quiet hours:** system notifications can be paused independently of monitoring. Quiet hours, including overnight periods, keep checking mail and saving reports.
+- **Diagnostics:** manually export sanitized operational information for troubleshooting, excluding keys, message bodies, attachments and chat contents.
+- **One Save per settings page:** mailbox, AI and General settings stage edits until their page Save. Leaving a page with unsaved edits asks for confirmation. Language, report folder and login startup are managed in General settings.
+- **Windows update downloads:** General settings is a separate page. Later dismisses the download dialog while progress continues in the background; only explicit cancellation stops it. Interrupted downloads support retry/resume, package size and SHA256 are verified, and installation still requires your action.
+
+| Complete guides | 简体中文 | English | Español |
+| --- | --- | --- | --- |
+| Mac | [中文](macos/Resources/Quick-start-zh.txt) | [English](macos/Resources/Quick-start-en.txt) | [Español](macos/Resources/Quick-start-es.txt) |
+| Windows | [中文](windows/docs/Quick-start-zh.txt) | [English](windows/docs/Quick-start-en.txt) | [Español](windows/docs/Quick-start-es.txt) |
+
 ## Complete feature and settings guide
 
 Step-by-step entry points for every feature and setting:

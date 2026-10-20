@@ -27,7 +27,7 @@ Presets include 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Micro
 - **AI service:** choose, configure and test AI.
 - **General settings:** language, report folder, sign-in startup, updates and uninstall.
 
-The Help menu provides the usage guide, authorization-code tutorial, update check and About. Switching pages preserves unsaved email and AI inputs.
+The Help menu provides the usage guide, authorization-code tutorial, update check and About. Leaving a settings page with unsaved edits asks for confirmation.
 
 ## Reports and monitoring
 
@@ -83,6 +83,18 @@ Under Mailboxes and checking → Block emails, choose a blacklist or whitelist. 
 Skipped emails are grouped by sender in the local records. Summarize one or several with the current language and AI settings. This is a one-time override and does not change the rules; failures keep the records. Delete record removes only the local record, never the original email. Rules apply to newly checked messages and do not remove existing reports.
 
 Drag the divider between the report and the email conversation to resize both areas.
+
+## New workflows and reliability improvements
+
+- **Reply drafts:** choose tone, language and instructions, then edit the recipient, subject and body before saving locally or copying. The app never sends the draft automatically.
+- **Enhanced attachment reading:** images and scanned PDFs first use native local OCR; extracted text then goes to the selected AI. System language support, file limits and recognition quality apply. Unreadable content is reported, and recognition is not guaranteed.
+- **Older-mail processing:** select a mailbox and date range, preview the pending count, then confirm to queue. Processing may incur AI charges and still follows sender and spam rules.
+- **Sources and continuous questions:** inspect saved original mail, attachment extraction and reading limitations. Questions use the original message and readable original attachments as factual evidence; generated reports and earlier AI replies do not replace originals. Missing sources for older mail are reported.
+- **Notifications and quiet hours:** system notifications can be paused independently of monitoring. Quiet hours, including overnight periods, keep checking mail and saving reports.
+- **Diagnostics:** manually export sanitized operational information for troubleshooting, excluding keys, message bodies, attachments and chat contents.
+- **One Save per settings page:** mailbox, AI and General settings stage edits until their page Save. Leaving a page with unsaved edits asks for confirmation. Language, report folder and login startup are managed in General settings.
+
+[简体中文完整指南](Resources/Quick-start-zh.txt) · [Complete English guide](Resources/Quick-start-en.txt) · [Guía completa en español](Resources/Quick-start-es.txt)
 
 ## Step-by-step guide to all features and settings
 
