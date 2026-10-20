@@ -10,7 +10,7 @@ namespace BensonMail;
 
 sealed partial class MainWindow
 {
-    readonly StackPanel senderPolicyBody = new() { Spacing = 10 };
+    readonly ContentControl senderPolicyBody = new() { HorizontalContentAlignment = HorizontalAlignment.Stretch };
     readonly ComboBox senderPolicyMode = new() { Header = L.T("名单模式"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ToggleSwitch senderPolicySpam = new() { Header = L.T("不总结垃圾邮件（部分邮箱可能不支持）"), OnContent = "", OffContent = "" };
     readonly TextBlock senderPolicyExplanation = Note("");
@@ -54,7 +54,7 @@ sealed partial class MainWindow
             })), Action(L.T("保存屏蔽设置"), () => RunSenderPolicy(SaveSenderPolicy))),
             Action(L.T("刷新屏蔽记录"), () => RunSenderPolicy(LoadSenderPolicy)),
             senderPolicyRecordDisclosure, senderPolicyStatus);
-        senderPolicyBody.Children.Add(content);
+        senderPolicyBody.Content = content;
         return Card(senderPolicyBody);
     }
 
