@@ -72,3 +72,5 @@ En Buzones y comprobación → Bloquear correos, elige una lista negra o una lis
 «No resumir correo no deseado (algunos proveedores pueden no admitirlo)» utiliza marcas explícitas del servidor, cabeceras o carpetas de correo no deseado. No adivina por el asunto ni llama a la IA para clasificarlo. Solo se comprueba la carpeta configurada; sin indicadores del proveedor no se puede identificar. La opción está desactivada por defecto.
 
 Los mensajes omitidos se agrupan por remitente en los registros locales. Puedes resumir uno o varios con el idioma y la IA actuales. Es una excepción para esa ocasión y no cambia las reglas; los fallos conservan el registro. Eliminar registro solo borra el registro local, nunca el correo original. Las reglas afectan a los mensajes nuevos comprobados y no eliminan informes existentes.
+
+Arrastra el divisor entre el informe y la conversación del correo para ajustar el tamaño de ambas áreas.

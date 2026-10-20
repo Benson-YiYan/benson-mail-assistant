@@ -81,3 +81,5 @@ Under Mailboxes and checking → Block emails, choose a blacklist or whitelist. 
 “Do not summarize spam (some providers may not support this)” uses explicit server flags, spam headers or junk folders. It does not guess from the subject or call AI to classify spam. Only the configured mail folder is checked; providers that expose no spam indicators cannot be recognized. The option is off by default.
 
 Skipped emails are grouped by sender in the local records. Summarize one or several with the current language and AI settings. This is a one-time override and does not change the rules; failures keep the records. Delete record removes only the local record, never the original email. Rules apply to newly checked messages and do not remove existing reports.
+
+Drag the divider between the report and the email conversation to resize both areas.

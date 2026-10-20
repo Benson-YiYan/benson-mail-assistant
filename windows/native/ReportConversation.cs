@@ -15,13 +15,14 @@ sealed partial class MainWindow
     readonly Button attachQuestion = new() { Content = L.T("添加附件"), IsEnabled = false };
     readonly Button clearQuestionFiles = new() { Content = L.T("移除附件"), IsEnabled = false };
     readonly TextBox question = new() { Header = L.T("对邮件提问"), PlaceholderText = L.T("输入问题，可继续追问或添加附件"),
-        AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 80, MaxHeight = 140 };
+        AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 80, MinHeight = 60, MaxHeight = 80 };
     readonly TextBlock conversationStatus = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
-    readonly TextBlock questionFiles = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+    readonly TextBlock questionFiles = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = 20, IsTextSelectionEnabled = true };
     readonly StackPanel chatMessages = new() { Spacing = 12 };
     readonly ScrollViewer chatScroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     readonly Grid chatPanel = new() { RowSpacing = 8 };
     readonly Grid conversationLayout = new() { RowSpacing = 4 };
+    StackPanel conversationActions = null!;
     ReportPaneSplitter reportSplitter = null!;
     readonly ConversationBusyIndicator conversationProgress = new() { IsActive = false, Width = 20, Height = 20 };
     readonly Dictionary<string, (string text, List<string> files)> questionDrafts = new(StringComparer.OrdinalIgnoreCase);
@@ -55,12 +56,12 @@ sealed partial class MainWindow
         chatScroll.Content = chatMessages; chatPanel.Children.Add(chatScroll);
         Grid.SetRow(questionFiles, 1); chatPanel.Children.Add(questionFiles);
         Grid.SetRow(question, 2); chatPanel.Children.Add(question);
-        var actions = Row(attachQuestion, clearQuestionFiles, sendQuestion);
+        var actions = conversationActions = Row(attachQuestion, clearQuestionFiles, sendQuestion);
         Grid.SetRow(actions, 3); chatPanel.Children.Add(actions);
         var panel = conversationLayout;
         panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(3, GridUnitType.Star), MinHeight = 140 });
         panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Star), MinHeight = 210 });
+        panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Star), MinHeight = 160 });
         panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         Grid.SetRow(conversationStatus, 3); panel.Children.Add(conversationStatus);
         panel.Children.Add(preview);
@@ -68,7 +69,34 @@ sealed partial class MainWindow
         reportSplitter.SetLabel(L.T("拖动调整报告与聊天区域"));
         Grid.SetRow(reportSplitter, 1); panel.Children.Add(reportSplitter);
         Grid.SetRow(chatPanel, 2); panel.Children.Add(chatPanel);
+        panel.LayoutUpdated += (_, _) => FitConversationViewport();
         return panel;
+    }
+    void FitConversationViewport()
+    {
+        if (conversationLayout.RowDefinitions.Count < 3 || conversationActions == null) return;
+        var height = conversationLayout.RowDefinitions[2].ActualHeight;
+        if (height <= 0) return;
+        // Grid star rows can retain a ScrollViewer's desired height. Bound the
+        // history viewport explicitly so it cannot push the composer off screen.
+        if (Math.Abs(chatPanel.MaxHeight - height) > .5 || double.IsInfinity(chatPanel.MaxHeight))
+            chatPanel.MaxHeight = height;
+        var filesHeight = questionFiles.Visibility == Visibility.Visible ? questionFiles.ActualHeight : 0;
+        var historyHeight = Math.Max(0, height - question.ActualHeight - conversationActions.ActualHeight -
+            filesHeight - chatPanel.RowSpacing * 3 - 4);
+        if (Math.Abs(chatScroll.MaxHeight - historyHeight) > .5 || double.IsInfinity(chatScroll.MaxHeight))
+            chatScroll.MaxHeight = historyHeight;
+    }
+    bool ConversationComposerVisible()
+    {
+        foreach (var control in new FrameworkElement[] { question, attachQuestion, clearQuestionFiles, sendQuestion }) {
+            var origin = control.TransformToVisual(layout).TransformPoint(new Windows.Foundation.Point(0, 0));
+            var local = control.TransformToVisual(conversationLayout).TransformPoint(new Windows.Foundation.Point(0, 0));
+            if (control.ActualHeight <= 0 || origin.Y < 0 || origin.Y + control.ActualHeight > layout.ActualHeight ||
+                local.Y < 0 || local.Y + control.ActualHeight > conversationLayout.ActualHeight)
+                return false;
+        }
+        return true;
     }
     (string text, List<string> files) Draft(string path)
     {
@@ -142,6 +170,8 @@ sealed partial class MainWindow
         var names = new List<string>(); foreach (var file in draft.Item2) names.Add(Path.GetFileName(file));
         questionFiles.Text = string.Join(" · ", names);
         questionFiles.Visibility = names.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        ToolTipService.SetToolTip(questionFiles, questionFiles.Text);
+        question.Height = names.Count == 0 ? 80 : 60;
         conversationProgress.IsActive = busy;
         conversationStatus.Text = busy ? L.T("AI 正在处理，请稍候…") :
             selected && conversationErrors.TryGetValue(conversationPath!, out var error) ? L.T("操作失败：") + error :
@@ -186,13 +216,13 @@ sealed partial class MainWindow
         var originalUpper = conversationLayout.RowDefinitions[0].Height;
         var originalLower = conversationLayout.RowDefinitions[2].Height;
         try {
-            reportSplitter.ResizeUpperPane(-1000000); layout.UpdateLayout();
+            reportSplitter.ResizeUpperPane(-1000000); layout.UpdateLayout(); FitConversationViewport(); layout.UpdateLayout();
             check(Math.Abs(conversationLayout.RowDefinitions[0].ActualHeight - 140) <= 1 &&
-                conversationLayout.RowDefinitions[2].ActualHeight >= 209,
+                conversationLayout.RowDefinitions[2].ActualHeight >= 159 && ConversationComposerVisible(),
                 "Dragging the report divider upward preserves the report and chat minimum sizes");
-            reportSplitter.ResizeUpperPane(1000000); layout.UpdateLayout();
-            check(Math.Abs(conversationLayout.RowDefinitions[2].ActualHeight - 210) <= 1 &&
-                conversationLayout.RowDefinitions[0].ActualHeight >= 139,
+            reportSplitter.ResizeUpperPane(1000000); layout.UpdateLayout(); FitConversationViewport(); layout.UpdateLayout();
+            check(Math.Abs(conversationLayout.RowDefinitions[2].ActualHeight - 160) <= 1 &&
+                conversationLayout.RowDefinitions[0].ActualHeight >= 139 && ConversationComposerVisible(),
                 "Dragging the report divider downward preserves usable chat controls");
         }
         finally {
