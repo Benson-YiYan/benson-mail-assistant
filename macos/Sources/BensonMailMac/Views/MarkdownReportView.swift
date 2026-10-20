@@ -33,10 +33,17 @@ struct MarkdownReportView: View {
     @MarkdownState private var html = ""
     @MarkdownState private var error = ""
     var body: some View {
-        Group {
-            if !html.isEmpty { NativeMarkdownView(html: html) }
-            else if !error.isEmpty { ScrollView { VStack(alignment: .leading) { Text(error).foregroundStyle(.secondary); Text(text).textSelection(.enabled) } } }
-            else { ProgressView() }
+        // Keep the native renderer mounted through loading and errors. Changing a
+        // transparent Group's child inside VSplitView can recreate the split item,
+        // restart this task and endlessly alternate between loading and content.
+        ZStack(alignment: .topLeading) {
+            NativeMarkdownView(html: html)
+                .opacity(html.isEmpty ? 0 : 1)
+                .allowsHitTesting(!html.isEmpty)
+                .accessibilityHidden(html.isEmpty)
+            if !error.isEmpty {
+                ScrollView { VStack(alignment: .leading) { Text(error).foregroundStyle(.secondary); Text(text).textSelection(.enabled) } }
+            } else if html.isEmpty { ProgressView() }
         }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).task(id: text) {
             html = ""; error = ""
             do {
@@ -61,14 +68,16 @@ struct NativeMarkdownView: NSViewRepresentable {
         return view
     }
     func updateNSView(_ view: WKWebView, context: Context) {
-        guard context.coordinator.previous != html else { return }
+        guard !html.isEmpty, context.coordinator.previous != html else { return }
         context.coordinator.previous = html
         context.coordinator.finished = false
+        context.coordinator.loadCount += 1
         view.loadHTMLString(html, baseURL: nil)
     }
     final class Coordinator: NSObject, WKNavigationDelegate {
         var previous: String?
         var finished = false
+        var loadCount = 0
         var failure = ""
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { finished = true }
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failure = error.localizedDescription }

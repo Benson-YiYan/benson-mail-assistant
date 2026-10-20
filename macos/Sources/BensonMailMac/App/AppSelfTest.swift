@@ -105,6 +105,56 @@ enum AppSelfTest {
                 throw Failure("CommonMark document structure failed before native snapshot")
             }
             checks.append("actual WebKit renders Markdown headings, bold, lists, links, tables and fenced code; HTML escaped and remote images absent")
+            // Exercise the renderer inside the real report/chat split, not only its standalone host.
+            guard let reportWindow = NSApp.windows.first(where: { $0.title == "邮件小秘书" && $0.canBecomeMain }),
+                  let integratedRoot = reportWindow.contentView else { throw Failure("integrated report window missing") }
+            store.workspacePage = .reports
+            store.select(first)
+            reportWindow.makeKeyAndOrderFront(nil)
+            let reportDeadline = Date().addingTimeInterval(8)
+            while (webView(in: integratedRoot)?.navigationDelegate as? NativeMarkdownView.Coordinator)?.finished != true && Date() < reportDeadline {
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            guard let integratedWeb = webView(in: integratedRoot),
+                  let integratedCoordinator = integratedWeb.navigationDelegate as? NativeMarkdownView.Coordinator,
+                  integratedCoordinator.finished else { throw Failure("report/chat split never finished Markdown navigation") }
+            let integratedHTML = integratedCoordinator.previous
+            let initialLoads = integratedCoordinator.loadCount
+            guard integratedHTML?.contains("合同审阅") == true else { throw Failure("integrated Markdown did not show selected report") }
+            for page in [WorkspacePage.ai, .reports, .general, .reports] {
+                store.workspacePage = page
+                reportWindow.setContentSize(NSSize(width: page == .reports ? 1160 : 1120, height: 790))
+                store.reconcileSelection()
+                store.reportConversation.draft("integrated layout fixture", for: first.id)
+                try await Task.sleep(nanoseconds: 150_000_000)
+                guard webView(in: integratedRoot) === integratedWeb,
+                      integratedCoordinator.finished, integratedCoordinator.previous == integratedHTML,
+                      integratedCoordinator.loadCount == initialLoads else {
+                    throw Failure("report/chat split recreated or reloaded unchanged Markdown during layout/navigation")
+                }
+            }
+            store.reportConversation.draft("", for: first.id)
+            let originalReportSource = store.reportText
+            store.reportText = "# Outdated fixture report"
+            try await Task.sleep(nanoseconds: 10_000_000)
+            store.reportText = "# Current fixture report\n\n**Newest report body**"
+            let changedDeadline = Date().addingTimeInterval(8)
+            while (integratedCoordinator.previous?.contains("Newest report body") != true || !integratedCoordinator.finished) && Date() < changedDeadline {
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            guard webView(in: integratedRoot) === integratedWeb, integratedCoordinator.finished,
+                  integratedCoordinator.previous?.contains("<strong>Newest report body</strong>") == true,
+                  integratedCoordinator.previous?.contains("Outdated fixture report") == false else {
+                throw Failure("changed report content was stale or replaced its native renderer")
+            }
+            store.reportText = originalReportSource
+            let restoredDeadline = Date().addingTimeInterval(8)
+            while (integratedCoordinator.previous != integratedHTML || !integratedCoordinator.finished) && Date() < restoredDeadline {
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            guard integratedCoordinator.previous == integratedHTML, integratedCoordinator.finished else { throw Failure("restoring selected report failed") }
+            try capture(reportWindow, to: output.appendingPathComponent("integrated-report-chat-markdown.png"))
+            checks.append("actual main report/chat split finishes Markdown and retains one WKWebView without reloads through page changes, resizing, rescans and chat drafts; rapid text changes show only the newest report and restore correctly")
             var filter = ReportFilter()
             for query in ["zebra", "demo@example.invalid", "付款明细专用.xlsx"] {
                 filter.query = query

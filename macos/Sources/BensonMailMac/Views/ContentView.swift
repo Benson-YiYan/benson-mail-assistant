@@ -120,7 +120,9 @@ struct ContentView: View {
                         ReportActionsView(store: store, conversation: store.reportConversation, report: selected)
                         Divider()
                         VSplitView {
-                            Group {
+                            // A split pane must have a stable, concrete root. A transparent
+                            // Group exposes the Markdown loading/content branches to NSSplitView.
+                            VStack(spacing: 0) {
                                 if selected.url.pathExtension.lowercased() == "md" { MarkdownReportView(text: store.reportText) }
                                 else { ScrollView {
                                     Text(store.reportText).font(.system(size: 14)).lineSpacing(6)

@@ -1,18 +1,71 @@
 import hashlib
 import importlib.util
 import json
+import io
 from pathlib import Path
 import sys
+import socket
+import ssl
 import tempfile
 import unittest
+import urllib.error
+import urllib.parse
 from unittest.mock import patch
 
 RUNTIME=Path(__file__).resolve().parents[1]/'Runtime'
 sys.path.insert(0,str(RUNTIME))
 import ai_runner
+import ai_api
 from mail_prompt import ANALYSIS_PROMPT
 
 class APIMailTests(unittest.TestCase):
+    def test_connection_failures_explain_the_cause_without_credentials(self):
+        secret = 'synthetic-key/with+symbols'
+        cases = [
+            (socket.gaierror(8, 'nodename nor servname provided'), 'DNS'),
+            (ssl.SSLCertVerificationError(1, 'certificate verify failed'), '证书'),
+            (TimeoutError('The read operation timed out'), '120 秒'),
+            (ConnectionRefusedError(61, 'Connection refused'), '拒绝连接'),
+            (OSError('proxy unavailable'), '连接失败'),
+        ]
+        for reason, hint in cases:
+            for wrapped in (reason, urllib.error.URLError(reason)):
+                with self.subTest(reason=type(reason).__name__, wrapped=type(wrapped).__name__):
+                    with patch('urllib.request.OpenerDirector.open', side_effect=wrapped) as opened:
+                        with self.assertRaises(RuntimeError) as error:
+                            ai_api.complete('https://example.invalid/v1', 'model', secret, [])
+                    text = str(error.exception)
+                    self.assertIn(hint, text)
+                    self.assertIn(type(reason).__name__, text)
+                    self.assertIn(str(reason), text)
+                    self.assertNotIn(secret, text)
+                    self.assertEqual(opened.call_args.kwargs['timeout'], 120)
+
+    def test_connection_detail_redacts_raw_encoded_keys_and_urls(self):
+        secret = 'synthetic-key/with+symbols'
+        encoded = urllib.parse.quote(secret, safe='')
+        reason = OSError('proxy %s encoded %s https://user:password@example.invalid/?token=private '
+                         'Authorization: Bearer other-secret api_key="third-secret"' % (secret, encoded))
+        with patch('urllib.request.OpenerDirector.open', side_effect=urllib.error.URLError(reason)):
+            with self.assertRaises(RuntimeError) as error:
+                ai_api.complete('https://example.invalid/v1', 'model', secret, [])
+        text = str(error.exception)
+        for private in (secret, encoded, 'password', 'token=private', 'other-secret', 'third-secret'):
+            self.assertNotIn(private, text)
+        self.assertIn('OSError', text)
+        self.assertLessEqual(len(text.split('OSError: ', 1)[1]), 500)
+
+    def test_http_failures_do_not_read_or_expose_response_bodies(self):
+        body = io.BytesIO(b'PRIVATE_RESPONSE_BODY Authorization: Bearer private')
+        failure = urllib.error.HTTPError('https://example.invalid', 401, 'Denied', {}, body)
+        with patch('urllib.request.OpenerDirector.open', side_effect=failure):
+            with self.assertRaises(RuntimeError) as error:
+                ai_api.complete('https://example.invalid/v1', 'model', 'synthetic-key', [])
+        self.assertIn('401', str(error.exception))
+        self.assertNotIn('PRIVATE_RESPONSE_BODY', str(error.exception))
+        self.assertNotIn('Bearer', str(error.exception))
+        self.assertTrue(body.closed)
+
     def test_six_substantive_prompt_requirements_are_unchanged(self):
         requirements = '\n'.join(ANALYSIS_PROMPT.splitlines()[1:8])
         self.assertEqual(hashlib.sha256(requirements.encode()).hexdigest(),
