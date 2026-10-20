@@ -42,7 +42,7 @@ Cada buzón admite Directa, Sistema, HTTP CONNECT o SOCKS5. Inicia v2rayN u otro
 
 ## Actualizaciones, salida y desinstalación
 
-Se comprueban actualizaciones cada cinco horas o desde Ayuda → Buscar actualizaciones. La descarga, progreso y verificación se realizan dentro de la aplicación. La instalación requiere tu acción, conserva configuración e informes e intenta restaurar la versión anterior si falla. El manifiesto estable está en [`distribution/manifest.json`](../distribution/manifest.json) del repositorio común.
+Se comprueban actualizaciones cada hora o desde Ayuda → Buscar actualizaciones. La descarga, progreso y verificación se realizan dentro de la aplicación. La instalación requiere tu acción, conserva configuración e informes e intenta restaurar la versión anterior si falla. El manifiesto estable está en [`distribution/manifest.json`](../distribution/manifest.json) del repositorio común.
 
 Cerrar la ventana mantiene la supervisión en la barra de menús. Salir desde el Dock, el menú o ⌘Q detiene la supervisión y guarda una pausa. Vuelve a abrir e inicia la supervisión para continuar.
 

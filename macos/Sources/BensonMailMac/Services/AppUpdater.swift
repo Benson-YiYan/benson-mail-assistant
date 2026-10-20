@@ -14,7 +14,7 @@ struct MailUpdate: Equatable {
 }
 
 @MainActor final class AppUpdater: ObservableObject {
-    static let interval: TimeInterval = 5 * 60 * 60
+    static let interval: TimeInterval = 60 * 60
     static let canonicalManifest = "https://raw.githubusercontent.com/Benson-YiYan/benson-mail-assistant/main/distribution/manifest.json"
     static let manifestAPI = "https://api.github.com/repos/Benson-YiYan/benson-mail-assistant/contents/distribution/manifest.json?ref=main"
     static let latestRelease = URL(string: "https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest")!
@@ -303,7 +303,7 @@ struct UpdateSettings: View {
     @ObservedObject private var language = AppLanguage.shared
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(T("每 5 小时自动检查更新，无新版时不打扰。"))
+            Text(T("每小时自动检查更新，无新版时不打扰。"))
                 .font(.caption).foregroundStyle(.secondary)
             Button(updater.checking ? T("正在检查更新…") : T("检查更新")) {
                 Task { await updater.check(manual: true) }

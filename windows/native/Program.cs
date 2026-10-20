@@ -554,7 +554,7 @@ sealed partial class MainWindow : Window
         mailPage.Children.Add(SettingsPage(Stack(
             Card(Stack(languageChoice, Note(L.T("语言更改立即生效，下次打开时保留。")),
                 Note(L.T("当前版本：" + UpdateClient.InstalledVersion)), Row(updateButton), updateStatus, updateFallbackButton,
-                Note(L.T("每 5 小时自动检查更新；仅提示下载，不会自动安装。")))),
+                Note(L.T("每小时自动检查更新；仅提示下载，不会自动安装。")))),
             Card(Stack(Heading(L.T("管理邮箱")), savedMailboxes,
                 Row(Action(L.T("添加邮箱"), async () => {
                     await Call("select_mail", new { id = "" }); await ReloadMailboxes();

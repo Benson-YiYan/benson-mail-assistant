@@ -38,7 +38,7 @@ OAuth2 tokens must currently be supplied and replaced manually. The Microsoft he
 
 ## Updates and removal
 
-Updates are checked every five hours and on request. Download, cancel, retry and verification happen inside the app; installation requires your action. Settings, reports and shortcut choices are preserved.
+Updates are checked every hour and on request. Download, cancel, retry and verification happen inside the app; installation requires your action. Settings, reports and shortcut choices are preserved.
 Closing the window keeps monitoring in the tray. Use the envelope to restore it. Exiting stops the current session; Windows sign-in startup is optional.
 Uninstall from its shortcut or Windows Installed apps. A running app requires confirmation to exit; wait for active mail processing to finish. Settings and reports have separate retention switches, and report deletion needs confirmation. Retained credentials only work for the same Windows user on the same computer.
 

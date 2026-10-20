@@ -92,7 +92,7 @@ sealed class UpdateClient
         else if (!await gate.WaitAsync(0)) return null;
         try {
             var state = Load(); var time = now(); var elapsed = time - state.LastCheck;
-            if (!manual && elapsed >= TimeSpan.FromMinutes(-5) && elapsed < TimeSpan.FromHours(5)) return null;
+            if (!manual && elapsed >= TimeSpan.FromMinutes(-5) && elapsed < TimeSpan.FromHours(1)) return null;
             // Persist before the request, including failed automatic requests, to avoid retrying on every launch.
             state.LastCheck = time; Save(state);
             var release = Parse(await fetch());
@@ -138,10 +138,14 @@ sealed class UpdateClient
         await client.MarkSeen(release!.Version);
         Check(release?.Url.Host == "downloads.example.invalid", "HTTPS update download can use a different host from manifest");
         Check(await new UpdateClient(path, "202610180900", Fetch, () => time).Check(false) == null && calls == 1,
-            "Automatic five-hour interval persists across restarts");
-        Check(await client.Check(true) != null && calls == 2, "Manual update check bypasses automatic interval");
-        time += TimeSpan.FromHours(5);
-        Check(await client.Check(false) == null && calls == 3, "Five-hour automatic check runs but does not repeat the same release notification");
+            "Automatic one-hour interval persists across restarts");
+        time += TimeSpan.FromMinutes(59);
+        Check(await client.Check(false) == null && calls == 1, "Automatic check waits until a full hour has elapsed");
+        time += TimeSpan.FromMinutes(1);
+        Check(await client.Check(false) == null && calls == 2, "Automatic check runs at the one-hour boundary");
+        Check(await client.Check(true) != null && calls == 3, "Manual update check bypasses automatic interval");
+        time += TimeSpan.FromHours(1);
+        Check(await client.Check(false) == null && calls == 4, "Hourly automatic check runs but does not repeat the same release notification");
         foreach (var invalid in new[] { "{}", Manifest("209913180900"), Manifest("209910180900", "http://unsafe.invalid/a.exe"), Manifest("209910180900", sha: "bad"), Manifest("209910180900", "https://user:secret@example.invalid/a.exe") }) {
             try { Parse(invalid); throw new InvalidOperationException("Invalid update manifest accepted"); }
             catch (Exception e) when (e is InvalidDataException || e is JsonException) { }
@@ -158,7 +162,7 @@ sealed class UpdateClient
             "Current version is never offered as an update");
         var deferred = new UpdateClient(Path.Combine(folder, "deferred-update.json"), "202610180900", Fetch, () => time);
         Check(await deferred.Check(false) != null, "New release remains pending until UI notification succeeds");
-        time += TimeSpan.FromHours(5);
+        time += TimeSpan.FromHours(1);
         Check(await deferred.Check(false) != null, "A deferred notification is not incorrectly marked seen");
         return checks.ToArray();
     }

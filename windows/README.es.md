@@ -41,7 +41,7 @@ En Opciones avanzadas de conexión y proxy de cada cuenta elige Directa, Sistema
 
 ## Actualizaciones y desinstalación
 
-Se buscan actualizaciones cada cinco horas o manualmente. Descarga, cancelación, reintento y verificación ocurren dentro de la aplicación; instalar requiere tu acción. Se conservan configuración, informes y opciones de accesos directos. El manifiesto estable está en [`distribution/manifest.json`](../distribution/manifest.json) del repositorio común.
+Se buscan actualizaciones cada hora o manualmente. Descarga, cancelación, reintento y verificación ocurren dentro de la aplicación; instalar requiere tu acción. Se conservan configuración, informes y opciones de accesos directos. El manifiesto estable está en [`distribution/manifest.json`](../distribution/manifest.json) del repositorio común.
 
 Cerrar la ventana mantiene la supervisión en la bandeja. Pulsa el sobre para restaurar. Salir detiene la sesión actual; el inicio con Windows es opcional.
 

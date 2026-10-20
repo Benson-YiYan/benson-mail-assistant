@@ -28,7 +28,7 @@ First use selects Chinese for Chinese systems, Spanish for Spanish systems and E
 New reports use the selected language with the same six analysis requirements. Existing reports are not translated. Product names: 邮件小秘书 / Email Assistant / Asistente de correo electrónico.
 
 7. Updates, quitting and uninstall
-Check for updates in General settings; automatic checks also run every five hours. Downloads, progress and cancellation stay inside the app. After verification, confirm installation. Settings, reports and shortcut choices are preserved, with recovery attempted if installation fails.
+Check for updates in General settings; automatic checks also run every hour. Downloads, progress and cancellation stay inside the app. After verification, confirm installation. Settings, reports and shortcut choices are preserved, with recovery attempted if installation fails.
 Closing the window keeps monitoring in the system tray; click the envelope to restore it. Exiting through the tray stops the current session. Windows sign-in startup is optional.
 Uninstall using its shortcut or Windows Installed apps. If running, the app asks permission to close; wait for active mail work to finish first. Settings and reports have separate retention choices; deleting reports requires another confirmation.
 The installer has no publisher signature. If Windows warns, verify the GitHub download source and SHA256 first.

@@ -74,7 +74,7 @@ final class DownloadFixture: URLProtocol {
   await client.check(manual:false)
   precondition(calls == 1)
   let restarted = AppUpdater(defaults:defaults,currentVersion:current)
-  precondition(!restarted.isDue() && restarted.isDue(at:Date().addingTimeInterval(5*3600+1)))
+  precondition(!restarted.isDue() && !restarted.isDue(at:Date().addingTimeInterval(3590)) && restarted.isDue(at:Date().addingTimeInterval(3600+1)))
   await client.check(manual:true)
   precondition(calls == 2)
   let equal = try manifest(current)
@@ -203,7 +203,7 @@ final class DownloadFixture: URLProtocol {
   precondition(bound.verifiedRelease?.version == "202610180901" && bound.downloaded != nil)
   await bound.check(manual:true)
   precondition(bound.available?.version == "202610180902" && bound.verifiedRelease?.version == "202610180901")
-  print("Native offline update fixtures passed: five-hour persistence, restart, manual bypass, platform/version selection, HTTPS and hash validation, quiet automatic checks, visible manual results/errors")
+  print("Native offline update fixtures passed: one-hour persistence, restart, manual bypass, platform/version selection, HTTPS and hash validation, quiet automatic checks, visible manual results/errors")
  }
 }
 '''

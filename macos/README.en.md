@@ -37,7 +37,7 @@ Search uses locally saved bodies, senders, attachment names and report text, not
 
 ## Updates, quitting and uninstall
 
-Updates are checked every five hours or through Help → Check for updates. Downloads, progress and verification happen inside the app. Installation requires your action, preserves settings and reports, and attempts rollback on failure.
+Updates are checked every hour or through Help → Check for updates. Downloads, progress and verification happen inside the app. Installation requires your action, preserves settings and reports, and attempts rollback on failure.
 Closing the window keeps monitoring in the menu bar. Quitting through the Dock, menus or Command-Q stops monitoring and saves a paused state. Reopen and start monitoring to resume.
 Uninstall is in General settings. Settings and reports have separate retention choices; report deletion requires confirmation. Keeping settings retains this app's Keychain credentials for reinstallation; cached mail and progress are cleared.
 
