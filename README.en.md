@@ -109,3 +109,11 @@ Step-by-step entry points for every feature and setting:
 
 - [Mac](macos/Resources/Quick-start-en.txt)
 - [Windows](windows/docs/Quick-start-en.txt)
+
+## Cost sources and account balances
+
+Open the usage records from AI settings to view input/output tokens, upstream-reported costs, local estimates and the number of calls covered by each source. Upstream costs take precedence per call; those calls are excluded from local estimates. Missing costs are estimated from saved rates and token usage, or shown as Unknown when the required data is absent. Currencies are kept separate; historical records are not guessed or repriced.
+
+Official OpenRouter `usage.cost` is recorded in USD. Compatible APIs must explicitly return `usage.cost` with `cost_currency`, or a cost object containing `amount` and `currency`. Other providers continue to use estimates. An upstream-reported amount is not a substitute for the final bill.
+
+Query account balance runs only when clicked, supports official DeepSeek and OpenRouter endpoints, and does not generate AI content. Balances belong to the entire provider account and may include other applications; balance changes cannot be attributed to this app. OpenRouter balance queries require management permissions, so a normal inference key may be refused. Do not replace an inference key with a management key merely to query balances. A failed query is not displayed as a zero balance.

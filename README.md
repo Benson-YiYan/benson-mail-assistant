@@ -117,3 +117,11 @@
 
 - [Mac](macos/Resources/Quick-start-zh.txt)
 - [Windows](windows/docs/Quick-start-zh.txt)
+
+## 费用来源与账户余额
+
+在“AI 服务 → 查看用量记录”查看输入／输出 Token、上游返回费用、本地估算及各自覆盖的调用数。上游费用优先；同一次调用不会重复计入本地估算。费用缺失时按已保存单价和用量估算，信息不足则显示“未知”。不同币种不相加，历史记录不会被猜测或追溯改价。
+
+官方 OpenRouter 响应中的 `usage.cost` 按 USD 记录；兼容接口必须显式返回 `usage.cost` 与 `cost_currency`，或返回含 `amount`／`currency` 的 cost 对象。没有这些字段的服务商继续使用估算。上游返回值不能代替最终账单。
+
+“查询账户余额”只在手动点击时请求，支持官方 DeepSeek、OpenRouter 地址，不生成 AI 内容。余额属于整个服务商账户，可能由其他软件共用，不能据余额变化推算小秘书消费。OpenRouter 余额接口需要相应管理权限，普通推理 Key 可能被拒绝；不建议为查余额替换成管理 Key。失败不会显示为零余额。
