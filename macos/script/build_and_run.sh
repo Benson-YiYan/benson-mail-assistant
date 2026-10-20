@@ -25,12 +25,14 @@ BUILD_BINARY="$(swift build -c release --arch "$TARGET_ARCH" --scratch-path "$SW
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 rm -f "$APP_BUNDLE/Contents/Resources/ui-en.json" "$APP_BUNDLE/Contents/Resources/ui-es.json"
-cp Resources/Mail-account-setup-zh.txt Resources/Mail-account-setup-en.txt "$APP_BUNDLE/Contents/Resources/"
-cp Resources/Quick-start-zh.txt Resources/Quick-start-en.txt "$APP_BUNDLE/Contents/Resources/"
+cp Resources/Mail-account-setup-zh.txt Resources/Mail-account-setup-en.txt Resources/Mail-account-setup-es.txt "$APP_BUNDLE/Contents/Resources/"
+cp Resources/Quick-start-zh.txt Resources/Quick-start-en.txt Resources/Quick-start-es.txt "$APP_BUNDLE/Contents/Resources/"
 cp Resources/Get-Outlook-Token.command "$APP_BUNDLE/Contents/Resources/"
 cp -R Resources/zh-Hans.lproj Resources/en.lproj Resources/es.lproj "$APP_BUNDLE/Contents/Resources/"
 cp Resources/MailIcon.icns "$APP_BUNDLE/Contents/Resources/MailIcon.icns"
 cp "$BUILD_BINARY" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+swiftc -O -target "${TARGET_ARCH}-apple-macosx14.0" RuntimeSupport/MailOCR.swift -o "$APP_BUNDLE/Contents/Resources/MailOCR"
+codesign --force --sign - "$APP_BUNDLE/Contents/Resources/MailOCR"
 cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
 if [[ ! -x "${PYTHON_RUN[${#PYTHON_RUN[@]}-1]}" ]]; then
   echo "Build environment missing for $TARGET_ARCH. Install requirements-build.txt in its packaging venv." >&2
@@ -43,7 +45,7 @@ PYINSTALLER_CONFIG_DIR="$ROOT_DIR/build/cache-$TARGET_ARCH" "${PYTHON_RUN[@]}" -
   --name MailWorker --paths Runtime --hidden-import mail_daemon \
   --hidden-import mail_watch --hidden-import mail_export --hidden-import ai_runner \
   --hidden-import markdown_render --collect-all markdown_it --collect-all mdurl \
-  --hidden-import language_packs --hidden-import mail_chat --hidden-import mail_policy --hidden-import update_install --hidden-import outlook_token --hidden-import worker_selftest --hidden-import harness_smoke \
+  --hidden-import assistant_tools --hidden-import attachment_reader --hidden-import notification_policy --hidden-import language_packs --hidden-import mail_chat --hidden-import mail_policy --hidden-import update_install --hidden-import outlook_token --hidden-import worker_selftest --hidden-import harness_smoke \
   --collect-all pypdf --collect-all certifi --collect-all truststore \
   --collect-all tzdata \
   Runtime/worker_main.py

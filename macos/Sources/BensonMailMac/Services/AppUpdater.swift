@@ -134,16 +134,22 @@ struct MailUpdate: Equatable {
         let operation = transferFactory(); transfer = operation
         Task { [self] in
             do {
-                let root = downloadRoot.appendingPathComponent(UUID().uuidString)
+                let root = downloadRoot.appendingPathComponent(update.version + "-" + String(update.sha256.prefix(16)))
                 try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
                 workspace = root
-                downloaded = try await operation.run(url: update.url, mirrors: update.mirrors, destination: root.appendingPathComponent("update.dmg"), sha256: update.sha256, size: update.size) { [weak self] bytes, total in
+                let image = root.appendingPathComponent("update.dmg")
+                if FileManager.default.fileExists(atPath: image.path), (try? UpdateTransfer.verify(image, sha256: update.sha256, size: update.size)) != nil {
+                    downloaded = image
+                    received = update.size ?? 0; total = update.size ?? 0
+                } else {
+                downloaded = try await operation.run(url: update.url, mirrors: update.mirrors, destination: image, sha256: update.sha256, size: update.size) { [weak self] bytes, total in
                     Task { @MainActor in self?.received = bytes; self?.total = total }
+                }
                 }
                 verifiedRelease = update
                 status = "下载已完成并通过 SHA256 校验。"
             } catch {
-                if let root = workspace { try? FileManager.default.removeItem(at: root) }
+                // Retain only package-scoped resume data for an explicit retry/relaunch.
                 workspace = nil; downloaded = nil
                 if (error as? URLError)?.code == .cancelled { status = "下载已取消。" }
                 else { status = "下载失败，可重试。"; detail = error.localizedDescription }
@@ -155,7 +161,6 @@ struct MailUpdate: Equatable {
     func restartDownload() {
         guard !downloading, !installing else { return }
         if available == nil { available = verifiedRelease }
-        if let root = workspace { try? FileManager.default.removeItem(at: root) }
         workspace = nil; downloaded = nil; verifiedRelease = nil
         download()
     }

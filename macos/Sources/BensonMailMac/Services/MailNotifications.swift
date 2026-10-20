@@ -70,6 +70,12 @@ final class MailNotifications: NSObject, UNUserNotificationCenterDelegate {
         guard !processing else { return }
         processing = true
         defer { processing = false }
+        // Drop muted queued notices too, so resuming does not emit a burst of old alerts.
+        if !MailStore.shared.notificationsAllowed {
+            let files = (try? FileManager.default.contentsOfDirectory(at: queue, includingPropertiesForKeys: nil)) ?? []
+            for file in files where file.pathExtension == "json" { try? FileManager.default.removeItem(at: file) }
+            return
+        }
         var authorization = (await center.notificationSettings()).authorizationStatus
         if authorization == .notDetermined && !askedPermission {
             askedPermission = true
@@ -80,6 +86,7 @@ final class MailNotifications: NSObject, UNUserNotificationCenterDelegate {
         guard authorization == .authorized || authorization == .provisional else { return }
         let files = (try? FileManager.default.contentsOfDirectory(at: queue, includingPropertiesForKeys: nil)) ?? []
         for file in files.filter({ $0.pathExtension == "json" }).sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            guard MailStore.shared.notificationsAllowed else { try? FileManager.default.removeItem(at: file); continue }
             guard let data = try? Data(contentsOf: file),
                   let notice = try? JSONDecoder().decode(MailNotice.self, from: data) else { continue }
             guard Date().timeIntervalSince1970 - notice.created < 86400 else {

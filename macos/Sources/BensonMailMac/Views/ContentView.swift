@@ -1,4 +1,6 @@
 import SwiftUI
+
+private typealias ToolState<Value> = SwiftUI.State<Value>
 import AppKit
 
 struct ContentView: View {
@@ -10,7 +12,7 @@ struct ContentView: View {
         HSplitView {
             VStack(alignment: .leading, spacing: 16) {
                 Label(T("邮件小秘书"), systemImage: "envelope.fill").font(.headline).padding(.horizontal, 16).padding(.top, 20)
-                List(selection: Binding<WorkspacePage?>(get: { store.workspacePage }, set: { if let page = $0 { store.workspacePage = page } })) {
+                List(selection: Binding<WorkspacePage?>(get: { store.workspacePage }, set: { if let page = $0 { store.settingsDraft.navigate(page) } })) {
                     ForEach(WorkspacePage.allCases) { page in Label(T(page.rawValue), systemImage: page.icon).tag(page) }
                 }.listStyle(.sidebar)
                 VStack(alignment: .leading, spacing: 12) {
@@ -27,6 +29,8 @@ struct ContentView: View {
                     }
                     Spacer()
                     Button(store.settings.enabled ? T("暂停监听") : T("开始监听"), systemImage: store.settings.enabled ? "pause.fill" : "play.fill") { store.toggle() }.disabled(store.working)
+                    Button(T(store.settings.notifications_enabled ? "暂停系统通知" : "开启系统通知"), systemImage: store.settings.notifications_enabled ? "bell" : "bell.slash") { store.toggleNotifications() }
+                        .help(T("只控制系统通知，邮件监听和总结继续运行。"))
                     Button(store.checkRequested ? T("检查中…") : T("立即检查"), systemImage: "arrow.clockwise") { store.checkNow() }
                         .disabled(!store.settings.enabled || store.working || store.checkRequested || store.status.phase == "analyzing" || store.status.phase == "checking")
                 }.padding(18)
@@ -68,9 +72,9 @@ struct ContentView: View {
                 Divider()
                 ZStack {
                     reportsPage.opacity(store.workspacePage == .reports ? 1 : 0).allowsHitTesting(store.workspacePage == .reports).accessibilityHidden(store.workspacePage != .reports).disabled(store.workspacePage != .reports)
-                    MailAccountView(store: store, workspace: true).opacity(store.workspacePage == .mailbox ? 1 : 0).allowsHitTesting(store.workspacePage == .mailbox).accessibilityHidden(store.workspacePage != .mailbox).disabled(store.workspacePage != .mailbox)
-                    AISettingsView(store: store, workspace: true).opacity(store.workspacePage == .ai ? 1 : 0).allowsHitTesting(store.workspacePage == .ai).accessibilityHidden(store.workspacePage != .ai).disabled(store.workspacePage != .ai)
-                    GeneralSettingsPage(store: store).opacity(store.workspacePage == .general ? 1 : 0).allowsHitTesting(store.workspacePage == .general).accessibilityHidden(store.workspacePage != .general).disabled(store.workspacePage != .general)
+                    StagedSettingsPage(store: store, draft: store.settingsDraft, page: .mailbox).opacity(store.workspacePage == .mailbox ? 1 : 0).allowsHitTesting(store.workspacePage == .mailbox).accessibilityHidden(store.workspacePage != .mailbox).disabled(store.workspacePage != .mailbox)
+                    StagedSettingsPage(store: store, draft: store.settingsDraft, page: .ai).opacity(store.workspacePage == .ai ? 1 : 0).allowsHitTesting(store.workspacePage == .ai).accessibilityHidden(store.workspacePage != .ai).disabled(store.workspacePage != .ai)
+                    StagedSettingsPage(store: store, draft: store.settingsDraft, page: .general).opacity(store.workspacePage == .general ? 1 : 0).allowsHitTesting(store.workspacePage == .general).accessibilityHidden(store.workspacePage != .general).disabled(store.workspacePage != .general)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }.frame(minWidth: 800, maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -147,14 +151,16 @@ private struct ReportActionsView: View {
     @ObservedObject var store: MailStore
     @ObservedObject var conversation: ReportConversationStore
     let report: Report
+    @ToolState private var showTools = false
     var body: some View {
         HStack {
             Button(T("重新总结"), systemImage: "sparkles") {
                 let path = report.id
                 Task { await conversation.regenerate(path) { original, url, text in store.applyRegeneratedReport(original, url: url, text: text) } }
             }.disabled(conversation.state(report.id).busy).accessibilityIdentifier("mail-report-regenerate")
+            Button(T("草稿与来源"), systemImage: "text.badge.checkmark") { showTools = true }
             Text(T("使用当前语言和 AI 设置，替换这份报告；原邮件不变。"))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-        }
+        }.sheet(isPresented: $showTools) { ReportToolsView(store: store, report: report) }
     }
 }

@@ -85,6 +85,11 @@ def complete(base, model, key, messages, stop=None):
         raise RuntimeError(connection_error(error, key)) from None
     except (ValueError, UnicodeError):
         raise RuntimeError(_t('AI 接口返回的不是有效 JSON，请检查基础地址。')) from None
+    try:
+        from assistant_tools import record_usage
+        record_usage('api', model, value.get('usage') if isinstance(value, dict) else None, base=base)
+    except Exception:
+        pass  # Storage errors must not invalidate an otherwise successful paid response.
     if stop is not None and stop.is_set():
         raise RuntimeError(_t('分析已停止，邮件将在下次重试。'))
     try:

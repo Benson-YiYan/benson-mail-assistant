@@ -70,7 +70,7 @@ The app has an ad-hoc signature and is not signed with an Apple Developer ID or 
 
 Select a report and choose Summarize again to regenerate all six sections in the current interface language. A failed attempt preserves the previous report. The saved email index provides the original message; older reports without that index show an explanation.
 
-Ask about this email supports follow-up questions and additional files selected with the file picker. Each email has its own saved conversation that can be reopened. Model context includes the original email, readable attachments, current report and conversation. Long conversations compress earlier turns into a summary while keeping recent messages, with a compression indicator. Compression is not word-for-word preservation; the complete conversation remains locally saved. Quote and verify critical figures or wording.
+Ask about this email supports follow-up questions and additional files selected with the file picker. Each email has its own saved conversation that can be reopened. Factual answers use the original email and readable original attachments. Conversation is included, but generated reports, previous answers and compressed summaries are not factual evidence. Long conversations compress earlier turns into a summary while keeping recent messages, with a compression indicator. Compression is not word-for-word preservation; the complete conversation remains locally saved. Quote and verify critical figures or wording.
 
 These actions call your configured AI and may incur charges. Supplementary files are read only for text extraction; unreadable or oversized files cause an explicit error. No emails are sent. Conversation history is stored in local application data. Uninstalling removes it even when mailbox and AI settings are retained; copy any conversations you need before uninstalling.
 
@@ -83,3 +83,7 @@ Under Mailboxes and checking → Block emails, choose a blacklist or whitelist. 
 Skipped emails are grouped by sender in the local records. Summarize one or several with the current language and AI settings. This is a one-time override and does not change the rules; failures keep the records. Delete record removes only the local record, never the original email. Rules apply to newly checked messages and do not remove existing reports.
 
 Drag the divider between the report and the email conversation to resize both areas.
+
+## Step-by-step guide to all features and settings
+
+[Complete user guide](Resources/Quick-start-en.txt)

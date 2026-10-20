@@ -46,13 +46,11 @@ class MailChatTests(unittest.TestCase):
         for module in (windows, mac):
             root, report, _ = self.fixture(module)
             report.with_suffix('.mail.json').unlink()
-            with patch.object(module, '_complete', return_value='Discussing existing report only') as provider:
-                with self.assertRaisesRegex(ValueError, 'Original mail data'): module.report_retry(root, report)
-                self.assertFalse(provider.called)
-                module.chat_send(root, report, 'What is known?', [])
-                context = provider.call_args.args[2][1]['content']
-                self.assertIn('original_mail_available', context); self.assertIn('false', context)
-                self.assertIn('ORIGINAL REPORT', context)
+            with patch.object(module, '_complete') as provider:
+                with self.assertRaisesRegex(ValueError, 'Original email data'): module.report_retry(root, report)
+                with self.assertRaisesRegex(ValueError, 'Original email data'): module.chat_send(root, report, 'What is known?', [])
+                provider.assert_not_called()
+                self.assertEqual(module.chat_history(root, report)['messages'], [])
             outside = root / 'outside.md'; outside.write_text('outside')
             with self.assertRaises(ValueError): module.chat_history(root, outside)
 

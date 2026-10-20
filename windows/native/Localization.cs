@@ -108,14 +108,17 @@ internal static class L
     internal static string Bootstrap(string zh, string en, string es) => Code == "zh" ? zh : Code == "es" ? es : en;
     internal static string GuidePath(string name)
     {
+        var basename = name == "quick_start" ? "Quick-start-" : "Mail-account-setup-";
+        var installed = Path.Combine(AppContext.BaseDirectory, basename + Code + ".txt");
+        if (File.Exists(installed)) return installed;
         foreach (var path in PackPaths(Code)) try {
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
             var text = doc.RootElement.GetProperty("guides").GetProperty(name).GetString()!;
-            var destination = Path.Combine(DataHome, "guides", "Mail-account-setup-" + Code + ".txt");
+            var destination = Path.Combine(DataHome, "guides", basename + Code + ".txt");
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!); File.WriteAllText(destination, text);
             return destination;
         } catch { }
-        return Path.Combine(AppContext.BaseDirectory, "Mail-account-setup-" + Code + ".txt");
+        return Path.Combine(AppContext.BaseDirectory, basename + Code + ".txt");
     }
     internal static string T(string? value)
     {

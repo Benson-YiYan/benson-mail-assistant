@@ -17,6 +17,7 @@ struct MailMenu: View {
             NSApp.activate(ignoringOtherApps: true)
         }
         Button(store.settings.enabled ? T("暂停监听") : T("开始监听")) { store.toggle() }.disabled(store.working)
+        Button(T(store.settings.notifications_enabled ? "暂停系统通知" : "开启系统通知")) { store.toggleNotifications() }
         Button(store.checkRequested ? T("检查中…") : T("立即检查")) { store.checkNow() }.disabled(!store.settings.enabled || store.checkRequested || store.status.phase == "analyzing" || store.status.phase == "checking")
         if !store.checkFeedback.isEmpty { Text(T(store.checkFeedback)) }
         Button(T("打开报告文件夹")) { store.openFolder() }
@@ -24,7 +25,11 @@ struct MailMenu: View {
             Button(T("打开最新报告")) { NSWorkspace.shared.open(first.url) }
         }
         Divider()
-        SettingsLink { Text(T("设置……")) }
+        Button(T("设置……")) {
+            if store.settingsDraft.navigate(.general) || store.workspacePage == .general {
+                openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true)
+            }
+        }
         Button(T("退出邮件小秘书")) { NSApp.terminate(nil) }
     }
 }

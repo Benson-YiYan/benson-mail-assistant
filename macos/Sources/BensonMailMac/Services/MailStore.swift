@@ -9,6 +9,8 @@ final class MailStore: ObservableObject {
     var uninstalling = false
     var updating = false
     lazy var reportConversation = ReportConversationStore(base: base, offline: isTest)
+    lazy var settingsDraft = SettingsDraft(store: self)
+    lazy var assistantTools = AssistantTools(base: base, offline: isTest)
     @Published var workspacePage: WorkspacePage = .reports
     @Published var settings = MailSettings()
     @Published var status = ServiceStatus()
@@ -313,6 +315,17 @@ final class MailStore: ObservableObject {
             if settings.enabled { startWorker() }
         } catch { settings = old; problem = "无法保存监听设置：\(error.localizedDescription)" }
     }
+    var notificationsAllowed: Bool { settings.notifications_enabled && !settings.quiet_hours.contains() }
+    func toggleNotifications() {
+        let previous = settings
+        settings.notifications_enabled.toggle()
+        do { try save() } catch { settings = previous; problem = error.localizedDescription }
+    }
+    func saveQuietHours(_ value: QuietHours) {
+        let previous = settings
+        settings.quiet_hours = value
+        do { try save() } catch { settings = previous; problem = error.localizedDescription }
+    }
     func pauseForUpdate() throws -> Bool {
         let wasEnabled = settings.enabled
         settings.enabled = false
@@ -405,6 +418,14 @@ final class MailStore: ObservableObject {
                 self.selected = nil; self.reportText = ""; self.scanReports()
             } catch { self.settings = old; self.problem = "无法使用此文件夹：\(error.localizedDescription)" }
         }
+    }
+    func writeLoginSetting(_ enabled: Bool) throws {
+        guard !isTest else { return }
+        if enabled {
+            let value: [String: Any] = ["Label": "com.benson.mail-ui", "ProgramArguments": ["/usr/bin/open", "-g", Bundle.main.bundlePath, "--args", "--background"], "RunAtLoad": true]
+            try FileManager.default.createDirectory(at: loginURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try PropertyListSerialization.data(fromPropertyList: value, format: .xml, options: 0).write(to: loginURL, options: .atomic)
+        } else if FileManager.default.fileExists(atPath: loginURL.path) { try FileManager.default.removeItem(at: loginURL) }
     }
     func setLogin(_ enabled: Bool) {
         guard !isTest else { return }

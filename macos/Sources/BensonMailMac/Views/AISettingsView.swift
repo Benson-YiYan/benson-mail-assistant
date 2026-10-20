@@ -72,11 +72,7 @@ struct AISettingsView: View {
     var body: some View {
         Group {
             if workspace {
-                VStack(spacing: 0) {
-                    ScrollView { WorkspaceCard("选择您喜欢的 AI") { fields }.padding(20) }
-                    Divider()
-                    actions.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(Color(nsColor: .windowBackgroundColor))
-                }
+                StagedSettingsPage(store: store, draft: store.settingsDraft, page: .ai)
             } else { VStack(alignment: .leading, spacing: 12) { fields; actions } }
         }.textFieldStyle(.roundedBorder)
         .onAppear {

@@ -194,22 +194,7 @@ struct MailAccountView: View {
     var body: some View {
         Group {
             if workspace {
-                VStack(spacing: 0) {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 18) {
-                            WorkspaceCard("管理邮箱") { fields }
-                            WorkspaceCard("屏蔽邮件") { SenderPolicyView(store: store) }
-                            WorkspaceCard("检查与报告") {
-                                IntervalControl(store: store)
-                                Text(T("10 秒至 24 小时；保存后自动生效。60 秒 = 1 分钟，300 秒 = 5 分钟。"))
-                                    .font(.caption).foregroundStyle(.secondary)
-                                Button(T("打开运行记录"), systemImage: "doc.text.magnifyingglass") { NSWorkspace.shared.open(store.base.appendingPathComponent("daemon.log")) }
-                            }
-                        }.padding(20)
-                    }
-                    Divider()
-                    actions.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(Color(nsColor: .windowBackgroundColor))
-                }
+                StagedSettingsPage(store: store, draft: store.settingsDraft, page: .mailbox)
             } else { VStack(alignment: .leading, spacing: 12) { fields; actions } }
         }.textFieldStyle(.roundedBorder)
         .onAppear { loadDraft() }

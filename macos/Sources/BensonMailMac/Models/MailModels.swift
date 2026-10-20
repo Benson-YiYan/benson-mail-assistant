@@ -83,7 +83,9 @@ struct MailSettings: Codable {
     var mailbox: MailConnection?
     var mailboxes: [MailboxProfile]?
     var mail_policy = SenderPolicyRule()
-    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, harness_path, mailbox, mailboxes, mail_policy }
+    var notifications_enabled = true
+    var quiet_hours = QuietHours()
+    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, harness_path, mailbox, mailboxes, mail_policy, notifications_enabled, quiet_hours }
     init() {}
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -98,5 +100,26 @@ struct MailSettings: Codable {
         harness_path = try values.decodeIfPresent(String.self, forKey: .harness_path) ?? ""
         mailbox = try values.decodeIfPresent(MailConnection.self, forKey: .mailbox)
         mail_policy = try values.decodeIfPresent(SenderPolicyRule.self, forKey: .mail_policy) ?? SenderPolicyRule()
+        notifications_enabled = try values.decodeIfPresent(Bool.self, forKey: .notifications_enabled) ?? true
+        quiet_hours = try values.decodeIfPresent(QuietHours.self, forKey: .quiet_hours) ?? QuietHours()
+    }
+}
+
+struct QuietHours: Codable {
+    var enabled = false
+    var start = "22:00"
+    var end = "08:00"
+    func contains(_ date: Date = Date()) -> Bool {
+        guard enabled else { return false }
+        func minutes(_ raw: String) -> Int? {
+            let pieces = raw.split(separator: ":").compactMap { Int($0) }
+            guard pieces.count == 2, (0...23).contains(pieces[0]), (0...59).contains(pieces[1]) else { return nil }
+            return pieces[0] * 60 + pieces[1]
+        }
+        guard let from = minutes(start), let until = minutes(end) else { return false }
+        if from == until { return true }
+        let local = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let now = (local.hour ?? 0) * 60 + (local.minute ?? 0)
+        return from < until ? now >= from && now < until : now >= from || now < until
     }
 }

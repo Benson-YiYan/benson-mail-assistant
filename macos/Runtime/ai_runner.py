@@ -28,6 +28,12 @@ def attachment_text(path, folder):
             return _t('【未读取：附件路径不在本封邮件目录内】')
         if path.stat().st_size > LIMIT:
             return _t('【未读取：附件超过20MB】')
+        from attachment_reader import enhanced_text
+        enhanced = enhanced_text(path.name, path.read_bytes())
+        if enhanced is not None:
+            if '[Attachment extraction failed' in enhanced or (enhanced.startswith('[image:1]') and '[OCR text;' not in enhanced):
+                return _t('【未读取：附件缺失、损坏、加密或解析失败】') + '\n' + enhanced
+            return enhanced
         suffix = path.suffix.lower()
         if suffix in ('.txt', '.csv', '.md', '.json', '.xml', '.html'):
             raw = path.read_bytes()
@@ -108,9 +114,14 @@ def analyze_api(message, folder):
     if config.get('ai_provider') == 'deepseek_harness':
         from deepseek_harness_ai import complete as transport
     options = {'cli_path': config.get('harness_path', '')} if config.get('ai_provider') == 'deepseek_harness' else {}
-    return transport(config.get('api_base', ''), config.get('api_model', ''), key,
+    answer = transport(config.get('api_base', ''), config.get('api_model', ''), key,
                     [{'role': 'system', 'content': analysis_prompt(config.get('ui_language'))},
                      {'role': 'user', 'content': json.dumps(content, ensure_ascii=False)}], language=config.get('ui_language', 'zh'), **options)
+    if config.get('ai_provider') == 'deepseek_harness':
+        from assistant_tools import record_usage
+        try: record_usage('deepseek_harness', '')
+        except Exception: pass
+    return answer
 
 if __name__ == '__main__':
     try:

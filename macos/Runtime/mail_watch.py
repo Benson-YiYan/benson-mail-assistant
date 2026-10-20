@@ -58,6 +58,11 @@ try:
         state['pending'] = sorted(set(state['pending']) | set(fresh))
         state['next_uid'] = max(state['next_uid'], next_uid)
         save(state)
+        from assistant_tools import consume_history, _root
+        def queue_history(uids):
+            state['pending'] = sorted(set(state['pending']) | (set(uids) & available))
+            save(state)
+        consume_history(_root(), identity, validity, queue_history)
         messages = []
         for uid in state['pending']:
             if uid not in available:

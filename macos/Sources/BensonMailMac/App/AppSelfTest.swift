@@ -19,6 +19,18 @@ enum AppSelfTest {
             guard store.reports.count == 2, store.alive else {
                 throw Failure("fixture report/status failed: count=\(store.reports.count), preview=\(store.reportText.contains("建议回复")), alive=\(store.alive)")
             }
+            if args.contains("--settings-self-test-only") {
+                checks += try await SettingsDraftSelfTest.run(store: store, output: output)
+                try JSONSerialization.data(withJSONObject: ["ok": true, "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("result.json"))
+                NSApp.terminate(nil); return
+            }
+            if args.contains("--assistant-tools-self-test-only") {
+                checks += try await AssistantToolsSelfTest.run(store: store, output: output)
+                try JSONSerialization.data(withJSONObject: ["ok": true, "checks": checks], options: [.prettyPrinted, .sortedKeys])
+                    .write(to: output.appendingPathComponent("result.json"))
+                NSApp.terminate(nil)
+                return
+            }
             if args.contains("--policy-self-test-only") {
                 checks += try await LanguageUIAuditSelfTest.run(store: store, output: output)
                 checks += try await SenderPolicySelfTest.run(store: store, output: output)

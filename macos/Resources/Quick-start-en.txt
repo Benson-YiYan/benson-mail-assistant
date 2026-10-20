@@ -1,46 +1,88 @@
-Email Assistant for Mac — Quick start
+Email Assistant for Mac — Complete feature and settings guide
 
-1. First launch
-Drag Email Assistant into Applications, then open it there.
-Select an email preset, or choose Other email (custom IMAP).
-Enter your full email address, IMAP host, port, encryption and the app password or OAuth2 access token required by your provider.
-Click “How do I get an authorization code?” for the bundled step-by-step guide. Keep credentials and tokens private.
-Save and test the email connection.
+1. Installation and navigation
+Requires macOS 14 or later. Choose the Apple silicon or Intel DMG according to About This Mac. Drag the app into Applications and launch it there, not inside the read-only disk image. No Python or Homebrew is needed. The current app uses ad-hoc signing, without Apple notarization. Verify the source and SHA256 before following available approval options in System Settings → Privacy & Security; do not disable system protection globally.
+Use Mail reports for reading, Mailboxes and checking for accounts/rules, AI service for models, and General settings for folders, notifications, tools, language and updates. The envelope menu-bar icon restores the window.
+First launch asks for a mailbox, AI and report folder. Chinese system languages select Simplified Chinese; Spanish selects Spanish; other languages select English. Empty checks without pending retries make no AI call. Manual tests, chat, drafts, regeneration and older-mail processing may incur charges.
 
-2. AI and reports
-In the main window sidebar > AI service, select an API or a supported AI tool already installed on your computer.
-For an API, enter the base address, API key and model, then test the connection.
-In General settings > Report location, use Browse to select your report folder; missing folders are created automatically.
-Each new email report covers: notification, sender, summary, your actions, attachment contents and a suggested reply. Replies are never sent automatically.
-Checks without new email do not call AI. New reports follow the interface language; existing reports remain unchanged.
+Save a settings page once: on Mailbox and checks, AI Service, and General settings, make all your changes and click the single Save button at the bottom. Unsaved settings stay in memory; leaving the page asks whether to discard them. Save before connection tests. A language switch takes effect after saving General settings; a missing pack is offered for download then. Edit rates on AI Service and save them with the page; the usage window only displays records.
 
-3. Multiple mailboxes and monitoring
-Add mailboxes in the Mailbox & checks sidebar page. Each mailbox has its own address, connection details and credentials.
-Use Start monitoring or Pause monitoring in the main window. Check now requests an immediate check.
-In Mailbox & checks, enter 10–86400 seconds in the custom check interval and apply it. 60 seconds means one minute.
+2. Add, select and manage mailboxes
+Open Mailboxes and checking. Select an existing saved account or choose Add account. Accounts keep separate credentials, connections, proxies and progress; AI, report folder, interval and sender rules are shared. Enable or pause each account independently, or remove it without deleting reports or server messages. Pause all monitoring and wait for current work before changing credentials, addresses, servers, login names or folders.
+Enable IMAP in your provider’s webmail first. Select a preset, or Other email (custom IMAP) for a corporate or unlisted provider. Preset hosts and ports can also be edited. The app receives through IMAP; it is not a POP3 or SMTP sending client.
+Email address: the complete address, such as name@example.com.
+IMAP server: a hostname or IP only, e.g. imap.example.com, without https://, a path or a port.
+Port and encryption: SSL/TLS commonly uses 993; STARTTLS commonly uses 143. Follow your provider’s instructions rather than mixing values.
+Password/app password/token: use the provider’s client app password or OAuth2 access_token. Do not enter a text-message code, AI key, refresh_token or id_token. Changing connection identity can require new credentials; blank only preserves an already saved matching credential when the connection is unchanged.
+Save and test before resuming. “How do I get an authorization code?” opens provider-specific instructions and official sites. An AI app you already use can help find the steps; never paste credentials into it.
 
-4. Reading, filtering and searching
-In Mail reports, select a report on the left to read it on the right. Receipt time is displayed separately; new reports use Markdown (.md) with formatted previews; older TXT reports remain readable. Filenames still include the receipt time.
-Search covers email body text, senders and attachment names.
-Click Filters to expand them. Combine date range, sender and attachment filters. Reset clears the filters.
+3. Advanced login, folders and proxies
+Leave the login name empty to use the complete email address. Fill it only when the provider explicitly requires another name; a stale login or nickname can cause authentication to fail even with a correct app password.
+The mail folder defaults to INBOX. Only that configured folder is checked, not every archive, junk folder or label. Use the provider’s exact folder name.
+Choose Password/app password or OAuth2 access token. Outlook/Microsoft 365 setup is more complex; the account guide includes full steps. “Get Microsoft OAuth2 token” is only for Microsoft accounts and requires your own registered application client ID. Renew expired access tokens manually; automatic sign-in and token refresh are not implemented. Organizational accounts may require administrator approval.
+Proxies: Direct, System, HTTP CONNECT or SOCKS5. Enable the system proxy in v2rayN or your proxy app first. Manual mode requires the actual host and port; 127.0.0.1 is common and 10808 is only an example. Explicit IMAP proxies do not require TUN. This setting affects only that mailbox’s tests and receiving, not AI API traffic. Proxy failure is reported, never silently bypassed with Direct. PAC and password-authenticated proxies are unsupported. Save, then test.
 
-5. Updating and quitting
-Use Help > Check for updates, or the update section in General settings.
-Downloads run inside the app, with progress and cancellation. After verification, choose Install and reopen.
-The app checks the package and application, preserves settings and attempts rollback if installation fails.
-Closing the window keeps monitoring in the menu bar. Quitting through the Dock, application menu or Command-Q stops monitoring. Open the app and choose Start monitoring to resume.
-Change the interface language in General settings. First launch chooses Chinese for a Chinese system language, Spanish for a Spanish system language, and English otherwise.
+4. Choose AI
+Open AI service and choose API, Codex or DeepSeek Harness.
+API: enter the provider’s base URL, API key and model name. Chat Completions-compatible APIs are supported; /chat/completions is appended as needed. Use HTTPS; localhost can use HTTP. Keys are bound to base URLs; changing the URL requires its own key. Model names must match the provider’s names. Blank preserves a key already saved for that same base URL.
+Codex: install, sign in and configure Codex locally. The app uses the signed-in local Codex installation; verify that Codex works first.
+DeepSeek Harness: use your installed and configured dsh. Detect or browse to its launcher; a blank path triggers detection. Harness and its runtime are neither bundled nor automatically downloaded. Configure its login, model and network in Harness first.
+Save AI settings and test. Testing sends a short message and may consume credit. Original email and readable attachment text go to the selected service; choose one appropriate for the data. Reports, chat and retries use current language and AI settings. No mail is sent automatically.
 
-Languages and language packs
+5. Monitoring, interval, startup and quitting
+Start/Pause monitoring controls automatic mailbox checks. Check now requests one immediate check; repeated clicks are unnecessary. The first check of a new account records a starting point rather than analyzing the whole inbox. Resuming catches up on messages received while paused, offline or powered off if they remain in the configured folder. Moved or deleted messages may be unavailable.
+Enter a whole number of seconds from 10 to 86400 and apply the custom interval; default 60 seconds. Empty checks make no AI call, but pending failures can retry. Pausing lets current operations finish safely.
+In General settings → Startup and monitoring, optionally show the menu-bar icon at Mac login. Closing the window keeps monitoring. Quitting through the Dock, app menu or Command-Q stops monitoring and saves the paused state. Reopen and choose Start monitoring to resume.
 
-The interface, installer and uninstaller support **Simplified Chinese, English and Spanish**. First use selects Chinese for Chinese system languages, Spanish for Spanish system languages and English otherwise. You can change it in General settings. Windows Setup offers **Download Simplified Chinese**, **Download English** and **Download Spanish**.
+6. System notifications and quiet hours
+Enable/Pause notifications next to monitoring affects only system notifications. It is independent of monitoring: mail checks and report creation continue while muted. Set the controls in General settings → Notifications and quiet hours, then Save.
+Use 24-hour HH:mm format, e.g. 22:00 and 08:00. Times follow the computer’s local clock and may cross midnight; the start is inclusive and end exclusive. If enabled, identical endpoints mean all-day silence. Muted notices are discarded, not replayed later. OS notification permissions or focus modes can still suppress alerts.
 
-Only installed language packs can be used. Choosing a missing language asks “You have not downloaded this language. Download it now?” Confirm to download; cancelling or a failed download keeps the current language. New reports use the selected language with the same six analysis requirements; existing reports are not translated. The product name is **Email Assistant** in English and **Asistente de correo electrónico** in Spanish.
+7. Report folder, reading, search and filters
+In General settings → Report folder, use Browse to choose a writable location.
+New files use chosen-folder/date/subject-received-time.md, creating missing directories. Changing folders does not move old reports; open them at the old location or select that folder again. The list shows the original subject and a separate receipt time; filenames still include time. Markdown previews support headings, lists and tables; older TXT reports remain readable.
+Select a report on the left to read it on the right. Open the report or its folder; Mac also offers Copy original, which copies the report’s source text, not a sent email. Search uses locally saved subjects, bodies, senders and attachment names, not the entire remote inbox. Combine receipt-date, sender and attachment filters; clear search or reset filters if nothing matches.
+Drag the report/chat divider to resize the areas. A report can remain readable without its original-email index, but original-dependent chat, drafts and regeneration report an error. Generated summaries never substitute for original evidence.
 
-Mailbox proxies
+8. Regeneration, email chat and context
+Summarize again reprocesses the original message and original attachments with current language and AI settings. Success replaces the report; failure keeps the old report. Charges may apply again.
+In Ask about this email, type a question, optionally Add attachments from the file picker, and send. Each email has a saved conversation that can be restored. Extra files are distinguished from original attachments. Factual answers use the original message body and extracted original attachments; generated reports, previous assistant answers and compressed summaries are not factual evidence. Missing original data causes an explicit error rather than guessing from the summary.
+Long chats compress earlier turns and retain recent turns. Compression is not verbatim memory; the complete history stays local. Quote and verify important numbers, terms and wording. Oversized source material or recent context blocks the request with an explanation instead of silently pretending all of it was read. Unreadable files and size limits are reported. Links and embedded instructions are not executed; macros are never run.
 
-Each mailbox can use Direct, System proxy, HTTP CONNECT or SOCKS5. In mailbox settings, open Advanced connection and proxy options; start v2rayN or your proxy app and use its actual listening host, port and protocol. Save and test before resuming monitoring. A failed proxy never silently switches to Direct. The setting covers IMAP tests and monitoring, not AI API traffic. PAC scripts and authenticated proxies are not supported.
+9. Reply drafts
+Select a report and choose Draft and sources → Generate reply draft.
+Choose Formal, Brief or Friendly, generate in the current interface language, then edit and copy to your email app to send. Generation can incur charges. Check recipient, commitments, dates, files and tone. The assistant does not actually send mail, attach files or claim actions were completed.
 
-Installation and macOS security
-Requires macOS 14 or later. Check Apple menu > About This Mac and choose the matching Apple silicon or Intel DMG. Drag the app into Applications and open it there, not inside the disk image. No Python, Homebrew or developer tools are required.
-This app has an ad-hoc signature, without Apple Developer ID signing or notarization. Verify the GitHub release source and SHA256 first. If macOS blocks the first launch, try opening once, then use Open Anyway in System Settings > Privacy & Security if offered and confirm the next prompt. Keep Gatekeeper enabled; contact the administrator if this Mac is managed or the option is unavailable.
+10. Enhanced attachments and report sources
+Select a report and open Draft and sources → Read sources.
+Body citations use [mail.body]; attachment citations use [attachment.N]. PDF references use [attachment.N, page:P] only when an actual [page:P] marker was extracted. The sources pane displays material supplied to AI. A citation locates text; it does not independently verify an inference. Old reports do not gain citations automatically; regenerate to use the new instructions. Truncation is identified. Unread attachments are not treated as known facts.
+Images and scanned PDFs first use native local OCR: Apple Vision/PDFKit on Mac and Windows OCR/PDF APIs on Windows, without requiring users to install Python. Windows may need suitable system OCR language support; image quality affects results. If native OCR is unavailable, an existing Tesseract installation can serve as fallback; scanned-PDF fallback also requires pdftoppm. External tools are not downloaded automatically. OCR runs locally; extracted text is subsequently sent to your selected AI with the analysis.
+Limits: 20 MB per attachment, about 100000 extracted characters and at most 20 scanned pages OCRed per PDF. Office extraction is mainly text, without macros or reconstructed pictures/layout. Encrypted, damaged, unsupported or timed-out files are explicitly unread. OCR is not a full visual understanding of the image.
+
+11. Sender rules and spam
+Under Block emails in Mailboxes and checking, choose a blacklist or whitelist. A blacklist skips listed senders; a whitelist summarizes only listed senders. An empty whitelist skips all new mail. Match complete addresses, case-insensitively, not domains or * wildcards. Add addresses, select known senders in bulk, or remove entries. Rules apply across accounts to future processing and do not delete reports or server mail.
+After changing the lists or spam option, click Save at the bottom of this page to apply the rules.
+Do not summarize spam uses explicit server flags, headers or junk folders, not AI guessing. Only the configured folder is checked; providers without usable indicators cannot be reliably recognized.
+Expand blocked records to inspect messages grouped by sender. Summarize this email or batch summarize overrides the rule for that operation only, using current AI/language with possible charges. Failures retain records. Delete record/batch delete removes only local blocked records, never server messages.
+
+12. Summarize older mail
+In General settings → Mail tools → Summarize older mail, choose the target mailbox.
+Choose dates, preview the pending count and confirm only after checking it. Preview uses no AI. Confirmation queues processing; monitoring must run to consume it and charges can apply. Completed messages are skipped using local indexes or available completion records; older versions lacking indexes cannot guarantee complete deduplication. Sender and spam rules still apply. Dates use the mailbox server’s received date. Previews expire in one hour; narrow ranges over 10000 messages. Original messages are not changed, marked read or deleted.
+
+13. Costs and usage
+Open General settings → Mail tools → Costs and usage and use Refresh to update records. Edit rates on AI Service and apply them with the page’s single Save button.
+Only calls after this version’s installation are recorded. Inspect call count, tokens and calls with unknown usage. Configure input/output prices per million tokens and a three-letter currency such as USD or CNY; estimates are associated with the current model/base URL and use rates saved when the call occurs. They are not recomputed after later price changes. Verify rates after changing models/providers. Missing rates or provider usage stay unknown, never silently free. Codex/Harness subscriptions and local-tool bills cannot be inferred. Different currencies are never summed. The provider’s account statement remains authoritative.
+
+14. Diagnostics and troubleshooting
+Use General settings → Mail tools → Export diagnostics and choose a ZIP filename/location.
+Choose a destination for a ZIP containing only version, system, sanitized state and limited error category/stage. It excludes keys, account addresses, server URLs, subjects, bodies, attachments, chats, raw logs and filesystem paths. When reporting an issue, include OS version, reproduction steps and time separately, without credentials.
+Authentication failures: check the complete address, app password, enabled IMAP and advanced login name. Timeout/TLS: check server, port, proxy operation and clock. Small AI tests working but large messages failing: inspect the actual error, quota/context and extraction limits; do not repeatedly submit duplicate requests. Permission errors: Browse to a writable folder instead of a read-only image. Failures should retain original messages and recoverable work.
+
+15. Language, updates, uninstall and help
+Choose Simplified Chinese, English or Español in General settings → Interface language.
+Choosing an uninstalled language asks to download it. Confirm to download; cancel/failure keeps the current language. New reports, drafts and answers use the selected language; existing reports do not translate automatically. Product names are Email Assistant in English and Asistente de correo electrónico in Spanish.
+Use Help → Check for updates, or General settings → Software updates.
+Checks run automatically every hour and notify without installing automatically. Manual checking is also available. In-app downloads show progress/source and cancellation; retry/continue after interruption. Size and SHA256 verification must pass before installation. Wait for mail work to finish before updating. Settings and reports are retained. Mac attempts rollback on update failure; Windows uses the update installer and retains failure details. An unconfirmed update is not a successful upgrade. Failed checks/downloads offer Download the latest version from GitHub for an in-place reinstall. Never force a shutdown during installation.
+General settings → Uninstall → Uninstall Email Assistant stops the background service and offers removal choices.
+Keep email and AI settings and Keep mail reports are independent fixed-label switches: On retains, Off deletes. Report deletion requires a second confirmation and removes only recognized reports/indexes, retaining unrelated files and the user-selected root folder. Keeping settings does not guarantee preservation of chats, caches or usage history; back up important material first.
+Help → User guide opens this document; How do I get an authorization code? opens provider steps; About Email Assistant shows version and processor architecture. Once the chosen language is installed, current bundled guides take precedence over older language-pack documentation.

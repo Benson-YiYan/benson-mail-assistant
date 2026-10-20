@@ -27,6 +27,20 @@ def main():
     import truststore
     os.environ.setdefault('SSL_CERT_FILE', certifi.where())
     truststore.inject_into_ssl()
+    if operation in ('--assistant-tools', '--assistant-features'):
+        from assistant_tools import dispatch
+        try:
+            request = json.loads(Path(args[0]).read_text(encoding='utf-8'))
+            print(json.dumps({'ok': True, **dispatch(home, request)}, ensure_ascii=False))
+        except Exception as error:
+            try:
+                from assistant_tools import record_diagnostic
+                record_diagnostic(home, locals().get('request', {}).get('action') or locals().get('request', {}).get('op') or operation.lstrip('-'), error)
+            except Exception: pass
+            detail = str(error) if isinstance(error, (ValueError, RuntimeError)) else type(error).__name__ + ': operation failed'
+            print(json.dumps({'ok': False, 'error': detail}, ensure_ascii=False))
+            raise SystemExit(1)
+        return
     if operation == '--mail-policy':
         from mail_policy import policy_status, policy_save, policy_remove_records, policy_summarize_records
         try:
@@ -48,6 +62,10 @@ def main():
                 raise ValueError('Unknown policy action')
             print(json.dumps({'ok': True, **result}, ensure_ascii=False))
         except Exception as error:
+            try:
+                from assistant_tools import record_diagnostic
+                record_diagnostic(home, locals().get('request', {}).get('action') or locals().get('request', {}).get('op') or operation.lstrip('-'), error)
+            except Exception: pass
             detail = str(error) if isinstance(error, (ValueError, RuntimeError)) else type(error).__name__ + ': operation failed'
             print(json.dumps({'ok': False, 'error': detail}, ensure_ascii=False))
             raise SystemExit(1)
@@ -66,6 +84,10 @@ def main():
                 result = (report_retry if operation == '--report-retry' else chat_history)(home, args[0])
             print(json.dumps({'ok': True, **result}, ensure_ascii=False))
         except Exception as error:
+            try:
+                from assistant_tools import record_diagnostic
+                record_diagnostic(home, locals().get('request', {}).get('action') or locals().get('request', {}).get('op') or operation.lstrip('-'), error)
+            except Exception: pass
             detail = str(error) if isinstance(error, (ValueError, RuntimeError)) else type(error).__name__ + ': operation failed'
             print(json.dumps({'ok': False, 'error': detail}, ensure_ascii=False))
             raise SystemExit(1)
