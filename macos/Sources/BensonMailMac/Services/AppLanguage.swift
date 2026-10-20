@@ -115,6 +115,11 @@ final class AppLanguage: ObservableObject {
         guard code != "zh" else { return text }
         if let value = exact[text] { return value }
         if let value = SenderPolicyLocalization.translate(text, language: code) { return value }
+        let networkCodePrefix = "网络错误代码："
+        if text.hasPrefix(networkCodePrefix) {
+            let label = exact[networkCodePrefix] ?? (code == "es" ? "Código de error de red: " : "Network error code: ")
+            return label + text.dropFirst(networkCodePrefix.count)
+        }
         if text.contains("邮箱连接失败："), text.contains("\n服务器："), text.contains("\n阶段：") {
             let labels = code == "es" ? ["服务器：": "Servidor: ", "阶段：": "Etapa: ", "具体原因：": "Detalles: "] : ["服务器：": "Server: ", "阶段：": "Stage: ", "具体原因：": "Details: "]
             return text.components(separatedBy: "\n").map { line in

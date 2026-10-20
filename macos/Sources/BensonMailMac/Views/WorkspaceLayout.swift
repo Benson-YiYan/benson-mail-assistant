@@ -8,12 +8,13 @@ enum WorkspacePage: String, CaseIterable, Identifiable {
 }
 
 struct WorkspaceCard<Content: View>: View {
+    @ObservedObject private var language = AppLanguage.shared
     let title: String
     @ViewBuilder var content: Content
     init(_ title: String, @ViewBuilder content: () -> Content) { self.title = title; self.content = content() }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(T(title)).font(.headline)
+            Text(T(title)).font(.headline).accessibilityIdentifier("workspace-card-" + title)
             content
         }.frame(maxWidth: .infinity, alignment: .leading).padding(20)
             .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))

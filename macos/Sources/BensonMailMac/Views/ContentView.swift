@@ -38,7 +38,7 @@ struct ContentView: View {
                 HStack {
                     VStack(alignment: .leading) {
                         Text(T(updater.completionNotice)).font(.headline)
-                        Text(updater.detail).font(.caption).lineLimit(3)
+                        Text(T(updater.detail)).font(.caption).lineLimit(3)
                     }
                     Spacer()
                     Button(T("知道了")) { updater.dismissCompletionNotice() }
@@ -143,6 +143,7 @@ struct ContentView: View {
 }
 
 private struct ReportActionsView: View {
+    @ObservedObject private var language = AppLanguage.shared
     @ObservedObject var store: MailStore
     @ObservedObject var conversation: ReportConversationStore
     let report: Report

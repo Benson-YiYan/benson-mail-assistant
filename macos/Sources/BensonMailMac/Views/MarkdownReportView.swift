@@ -15,7 +15,7 @@ enum MarkdownDocument {
         let bytes = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         guard process.terminationStatus == 0, let fragment = String(data: bytes, encoding: .utf8) else {
-            throw NSError(domain: "BensonMail.Markdown", code: 1, userInfo: [NSLocalizedDescriptionKey: T("Markdown 排版失败，原文仍可复制或打开。")])
+            throw NSError(domain: "BensonMail.Markdown", code: 1, userInfo: [NSLocalizedDescriptionKey: "Markdown 排版失败，原文仍可复制或打开。"])
         }
         return html(fragment)
     }
@@ -29,6 +29,7 @@ enum MarkdownDocument {
 }
 
 struct MarkdownReportView: View {
+    @ObservedObject private var language = AppLanguage.shared
     let text: String
     @MarkdownState private var html = ""
     @MarkdownState private var error = ""
@@ -42,7 +43,7 @@ struct MarkdownReportView: View {
                 .allowsHitTesting(!html.isEmpty)
                 .accessibilityHidden(html.isEmpty)
             if !error.isEmpty {
-                ScrollView { VStack(alignment: .leading) { Text(error).foregroundStyle(.secondary); Text(text).textSelection(.enabled) } }
+                ScrollView { VStack(alignment: .leading) { Text(T(error)).foregroundStyle(.secondary); Text(text).textSelection(.enabled) } }
             } else if html.isEmpty { ProgressView() }
         }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).task(id: text) {
             html = ""; error = ""

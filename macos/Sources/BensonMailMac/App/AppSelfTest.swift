@@ -20,6 +20,7 @@ enum AppSelfTest {
                 throw Failure("fixture report/status failed: count=\(store.reports.count), preview=\(store.reportText.contains("建议回复")), alive=\(store.alive)")
             }
             if args.contains("--policy-self-test-only") {
+                checks += try await LanguageUIAuditSelfTest.run(store: store, output: output)
                 checks += try await SenderPolicySelfTest.run(store: store, output: output)
                 let result: [String: Any] = ["ok": true, "checks": checks]
                 try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])

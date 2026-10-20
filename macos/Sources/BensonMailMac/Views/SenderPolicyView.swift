@@ -4,6 +4,7 @@ import SwiftUI
 private typealias PolicyState<Value> = SwiftUI.State<Value>
 
 struct SenderPolicyView: View {
+    @ObservedObject private var language = AppLanguage.shared
     @ObservedObject var store: MailStore
     @StateObject private var policy: SenderPolicyStore
     @PolicyState private var adding = false
@@ -131,6 +132,7 @@ struct SenderPolicyView: View {
 }
 
 struct SenderAddressPicker: View {
+    @ObservedObject private var language = AppLanguage.shared
     @ObservedObject var policy: SenderPolicyStore
     let candidates: [String]
     @Environment(\.dismiss) private var dismiss

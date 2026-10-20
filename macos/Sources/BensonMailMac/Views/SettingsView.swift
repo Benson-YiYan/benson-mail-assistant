@@ -30,6 +30,7 @@ struct IntervalControl: View {
 }
 
 struct SettingsView: View {
+    @ObservedObject private var language = AppLanguage.shared
     @ObservedObject var store: MailStore
     var body: some View {
         VStack(spacing: 0) {

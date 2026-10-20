@@ -122,7 +122,7 @@ struct MailUpdate: Equatable {
             checkFailed = true
             if manual {
                 status = "检查更新失败，请检查网络后重试。"
-                if let network = error as? URLError { detail = T("网络错误代码：") + String(network.errorCode) + " · " + network.localizedDescription }
+                if let network = error as? URLError { detail = "网络错误代码：" + String(network.errorCode) + " · " + network.localizedDescription }
                 else { detail = error.localizedDescription }
             }
         }
@@ -309,7 +309,7 @@ struct UpdateSettings: View {
                 Task { await updater.check(manual: true) }
             }.disabled(updater.checking || updater.downloading || updater.installing).accessibilityIdentifier("check-app-updates")
             if !updater.status.isEmpty { Text(T(updater.status)).font(.callout).textSelection(.enabled) }
-            if !updater.detail.isEmpty { Text(updater.detail).font(.caption).textSelection(.enabled) }
+            if !updater.detail.isEmpty { Text(T(updater.detail)).font(.caption).textSelection(.enabled) }
             if updater.checkFailed {
                 Link(T("前往 GitHub 下载最新版"), destination: AppUpdater.latestRelease)
                     .buttonStyle(.bordered)
@@ -334,7 +334,7 @@ struct UpdateActions: View {
         VStack(alignment: .leading, spacing: 8) {
             if showStatus {
                 Text(T(updater.status)).font(.caption)
-                if !updater.detail.isEmpty { Text(updater.detail).font(.caption).lineLimit(3).textSelection(.enabled) }
+                if !updater.detail.isEmpty { Text(T(updater.detail)).font(.caption).lineLimit(3).textSelection(.enabled) }
             }
             if updater.downloading {
                 if updater.total > 0 { ProgressView(value: Double(updater.received), total: Double(updater.total)) }
