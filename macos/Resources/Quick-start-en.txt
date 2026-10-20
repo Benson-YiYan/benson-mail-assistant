@@ -41,4 +41,6 @@ Mailbox proxies
 
 Each mailbox can use Direct, System proxy, HTTP CONNECT or SOCKS5. In mailbox settings, open Advanced connection and proxy options; start v2rayN or your proxy app and use its actual listening host, port and protocol. Save and test before resuming monitoring. A failed proxy never silently switches to Direct. The setting covers IMAP tests and monitoring, not AI API traffic. PAC scripts and authenticated proxies are not supported.
 
-Installation and Gatekeeper: see the Mac README. macOS 14 or later is required; choose the matching Apple silicon or Intel DMG.
+Installation and macOS security
+Requires macOS 14 or later. Check Apple menu > About This Mac and choose the matching Apple silicon or Intel DMG. Drag the app into Applications and open it there, not inside the disk image. No Python, Homebrew or developer tools are required.
+This app has an ad-hoc signature, without Apple Developer ID signing or notarization. Verify the GitHub release source and SHA256 first. If macOS blocks the first launch, try opening once, then use Open Anyway in System Settings > Privacy & Security if offered and confirm the next prompt. Keep Gatekeeper enabled; contact the administrator if this Mac is managed or the option is unavailable.

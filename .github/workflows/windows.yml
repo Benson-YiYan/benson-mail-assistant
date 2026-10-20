@@ -2,9 +2,9 @@ name: Windows build and verification
 on:
   push:
     branches: [main]
-    paths: ["windows/**", ".github/workflows/windows.yml"]
+    paths: ["windows/**", "script/build_language_packs.py", ".github/workflows/windows.yml"]
   pull_request:
-    paths: ["windows/**", ".github/workflows/windows.yml"]
+    paths: ["windows/**", "script/build_language_packs.py", ".github/workflows/windows.yml"]
   workflow_dispatch:
 permissions:
   contents: read

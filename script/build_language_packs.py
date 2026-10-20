@@ -1,10 +1,9 @@
 """Build data-only packs and offline test fixtures from reviewed source translations."""
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 ROOT=Path(__file__).resolve().parents[1]
 LANGUAGES=('zh','en','es')
@@ -22,7 +21,7 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--release-directory',type=Path)
-    parser.add_argument('--version',default=datetime.now(ZoneInfo('Asia/Shanghai')).strftime('%Y%m%d%H%M'))
+    parser.add_argument('--version',default=datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d%H%M'))
     parser.add_argument('--tag',default='v20261020')
     args=parser.parse_args()
     entries={}
