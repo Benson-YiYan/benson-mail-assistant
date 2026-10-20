@@ -49,7 +49,10 @@ import CryptoKit
     }
     private func signature(_ page: WorkspacePage) -> Data {
         var data = fingerprint(page)
-        if page == .mailbox { data.append((try? JSONEncoder().encode(value.mail_policy)) ?? Data()); data.append(Data(interval.utf8)) }
+        if page == .mailbox {
+            let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
+            data.append((try? encoder.encode(value.mail_policy)) ?? Data()); data.append(Data(interval.utf8))
+        }
         if page == .general { data.append(Data(login ? [1] : [0])) }
         return data
     }

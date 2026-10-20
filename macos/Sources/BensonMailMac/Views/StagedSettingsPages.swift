@@ -1,7 +1,10 @@
 import SwiftUI
 import AppKit
 
+private typealias StagedState<Value> = SwiftUI.State<Value>
+
 struct StagedSettingsPage: View {
+    @StagedState private var showUsage = false
     @ObservedObject var store: MailStore
     @ObservedObject var draft: SettingsDraft
     @ObservedObject private var language = AppLanguage.shared
@@ -28,6 +31,7 @@ struct StagedSettingsPage: View {
                 if !draft.message.isEmpty { Text(T(draft.message)).font(.callout).textSelection(.enabled) }
             }.padding(18)
         }.textFieldStyle(.roundedBorder).disabled(draft.saving)
+        .sheet(isPresented: $showUsage) { UsageSettingsView(store: store) }
     }
     private var mailbox: some View {
         Group {
@@ -48,6 +52,7 @@ struct StagedSettingsPage: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Button(store.testingMailbox ? T("正在测试…") : T("测试邮箱连接")) { store.testMailbox() }
                     .disabled(draft.dirty(.mailbox) || store.testingMailbox || store.mailAccount.isEmpty)
+                    .accessibilityIdentifier("settings-test-mailbox")
                 if !store.mailboxTestResult.isEmpty { Text(T(store.mailboxTestResult)).textSelection(.enabled).font(.caption) }
                 if draft.dirty(.mailbox) { Text(T("请先保存设置，再测试连接。")).font(.caption).foregroundStyle(.secondary) }
             }
@@ -95,12 +100,15 @@ struct StagedSettingsPage: View {
             Button(T("测试 AI 连接")) { store.testAPI { draft.message = $0 } }.disabled(draft.dirty(.ai))
             if draft.dirty(.ai) { Text(T("请先保存设置，再测试连接。")).font(.caption).foregroundStyle(.secondary) }
         }
-        WorkspaceCard("费用与用量记录") {
+        WorkspaceCard("费用单价") {
             HStack {
                 Text(T("币种")); TextField("USD", text: $draft.currency).frame(width: 70)
-                Text(T("输入／百万 Token")); TextField("0", text: $draft.inputRate).frame(width: 90)
-                Text(T("输出／百万 Token")); TextField("0", text: $draft.outputRate).frame(width: 90)
+                Text(T("每百万输入 Token 单价")); TextField("0", text: $draft.inputRate).frame(width: 90)
+                Text(T("每百万输出 Token 单价")); TextField("0", text: $draft.outputRate).frame(width: 90)
             }
+            Button(T("查看用量记录")) { showUsage = true }
+            Text(T("这些是估算费用使用的单价，不是用量限额。"))
+                .font(.caption).foregroundStyle(.secondary)
             Text(T("单价随本页设置统一保存，应用于当前基础地址和模型。"))
                 .font(.caption).foregroundStyle(.secondary)
             Text(T("仅记录新发生的调用。接口未返回用量时标为未知；订阅和本地工具的账单无法推算。"))

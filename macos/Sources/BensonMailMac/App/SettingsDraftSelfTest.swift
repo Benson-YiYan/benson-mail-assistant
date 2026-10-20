@@ -74,6 +74,8 @@ import SwiftUI
         await draft.save(.mailbox)
         try require(saveCount == 3 && draft.dirty(.mailbox) && (try? Data(contentsOf: store.settingsURL)) == validBytes, "invalid page changed persisted settings")
         draft.reload()
+        try await mountedSaveLifecycle(store: store, output: output)
+        try await policyRefreshNeverEditsDraft(store: store)
         for code in ["zh", "en", "es"] {
             AppLanguage.shared.applySettingsLanguage(code)
             for page in [WorkspacePage.mailbox, .ai, .general] {
@@ -86,6 +88,91 @@ import SwiftUI
                 window.orderOut(nil)
             }
         }
-        return ["settings-staged-six-controls-one-save", "settings-navigation-cancel-discard", "settings-rates-rollback", "settings-page-language-snapshots"]
+        return ["settings-staged-six-controls-one-save", "settings-navigation-cancel-discard", "settings-rates-rollback", "settings-page-language-snapshots", "settings-mounted-save-refresh-stays-clean", "settings-policy-read-does-not-edit-draft"]
     }
+    private static func policyRefreshNeverEditsDraft(store: MailStore) async throws {
+        var current = SenderPolicyRule(mode: "whitelist", addresses: ["old@example.invalid"], skip_spam: true)
+        var explicitEdits = 0
+        let policy = SenderPolicyStore(base: store.base, executor: { _ in
+            try await Task.sleep(nanoseconds: 120_000_000)
+            return Data(#"{"policy":{"mode":"blacklist","addresses":[],"skip_spam":false},"records":[],"count":0,"senders":[]}"#.utf8)
+        })
+        policy.externalDraft = { current }
+        policy.draftDidEdit = { current = $0; explicitEdits += 1 }
+        let refresh = Task { await policy.refresh() }
+        try await Task.sleep(nanoseconds: 30_000_000)
+        current.addresses = ["new@example.invalid"]
+        await refresh.value
+        guard policy.draft == current, current.addresses == ["new@example.invalid"], explicitEdits == 0 else {
+            throw AppSelfTest.Failure("a stale async policy read edited the staged rule")
+        }
+        policy.editDraft { $0.mode = "blacklist" }
+        guard explicitEdits == 1, current.mode == "blacklist" else {
+            throw AppSelfTest.Failure("explicit user policy edits no longer reach the staged page")
+        }
+    }
+    /// Mount the same all-page workspace that users run, press the real Save,
+    /// and let policy tasks plus repeated live-settings refreshes settle.
+    private static func mountedSaveLifecycle(store: MailStore, output: URL) async throws {
+        NSApp.accessibilitySetValue(true, forAttribute: NSAccessibility.Attribute(rawValue: "AXEnhancedUserInterface"))
+        store.settings.mail_policy = SenderPolicyRule(mode: "blacklist", addresses: ["notifications@example.invalid"], skip_spam: true)
+        store.settings.interval_seconds = 60
+        try store.save()
+        let draft = store.settingsDraft; draft.reload(); store.workspacePage = .mailbox
+        var writes = 0
+        draft.persistOverride = { writes += 1; try store.save() }
+        let host = NSHostingView(rootView: ContentView(store: store).disclosureGroupStyle(WideDisclosureStyle()))
+        let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 1220, height: 900), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.contentView = host; window.makeKeyAndOrderFront(nil)
+        defer { window.orderOut(nil); draft.persistOverride = nil }
+        func attribute(_ node: NSObject, key: String, raw: String) -> Any? {
+            if node.responds(to: NSSelectorFromString(key)) { return node.value(forKey: key) }
+            return node.accessibilityAttributeValue(NSAccessibility.Attribute(rawValue: raw))
+        }
+        func find(_ value: Any, _ id: String, depth: Int = 0) -> NSObject? {
+            guard depth < 35, let node = value as? NSObject else { return nil }
+            if attribute(node, key: "accessibilityIdentifier", raw: "AXIdentifier") as? String == id { return node }
+            for child in attribute(node, key: "accessibilityChildren", raw: "AXChildren") as? [Any] ?? [] {
+                if let found = find(child, id, depth: depth + 1) { return found }
+            }
+            return nil
+        }
+        func isEnabled(_ node: NSObject) -> Bool {
+            if node.responds(to: NSSelectorFromString("isAccessibilityEnabled")) || node.responds(to: NSSelectorFromString("accessibilityEnabled")) {
+                return node.value(forKey: "accessibilityEnabled") as? Bool ?? false
+            }
+            return node.accessibilityAttributeValue(.enabled) as? Bool ?? false
+        }
+        try await Task.sleep(nanoseconds: 650_000_000)
+        draft.interval = "30"
+        try await Task.sleep(nanoseconds: 180_000_000)
+        guard draft.dirty(.mailbox), let save = find(host, "settings-page-save-" + WorkspacePage.mailbox.id), isEnabled(save) else {
+            throw AppSelfTest.Failure("mounted settings Save is not enabled after interval edit")
+        }
+        let selector = NSSelectorFromString("accessibilityPerformPress")
+        if save.responds(to: selector) {
+            typealias Press = @convention(c) (AnyObject, Selector) -> Bool
+            let press = unsafeBitCast(save.method(for: selector), to: Press.self)
+            guard press(save, selector) else { throw AppSelfTest.Failure("mounted settings Save press was rejected") }
+        } else { save.accessibilityPerformAction(.press) }
+        for round in 0..<4 {
+            try await Task.sleep(nanoseconds: 650_000_000)
+            store.refresh()
+            store.status.last_check = "mounted-policy-refresh-\(round)"
+            try await Task.sleep(nanoseconds: 180_000_000)
+            for _ in 0..<100 {
+                guard !draft.dirty(.mailbox) else {
+                    throw AppSelfTest.Failure("mounted settings became dirty after Save/refresh round \(round): writes=\(writes), message=\(draft.message), policy=\(draft.value.mail_policy)")
+                }
+            }
+        }
+        guard writes == 1, store.settings.interval_seconds == 30, draft.message == "已保存",
+              draft.value.mail_policy.addresses == ["notifications@example.invalid"], draft.value.mail_policy.skip_spam,
+              find(host, "settings-page-dirty") == nil,
+              let test = find(host, "settings-test-mailbox"), isEnabled(test) else {
+            throw AppSelfTest.Failure("mounted saved footer/test state invalid: writes=\(writes), dirty=\(draft.dirty(.mailbox)), message=\(draft.message)")
+        }
+        try AppSelfTest.capture(window, to: output.appendingPathComponent("settings-mounted-after-save.png"))
+    }
+
 }

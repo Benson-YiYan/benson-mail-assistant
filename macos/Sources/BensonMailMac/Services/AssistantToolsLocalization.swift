@@ -3,6 +3,11 @@ import Foundation
 /// Current feature labels override older optional language packs. User mail is never translated.
 enum AssistantToolsLocalization {
     private static let labels: [String: [String]] = [
+        "费用单价": ["Cost rates", "Tarifas"],
+        "每百万输入 Token 单价": ["Input price per million tokens", "Precio por millón de tokens de entrada"],
+        "每百万输出 Token 单价": ["Output price per million tokens", "Precio por millón de tokens de salida"],
+        "查看用量记录": ["View usage records", "Ver registros de uso"],
+        "这些是估算费用使用的单价，不是用量限额。": ["These rates estimate costs; they are not usage limits.", "Estas tarifas se usan para estimar costos; no son límites de uso."],
         "有未保存的设置": ["Unsaved settings", "Hay ajustes sin guardar"],
         "你有未保存的设置，确定要离开吗？": ["You have unsaved settings. Are you sure you want to leave?", "Tienes ajustes sin guardar. ¿Seguro que quieres salir?"],
         "继续编辑": ["Continue editing", "Seguir editando"],

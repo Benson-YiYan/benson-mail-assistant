@@ -784,7 +784,12 @@
     "请输入有效的非负单价和三位币种代码。": "Introduce tarifas válidas no negativas y un código de moneda de tres letras.",
     "单价随本页设置统一保存，应用于当前基础地址和模型。": "Las tarifas se guardan junto con esta página y se aplican a la URL base y al modelo actuales.",
     "在 AI 服务页面设置单价，与其他 AI 设置一起保存。": "Configura las tarifas en la página Servicio de IA y guárdalas con los demás ajustes de IA.",
-    "添加后点击本页底部的“保存”，规则才会生效。": "Después de añadir direcciones, pulsa Guardar al pie de esta página para aplicar las reglas."
+    "添加后点击本页底部的“保存”，规则才会生效。": "Después de añadir direcciones, pulsa Guardar al pie de esta página para aplicar las reglas.",
+    "费用单价": "Tarifas",
+    "每百万输入 Token 单价": "Precio por millón de tokens de entrada",
+    "每百万输出 Token 单价": "Precio por millón de tokens de salida",
+    "查看用量记录": "Ver registros de uso",
+    "这些是估算费用使用的单价，不是用量限额。": "Estas tarifas se usan para estimar costos; no son límites de uso."
   },
   "templates": [
     {

@@ -26,7 +26,7 @@ struct SenderPolicyView: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Picker(T("发件人规则"), selection: $policy.draft.mode) {
+            Picker(T("发件人规则"), selection: Binding(get: { policy.draft.mode }, set: { value in policy.editDraft { $0.mode = value } })) {
                 Text(T("黑名单")).tag("blacklist")
                 Text(T("白名单")).tag("whitelist")
             }.accessibilityIdentifier("mail-policy-mode")
@@ -58,7 +58,7 @@ struct SenderPolicyView: View {
                 if staged == nil { Button(T("保存屏蔽规则")) { Task { await policy.save() } }
                     .buttonStyle(.borderedProminent).disabled(!policy.dirty).accessibilityIdentifier("mail-policy-save") }
             }
-            Toggle(T("不总结垃圾邮件（部分邮箱可能不支持）"), isOn: $policy.draft.skip_spam).accessibilityIdentifier("mail-policy-skip-spam")
+            Toggle(T("不总结垃圾邮件（部分邮箱可能不支持）"), isOn: Binding(get: { policy.draft.skip_spam }, set: { value in policy.editDraft { $0.skip_spam = value } })).accessibilityIdentifier("mail-policy-skip-spam")
             Text(T("仅依据邮箱服务商的垃圾邮件标记；不会凭主题或正文猜测。"))
                 .font(.caption).foregroundStyle(.secondary)
             if staged == nil && policy.dirty { Text(T("有未保存的屏蔽规则")).font(.caption).foregroundStyle(.orange) }
@@ -109,16 +109,26 @@ struct SenderPolicyView: View {
         }.disabled(policy.busy)
         .sheet(isPresented: $adding) { SenderAddressPicker(policy: policy, candidates: senders) }
         .task {
-            if staged == nil { policy.policyDidSave = { [weak mailStore = store] value, persist in
-                guard let mailStore else { return }
-                mailStore.settings.mail_policy = value
-                if persist { try mailStore.save() }
-            }
+            if let staged {
+                let token = staged.generation
+                policy.draft = staged.value.mail_policy
+                policy.externalDraft = { [weak staged] in staged?.value.mail_policy ?? SenderPolicyRule() }
+                policy.draftDidEdit = { [weak staged] rule in
+                    guard let staged, staged.generation == token, !staged.saving else { return }
+                    staged.value.mail_policy = rule
+                }
+                // Reads update only records/saved metadata. No onChange bridge can echo a
+                // stale async response back into the page after Save replaced its baseline.
+                policy.policyDidSave = nil
+            } else {
+                policy.policyDidSave = { [weak mailStore = store] value, persist in
+                    guard let mailStore else { return }
+                    mailStore.settings.mail_policy = value
+                    if persist { try mailStore.save() }
+                }
             }
             await policy.refresh()
-            if let staged { policy.draft = staged.value.mail_policy }
         }
-        .onChange(of: policy.draft) { _, value in if let staged { staged.value.mail_policy = value } }
         .onChange(of: store.status.last_check) { _, _ in Task { await policy.refresh() } }
         .onChange(of: policy.records.map(\.id)) { _, ids in selected.formIntersection(ids) }
     }
