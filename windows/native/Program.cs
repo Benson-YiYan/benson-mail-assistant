@@ -208,7 +208,7 @@ public sealed class Report
     public override string ToString() => title + "\n" + sender + "  ·  " + time + (attachments == true ? L.T("  ·  有附件") : "");
 }
 
-sealed class MainWindow : Window
+sealed partial class MainWindow : Window
 {
     readonly ComboBox languageChoice = new() { Header = L.T("界面语言"), HorizontalAlignment = HorizontalAlignment.Stretch };
     bool changingLanguage;
@@ -633,11 +633,11 @@ sealed class MainWindow : Window
         article.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         article.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         article.Children.Add(Row(Heading(L.T("邮件报告")), Action(L.T("打开报告"), () =>
-            { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; })));
+            { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; }), retryReport, conversationProgress));
         preview.BorderThickness = new Thickness(0);
         preview.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         preview.FontSize = 14;
-        Grid.SetRow(preview, 1); article.Children.Add(preview);
+        var conversation = BuildReportConversation(); Grid.SetRow(conversation, 1); article.Children.Add(conversation);
         var articleCard = Card(article); Grid.SetColumn(articleCard, 1); reading.Children.Add(articleCard);
         Grid.SetRow(reading, 1); pane.Children.Add(reading);
         ScrollViewer.SetVerticalScrollBarVisibility(preview, ScrollBarVisibility.Auto);
@@ -645,10 +645,14 @@ sealed class MainWindow : Window
         {
             var generation = ++previewGeneration;
             preview.Text = "";
+            ResetConversation();
             if (SelectedReport is Report report)
             {
                 var result = await bridge.Call("read_report", new { path = report.path });
-                if (!exitRequested && generation == previewGeneration) preview.Show(result.GetString() ?? "", Path.GetExtension(report.path).Equals(".md", StringComparison.OrdinalIgnoreCase));
+                if (!exitRequested && generation == previewGeneration) {
+                    preview.Show(result.GetString() ?? "", Path.GetExtension(report.path).Equals(".md", StringComparison.OrdinalIgnoreCase));
+                    await LoadConversation(report.path, generation);
+                }
             }
         });
         search.TextChanged += (_, _) =>
@@ -932,7 +936,7 @@ sealed class MainWindow : Window
         {
             var config = await bridge.Call("config");
             if (await EnsureLanguage(L.Code)) {
-                L.Select(L.Code); L.Apply(Content as UIElement, reports, savedMailboxes, detail);
+                L.Select(L.Code); L.Apply(Content as UIElement, reports, savedMailboxes, detail, chatMessages, questionFiles, conversationStatus);
                 Title = L.T("邮件小秘书"); tray.Text = Title;
                 await bridge.Call("save_language", new { ui_language = L.Code });
             }
@@ -1166,7 +1170,7 @@ sealed class MainWindow : Window
         }
         changingLanguage = true;
         try {
-            L.Apply(Content as UIElement, reports, savedMailboxes, detail);
+            L.Apply(Content as UIElement, reports, savedMailboxes, detail, chatMessages, questionFiles, conversationStatus);
             savedMailboxes.Header = savedMailboxes.Header is string mailboxHeader ? L.T(mailboxHeader) : savedMailboxes.Header;
             if (!detailIsUserSubject) detail.Text = L.T(detail.Text);
             L.Apply(filters.Content as UIElement);
@@ -1184,6 +1188,7 @@ sealed class MainWindow : Window
                 savedMailboxes.Items[i] = name + " · " + mailFolderName + L.T(enabled ? " · 已启用" : " · 已暂停");
             }
             savedMailboxes.SelectedIndex = selected;
+            RefreshConversationLanguage();
         } finally { changingLanguage = false; }
     }
     void Restore() { AppWindow.Show(); Activate(); }
@@ -1420,6 +1425,7 @@ sealed class MainWindow : Window
             Check(entityText.ToString() == "A & B / 中", "HTML entities decoded into actual native Run text");
             await Task.Delay(80);
             preview.Show(fixturePreview, false);
+            await ConversationSelfTest(Check);
 
             await bridge.Call("interval", new { seconds = 35 });
             var config = await bridge.Call("config");

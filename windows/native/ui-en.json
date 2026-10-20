@@ -614,7 +614,23 @@
     "下载失败，请检查网络后重试。": "Download failed. Check your internet connection and retry.",
     "无法读取下载的语言包，请重试或检查文件权限。": "Cannot read the downloaded language pack. Retry or check file permissions.",
     "请先下载当前语言包，再打开指南。": "Download the current language pack before opening the guide.",
-    "正在验证语言包…": "Verifying language pack…"
+    "正在验证语言包…": "Verifying language pack…",
+    "重新总结": "Summarize again",
+    "发送问题": "Send question",
+    "添加附件": "Add attachments",
+    "移除附件": "Remove attachments",
+    "对邮件提问": "Ask about this email",
+    "输入问题，可继续追问或添加附件": "Ask a question, continue the conversation, or add attachments",
+    "查看报告": "View report",
+    "我": "You",
+    "上下文摘要": "Conversation summary",
+    "针对这封邮件提问，聊天记录会自动保存。": "Ask about this email. Your conversation is saved automatically.",
+    "AI 正在处理，请稍候…": "AI is working. Please wait…",
+    "操作失败：": "Operation failed: ",
+    "已压缩较早的聊天记录，保留上下文继续对话。": "Earlier messages have been compressed; context is retained for follow-up questions.",
+    "聊天记录自动保存；发送后会调用 AI。": "Conversations are saved automatically. Sending a question calls AI.",
+    "请先选择一封邮件。": "Select an email first.",
+    "正在检查或分析邮件，请等当前任务完成后再重新总结。": "Mail is being checked or analyzed. Wait for the current task to finish before summarizing again."
   },
   "templates": [
     {

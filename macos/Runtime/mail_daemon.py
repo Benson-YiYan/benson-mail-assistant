@@ -31,6 +31,28 @@ DATA.mkdir(parents=True, exist_ok=True)
 def settings():
     return json.loads(SETTINGS.read_text(encoding='utf-8')) if SETTINGS.exists() else {}
 
+def runtime_text(zh, en, es):
+    """Keep daemon-created notifications and fallback reports in the selected UI language."""
+    try:
+        language = settings().get('ui_language')
+    except (OSError, ValueError, AttributeError):
+        language = None  # Reporting a damaged settings file must not crash the error notification path.
+    return {'en': en, 'es': es}.get(language, zh)
+
+
+def unavailable_report(language=None):
+    reports = {
+        'zh': ('新邮件提醒', '这封邮件在读取前已移出收件箱或删除。', '谁发的', '未知。', '说了啥', '无法读取。',
+               '我要干什么', '如需查看，请检查归档或垃圾箱。', '附件里有什么', '未知。', '我该怎么回Ta', '无法建议。'),
+        'en': ('New email', 'This message was moved out of the inbox or deleted before it could be read.', 'Sender', 'Unknown.', 'Summary', 'Unavailable.',
+               'What I need to do', 'Check the archive or trash if you need to read it.', 'Attachments', 'Unknown.', 'Suggested reply', 'Cannot suggest a reply.'),
+        'es': ('Correo nuevo', 'Este mensaje se movió fuera de la bandeja de entrada o se eliminó antes de que pudiera leerse.', 'Remitente', 'Desconocido.', 'Resumen', 'No se puede leer.',
+               'Qué debo hacer', 'Si necesitas consultarlo, revisa el archivo o la papelera.', 'Adjuntos', 'Desconocidos.', 'Respuesta sugerida', 'No es posible sugerir una respuesta.')
+    }
+    parts = reports.get(language, reports['zh'])
+    return '\n\n'.join(f'## {number + 1}. {parts[number * 2]}\n\n{parts[number * 2 + 1]}' for number in range(6))
+
+
 def enabled():
     value = settings()
     if not value.get('enabled', True):
@@ -92,25 +114,28 @@ def export_report(folder):
     command = child_command('mail_export', folder / 'mail.json', folder / 'answer.txt') if getattr(sys, 'frozen', False) else [PYTHON, str(EXPORTER), str(folder / 'mail.json'), str(folder / 'answer.txt')]
     result = subprocess.run(command, capture_output=True, text=True, timeout=30)
     if result.returncode:
-        raise RuntimeError('报告保存失败，请检查所选文件夹的访问权限；AI 结果已缓存。')
+        raise RuntimeError(runtime_text('报告保存失败，请检查所选文件夹的访问权限；AI 结果已缓存。', 'Report could not be saved. Check access to the selected folder; the AI result has been cached.', 'No se pudo guardar el informe. Revisa los permisos de la carpeta seleccionada; el resultado de la IA está guardado en caché.'))
     target = json.loads(result.stdout)['saved']
     atomic(folder / 'saved.json', json.dumps({'saved': target}, ensure_ascii=False))
     return target
 
 def analyze(message):
     uid = str(message['uid'])
-    publish('analyzing', current_subject=message.get('subject', '无主题'), error=None)
+    publish('analyzing', current_subject=message.get('subject', runtime_text('无主题', 'No subject', 'Sin asunto')), error=None)
     folder = DATA / uid
     folder.mkdir(exist_ok=True)
     atomic(folder / 'mail.json', json.dumps(message, ensure_ascii=False, indent=2))
     answer = folder / 'answer.txt'
     marker = folder / 'notified'
     if not marker.exists():
-        notify('发件人：' + message.get('from', '') + '\n主题：' + message.get('subject', '') + '\n正在整理六项内容，完成后自动保存 Markdown。', '你有一封新邮件')
+        notice = runtime_text('发件人：', 'Sender: ', 'Remitente: ') + message.get('from', '')
+        notice += '\n' + runtime_text('主题：', 'Subject: ', 'Asunto: ') + message.get('subject', '')
+        notice += '\n' + runtime_text('正在整理六项内容，完成后自动保存 Markdown。', 'Preparing the six sections; the Markdown report will be saved automatically.', 'Preparando las seis secciones; el informe Markdown se guardará automáticamente.')
+        notify(notice, runtime_text('你有一封新邮件', 'You have a new email', 'Tienes un correo nuevo'))
         atomic(marker, datetime.datetime.now().astimezone().isoformat())
     if not answer.exists() or not answer.read_text(encoding='utf-8').strip():
         if message.get('unavailable'):
-            fallback = ('1. New email: this message was moved out of the inbox or deleted before it could be read.\n2. Sender: unknown.\n3. Summary: unavailable.\n4. What I need to do: check the archive or trash if you need to read it.\n5. Attachments: unknown.\n6. Suggested reply: cannot suggest a reply.' if settings().get('ui_language') == 'en' else '1. 新邮件提醒：这封邮件在读取前已移出收件箱或删除。\n2. 谁发的：未知。\n3. 说了啥：无法读取。\n4. 我要干什么：如需查看，请检查归档或垃圾箱。\n5. 附件里有什么：未知。\n6. 我该怎么回Ta：无法建议。')
+            fallback = unavailable_report(settings().get('ui_language'))
             atomic(answer, fallback)
             message['date'] = datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S %z')
             atomic(folder / 'mail.json', json.dumps(message, ensure_ascii=False))
@@ -131,7 +156,7 @@ def analyze(message):
             temp.replace(answer)
     target = export_report(folder)
     run_reader('ack', uid)
-    notify('六项报告已保存：\n' + target, '✅ 新邮件 Markdown 已完成', report=target)
+    notify(runtime_text('六项报告已保存：\n', 'Six-section report saved:\n', 'Informe de seis secciones guardado:\n') + target, runtime_text('✅ 新邮件 Markdown 已完成', '✅ New email Markdown report ready', '✅ Informe Markdown del correo listo'), report=target)
     log('report saved for UID ' + uid + ': ' + target)
     publish('idle', latest_report=target, current_subject=None)
 
@@ -146,7 +171,7 @@ def mailbox_profiles(value):
     profiles = value['mailboxes']
     identities = [mailbox_id(normalize(p['connection'])) for p in profiles]
     if len(identities) != len(set(identities)):
-        raise ValueError('邮箱配置存在重复连接，请重新保存。')
+        raise ValueError(runtime_text('邮箱配置存在重复连接，请重新保存。', 'Duplicate mailbox connections found. Save the mailbox settings again.', 'Hay conexiones de correo duplicadas. Vuelve a guardar la configuración del buzón.'))
     return [p for p in profiles if p.get('enabled', True)]
 
 
@@ -207,8 +232,8 @@ def check_profiles():
             if state.exists():
                 pending.extend(json.loads(state.read_text()).get('pending', []))
         except Exception as error:
-            label = profile['connection']['account'] if profile else '邮箱'
-            detail = str(error) if isinstance(error, MailConnectionError) else type(error).__name__ + '，请测试邮箱和 AI 连接；未完成邮件会重试。'
+            label = profile['connection']['account'] if profile else runtime_text('邮箱', 'Mailbox', 'Buzón')
+            detail = str(error) if isinstance(error, MailConnectionError) else type(error).__name__ + runtime_text('，请测试邮箱和 AI 连接；未完成邮件会重试。', ': test the mailbox and AI connections; unfinished messages will be retried.', ': prueba las conexiones del buzón y de la IA; se reintentará el procesamiento de los mensajes pendientes.')
             failures.append(label + '：' + detail)
     DATA, ACTIVE_HOME, ACTIVE_ID = CONTROL, BASE, None
     return failures, pending, len(profiles)
@@ -250,7 +275,7 @@ def monitor():
                     error=detail, current_subject=None, current_account=None, mailbox_count=count)
             if detail and detail != last_error:
                 log(detail)
-                notify(detail, '邮件小秘书需要检查')
+                notify(detail, runtime_text('邮件小秘书需要检查', 'Email Assistant needs attention', 'Asistente de correo electrónico necesita atención'))
             last_error = detail
             log('mailbox check succeeded')
             next_check = started + interval
@@ -259,7 +284,7 @@ def monitor():
             publish('error', error=detail, current_subject=None)
             log(detail)
             if detail != last_error:
-                notify(detail, '邮件小秘书需要检查')
+                notify(detail, runtime_text('邮件小秘书需要检查', 'Email Assistant needs attention', 'Asistente de correo electrónico necesita atención'))
             last_error = detail
             next_check = time.monotonic() + check_interval()
             time.sleep(1)

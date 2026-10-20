@@ -57,15 +57,65 @@ def reader_test(home):
         assert code == 1 and '不匹配' in result['detail']
         assert (base/'mail_watch/state.json').read_bytes() == before
 
+def language_pack_test(home):
+    """Exercise data-only language install and the frozen CLI without any network."""
+    import language_packs as packs
+    import subprocess
+    root = home / 'language-fixture'
+    root.mkdir()
+    (root / 'settings.json').write_text('{"ui_language":"en","account":"synthetic@example.invalid"}')
+    original = (root / 'settings.json').read_bytes()
+    assert packs.status(root, 'macos')['available'] == []
+    data = json.dumps({'schema_version': 1, 'language': 'es', 'platform': 'macos',
+                       'exact': {'邮件小秘书': 'Asistente de correo electrónico'}, 'templates': [],
+                       'guides': {'mail_account': 'Configuración del buzón', 'quick_start': 'Guía rápida'}}, ensure_ascii=False).encode()
+    manifest = {'schema_version': 1, 'language_packs': {'macos-es': {
+        'url': 'https://synthetic.example.invalid/es.json', 'size': len(data), 'sha256': hashlib.sha256(data).hexdigest()}}}
+    packs.download(root, 'es', 'macos', manifest, lambda _: data)
+    assert packs.status(root, 'macos')['available'] == ['es']
+    assert (root / 'settings.json').read_bytes() == original
+    if getattr(sys, 'frozen', False):
+        command = [sys.executable, '--home', str(root), '--language-status']
+    else:
+        command = [sys.executable, str(Path(__file__).with_name('worker_main.py')), '--home', str(root), '--language-status']
+    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
+    assert json.loads(result.stdout)['available'] == ['es']
+
+def conversation_test(home):
+    import mail_chat
+    root = home / 'conversation-fixture'
+    reports = root / 'reports'
+    reports.mkdir(parents=True)
+    (root / 'settings.json').write_text(json.dumps({'ui_language': 'es', 'output_dir': str(reports)}), encoding='utf-8')
+    report = reports / 'synthetic.md'
+    report.write_text('Original report', encoding='utf-8')
+    report.with_suffix('.mail.json').write_text(json.dumps({'uid': 456, 'subject': 'Fixture', 'bodies': [{'text': 'Original fact 42'}], 'attachments': []}), encoding='utf-8')
+    selected = root / 'notes.txt'
+    selected.write_text('User-selected fact 99', encoding='utf-8')
+    with patch.object(mail_chat, '_complete', return_value='Informe nuevo') as model:
+        mail_chat.report_retry(root, report)
+        assert 'español' in model.call_args.args[2][0]['content']
+        assert report.read_text(encoding='utf-8').startswith('邮件编号：456\n')
+        mail_chat.chat_send(root, report, 'Fixture question', [str(selected)])
+        assert 'User-selected fact 99' in model.call_args.args[2][-1]['content']
+        mail_chat.chat_send(root, report, 'Fixture follow-up')
+        assert 'Fixture question' in json.dumps(model.call_args.args[2])
+    assert len(mail_chat.chat_history(root, report)['messages']) == 4
+
+
 def run():
     from runtime_paths import data_home
-    from mail_prompt import ANALYSIS_PROMPT, ENGLISH_ANALYSIS_PROMPT
+    from mail_prompt import ANALYSIS_PROMPT, ENGLISH_ANALYSIS_PROMPT, SPANISH_ANALYSIS_PROMPT
     import mail_daemon as daemon
     import ai_runner
     from pypdf import PdfWriter
     home = data_home()
     assert home.name.startswith('BensonMail-package-test-'), 'isolated fixture required'
     checks = []
+    language_pack_test(home)
+    checks.append('frozen language-pack install/status CLI validates Spanish data-only pack without network or changing account settings')
+    conversation_test(home)
+    checks.append('frozen report regeneration, selected file extraction and persisted multi-turn context use synthetic AI only')
     from mailbox_config import proxy_transport_selftest
     proxy_transport_selftest()
     checks.append('local HTTP CONNECT/SOCKS5 remote-DNS tunnels and native system proxy detection')
@@ -128,6 +178,24 @@ def run():
         assert len(requests) == 2 and requests[-1]['messages'][0]['content'] == ENGLISH_ANALYSIS_PROMPT
         assert 'SYNTHETIC_ATTACHMENT_TEXT_101' in requests[-1]['messages'][1]['content']
         checks.append('frozen English prompt follows persisted language; cached existing report is unchanged with no AI recall')
+        config['ui_language'] = 'es'
+        (home / 'settings.json').write_text(json.dumps(config))
+        with patch.object(ai_runner, 'api_config', return_value=(config, 'SYNTHETIC_KEY')), patch.object(daemon, 'run_reader', return_value={}), patch.object(daemon, 'notify') as notice:
+            ai_runner.analyze_api(message, folder)
+            assert len(requests) == 3 and requests[-1]['messages'][0]['content'] == SPANISH_ANALYSIS_PROMPT
+            unavailable = {'uid': 102, 'subject': 'SYNTHETIC_REMOVED', 'from': 'synthetic@example.invalid',
+                           'received_at': '2026-10-17T00:00:00+00:00', 'unavailable': True}
+            daemon.analyze(unavailable)
+            assert len(requests) == 3
+            removed_report = output / '2026-10-17/SYNTHETIC_REMOVED-08-00.md'
+            contents = removed_report.read_text()
+            assert '## 1. Correo nuevo' in contents and '## 6. Respuesta sugerida' in contents
+            assert 'revisa el archivo o la papelera' in contents
+            assert notice.call_args_list[0].args[1] == 'Tienes un correo nuevo'
+            assert notice.call_args.args[1] == '✅ Informe Markdown del correo listo'
+            daemon.analyze(message)
+            assert len(requests) == 3 and report.read_bytes() == before
+        checks.append('frozen Spanish prompt, unavailable-message Markdown fallback and notifications use Spanish; no AI for removed mail; cached existing reports remain unchanged')
 
     finally:
         server.shutdown(); server.server_close()

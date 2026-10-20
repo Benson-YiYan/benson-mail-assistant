@@ -43,7 +43,7 @@ PYINSTALLER_CONFIG_DIR="$ROOT_DIR/build/cache-$TARGET_ARCH" "${PYTHON_RUN[@]}" -
   --name MailWorker --paths Runtime --hidden-import mail_daemon \
   --hidden-import mail_watch --hidden-import mail_export --hidden-import ai_runner \
   --hidden-import markdown_render --collect-all markdown_it --collect-all mdurl \
-  --hidden-import language_packs --hidden-import update_install --hidden-import outlook_token --hidden-import worker_selftest --hidden-import harness_smoke \
+  --hidden-import language_packs --hidden-import mail_chat --hidden-import update_install --hidden-import outlook_token --hidden-import worker_selftest --hidden-import harness_smoke \
   --collect-all pypdf --collect-all certifi --collect-all truststore \
   --collect-all tzdata \
   Runtime/worker_main.py

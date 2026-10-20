@@ -81,3 +81,11 @@ El código está en `windows/` y `macos/`. Código, documentación, paquetes de 
 [Notificar un problema](https://github.com/Benson-YiYan/benson-mail-assistant/issues): incluye sistema operativo, versión y error sin datos privados. Si te ahorra tiempo, una ⭐ es bienvenida.
 
 Los repositorios anteriores se han unificado aquí. Las versiones que usan la antigua URL de actualización necesitan instalar manualmente una vez la nueva versión desde Releases de este repositorio. Instalar sobre la versión existente conserva la configuración del correo y de IA y los informes.
+
+## Volver a resumir y preguntar sobre un correo
+
+Selecciona un informe y elige Volver a resumir para generar las seis secciones en el idioma actual de la interfaz. Si falla, se conserva el informe anterior. Se utiliza el índice guardado del correo; los informes antiguos sin ese índice muestran una explicación.
+
+Preguntar sobre este correo permite preguntas de seguimiento y archivos adicionales mediante el selector. Cada correo conserva su propia conversación para continuar después. El contexto incluye el correo original, los adjuntos legibles, el informe actual y la conversación. Si crece demasiado, se resumen los turnos antiguos, se mantienen los recientes y se indica la compresión. El resumen no conserva cada palabra; el historial completo permanece guardado localmente. Cita y verifica cifras o frases importantes.
+
+Estas acciones utilizan la IA configurada y pueden generar costes. Los archivos adicionales se leen solo para extraer texto; los archivos ilegibles o demasiado grandes producen un error explícito. No se envían correos. El historial se guarda en los datos locales de la aplicación. Se elimina al desinstalar, aunque conserves la configuración del correo y de IA; copia antes las conversaciones que necesites.

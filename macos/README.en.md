@@ -65,3 +65,11 @@ Each mailbox can use Direct, System proxy, HTTP CONNECT or SOCKS5. In mailbox se
 ### If macOS blocks the first launch
 
 The app has an ad-hoc signature and is not signed with an Apple Developer ID or notarized by Apple. Verify the GitHub release and its SHA256 first. Try opening it once, then open System Settings → Privacy & Security and use Open Anyway if macOS offers it; confirm the next prompt. Do not disable Gatekeeper globally. If your Mac is managed or the option is unavailable, ask its administrator.
+
+## Summarize again and ask about an email
+
+Select a report and choose Summarize again to regenerate all six sections in the current interface language. A failed attempt preserves the previous report. The saved email index provides the original message; older reports without that index show an explanation.
+
+Ask about this email supports follow-up questions and additional files selected with the file picker. Each email has its own saved conversation that can be reopened. Model context includes the original email, readable attachments, current report and conversation. Long conversations compress earlier turns into a summary while keeping recent messages, with a compression indicator. Compression is not word-for-word preservation; the complete conversation remains locally saved. Quote and verify critical figures or wording.
+
+These actions call your configured AI and may incur charges. Supplementary files are read only for text extraction; unreadable or oversized files cause an explicit error. No emails are sent. Conversation history is stored in local application data. Uninstalling removes it even when mailbox and AI settings are retained; copy any conversations you need before uninstalling.

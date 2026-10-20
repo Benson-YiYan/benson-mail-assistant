@@ -27,6 +27,24 @@ def main():
     import truststore
     os.environ.setdefault('SSL_CERT_FILE', certifi.where())
     truststore.inject_into_ssl()
+    if operation in ('--report-retry', '--chat-history', '--chat-send'):
+        from mail_chat import report_retry, chat_history, chat_send
+        try:
+            if operation == '--chat-send':
+                if not args:
+                    raise ValueError('Missing chat request')
+                request = json.loads(Path(args[0]).read_text(encoding='utf-8'))
+                result = chat_send(home, request['path'], request.get('text', ''), request.get('files', []))
+            else:
+                if not args:
+                    raise ValueError('Missing report path')
+                result = (report_retry if operation == '--report-retry' else chat_history)(home, args[0])
+            print(json.dumps({'ok': True, **result}, ensure_ascii=False))
+        except Exception as error:
+            detail = str(error) if isinstance(error, (ValueError, RuntimeError)) else type(error).__name__ + ': operation failed'
+            print(json.dumps({'ok': False, 'error': detail}, ensure_ascii=False))
+            raise SystemExit(1)
+        return
     if operation in ('--language-status', '--download-language'):
         from language_packs import status, download, LanguagePackError
         try:

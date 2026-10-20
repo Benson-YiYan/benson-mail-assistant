@@ -18,6 +18,30 @@ class BridgeTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_conversation_fixture_isolated_persistent_and_current_language(self):
+        day = self.root / 'reports' / '2026-10-20'
+        day.mkdir(parents=True)
+        report = day / 'synthetic.md'
+        report.write_text('original', encoding='utf-8')
+        other = day / 'other.md'
+        other.write_text('other report', encoding='utf-8')
+        attachment = self.root / 'notes.txt'
+        attachment.write_text('SYNTHETIC FILE', encoding='utf-8')
+        self.controller.config.update(output_dir=str(day.parent), ui_language='es')
+        self.controller.fixture = True
+        updated = self.controller.command('report_retry', {'path': str(report)})
+        self.assertIn('Correo nuevo', updated['text'])
+        self.assertEqual(report.read_text(encoding='utf-8'), updated['text'])
+        first = self.controller.command('chat_send', {'path': str(report), 'text': 'SYNTHETIC QUESTION', 'files': [str(attachment)]})
+        self.assertEqual(len(first['messages']), 2)
+        self.assertEqual(first['messages'][0]['files'], ['notes.txt'])
+        self.assertIn('Respuesta sintética', first['answer'])
+        self.assertEqual(self.controller.command('chat_history', {'path': str(report)})['messages'], first['messages'])
+        self.assertEqual(self.controller.command('chat_history', {'path': str(other)})['messages'], [])
+        for name in ('report_retry', 'chat_send', 'chat_history'):
+            with self.assertRaises(ValueError):
+                self.controller.command(name, {'path': str(attachment), 'text': 'bad'})
+
     def test_interval_persists_and_validates(self):
         self.controller.command('interval', {'seconds': 37})
         self.assertEqual(json.loads((self.root / 'config.json').read_text())['interval'], 37)

@@ -32,6 +32,7 @@ class Controller:
         self.shutting_down = False
         self.prepared_exit = False
         self.config_lock = threading.Lock()
+        self.fixture = False
 
     def persist(self):
         with self.config_lock:
@@ -357,7 +358,65 @@ class Controller:
             if not path.is_relative_to(output) or path.suffix.lower() not in ('.txt', '.md'):
                 raise ValueError('请选择报告列表中的文件。')
             return path.read_text(encoding='utf-8')
+        if name in ('report_retry', 'chat_history', 'chat_send'):
+            path = Path(data.get('path', '')).resolve()
+            output = Path(self.config.get('output_dir') or self.root / 'reports').resolve()
+            if not path.is_relative_to(output) or path.suffix.lower() not in ('.txt', '.md') or not path.is_file():
+                raise ValueError('请选择报告列表中的文件。')
+            if self.fixture:
+                return self.fixture_conversation(name, path, data)
+            from .mail_chat import report_retry, chat_history, chat_send
+            if name == 'report_retry':
+                acquired = []
+                try:
+                    for service in self.all_services():
+                        if not service.activity.acquire(blocking=False):
+                            raise ValueError('正在检查或分析邮件，请等当前任务完成后再重新总结。')
+                        acquired.append(service.activity)
+                    result = report_retry(self.root, path)
+                    for service in self.all_services():
+                        changed = False
+                        for job in service.state.get('pending', {}).values():
+                            if job.get('target') and Path(job['target']).resolve() == path:
+                                job['answer'] = result['text']
+                                changed = True
+                        if changed:
+                            service.persist()
+                    return result
+                finally:
+                    for lock in reversed(acquired):
+                        lock.release()
+            if name == 'chat_history':
+                return chat_history(self.root, path)
+            return chat_send(self.root, path, data.get('text', ''), data.get('files', []))
         raise ValueError('未知操作。')
+
+    def fixture_conversation(self, name, path, data):
+        """Exercise the real UI protocol using isolated data, never a model or credentials."""
+        language = self.config.get('ui_language', 'zh')
+        if name == 'report_retry':
+            answer = {'zh': '## 1. 新邮件提醒\n模拟邮件重新总结\n## 2. 谁发的\n演示发件人\n## 3. 说了啥\n模拟内容\n## 4. 我要干什么\n核对\n## 5. 附件里有什么\n模拟合同\n## 6. 建议回复\n收到，谢谢。',
+                      'en': '## 1. New email\nSynthetic email summarized again\n## 2. Sender\nDemo\n## 3. Summary\nSynthetic content\n## 4. Actions\nReview\n## 5. Attachments\nSynthetic contract\n## 6. Suggested reply\nReceived, thank you.',
+                      'es': '## 1. Correo nuevo\nResumen sintético actualizado\n## 2. Remitente\nDemostración\n## 3. Resumen\nContenido sintético\n## 4. Acciones\nRevisar\n## 5. Adjuntos\nContrato sintético\n## 6. Respuesta sugerida\nRecibido, gracias.'}.get(language, '')
+            path.write_text(answer, encoding='utf-8')
+            return {'path': str(path), 'text': answer}
+        state_path = self.root / 'fixture-chats' / (hashlib.sha256(str(path).encode()).hexdigest() + '.json')
+        history = json.loads(state_path.read_text(encoding='utf-8')) if state_path.exists() else {'messages': [], 'compressed': False}
+        if name == 'chat_history':
+            return history
+        text, files = data.get('text', ''), data.get('files', [])
+        if not text.strip() and not files:
+            raise ValueError('请输入问题或添加文件。')
+        for file in files:
+            if not Path(file).is_file():
+                raise ValueError('附件文件不存在。')
+        answer = {'zh': '模拟回答：已参考当前邮件、历史对话和所附文件。',
+                  'en': 'Synthetic answer: current email, conversation history and attached files were considered.',
+                  'es': 'Respuesta sintética: se han considerado el correo, el historial y los archivos adjuntos.'}.get(language, '')
+        history['messages'].extend([{'role': 'user', 'content': text, 'files': [Path(file).name for file in files]},
+                                    {'role': 'assistant', 'content': answer}])
+        save_json(state_path, history)
+        return {**history, 'answer': answer}
 
 
 def run(launcher=None, fixture=None):
@@ -370,6 +429,7 @@ def run(launcher=None, fixture=None):
             print(json.dumps(message, ensure_ascii=False), flush=True)
     root = Path(fixture) if fixture else platform.app_dir()
     controller = Controller(root, emit, launcher)
+    controller.fixture = bool(fixture)
     if not fixture and launcher:
         try:
             platform.ensure_portable_shortcuts(launcher, root / 'desktop-shortcut.json')
@@ -409,7 +469,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('config', 'reports', 'read_report', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'language_status', 'prepare_exit', 'resume_after_exit_cancel'):
+                if fixture and command not in ('config', 'reports', 'read_report', 'report_retry', 'chat_history', 'chat_send', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'language_status', 'prepare_exit', 'resume_after_exit_cancel'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})

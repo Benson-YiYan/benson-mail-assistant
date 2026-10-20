@@ -65,10 +65,30 @@ def run():
             raise AssertionError('Corrupted language pack was accepted')
         assert Path(outcome['path']).read_bytes() == payload
         assert not list((root / 'languages').glob('*.part'))
+        from unittest.mock import patch
+        from . import mail_chat
+        chat_root = Path(temporary) / 'chat-fixture'
+        reports = chat_root / 'reports'
+        reports.mkdir(parents=True)
+        (chat_root / 'config.json').write_text(json.dumps({'ui_language': 'es', 'output_dir': str(reports)}), encoding='utf-8')
+        report = reports / 'synthetic.md'
+        report.write_text('Original report', encoding='utf-8')
+        report.with_suffix('.mail.json').write_text(json.dumps({'subject': 'Fixture', 'body': 'Original fact 42', 'attachments': []}), encoding='utf-8')
+        selected = chat_root / 'notes.txt'
+        selected.write_text('User-selected fact 99', encoding='utf-8')
+        with patch.object(mail_chat, '_complete', return_value='Informe nuevo') as model:
+            mail_chat.report_retry(chat_root, report)
+            assert 'español' in model.call_args.args[2][0]['content']
+            mail_chat.chat_send(chat_root, report, 'Fixture question', [str(selected)])
+            assert 'User-selected fact 99' in model.call_args.args[2][-1]['content']
+            mail_chat.chat_send(chat_root, report, 'Fixture follow-up')
+            assert 'Fixture question' in json.dumps(model.call_args.args[2])
+        assert len(mail_chat.chat_history(chat_root, report)['messages']) == 4
     return {'ok': True, 'checks': [
         'Local HTTP CONNECT/SOCKS5 remote-DNS tunnels and native system proxy detection',
         'Frozen text, DOCX, PPTX, XLSX and PDF attachment readers',
         'Native certificate verification and bundled CA roots retained',
         'Current-user DPAPI round trip using synthetic local credential',
         'Frozen language module downloads synthetic verified bytes atomically and preserves packs after rejected corruption',
+        'Frozen report regeneration, selected file extraction and persisted multi-turn email context use synthetic AI only',
         'No mailbox connection, AI call or external network request']}

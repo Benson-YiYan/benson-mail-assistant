@@ -614,7 +614,23 @@
     "下载失败，请检查网络后重试。": "No se pudo descargar. Revisa tu conexión a Internet y vuelve a intentarlo.",
     "无法读取下载的语言包，请重试或检查文件权限。": "No se puede leer el paquete descargado. Vuelve a intentarlo o revisa los permisos de los archivos.",
     "请先下载当前语言包，再打开指南。": "Descarga el paquete del idioma actual antes de abrir la guía.",
-    "正在验证语言包…": "Verificando paquete de idioma…"
+    "正在验证语言包…": "Verificando paquete de idioma…",
+    "重新总结": "Resumir de nuevo",
+    "发送问题": "Enviar pregunta",
+    "添加附件": "Añadir archivos adjuntos",
+    "移除附件": "Quitar archivos adjuntos",
+    "对邮件提问": "Preguntar sobre este correo",
+    "输入问题，可继续追问或添加附件": "Escribe una pregunta, continúa la conversación o añade archivos adjuntos",
+    "查看报告": "Ver informe",
+    "我": "Tú",
+    "上下文摘要": "Resumen de la conversación",
+    "针对这封邮件提问，聊天记录会自动保存。": "Pregunta sobre este correo. La conversación se guarda automáticamente.",
+    "AI 正在处理，请稍候…": "La IA está procesando. Espera…",
+    "操作失败：": "Error: ",
+    "已压缩较早的聊天记录，保留上下文继续对话。": "Los mensajes anteriores se han resumido; se conserva el contexto para continuar la conversación.",
+    "聊天记录自动保存；发送后会调用 AI。": "Las conversaciones se guardan automáticamente. Al enviar una pregunta se utiliza la IA.",
+    "请先选择一封邮件。": "Selecciona primero un correo.",
+    "正在检查或分析邮件，请等当前任务完成后再重新总结。": "Se está comprobando o analizando el correo. Espera a que termine antes de volver a resumir."
   },
   "templates": [
     {
