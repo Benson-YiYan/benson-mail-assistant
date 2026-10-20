@@ -79,3 +79,5 @@ Guías del correo: [Windows](windows/docs/Mail-account-setup-es.txt) y [Mac](mac
 El código está en `windows/` y `macos/`. Código, documentación, paquetes de idioma e instaladores se mantienen en este repositorio: [Benson-YiYan/benson-mail-assistant](https://github.com/Benson-YiYan/benson-mail-assistant). Manifiesto estable: [`distribution/manifest.json`](distribution/manifest.json). Las publicaciones indican las versiones y el alcance de las verificaciones de cada paquete.
 
 [Notificar un problema](https://github.com/Benson-YiYan/benson-mail-assistant/issues): incluye sistema operativo, versión y error sin datos privados. Si te ahorra tiempo, una ⭐ es bienvenida.
+
+Los repositorios anteriores se han unificado aquí. Las versiones que usan la antigua URL de actualización necesitan instalar manualmente una vez la nueva versión desde Releases de este repositorio. Instalar sobre la versión existente conserva la configuración del correo y de IA y los informes.
