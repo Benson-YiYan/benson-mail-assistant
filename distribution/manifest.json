@@ -1,44 +1,103 @@
 {
   "schema_version": 1,
   "platforms": {
-    "macos-arm64": {
-      "version": "202610191813",
-      "sha256": "1dddaf4547670b405c3c65eb3acac7803a7c22287fd27ce172ef9bfd56a5de0a",
-      "size": 23397504,
+    "windows-x64": {
+      "version": "202610200948",
+      "sha256": "6fc93774f60d4288cc00d7c689e85e07ed91cd6c24d468b2cdec5aafd694ea8a",
+      "size": 23613589,
       "notes": {
-        "zh": "新增每邮箱独立的系统代理、HTTP CONNECT 和 SOCKS5 设置，支持 v2rayN；远程解析 IMAP 域名，保留 TLS 验证，代理失败不回退直连。首次配置、设置及帮助指南中英双语同步更新。旧配置默认直连，请选择代理、保存后测试连接。",
-        "en": "Adds per-account System, HTTP CONNECT and SOCKS5 proxies for tools such as v2rayN, with remote IMAP DNS and verified TLS. Proxy failures do not fall back to Direct. Bilingual first-run settings and guides are included. Existing accounts remain Direct; select a proxy, save and test."
+        "zh": "新增三语语言包、按当前语言重新总结、邮件多轮问答与补充文件、长对话上下文压缩。统一仓库与完整macOS指南。",
+        "en": "Adds three language packs, current-language report regeneration, persistent per-email chat with files and long-conversation context compression. Unified repository and complete macOS guides.",
+        "es": "Tres idiomas, nuevos resúmenes en el idioma actual, conversación persistente por correo con archivos y compresión del contexto. Repositorio unificado y guías completas de macOS."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.2/BensonMail-Mac-AppleSilicon-202610191813.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020/BensonMail-Windows-x64-Setup-202610200948.exe"
       ],
-      "url": "https://chapters-indication-pattern-bride.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610191813.dmg"
+      "url": "https://connecticut-represented-lift-guards.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610200948.exe"
+    },
+    "macos-arm64": {
+      "version": "202610200941",
+      "sha256": "9c8efb5bcbb2b8d84873461acd1df74ac7c420ab0cd0fc9727c634c58b7c5900",
+      "size": 23617697,
+      "notes": {
+        "zh": "新增三语语言包、按当前语言重新总结、邮件多轮问答与补充文件、长对话上下文压缩。统一仓库与完整macOS指南。",
+        "en": "Adds three language packs, current-language report regeneration, persistent per-email chat with files and long-conversation context compression. Unified repository and complete macOS guides.",
+        "es": "Tres idiomas, nuevos resúmenes en el idioma actual, conversación persistente por correo con archivos y compresión del contexto. Repositorio unificado y guías completas de macOS."
+      },
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020/BensonMail-Mac-AppleSilicon-202610200941.dmg"
+      ],
+      "url": "https://connecticut-represented-lift-guards.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610200941.dmg"
     },
     "macos-x86_64": {
-      "version": "202610191814",
-      "sha256": "a64970758d38d45940684ca0cea6da9152ea1a43f2c65c66f854bce63147e59f",
-      "size": 16465109,
+      "version": "202610200941",
+      "sha256": "b9a9ae80da57c6733e0346e34c8ebc00eee7a5f07a963d4b74ded1b9de6ac96b",
+      "size": 16789165,
       "notes": {
-        "zh": "新增每邮箱独立的系统代理、HTTP CONNECT 和 SOCKS5 设置，支持 v2rayN；远程解析 IMAP 域名，保留 TLS 验证，代理失败不回退直连。首次配置、设置及帮助指南中英双语同步更新。旧配置默认直连，请选择代理、保存后测试连接。",
-        "en": "Adds per-account System, HTTP CONNECT and SOCKS5 proxies for tools such as v2rayN, with remote IMAP DNS and verified TLS. Proxy failures do not fall back to Direct. Bilingual first-run settings and guides are included. Existing accounts remain Direct; select a proxy, save and test."
+        "zh": "新增三语语言包、按当前语言重新总结、邮件多轮问答与补充文件、长对话上下文压缩。统一仓库与完整macOS指南。",
+        "en": "Adds three language packs, current-language report regeneration, persistent per-email chat with files and long-conversation context compression. Unified repository and complete macOS guides.",
+        "es": "Tres idiomas, nuevos resúmenes en el idioma actual, conversación persistente por correo con archivos y compresión del contexto. Repositorio unificado y guías completas de macOS."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.2/BensonMail-Mac-Intel-202610191814.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020/BensonMail-Mac-Intel-202610200941.dmg"
       ],
-      "url": "https://chapters-indication-pattern-bride.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610191814.dmg"
+      "url": "https://connecticut-represented-lift-guards.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610200941.dmg"
+    }
+  },
+  "language_packs": {
+    "windows-zh": {
+      "version": "202610200951",
+      "sha256": "425e61d011bff8d4fc3b96896d984c8d9e691cefec70591487b1fedc6c8275a9",
+      "size": 26141,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020/BensonMail-Language-windows-zh-202610200951.json"
+      ],
+      "url": "https://connecticut-represented-lift-guards.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202610200951.json"
     },
-    "windows-x64": {
-      "version": "202610192238",
-      "sha256": "9541c8839b1f4b22d3896972116eacc3e12b04cbf13de8d036dbaec6e608e560",
-      "size": 23574710,
-      "notes": {
-        "zh": "新增每邮箱独立的系统代理、HTTP CONNECT 和 SOCKS5 设置，支持 v2rayN；远程解析 IMAP 域名，保留 TLS 验证，代理失败不回退直连。首次配置、设置及帮助指南中英双语同步更新。旧配置默认直连，请选择代理、保存后测试连接。",
-        "en": "Adds per-account System, HTTP CONNECT and SOCKS5 proxies for tools such as v2rayN, with remote IMAP DNS and verified TLS. Proxy failures do not fall back to Direct. Bilingual first-run settings and guides are included. Existing accounts remain Direct; select a proxy, save and test."
-      },
+    "windows-en": {
+      "version": "202610200951",
+      "sha256": "8ebf418e5675977b6f19ea845e5fedde8ba0ec4e3f2fe64bcd48e6a44fa08190",
+      "size": 88766,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261019.2/BensonMail-Windows-x64-Setup-202610192238.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020/BensonMail-Language-windows-en-202610200951.json"
       ],
-      "url": "https://chapters-indication-pattern-bride.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610192238.exe"
+      "url": "https://connecticut-represented-lift-guards.trycloudflare.com/downloads/BensonMail-Language-windows-en-202610200951.json"
+    },
+    "windows-es": {
+      "version": "202610200951",
+      "sha256": "01cc6a7ddcbe71fd3ee21efe9de7ce4845d065d4fae690d19a78d1e80f45c13d",
+      "size": 95734,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020/BensonMail-Language-windows-es-202610200951.json"
+      ],
+      "url": "https://connecticut-represented-lift-guards.trycloudflare.com/downloads/BensonMail-Language-windows-es-202610200951.json"
+    },
+    "macos-zh": {
+      "version": "202610200951",
+      "sha256": "dcfde297b4256cc236eeeba4768f25ea78f3ba37bfb9bf124985d950aefb6f48",
+      "size": 26596,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020/BensonMail-Language-macos-zh-202610200951.json"
+      ],
+      "url": "https://connecticut-represented-lift-guards.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202610200951.json"
+    },
+    "macos-en": {
+      "version": "202610200951",
+      "sha256": "8b327a2e04b12fac9583856050fda187a7221a042c4954d4325b3058a8b80bd7",
+      "size": 92820,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020/BensonMail-Language-macos-en-202610200951.json"
+      ],
+      "url": "https://connecticut-represented-lift-guards.trycloudflare.com/downloads/BensonMail-Language-macos-en-202610200951.json"
+    },
+    "macos-es": {
+      "version": "202610200951",
+      "sha256": "2fed906543b568e94cffad276c4efc798a4ba696b438735e9343a0837669aea2",
+      "size": 100022,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020/BensonMail-Language-macos-es-202610200951.json"
+      ],
+      "url": "https://connecticut-represented-lift-guards.trycloudflare.com/downloads/BensonMail-Language-macos-es-202610200951.json"
     }
   }
 }
