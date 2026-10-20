@@ -789,7 +789,13 @@
     "每百万输入 Token 单价": "Precio por millón de tokens de entrada",
     "每百万输出 Token 单价": "Precio por millón de tokens de salida",
     "查看用量记录": "Ver registros de uso",
-    "这些是估算费用使用的单价，不是用量限额。": "Estas tarifas se usan para estimar costos; no son límites de uso."
+    "这些是估算费用使用的单价，不是用量限额。": "Estas tarifas se usan para estimar costos; no son límites de uso.",
+    "输入 Token：": "Tokens de entrada: ",
+    "输出 Token：": "Tokens de salida: ",
+    "输入 Token 是发给 AI 的内容，包括原邮件、附件和对话；输出 Token 是 AI 返回的内容。": "Los tokens de entrada son el contenido enviado a la IA, incluidos el correo original, los adjuntos y la conversación. Los tokens de salida son el contenido que devuelve la IA.",
+    "未知表示缺少价格或接口用量，不能当作免费。已知用量可能只是部分记录；金额仅为估算，不能推断实际账单。Codex 与 Harness 的订阅费用无法由本工具推算。": "Desconocido significa que faltan precios o datos de uso del proveedor, no que sea gratis. El uso conocido puede cubrir solo parte de los registros. Los costes son estimaciones, no facturas reales. La aplicación no puede calcular las cuotas de Codex o Harness.",
+    "未知": "Desconocido",
+    "这些是实际记录的用量，不是使用限额。": "Estas cifras son registros de uso, no límites de uso."
   },
   "templates": [
     {

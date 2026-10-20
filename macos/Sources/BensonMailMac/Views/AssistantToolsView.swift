@@ -205,15 +205,18 @@ struct UsageSettingsView: View {
     @ObservedObject private var language = AppLanguage.shared
     @Environment(\.dismiss) private var dismiss
     @ToolState private var rows: [[String: Any]] = []
-    @ToolState private var inputRate = ""
-    @ToolState private var outputRate = ""
-    @ToolState private var currency = "CNY"
     @ObservedObject private var tools: AssistantTools
     init(store: MailStore) { self.store = store; self.tools = store.assistantTools }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack { Text(T("费用与用量记录")).font(.title2.bold()); Spacer(); Button(T("关闭")) { dismiss() } }
             Text(T("仅记录新发生的调用。接口未返回用量时标为未知；订阅和本地工具的账单无法推算。")).font(.caption).foregroundStyle(.secondary)
+            Text(T("输入 Token 是发给 AI 的内容，包括原邮件、附件和对话；输出 Token 是 AI 返回的内容。"))
+                .font(.caption).foregroundStyle(.secondary)
+            Text(T("这些是实际记录的用量，不是使用限额。"))
+                .font(.caption).foregroundStyle(.secondary)
+            Text(T("未知表示缺少价格或接口用量，不能当作免费。已知用量可能只是部分记录；金额仅为估算，不能推断实际账单。Codex 与 Harness 的订阅费用无法由本工具推算。"))
+                .font(.caption).foregroundStyle(.secondary)
             Text(T("在 AI 服务页面设置单价，与其他 AI 设置一起保存。")).font(.caption).foregroundStyle(.secondary)
             Button(T("刷新")) { Task { await refresh() } }.disabled(tools.busy)
             ToolStatus(tools: tools).font(.caption)
@@ -222,10 +225,12 @@ struct UsageSettingsView: View {
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, item in
                         VStack(alignment: .leading, spacing: 4) {
                             Text((item["model"] as? String) ?? (item["provider"] as? String) ?? "").font(.headline)
-                            Text(T("调用次数") + ": \(item["calls"] ?? item["count"] ?? 0)")
-                            Text("Token: " + value(item, "input_tokens") + " / " + value(item, "output_tokens"))
-                            Text(T("估算费用") + ": " + value(item, "estimated_cost") + " " + value(item, "currency"))
-                            if let unknown = item["unknown_usage_calls"] as? Int, unknown > 0 { Text(T("用量未知的调用") + ": \(unknown)").font(.caption).foregroundStyle(.secondary) }
+                            Text(T("调用次数") + ": " + UsagePresentation.number(item, item["calls"] == nil ? "count" : "calls")).monospacedDigit()
+                            Text(T("输入 Token：") + UsagePresentation.number(item, "input_tokens")).monospacedDigit()
+                            Text(T("输出 Token：") + UsagePresentation.number(item, "output_tokens")).monospacedDigit()
+                            Text(T("用量未知的调用") + ": " + UsagePresentation.number(item, "unknown_usage_calls"))
+                                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            Text(T("估算费用") + ": " + UsagePresentation.cost(item)).monospacedDigit()
                         }.frame(maxWidth: .infinity, alignment: .leading).padding(10).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
                     }
                     if rows.isEmpty { Text(T("暂无用量记录")).foregroundStyle(.secondary) }
@@ -233,18 +238,10 @@ struct UsageSettingsView: View {
             }
         }.padding(24).frame(width: 730, height: 540).task { await refresh() }
     }
-    private func value(_ item: [String: Any], _ key: String) -> String {
-        guard let number = item[key], !(number is NSNull) else { return "—" }
-        return String(describing: number)
-    }
     private func refresh() async {
         if let result = await tools.perform("usage_summary") {
             rows = result["groups"] as? [[String: Any]] ?? result["rows"] as? [[String: Any]] ?? []
-            if let rates = result["rates"] as? [String: Any] {
-                inputRate = String(describing: rates["input_per_million"] ?? "")
-                outputRate = String(describing: rates["output_per_million"] ?? "")
-                currency = rates["currency"] as? String ?? "CNY"
-            }
+
         }
     }
 }

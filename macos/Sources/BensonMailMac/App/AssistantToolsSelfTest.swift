@@ -167,6 +167,15 @@ enum AssistantToolsSelfTest {
         // Settings has its own isolated --settings-self-test-only suite; do not nest it
         // inside tool executor/catalog fixtures.
         var checks: [String] = []
+        let unknownFixture: [String: Any] = ["input_tokens": NSNull(), "output_tokens": NSNull(), "estimated_cost": NSNull(), "unknown_usage_calls": 0]
+        guard UsagePresentation.number(["input_tokens": 1500], "input_tokens") == "1,500",
+              UsagePresentation.number(unknownFixture, "input_tokens") == T("未知"),
+              UsagePresentation.number(unknownFixture, "output_tokens") == T("未知"),
+              UsagePresentation.cost(unknownFixture) == T("未知"),
+              UsagePresentation.number([:], "calls") == T("未知") else {
+            throw AppSelfTest.Failure("usage formatting inferred missing data from a zero unknown-call count")
+        }
+        checks.append("usage uses thousands separators and absent tokens/cost stay unknown independently of unknown-call counters")
         func at(_ hour: Int, _ minute: Int) -> Date {
             Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 20, hour: hour, minute: minute))!
         }

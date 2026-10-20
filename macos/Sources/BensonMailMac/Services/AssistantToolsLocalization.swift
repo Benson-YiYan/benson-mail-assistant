@@ -3,6 +3,12 @@ import Foundation
 /// Current feature labels override older optional language packs. User mail is never translated.
 enum AssistantToolsLocalization {
     private static let labels: [String: [String]] = [
+        "输入 Token：": ["Input tokens: ", "Tokens de entrada: "],
+        "输出 Token：": ["Output tokens: ", "Tokens de salida: "],
+        "输入 Token 是发给 AI 的内容，包括原邮件、附件和对话；输出 Token 是 AI 返回的内容。": ["Input tokens are content sent to AI, including the original email, attachments and conversation. Output tokens are content returned by AI.", "Los tokens de entrada son el contenido enviado a la IA, incluidos el correo original, los adjuntos y la conversación. Los tokens de salida son el contenido que devuelve la IA."],
+        "未知表示缺少价格或接口用量，不能当作免费。已知用量可能只是部分记录；金额仅为估算，不能推断实际账单。Codex 与 Harness 的订阅费用无法由本工具推算。": ["Unknown means prices or provider usage are missing, not free. Known usage may cover only some records. Costs are estimates, not actual bills. This app cannot calculate Codex or Harness subscription fees.", "Desconocido significa que faltan precios o datos de uso del proveedor, no que sea gratis. El uso conocido puede cubrir solo parte de los registros. Los costes son estimaciones, no facturas reales. La aplicación no puede calcular las cuotas de Codex o Harness."],
+        "未知": ["Unknown", "Desconocido"],
+        "这些是实际记录的用量，不是使用限额。": ["These are recorded usage figures, not usage limits.", "Estas cifras son registros de uso, no límites de uso."],
         "费用单价": ["Cost rates", "Tarifas"],
         "每百万输入 Token 单价": ["Input price per million tokens", "Precio por millón de tokens de entrada"],
         "每百万输出 Token 单价": ["Output price per million tokens", "Precio por millón de tokens de salida"],
