@@ -20,7 +20,9 @@ sealed partial class MainWindow
     readonly TextBlock questionFiles = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
     readonly StackPanel chatMessages = new() { Spacing = 12 };
     readonly ScrollViewer chatScroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-    readonly Grid chatPanel = new() { RowSpacing = 10, Visibility = Visibility.Collapsed };
+    readonly Grid chatPanel = new() { RowSpacing = 8 };
+    readonly Grid conversationLayout = new() { RowSpacing = 4 };
+    ReportPaneSplitter reportSplitter = null!;
     readonly ConversationBusyIndicator conversationProgress = new() { IsActive = false, Width = 20, Height = 20 };
     readonly Dictionary<string, (string text, List<string> files)> questionDrafts = new(StringComparer.OrdinalIgnoreCase);
     readonly HashSet<string> conversationBusy = new(StringComparer.OrdinalIgnoreCase);
@@ -55,15 +57,17 @@ sealed partial class MainWindow
         Grid.SetRow(question, 2); chatPanel.Children.Add(question);
         var actions = Row(attachQuestion, clearQuestionFiles, sendQuestion);
         Grid.SetRow(actions, 3); chatPanel.Children.Add(actions);
-        var panel = new Grid { RowSpacing = 10 };
+        var panel = conversationLayout;
+        panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(3, GridUnitType.Star), MinHeight = 140 });
         panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Star), MinHeight = 210 });
         panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        Grid.SetRow(conversationStatus, 2); panel.Children.Add(conversationStatus);
-        panel.Children.Add(Row(Action(L.T("查看报告"), () => { preview.Visibility = Visibility.Visible; chatPanel.Visibility = Visibility.Collapsed; return Task.CompletedTask; }),
-            Action(L.T("对邮件提问"), () => { preview.Visibility = Visibility.Collapsed; chatPanel.Visibility = Visibility.Visible; return Task.CompletedTask; })));
-        Grid.SetRow(preview, 1); panel.Children.Add(preview);
-        Grid.SetRow(chatPanel, 1); panel.Children.Add(chatPanel);
+        Grid.SetRow(conversationStatus, 3); panel.Children.Add(conversationStatus);
+        panel.Children.Add(preview);
+        reportSplitter = new ReportPaneSplitter(panel, 0, 2);
+        reportSplitter.SetLabel(L.T("拖动调整报告与聊天区域"));
+        Grid.SetRow(reportSplitter, 1); panel.Children.Add(reportSplitter);
+        Grid.SetRow(chatPanel, 2); panel.Children.Add(chatPanel);
         return panel;
     }
     (string text, List<string> files) Draft(string path)
@@ -102,6 +106,7 @@ sealed partial class MainWindow
     }
     void RefreshConversationLanguage()
     {
+        reportSplitter?.SetLabel(L.T("拖动调整报告与聊天区域"));
         chatMessages.Children.Clear();
         if (conversationHistory.ValueKind == JsonValueKind.Array) foreach (var message in conversationHistory.EnumerateArray()) {
             var role = message.TryGetProperty("role", out var r) ? r.GetString() : "assistant";
@@ -175,6 +180,26 @@ sealed partial class MainWindow
     async Task ConversationSelfTest(Action<bool, string> check)
     {
         if (fixture == null || reports.Items.Count == 0) throw new InvalidOperationException("Conversation test needs synthetic reports");
+        layout.UpdateLayout();
+        check(preview.Visibility == Visibility.Visible && chatPanel.Visibility == Visibility.Visible && reportSplitter.IsLoaded,
+            "Report and chat remain visible together with a native draggable divider");
+        var originalUpper = conversationLayout.RowDefinitions[0].Height;
+        var originalLower = conversationLayout.RowDefinitions[2].Height;
+        try {
+            reportSplitter.ResizeUpperPane(-1000000); layout.UpdateLayout();
+            check(Math.Abs(conversationLayout.RowDefinitions[0].ActualHeight - 140) <= 1 &&
+                conversationLayout.RowDefinitions[2].ActualHeight >= 209,
+                "Dragging the report divider upward preserves the report and chat minimum sizes");
+            reportSplitter.ResizeUpperPane(1000000); layout.UpdateLayout();
+            check(Math.Abs(conversationLayout.RowDefinitions[2].ActualHeight - 210) <= 1 &&
+                conversationLayout.RowDefinitions[0].ActualHeight >= 139,
+                "Dragging the report divider downward preserves usable chat controls");
+        }
+        finally {
+            conversationLayout.RowDefinitions[0].Height = originalUpper;
+            conversationLayout.RowDefinitions[2].Height = originalLower;
+            layout.UpdateLayout();
+        }
         conversationProgress.IsActive = true;
         await Task.Delay(200);
         check(conversationProgress.IsLoaded && conversationProgress.Visibility == Visibility.Visible,
@@ -233,7 +258,7 @@ sealed partial class MainWindow
         previewGeneration++;
         check(!CurrentConversation(path, previousGeneration), "Stale report responses cannot replace another email's view");
         previewGeneration = previousGeneration;
-        preview.Visibility = Visibility.Visible; chatPanel.Visibility = Visibility.Collapsed;
+        preview.Visibility = chatPanel.Visibility = Visibility.Visible;
     }
     async Task RetrySelectedReport()
     {
@@ -245,7 +270,7 @@ sealed partial class MainWindow
             var result = await bridge.Call("report_retry", new { path });
             if (CurrentConversation(path, generation)) {
                 preview.Show(result.GetProperty("text").GetString() ?? "", true);
-                preview.Visibility = Visibility.Visible; chatPanel.Visibility = Visibility.Collapsed;
+                preview.Visibility = chatPanel.Visibility = Visibility.Visible;
             }
         } catch (Exception error) { conversationErrors[path] = error.Message; }
         finally { conversationBusy.Remove(path); if (CurrentConversation(path, generation)) UpdateConversationControls(); }

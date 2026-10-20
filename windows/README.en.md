@@ -73,3 +73,11 @@ Select a report and choose Summarize again to regenerate all six sections in the
 Ask about this email supports follow-up questions and additional files selected with the file picker. Each email has its own saved conversation that can be reopened. Model context includes the original email, readable attachments, current report and conversation. Long conversations compress earlier turns into a summary while keeping recent messages, with a compression indicator. Compression is not word-for-word preservation; the complete conversation remains locally saved. Quote and verify critical figures or wording.
 
 These actions call your configured AI and may incur charges. Supplementary files are read only for text extraction; unreadable or oversized files cause an explicit error. No emails are sent. Conversation history is stored in local application data. Uninstalling removes it even when mailbox and AI settings are retained; copy any conversations you need before uninstalling.
+
+## Sender rules and spam
+
+Under Mailboxes and checking → Block emails, choose a blacklist or whitelist. Blacklisted senders are skipped; a whitelist summarizes only listed senders. An empty whitelist skips all new emails. Rules apply to every configured mailbox and match complete sender addresses without case sensitivity. Add, select in bulk, or remove addresses.
+
+“Do not summarize spam (some providers may not support this)” uses explicit server flags, spam headers or junk folders. It does not guess from the subject or call AI to classify spam. Only the configured mail folder is checked; providers that expose no spam indicators cannot be recognized. The option is off by default.
+
+Skipped emails are grouped by sender in the local records. Summarize one or several with the current language and AI settings. This is a one-time override and does not change the rules; failures keep the records. Delete record removes only the local record, never the original email. Rules apply to newly checked messages and do not remove existing reports.

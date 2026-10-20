@@ -10,6 +10,53 @@ from benson_mail.bridge import Controller
 
 
 class BridgeTests(unittest.TestCase):
+    def test_sender_policy_bridge_persists_global_settings_and_known_senders(self):
+        service = Mock()
+        service.config = {}
+        self.controller.service = service
+        day = self.root / 'reports' / 'day'
+        day.mkdir(parents=True)
+        (day / 'mail.mail.json').write_text(json.dumps({'sender': 'Known Sender <known@example.invalid>'}), encoding='utf-8')
+        self.controller.config['output_dir'] = str(day.parent)
+        result = self.controller.command('policy_save', {'mode': 'whitelist', 'addresses': ['Benson <allowed@example.invalid>'], 'skip_spam': True})
+        expected = {'mode': 'whitelist', 'addresses': ['allowed@example.invalid'], 'skip_spam': True}
+        self.assertEqual(result['policy'], expected)
+        self.assertEqual(self.controller.config['mail_policy'], expected)
+        self.assertEqual(service.config['mail_policy'], expected)
+        self.assertEqual(json.loads(self.controller.path.read_text())['mail_policy'], expected)
+        self.assertIn('known@example.invalid', result['senders'])
+        fresh = Controller(self.root, lambda event: None)
+        self.assertEqual(fresh.command('policy_status', {})['policy'], expected)
+
+    def test_sender_policy_bridge_queues_without_ai_and_deletes_only_local_records(self):
+        from benson_mail.mail_policy import intercept
+        self.controller.fixture = True
+        self.controller.command('policy_save', {'mode': 'blacklist', 'addresses': ['skip@example.invalid'], 'skip_spam': False})
+        self.assertTrue(intercept(self.root, {'subject': 'Synthetic skipped mail', 'sender': 'skip@example.invalid', 'attachments': []},
+                                  'fixture-mailbox', 'fixture-validity', '1'))
+        status = self.controller.command('policy_status', {})
+        identifier = status['records'][0]['id']
+        with patch('benson_mail.ai_api.complete') as complete, patch('benson_mail.bridge.IMAPMailbox') as mailbox:
+            queued = self.controller.command('policy_summarize_records', {'ids': [identifier]})
+            self.assertEqual(queued['records'][0]['state'], 'queued')
+            removed = self.controller.command('policy_remove_records', {'ids': [identifier]})
+            self.assertEqual(removed['records'], [])
+            complete.assert_not_called()
+            mailbox.assert_not_called()
+        service = Mock()
+        service.thread.is_alive.return_value = True
+        service.cancel.is_set.return_value = False
+        self.controller.service = service
+        self.controller.fixture = False
+        self.assertTrue(intercept(self.root, {'subject': 'Second synthetic skipped mail', 'sender': 'skip@example.invalid', 'attachments': []},
+                                  'fixture-mailbox', 'fixture-validity', '2'))
+        identifier = self.controller.command('policy_status', {})['records'][0]['id']
+        with patch('benson_mail.ai_api.complete') as complete, patch('benson_mail.bridge.IMAPMailbox') as mailbox:
+            self.controller.command('policy_summarize_records', {'ids': [identifier]})
+            service.request_check.assert_called_once()
+            complete.assert_not_called()
+            mailbox.assert_not_called()
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)

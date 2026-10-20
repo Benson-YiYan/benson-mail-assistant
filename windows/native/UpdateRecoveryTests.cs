@@ -39,11 +39,15 @@ sealed partial class MainWindow
             Environment.SetEnvironmentVariable("BENSON_MAIL_TEST_LANGUAGE_PACKS", packFolder);
             check(L.Select("en") && L.T("前往 GitHub 下载最新版") == "Download the latest version from GitHub",
                 "Legacy English packs retain the built-in update recovery translation");
+            check(L.T("屏蔽邮件") == "Blocked emails",
+                "Legacy English language packs retain built-in sender policy labels");
             updateFallbackButton.Content = L.T("前往 GitHub 下载最新版");
             check(L.Select("es"), "Synthetic legacy Spanish pack loads");
             L.Apply(updateFallbackButton);
             check((string)updateFallbackButton.Content == "Descargar la última versión desde GitHub",
                 "Legacy Spanish packs translate the existing recovery button when switching languages");
+            check(L.T("屏蔽邮件") == "Correos bloqueados",
+                "Legacy Spanish language packs retain built-in sender policy labels");
         }
         finally {
             Environment.SetEnvironmentVariable("BENSON_MAIL_TEST_LANGUAGE_PACKS", previousPacks);

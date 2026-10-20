@@ -573,6 +573,7 @@ sealed partial class MainWindow : Window
                         await Call("remove_mail", new { id = profile.GetProperty("id").GetString() }); await ReloadMailboxes();
                     }
                 })), Note(L.T("可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。")))),
+            BuildSenderPolicy(),
             Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
                 Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), oauthTokenButton),
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
@@ -928,6 +929,12 @@ sealed partial class MainWindow : Window
                 detail.Text = separator < 0 ? L.T(raw) : raw[..(separator + 3)] + L.T(raw[(separator + 3)..]); }
         }
         if (ev.TryGetProperty("check_done", out _)) check.IsEnabled = true;
+        if ((ev.TryGetProperty("policy_changed", out _) || ev.TryGetProperty("check_done", out _)) &&
+            senderPolicyLoaded && !senderPolicyBusy && mailPage.Visibility == Visibility.Visible)
+            _ = Guard(async () => {
+                senderPolicySnapshot = (await bridge.Call("policy_status")).Clone();
+                if (!exitRequested) RenderSenderPolicyRecords();
+            });
         if (ev.TryGetProperty("report", out _)) _ = Guard(Refresh);
         if (ev.TryGetProperty("notification", out var notice) && notified.Add(notice.GetProperty("id").GetString()!))
         {
@@ -949,7 +956,7 @@ sealed partial class MainWindow : Window
         {
             var config = await bridge.Call("config");
             if (await EnsureLanguage(L.Code)) {
-                L.Select(L.Code); L.Apply(Content as UIElement, reports, savedMailboxes, detail, chatMessages, questionFiles, conversationStatus);
+                L.Select(L.Code); L.Apply(Content as UIElement, reports, savedMailboxes, detail, chatMessages, questionFiles, conversationStatus, senderPolicyAddresses, senderPolicyRecords, senderPolicyStatus);
                 Title = L.T("邮件小秘书"); tray.Text = Title;
                 await bridge.Call("save_language", new { ui_language = L.Code });
             }
@@ -978,6 +985,7 @@ sealed partial class MainWindow : Window
             interval.Text = config.GetProperty("interval").ToString();
             startup.IsOn = config.TryGetProperty("autostart", out var auto) && auto.GetBoolean();
             await ReloadMailboxes();
+            await LoadSenderPolicy();
             initialized = true;
             detail.Text = L.T("无新邮件不调用 AI。关闭窗口后会继续在托盘运行。");
             await Refresh();
@@ -1183,7 +1191,7 @@ sealed partial class MainWindow : Window
         }
         changingLanguage = true;
         try {
-            L.Apply(Content as UIElement, reports, savedMailboxes, detail, chatMessages, questionFiles, conversationStatus);
+            L.Apply(Content as UIElement, reports, savedMailboxes, detail, chatMessages, questionFiles, conversationStatus, senderPolicyAddresses, senderPolicyRecords, senderPolicyStatus);
             savedMailboxes.Header = savedMailboxes.Header is string mailboxHeader ? L.T(mailboxHeader) : savedMailboxes.Header;
             if (!detailIsUserSubject) detail.Text = L.T(detail.Text);
             L.Apply(filters.Content as UIElement);
@@ -1202,6 +1210,8 @@ sealed partial class MainWindow : Window
             }
             savedMailboxes.SelectedIndex = selected;
             RefreshConversationLanguage();
+            RefreshSenderPolicyLanguage();
+            RenderSenderPolicyAddresses();
         } finally { changingLanguage = false; }
     }
     void Restore() { AppWindow.Show(); Activate(); }
@@ -1247,6 +1257,7 @@ sealed partial class MainWindow : Window
             Check(AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized },
                 "Main window starts maximized with the standard window presenter");
             UpdateRecoverySelfTest(Check);
+            await SenderPolicySelfTest(Check);
             Program.Trace("Begin offline update transport and stream tests");
             checks.AddRange(await UpdateClient.OfflineTests(fixture!));
             Program.Trace("Offline update transport and stream tests passed");

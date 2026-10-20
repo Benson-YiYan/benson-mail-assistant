@@ -148,6 +148,39 @@ class Controller:
                     'selected_mailbox_id': mailbox_id(self.config) if self.config.get('account') else '',
                     'output_dir': self.config.get('output_dir') or str(platform.documents_dir() / '邮件'),
                     'has_mail_secret': bool(self.config.get('account')) and self.secret_path().exists()}
+        if name in ('policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records'):
+            from .mail_policy import policy_status, policy_save, policy_remove_records, policy_summarize_records, sender_address
+            if name == 'policy_save':
+                result = policy_save(self.root, data)
+                self.config['mail_policy'] = result['policy']
+                self.persist()
+                for service in self.all_services():
+                    service.config['mail_policy'] = result['policy']
+            elif name == 'policy_remove_records':
+                result = policy_remove_records(self.root, data.get('ids', []))
+            elif name == 'policy_summarize_records':
+                # The policy worker drains these durable requests before contacting IMAP.
+                # A synthetic fixture can queue records, but never starts a real service.
+                result = policy_summarize_records(self.root, data.get('ids', []))
+                if not self.fixture:
+                    for service in self.all_services():
+                        if service.thread and service.thread.is_alive() and not service.cancel.is_set():
+                            service.request_check()
+            else:
+                result = policy_status(self.root)
+            senders = set(result.get('senders', []))
+            output = self.config.get('output_dir')
+            if output:
+                for sidecar in Path(output).glob('*/*.mail.json'):
+                    try:
+                        if sidecar.stat().st_size > 4 * 1024 * 1024: continue
+                        message = json.loads(sidecar.read_text(encoding='utf-8'))
+                        address = sender_address(message.get('sender') or message.get('from'))
+                        if address: senders.add(address)
+                    except (OSError, ValueError, AttributeError):
+                        continue
+            result['senders'] = sorted(senders)
+            return result
         if name in ('language_status', 'download_language'):
             from .language_packs import status, download
             if name == 'language_status':
@@ -469,7 +502,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('config', 'reports', 'read_report', 'report_retry', 'chat_history', 'chat_send', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'language_status', 'prepare_exit', 'resume_after_exit_cancel'):
+                if fixture and command not in ('config', 'reports', 'read_report', 'report_retry', 'chat_history', 'chat_send', 'policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'language_status', 'prepare_exit', 'resume_after_exit_cancel'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})

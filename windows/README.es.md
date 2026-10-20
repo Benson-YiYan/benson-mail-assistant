@@ -64,3 +64,11 @@ Selecciona un informe y elige Volver a resumir para generar las seis secciones e
 Preguntar sobre este correo permite preguntas de seguimiento y archivos adicionales mediante el selector. Cada correo conserva su propia conversación para continuar después. El contexto incluye el correo original, los adjuntos legibles, el informe actual y la conversación. Si crece demasiado, se resumen los turnos antiguos, se mantienen los recientes y se indica la compresión. El resumen no conserva cada palabra; el historial completo permanece guardado localmente. Cita y verifica cifras o frases importantes.
 
 Estas acciones utilizan la IA configurada y pueden generar costes. Los archivos adicionales se leen solo para extraer texto; los archivos ilegibles o demasiado grandes producen un error explícito. No se envían correos. El historial se guarda en los datos locales de la aplicación. Se elimina al desinstalar, aunque conserves la configuración del correo y de IA; copia antes las conversaciones que necesites.
+
+## Reglas de remitentes y correo no deseado
+
+En Buzones y comprobación → Bloquear correos, elige una lista negra o una lista blanca. Se omiten los remitentes de la lista negra; la lista blanca solo permite resumir los remitentes incluidos. Una lista blanca vacía omite todos los correos nuevos. Las reglas se aplican a todos los buzones y comparan direcciones completas sin distinguir mayúsculas. Puedes añadir, seleccionar en lote o quitar direcciones.
+
+«No resumir correo no deseado (algunos proveedores pueden no admitirlo)» utiliza marcas explícitas del servidor, cabeceras o carpetas de correo no deseado. No adivina por el asunto ni llama a la IA para clasificarlo. Solo se comprueba la carpeta configurada; sin indicadores del proveedor no se puede identificar. La opción está desactivada por defecto.
+
+Los mensajes omitidos se agrupan por remitente en los registros locales. Puedes resumir uno o varios con el idioma y la IA actuales. Es una excepción para esa ocasión y no cambia las reglas; los fallos conservan el registro. Eliminar registro solo borra el registro local, nunca el correo original. Las reglas afectan a los mensajes nuevos comprobados y no eliminan informes existentes.

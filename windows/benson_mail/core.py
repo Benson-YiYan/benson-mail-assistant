@@ -144,6 +144,7 @@ def attachment_text(name, data):
         return '【未读取：附件损坏、加密或解析失败】'
 
 def extract_message(raw, received):
+    from .mail_policy import spam_metadata
     msg=email.message_from_bytes(raw, policy=policy.default); bodies=[]; attachments=[]
     for part in msg.walk():
         if part.is_multipart(): continue
@@ -154,7 +155,7 @@ def extract_message(raw, received):
             bodies.append(data.decode(part.get_content_charset() or 'utf-8', errors='replace'))
         elif part.get_content_type()=='text/html' and not bodies:
             bodies.append(re.sub('<[^>]+>',' ',data.decode(part.get_content_charset() or 'utf-8',errors='replace')))
-    return {'subject':str(msg.get('Subject','无标题')), 'sender':str(msg.get('From','未知发件人')), 'body':limited('\n'.join(bodies),120000), 'received':received.astimezone(BEIJING).isoformat(), 'attachments':attachments}
+    return {'subject':str(msg.get('Subject','无标题')), 'sender':str(msg.get('From','未知发件人')), 'body':limited('\n'.join(bodies),120000), 'received':received.astimezone(BEIJING).isoformat(), 'attachments':attachments, **spam_metadata(msg)}
 
 def export_report(directory, message, answer, uid, target=None):
     if target is not None:
@@ -210,13 +211,14 @@ class IMAPMailbox:
         except Exception as error:
             raise mail_error(error, self.connection, self.secret, stage, self.config.get('ui_language', 'zh')) from None
     def fetch(self,uid):
-        status,data=self.client.uid('fetch',str(uid),'(BODY.PEEK[] INTERNALDATE)')
+        status,data=self.client.uid('fetch',str(uid),'(BODY.PEEK[] INTERNALDATE FLAGS)')
         if status!='OK': raise RuntimeError('无法读取邮件')
         for item in data:
             if isinstance(item,tuple):
                 match=re.search(rb'INTERNALDATE "([^"]+)"',item[0])
                 if not match: raise RuntimeError('服务器未提供收件时间')
                 received=datetime.strptime(match[1].decode('ascii'),'%d-%b-%Y %H:%M:%S %z')
+                self.last_flags = item[0].decode('utf-8', errors='replace')
                 return item[1],received
         raise RuntimeError('邮件已被移动或删除，请稍后重试')
     def close(self):
@@ -296,6 +298,18 @@ class Service:
             if self.cancel.is_set(): return
             return self._check_once()
     def _check_once(self):
+        from .mail_policy import queued_records, update_record
+        policy_root = self.root.parent
+        for record in queued_records(policy_root, self.identity):
+            if self.cancel.is_set(): return
+            update_record(policy_root, record['id'], 'processing')
+            try:
+                self._finish_job(record['uid'], record, record['uidvalidity'], manual=True)
+                if self.cancel.is_set(): return
+                update_record(policy_root, record['id'], 'summarized', report=record.get('target'))
+            except Exception as error:
+                update_record(policy_root, record['id'], 'error', error)
+                raise
         owned=self.mailbox is None; box=self.mailbox or IMAPMailbox(self.config,self.secret)
         try:
             validity,uids=box.snapshot()
@@ -310,31 +324,50 @@ class Service:
                 if self.cancel.is_set(): return
                 job=pending[key]
                 if 'message' not in job:
-                    job['message']=extract_message(*box.fetch(int(key))); self.persist()
-                if not job.get('new_notified'):
-                    job['new_notified']=True; self.persist()
-                    self.callback({'notification':{'id':f'{self.identity}:{validity}:{key}:new','title':'收到新邮件','message':job['message']['subject']+'\n正在整理中文报告。'}})
-                if 'answer' not in job:
-                    self.callback({'status':'正在分析','detail':job['message']['subject']})
-                    answer=self.analyzer(job['message'],self.cancel)
-                    if self.cancel.is_set(): return
-                    job['answer']=answer; self.persist()
+                    job['message']=extract_message(*box.fetch(int(key)))
+                    from .mail_policy import spam_metadata
+                    detected = spam_metadata({}, getattr(box, 'last_flags', ''), self.config.get('mail_folder', 'INBOX'))
+                    if detected['is_spam']: job['message'].update(detected)
+                    self.persist()
+                from .mail_policy import intercept
+                if intercept(self.root.parent, job['message'], self.identity, validity, key):
+                    del pending[key]; self.persist()
+                    self.callback({'policy_changed': True})
+                    continue
+                self._finish_job(key, job, validity)
                 if self.cancel.is_set(): return
-                with EXPORT_LOCK:
-                    if 'target' not in job:
-                        job['target']=str(export_report(self.config['output_dir'],job['message'],None,key)); self.persist()
-                    path=export_report(self.config['output_dir'],job['message'],job['answer'],key,target=job['target'])
-                    save_json(path.with_suffix('.mail.json'),job['message'])
-                completed=self.state.setdefault('completed_notifications',[])
-                notice_id=f'{self.identity}:{validity}:{key}:complete'
-                notify=notice_id not in completed
-                if notify: completed.append(notice_id); self.state['completed_notifications']=completed[-200:]
                 del pending[key]; self.persist()
-                event={'status':'运行中','report':str(path),'detail':'新邮件报告已保存'}
-                if notify: event['notification']={'id':notice_id,'title':'邮件报告已完成','message':job['message']['subject']+'\n双击最近报告查看，或打开邮件文件夹。'}
-                self.callback(event)
         finally:
             if owned: box.close()
+
+    def _persist_job(self, job, manual):
+        if manual:
+            from .mail_policy import cache_record
+            cache_record(self.root.parent, job['id'], job)
+        else: self.persist()
+    def _finish_job(self, key, job, validity, manual=False):
+        if not job.get('new_notified'):
+            job['new_notified']=True; self._persist_job(job, manual)
+            self.callback({'notification':{'id':f'{self.identity}:{validity}:{key}:new','title':'收到新邮件','message':job['message']['subject']+'\n正在整理中文报告。'}})
+        if 'answer' not in job:
+            self.callback({'status':'正在分析','detail':job['message']['subject']})
+            answer=self.analyzer(job['message'],self.cancel)
+            if self.cancel.is_set(): return
+            job['answer']=answer; self._persist_job(job, manual)
+        if self.cancel.is_set(): return
+        with EXPORT_LOCK:
+            if 'target' not in job:
+                job['target']=str(export_report(self.config['output_dir'],job['message'],None,key)); self._persist_job(job, manual)
+            path=export_report(self.config['output_dir'],job['message'],job['answer'],key,target=job['target'])
+            save_json(path.with_suffix('.mail.json'),job['message'])
+        completed=self.state.setdefault('completed_notifications',[])
+        notice_id=f'{self.identity}:{validity}:{key}:complete'
+        notify=notice_id not in completed
+        if notify: completed.append(notice_id); self.state['completed_notifications']=completed[-200:]
+
+        event={'status':'运行中','report':str(path),'detail':'新邮件报告已保存'}
+        if notify: event['notification']={'id':notice_id,'title':'邮件报告已完成','message':job['message']['subject']+'\n双击最近报告查看，或打开邮件文件夹。'}
+        self.callback(event)
     def run(self):
         while not self.cancel.is_set():
             self.wake.clear()
