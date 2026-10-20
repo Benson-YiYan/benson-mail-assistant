@@ -128,9 +128,9 @@ struct ContentView: View {
                                     Text(store.reportText).font(.system(size: 14)).lineSpacing(6)
                                         .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                                 } }
-                            }.frame(minHeight: 170, maxHeight: .infinity)
+                            }.frame(minHeight: 100, maxHeight: .infinity)
                             ReportConversationView(conversation: store.reportConversation, path: selected.id)
-                                .frame(minHeight: 210, idealHeight: 285, maxHeight: .infinity)
+                                .frame(minHeight: 160, idealHeight: 285, maxHeight: .infinity)
                         }
                     } else {
                         ContentUnavailableView(store.reports.isEmpty ? T("等待第一份报告") : T("没有匹配的邮件"), systemImage: "tray", description: Text(store.reports.isEmpty ? T("新来信会自动整理为六项报告。") : T("试试更换关键词，或重置筛选。")))

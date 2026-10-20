@@ -114,6 +114,7 @@ final class AppLanguage: ObservableObject {
         if text == "邮件小秘书" { return Self.appName(code) }
         guard code != "zh" else { return text }
         if let value = exact[text] { return value }
+        if let value = SenderPolicyLocalization.translate(text, language: code) { return value }
         if text.contains("邮箱连接失败："), text.contains("\n服务器："), text.contains("\n阶段：") {
             let labels = code == "es" ? ["服务器：": "Servidor: ", "阶段：": "Etapa: ", "具体原因：": "Detalles: "] : ["服务器：": "Server: ", "阶段：": "Stage: ", "具体原因：": "Details: "]
             return text.components(separatedBy: "\n").map { line in
@@ -136,7 +137,10 @@ final class AppLanguage: ObservableObject {
                 guard let numberRange = Range(slot.range(at: 1), in: translated), let number = Int(translated[numberRange]),
                       number + 1 < match.numberOfRanges, let capture = Range(match.range(at: number + 1), in: text),
                       let target = Range(slot.range, in: value) else { continue }
-                value.replaceSubrange(target, with: text[capture])
+                let captured = String(text[capture])
+                let replacement = text.hasPrefix("AI 接口") && number == 0
+                    ? (exact[captured] ?? SenderPolicyLocalization.translate(captured, language: code) ?? captured) : captured
+                value.replaceSubrange(target, with: replacement)
             }
             return value
         }

@@ -27,6 +27,31 @@ def main():
     import truststore
     os.environ.setdefault('SSL_CERT_FILE', certifi.where())
     truststore.inject_into_ssl()
+    if operation == '--mail-policy':
+        from mail_policy import policy_status, policy_save, policy_remove_records, policy_summarize_records
+        try:
+            if not args:
+                raise ValueError('Missing policy request')
+            request = json.loads(Path(args[0]).read_text(encoding='utf-8'))
+            action = request.get('action')
+            if action == 'status':
+                result = policy_status(home)
+            elif action == 'save':
+                result = policy_save(home, request.get('policy'))
+            elif action == 'remove_records':
+                result = policy_remove_records(home, request.get('ids'))
+            elif action == 'summarize_records':
+                result = policy_summarize_records(home, request.get('ids'))
+                (home / 'mail_watch').mkdir(parents=True, exist_ok=True, mode=0o700)
+                (home / 'mail_watch' / 'check.request').touch()
+            else:
+                raise ValueError('Unknown policy action')
+            print(json.dumps({'ok': True, **result}, ensure_ascii=False))
+        except Exception as error:
+            detail = str(error) if isinstance(error, (ValueError, RuntimeError)) else type(error).__name__ + ': operation failed'
+            print(json.dumps({'ok': False, 'error': detail}, ensure_ascii=False))
+            raise SystemExit(1)
+        return
     if operation in ('--report-retry', '--chat-history', '--chat-send'):
         from mail_chat import report_retry, chat_history, chat_send
         try:

@@ -198,6 +198,7 @@ struct MailAccountView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 18) {
                             WorkspaceCard("管理邮箱") { fields }
+                            WorkspaceCard("屏蔽邮件") { SenderPolicyView(store: store) }
                             WorkspaceCard("检查与报告") {
                                 IntervalControl(store: store)
                                 Text(T("10 秒至 24 小时；保存后自动生效。60 秒 = 1 分钟，300 秒 = 5 分钟。"))

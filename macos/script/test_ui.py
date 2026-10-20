@@ -11,6 +11,9 @@ import time
 project = Path(__file__).resolve().parents[1]
 evidence = Path(sys.argv[1]).resolve()
 app = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else project / 'dist/邮件小秘书.app'
+test_options = ['--markdown-self-test-only'] if '--markdown-only' in sys.argv[3:] else []
+if '--policy-only' in sys.argv[3:]:
+    test_options = ['--policy-self-test-only']
 evidence.mkdir(parents=True, exist_ok=True)
 (evidence / 'result.json').unlink(missing_ok=True)
 with tempfile.TemporaryDirectory(prefix='BensonMail-UI-test-') as temporary:
@@ -48,7 +51,7 @@ with tempfile.TemporaryDirectory(prefix='BensonMail-UI-test-') as temporary:
     (fixture / 'settings.json').write_text(json.dumps({'enabled': True, 'output_dir': str(output)}))
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     (data / 'service.json').write_text(json.dumps({'phase': 'idle', 'last_check': now, 'heartbeat': now, 'pending': []}))
-    subprocess.run(['/usr/bin/open', '-n', str(app), '--args', '--fixture', str(fixture), '--self-test', str(evidence)], check=True)
+    subprocess.run(['/usr/bin/open', '-n', str(app), '--args', '--fixture', str(fixture), '--self-test', str(evidence), *test_options], check=True)
     for _ in range(40):
         result_file = evidence / 'result.json'
         if result_file.exists():

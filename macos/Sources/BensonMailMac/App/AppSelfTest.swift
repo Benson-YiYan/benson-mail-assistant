@@ -19,6 +19,14 @@ enum AppSelfTest {
             guard store.reports.count == 2, store.alive else {
                 throw Failure("fixture report/status failed: count=\(store.reports.count), preview=\(store.reportText.contains("建议回复")), alive=\(store.alive)")
             }
+            if args.contains("--policy-self-test-only") {
+                checks += try await SenderPolicySelfTest.run(store: store, output: output)
+                let result: [String: Any] = ["ok": true, "checks": checks]
+                try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
+                    .write(to: output.appendingPathComponent("result.json"))
+                NSApp.terminate(nil)
+                return
+            }
             store.select(store.reports[0])
             guard store.reportText.contains("建议回复") else {
                 throw Failure("fixture preview failed: title=\(store.reports[0].title), length=\(store.reports[0].text.count)")
@@ -133,6 +141,31 @@ enum AppSelfTest {
                     throw Failure("report/chat split recreated or reloaded unchanged Markdown during layout/navigation")
                 }
             }
+            func reportDescendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap { reportDescendants($0) } }
+            guard let divider = reportDescendants(integratedRoot).compactMap({ $0 as? NSSplitView })
+                .first(where: { !$0.isVertical && $0.arrangedSubviews.count == 2 && webView(in: $0.arrangedSubviews[0]) != nil }) else {
+                throw Failure("report/chat native draggable divider missing")
+            }
+            let topPane = divider.arrangedSubviews[0], bottomPane = divider.arrangedSubviews[1]
+            let beforeDrag = topPane.frame.height
+            let dividerY = topPane.frame.minY < bottomPane.frame.minY
+                ? (topPane.frame.maxY + bottomPane.frame.minY) / 2
+                : (bottomPane.frame.maxY + topPane.frame.minY) / 2
+            let dragStart = divider.convert(NSPoint(x: divider.bounds.midX, y: dividerY), to: nil)
+            let dragEnd = NSPoint(x: dragStart.x, y: dragStart.y + 55)
+            NSApp.activate(ignoringOtherApps: true)
+            for (kind, point) in [(NSEvent.EventType.leftMouseDown, dragStart), (.leftMouseDragged, dragEnd), (.leftMouseUp, dragEnd)] {
+                guard let event = NSEvent.mouseEvent(with: kind, location: point, modifierFlags: [],
+                    timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: reportWindow.windowNumber,
+                    context: nil, eventNumber: 0, clickCount: 1, pressure: kind == .leftMouseUp ? 0 : 1) else { throw Failure("divider drag event missing") }
+                NSApp.postEvent(event, atStart: false)
+            }
+            try await Task.sleep(nanoseconds: 350_000_000)
+            guard abs(topPane.frame.height - beforeDrag) >= 20,
+                  webView(in: integratedRoot) === integratedWeb, integratedCoordinator.loadCount == initialLoads else {
+                throw Failure("dragging report/chat divider did not resize both panes or reloaded Markdown")
+            }
+            checks.append("actual native mouse drag resizes the report/chat divider while preserving the mounted Markdown renderer")
             store.reportConversation.draft("", for: first.id)
             let originalReportSource = store.reportText
             store.reportText = "# Outdated fixture report"
@@ -155,6 +188,22 @@ enum AppSelfTest {
             guard integratedCoordinator.previous == integratedHTML, integratedCoordinator.finished else { throw Failure("restoring selected report failed") }
             try capture(reportWindow, to: output.appendingPathComponent("integrated-report-chat-markdown.png"))
             checks.append("actual main report/chat split finishes Markdown and retains one WKWebView without reloads through page changes, resizing, rescans and chat drafts; rapid text changes show only the newest report and restore correctly")
+            let networkDiagnostic = "AI 接口DNS 解析失败，请检查域名和 DNS 设置。\n具体原因：gaierror: synthetic failure"
+            for (code, expected) in [("en", "DNS lookup failed"), ("es", "Falló la consulta DNS")] {
+                AppLanguage.shared.select(code)
+                let translated = T(networkDiagnostic)
+                guard translated.contains(expected), translated.contains("gaierror: synthetic failure"),
+                      !translated.contains("DNS 解析失败") else { throw Failure("AI network diagnostic hint was not localized: " + code) }
+            }
+            AppLanguage.shared.select("zh")
+            checks.append("English and Spanish AI network diagnostics translate the hint and preserve the safe technical detail")
+            if args.contains("--markdown-self-test-only") {
+                let result: [String: Any] = ["ok": true, "checks": checks]
+                try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
+                    .write(to: output.appendingPathComponent("result.json"))
+                NSApp.terminate(nil)
+                return
+            }
             var filter = ReportFilter()
             for query in ["zebra", "demo@example.invalid", "付款明细专用.xlsx"] {
                 filter.query = query

@@ -82,7 +82,8 @@ struct MailSettings: Codable {
     var harness_path = ""
     var mailbox: MailConnection?
     var mailboxes: [MailboxProfile]?
-    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, harness_path, mailbox, mailboxes }
+    var mail_policy = SenderPolicyRule()
+    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, harness_path, mailbox, mailboxes, mail_policy }
     init() {}
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -96,5 +97,6 @@ struct MailSettings: Codable {
         api_model = try values.decodeIfPresent(String.self, forKey: .api_model) ?? ""
         harness_path = try values.decodeIfPresent(String.self, forKey: .harness_path) ?? ""
         mailbox = try values.decodeIfPresent(MailConnection.self, forKey: .mailbox)
+        mail_policy = try values.decodeIfPresent(SenderPolicyRule.self, forKey: .mail_policy) ?? SenderPolicyRule()
     }
 }

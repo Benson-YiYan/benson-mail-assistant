@@ -122,7 +122,9 @@ def export_report(folder):
 def analyze(message):
     uid = str(message['uid'])
     publish('analyzing', current_subject=message.get('subject', runtime_text('无主题', 'No subject', 'Sin asunto')), error=None)
-    folder = DATA / uid
+    folder = (BASE / 'blocked_mail' / message['_policy_record_id'] / 'work') if message.get('_policy_record_id') else DATA / uid
+    folder.mkdir(parents=True, exist_ok=True)
+    # Cached manual records are deliberately independent from current mailbox UID state.
     folder.mkdir(exist_ok=True)
     atomic(folder / 'mail.json', json.dumps(message, ensure_ascii=False, indent=2))
     answer = folder / 'answer.txt'
@@ -155,7 +157,8 @@ def analyze(message):
                 raise RuntimeError('AI analysis failed for UID ' + uid + '; message retained')
             temp.replace(answer)
     target = export_report(folder)
-    run_reader('ack', uid)
+    if not message.get('_policy_record_id'):
+        run_reader('ack', uid)
     notify(runtime_text('六项报告已保存：\n', 'Six-section report saved:\n', 'Informe de seis secciones guardado:\n') + target, runtime_text('✅ 新邮件 Markdown 已完成', '✅ New email Markdown report ready', '✅ Informe Markdown del correo listo'), report=target)
     log('report saved for UID ' + uid + ': ' + target)
     publish('idle', latest_report=target, current_subject=None)
@@ -221,12 +224,31 @@ def check_profiles():
             activate_profile(profile, value)
             if not enabled():
                 continue
+            from mail_policy import queued_records, update_record
+            profile_identity = ACTIVE_ID
+            if profile_identity is None and (DATA / 'state.json').exists():
+                profile_identity = json.loads((DATA / 'state.json').read_text()).get('mailbox_key')
+            for record in queued_records(BASE, profile_identity):
+                if not enabled(): break
+                update_record(BASE, record['id'], 'processing')
+                try:
+                    cached = record['message']
+                    cached['_policy_record_id'] = record['id']
+                    analyze(cached)
+                    update_record(BASE, record['id'], 'summarized')
+                except Exception as error:
+                    update_record(BASE, record['id'], 'error', error)
+                    raise
             publish('checking', error=None, current_account=profile['connection']['account'] if profile else None)
             result = run_reader()
             if result.get('pending_messages', 0):
                 for message in json.loads(pathlib.Path(result['report']).read_text(encoding='utf-8')):
                     if not enabled():
                         break
+                    from mail_policy import intercept
+                    if intercept(BASE, message, message.get('mailbox_key', ACTIVE_ID), message.get('uidvalidity', ''), message['uid']):
+                        run_reader('ack', str(message['uid']))
+                        continue
                     analyze(message)
             state = DATA / 'state.json'
             if state.exists():
