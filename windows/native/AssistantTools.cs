@@ -67,6 +67,14 @@ sealed partial class MainWindow
 
     void AssistantToolsSelfTest(Action<bool, string> check)
     {
+        using (var usage = JsonDocument.Parse("{\"input_tokens\":3067,\"output_tokens\":627,\"estimated_cost\":null}")) {
+            check(UsageNumber(usage.RootElement, "input_tokens") == "3,067" && UsageNumber(usage.RootElement, "output_tokens") == "627",
+                "Usage displays separately labelled input and output counts with thousands separators");
+            check(UsageCost(usage.RootElement) == L.T("未知"), "Missing cost is explicitly unknown and never inferred as free");
+        }
+        using (var usage = JsonDocument.Parse("{\"calls\":1,\"input_tokens\":0,\"output_tokens\":0,\"groups\":[{\"input_tokens\":null,\"output_tokens\":null}]}"))
+            check(UsageNumber(usage.RootElement, "output_tokens") == L.T("未知"),
+                "A provider without token usage remains unknown even when the aggregate backend sum is zero");
         var savedEnabled = notificationsEnabled; var savedQuiet = appliedQuietEnabled;
         var savedStart = appliedQuietStart; var savedEnd = appliedQuietEnd;
         try {
@@ -126,23 +134,43 @@ sealed partial class MainWindow
             detail.Text = L.T("已加入总结队列：") + JsonText(result, "count", "0");
         }
     }
+    static string UsageNumber(JsonElement data, string key)
+    {
+        if (!data.TryGetProperty(key, out var value) || value.ValueKind == JsonValueKind.Null ||
+            !decimal.TryParse(value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number)) return L.T("未知");
+        if ((key == "input_tokens" || key == "output_tokens") && data.TryGetProperty("groups", out var groups) &&
+            data.TryGetProperty("calls", out var calls) && calls.GetInt32() > 0) {
+            var anyKnown = false;
+            foreach (var group in groups.EnumerateArray())
+                if (group.TryGetProperty(key, out var groupValue) && groupValue.ValueKind == JsonValueKind.Number) anyKnown = true;
+            if (!anyKnown) return L.T("未知");
+        }
+        return number.ToString("#,0.########", CultureInfo.InvariantCulture);
+    }
+    static string UsageCost(JsonElement data)
+    {
+        var amount = UsageNumber(data, "estimated_cost");
+        return amount == L.T("未知") ? amount : amount + " " + JsonText(data, "currency");
+    }
     async Task ShowUsage()
     {
         var snapshot = await Assistant("usage");
         var summary = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
-        void Render(JsonElement data) => summary.Text = L.T("调用次数：") + JsonText(data, "calls", "0") + "\n" +
-            L.T("输入 Token：") + JsonText(data, "input_tokens", "0") + "\n" + L.T("输出 Token：") + JsonText(data, "output_tokens", "0") + "\n" +
-            L.T("用量未知的调用：") + JsonText(data, "unknown_usage_calls", "0") + "\n" + L.T("估算费用：") + JsonText(data, "estimated_cost", "—") + " " + JsonText(data, "currency", "USD");
+        void Render(JsonElement data) => summary.Text = L.T("调用次数：") + UsageNumber(data, "calls") + "\n" +
+            L.T("输入 Token：") + UsageNumber(data, "input_tokens") + "\n" + L.T("输出 Token：") + UsageNumber(data, "output_tokens") + "\n" +
+            L.T("用量未知的调用：") + UsageNumber(data, "unknown_usage_calls") + "\n" + L.T("估算费用：") + UsageCost(data);
         Render(snapshot);
         var breakdown = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         if (snapshot.TryGetProperty("groups", out var groups)) foreach (var group in groups.EnumerateArray())
             breakdown.Text += JsonText(group, "provider") + " · " + JsonText(group, "model") + "\n" +
-                L.T("调用次数：") + JsonText(group, "calls", "0") + " · " + L.T("输入 Token：") + JsonText(group, "input_tokens", "—") +
-                " · " + L.T("输出 Token：") + JsonText(group, "output_tokens", "—") + "\n" + L.T("估算费用：") +
-                JsonText(group, "estimated_cost", "—") + " " + JsonText(group, "currency") + "\n\n";
+                L.T("调用次数：") + UsageNumber(group, "calls") + "\n" + L.T("输入 Token：") + UsageNumber(group, "input_tokens") +
+                "\n" + L.T("输出 Token：") + UsageNumber(group, "output_tokens") + "\n" + L.T("估算费用：") +
+                UsageCost(group) + "\n\n";
 
         await new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("费用与用量"), CloseButtonText = L.T("关闭"),
-            Content = Scroll(Stack(summary, breakdown, Note(L.T("未提供 Token 用量的调用不计入费用。Codex 与 Harness 的订阅费用无法由本工具推算。")))) }.ShowAsync();
+            Content = Scroll(Stack(summary, breakdown,
+                Note(L.T("输入 Token 是发给 AI 的内容，包括原邮件、附件和对话；输出 Token 是 AI 返回的内容。")),
+                Note(L.T("未知表示缺少价格或接口用量，不能当作免费。已知用量可能只是部分记录；金额仅为估算，不能推断实际账单。Codex 与 Harness 的订阅费用无法由本工具推算。")))) }.ShowAsync();
     }
     async Task ShowSources()
     {

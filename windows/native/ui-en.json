@@ -788,7 +788,10 @@
     "每百万输入 Token 单价": "Input price per million tokens",
     "每百万输出 Token 单价": "Output price per million tokens",
     "查看用量记录": "View usage records",
-    "以下是计算预估费用的单价，不是 Token 用量或限额。实际调用次数、Token 用量和费用请点击“查看用量记录”。": "These are prices for cost estimates, not token usage or limits. Select View usage records to see actual request counts, tokens and costs."
+    "以下是计算预估费用的单价，不是 Token 用量或限额。实际调用次数、Token 用量和费用请点击“查看用量记录”。": "These are prices for cost estimates, not token usage or limits. Select View usage records to see actual request counts, tokens and costs.",
+    "未知": "Unknown",
+    "输入 Token 是发给 AI 的内容，包括原邮件、附件和对话；输出 Token 是 AI 返回的内容。": "Input tokens are content sent to AI, including the original email, attachments and conversation. Output tokens are content returned by AI.",
+    "未知表示缺少价格或接口用量，不能当作免费。已知用量可能只是部分记录；金额仅为估算，不能推断实际账单。Codex 与 Harness 的订阅费用无法由本工具推算。": "Unknown means prices or provider usage are missing, not free. Known usage may cover only some records. Costs are estimates, not actual bills. This app cannot calculate Codex or Harness subscription fees."
   },
   "templates": [
     {
