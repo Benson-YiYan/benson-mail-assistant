@@ -263,8 +263,14 @@ function Invoke-MicrosoftInstaller([hashtable]$Definition, [string]$Path) {
         $finished = $true
         $process.Refresh()
         if (!$Definition.Elevate) {
-            Write-InstallerLog ('Standard output:' + [Environment]::NewLine + $stdout.GetAwaiter().GetResult())
-            Write-InstallerLog ('Standard error:' + [Environment]::NewLine + $stderr.GetAwaiter().GetResult())
+            # A descendant can inherit a pipe handle after the installer exits.
+            # Bound draining so its lifetime cannot hold Setup indefinitely.
+            if ($stdout.Wait(10000)) {
+                Write-InstallerLog ('Standard output:' + [Environment]::NewLine + $stdout.GetAwaiter().GetResult())
+            } else { Write-InstallerLog 'Standard output pipe remained open; capture stopped after ten seconds.' }
+            if ($stderr.Wait(10000)) {
+                Write-InstallerLog ('Standard error:' + [Environment]::NewLine + $stderr.GetAwaiter().GetResult())
+            } else { Write-InstallerLog 'Standard error pipe remained open; capture stopped after ten seconds.' }
         }
         Write-InstallerLog ('Exit code: ' + $process.ExitCode + ' (' + (Get-RuntimeExitDetails $process.ExitCode).HResult + ')')
         if ($process.ExitCode -ne 0) { Write-AppxDeploymentDiagnostics }
