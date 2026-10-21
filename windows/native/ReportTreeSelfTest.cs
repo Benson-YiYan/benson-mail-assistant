@@ -22,6 +22,12 @@ sealed partial class MainWindow
 
         async Task Click(FrameworkElement target, double? localX = null)
         {
+            var visibleDeadline = DateTime.UtcNow.AddSeconds(4);
+            while ((!target.IsLoaded || target.ActualWidth <= 0 || target.ActualHeight <= 0) &&
+                DateTime.UtcNow < visibleDeadline) {
+                layout.UpdateLayout();
+                await Task.Delay(25);
+            }
             layout.UpdateLayout();
             if (!target.IsLoaded || target.ActualWidth <= 0 || target.ActualHeight <= 0)
                 throw new InvalidOperationException("Report tree pointer target is not visible: " + target.GetType().Name);
