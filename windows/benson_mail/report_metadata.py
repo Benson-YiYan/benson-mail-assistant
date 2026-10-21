@@ -117,8 +117,14 @@ def migrate_metadata(home, output):
                 result['skipped'] += 1
                 continue
             try:
-                message = _read(sidecar)
+                if sidecar.stat().st_size > MAX_METADATA:
+                    raise ValueError('Original mail metadata exceeds the 4 MB limit.')
                 original_bytes = sidecar.read_bytes()
+                if len(original_bytes) > MAX_METADATA:
+                    raise ValueError('Original mail metadata exceeds the 4 MB limit.')
+                message = json.loads(original_bytes.decode('utf-8'))
+                if not isinstance(message, dict):
+                    raise ValueError('Original mail metadata must be an object.')
                 for report in reports:
                     write_metadata(home, report, message, replace=False)
                     if read_metadata(home, report) != message:
