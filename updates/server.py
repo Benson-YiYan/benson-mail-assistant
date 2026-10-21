@@ -15,6 +15,8 @@ import subprocess
 import tempfile
 import threading
 import time
+import uuid
+from urllib.request import Request, urlopen
 from urllib.parse import quote, unquote, urlsplit
 
 HOME = Path.home()
@@ -130,12 +132,14 @@ class State:
         self.language_catalog = {}
         self.hostname = None
         self.published = False
+        self.probe_token = uuid.uuid4().hex
         self.lock = threading.RLock()
 
     def manifest(self):
         with self.lock:
             if len(self.catalog) != 3 or (
-                    not self.hostname and any(not entry.get("download_url") for entry in self.catalog.values())):
+                    not self.hostname and any(not entry.get("download_url") and not entry.get("mirrors")
+                                              for entry in self.catalog.values())):
                 return None
             manifest = {
                 "schema_version": 1,
@@ -143,7 +147,9 @@ class State:
                     platform: {
                         key: value for key, value in {
                             **entry,
-                            "url": entry.get("download_url") or self.hostname + "/downloads/" + quote(entry["file"], safe=""),
+                            "url": entry.get("download_url") or (
+                                self.hostname + "/downloads/" + quote(entry["file"], safe="")
+                                if self.hostname else entry["mirrors"][0]),
                         }.items() if key not in {"file", "download_url"}
                     } for platform, entry in self.catalog.items()
                 },
@@ -154,6 +160,17 @@ class State:
                           'url': (self.hostname + '/downloads/' + quote(entry['file'], safe='')) if self.hostname else entry['mirrors'][0]}
                     for key, entry in self.language_catalog.items()}
             return manifest
+
+
+def probe_public_tunnel(hostname, expected_token):
+    """Verify the actual origin, not merely a live cloudflared process or edge page."""
+    request = Request(hostname + "/health", headers={"Cache-Control": "no-cache"})
+    with urlopen(request, timeout=8) as response:
+        body = response.read(1025)
+        if response.status != 200 or len(body) > 1024:
+            raise ValueError("Unexpected tunnel health response")
+        if json.loads(body) != {"service": "mail-updates", "probe": expected_token}:
+            raise ValueError("Tunnel did not reach this origin")
 
 
 def make_handler(state):
@@ -183,10 +200,13 @@ def make_handler(state):
 
         def serve(self, head):
             requested = unquote(urlsplit(self.path).path)
+            if requested == "/health":
+                return self.send_json({"service": "mail-updates", "probe": state.probe_token}, head)
             if requested == "/status":
                 with state.lock:
                     return self.send_json({"status": "ready" if state.manifest() else "waiting-for-release",
-                                           "published": state.published}, head)
+                                           "published": state.published,
+                                           "download_route": "mac-tunnel" if state.hostname else "github-fallback"}, head)
             if requested == "/manifest.json":
                 manifest = state.manifest()
                 return self.send_json(manifest or {"status": "not-published"}, head, 200 if manifest else 503)
@@ -318,15 +338,27 @@ def run():
     last_language_stamp = None
     next_publication = 0
     last_manifest = None
+    candidate_hostname = None
+    next_probe = 0
+    probe_failures = 0
+    tunnel_started_at = 0
 
     def consume_tunnel(process):
+        nonlocal candidate_hostname, next_probe
         for line in process.stdout:
             match = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", line)
             if match:
                 with state.lock:
-                    state.hostname = match.group(0)
-                    state.published = False
-                LOG.info("Public download tunnel is ready: %s", match.group(0))
+                    if process is not tunnel:
+                        continue
+                    candidate_hostname = match.group(0)
+                    next_probe = 0
+                LOG.info("Public download tunnel assigned; verifying origin: %s", match.group(0))
+            elif "Registered tunnel connection" in line:
+                LOG.info("Cloudflare transport connected")
+            elif "ERR" in line:
+                # Avoid logging arbitrary subprocess output or client information.
+                LOG.warning("Cloudflare transport reported an error")
 
     LOG.info("Download service listening on 127.0.0.1:18765")
     try:
@@ -369,6 +401,8 @@ def run():
                 with state.lock:
                     state.hostname = None
                     state.published = False
+                    candidate_hostname = None
+                probe_failures = 0
                 tunnel_failures += 1
                 tunnel_retry_at = time.monotonic() + min(300, 30 * tunnel_failures)
             if tunnel is None and time.monotonic() >= tunnel_retry_at:
@@ -377,10 +411,40 @@ def run():
                                                "--no-autoupdate"],
                                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                               text=True, bufsize=1)
+                    tunnel_started_at = time.monotonic()
                     threading.Thread(target=consume_tunnel, args=(tunnel,), daemon=True).start()
                 except OSError:
                     LOG.error("Cloudflared runtime is unavailable; retrying in five minutes")
                     tunnel_retry_at = time.monotonic() + 300
+            if tunnel and tunnel.poll() is None:
+                with state.lock:
+                    candidate = candidate_hostname
+                if candidate and time.monotonic() >= next_probe:
+                    try:
+                        probe_public_tunnel(candidate, state.probe_token)
+                    except (OSError, ValueError) as error:
+                        probe_failures += 1
+                        LOG.warning("Public origin probe failed (%s, %s/3)",
+                                    type(error).__name__, probe_failures)
+                        if probe_failures >= 3:
+                            with state.lock:
+                                state.hostname = None
+                                state.published = False
+                            LOG.warning("Rebuilding unresponsive tunnel; using verified GitHub mirrors")
+                            tunnel.terminate()
+                    else:
+                        with state.lock:
+                            if candidate == candidate_hostname:
+                                if state.hostname != candidate:
+                                    state.hostname = candidate
+                                    state.published = False
+                                    LOG.info("Public download origin verified")
+                        probe_failures = 0
+                        tunnel_failures = 0
+                    next_probe = time.monotonic() + 60
+                elif not candidate and time.monotonic() - tunnel_started_at > 120:
+                    LOG.warning("Tunnel startup timed out; rebuilding")
+                    tunnel.terminate()
             manifest = state.manifest()
             if manifest and manifest != last_manifest:
                 next_publication = 0

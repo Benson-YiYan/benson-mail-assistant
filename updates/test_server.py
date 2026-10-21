@@ -72,6 +72,40 @@ class ReleaseServerTests(unittest.TestCase):
             self.assertNotIn("file", entry)
             self.assertEqual(len(entry["sha256"]), 64)
 
+    def test_unavailable_tunnel_uses_mirrors_then_recovers(self):
+        for entry in self.state.catalog.values():
+            entry["mirrors"] = ["https://github.com/example/" + entry["file"]]
+        self.state.hostname = None
+        fallback = self.state.manifest()
+        self.assertTrue(all(entry["url"] == entry["mirrors"][0]
+                            for entry in fallback["platforms"].values()))
+        self.state.hostname = "https://restored.trycloudflare.com"
+        restored = self.state.manifest()
+        self.assertTrue(all(entry["url"].startswith(self.state.hostname)
+                            for entry in restored["platforms"].values()))
+        for key in fallback["platforms"]:
+            self.assertEqual(fallback["platforms"][key]["sha256"], restored["platforms"][key]["sha256"])
+
+    def test_public_probe_checks_origin_identity(self):
+        with mock.patch.object(server, "urlopen") as opener:
+            response = opener.return_value.__enter__.return_value
+            response.status = 200
+            response.read.return_value = json.dumps(
+                {"service": "mail-updates", "probe": self.state.probe_token}).encode()
+            server.probe_public_tunnel("https://test.trycloudflare.com", self.state.probe_token)
+            response.read.return_value = b'{"service":"mail-updates","probe":"another-origin"}'
+            with self.assertRaises(ValueError):
+                server.probe_public_tunnel("https://test.trycloudflare.com", self.state.probe_token)
+            response.read.return_value = b'<html>Cloudflare error</html>'
+            with self.assertRaises(ValueError):
+                server.probe_public_tunnel("https://test.trycloudflare.com", self.state.probe_token)
+
+    def test_health_has_origin_identity_and_no_cache(self):
+        status, headers, body = self.request("/health")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers["Cache-Control"], "no-store")
+        self.assertEqual(json.loads(body), {"service": "mail-updates", "probe": self.state.probe_token})
+
     def test_wait_for_complete_catalog_and_hostname(self):
         self.state.hostname = None
         self.assertEqual(self.request("/manifest.json")[0], 503)
