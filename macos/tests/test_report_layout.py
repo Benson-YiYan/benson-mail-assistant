@@ -44,7 +44,7 @@ class ReportLayoutTests(unittest.TestCase):
         path = self.output / "2026-10-21" / "example-11-53.md"
         path.parent.mkdir()
         path.write_text("## Report\n\nOriginal content.\n", encoding="utf-8")
-        path.with_suffix(".mail.json").write_text(json.dumps(self.message))
+        path.with_suffix(".mail.json").write_text(json.dumps(self.message), encoding="utf-8")
         return path
 
     def expected(self):
@@ -62,7 +62,7 @@ class ReportLayoutTests(unittest.TestCase):
         source = self.output / "2026-10-21/example-11-53.txt"
         source.parent.mkdir()
         body = "邮件编号：42\n邮箱标识：" + self.message["mailbox_key"] + "\n## Original report\n"
-        source.write_text(body)
+        source.write_text(body, encoding="utf-8")
         for base, path, metadata in [
             ("mail_watch/42", str(source), self.message),
             # Reusing the same UID from another saved report must not be selected.
@@ -72,32 +72,32 @@ class ReportLayoutTests(unittest.TestCase):
         ]:
             folder = self.root / base
             folder.mkdir(parents=True)
-            (folder / "saved.json").write_text(json.dumps({"saved": path}))
-            (folder / "mail.json").write_text(json.dumps(metadata))
+            (folder / "saved.json").write_text(json.dumps({"saved": path}), encoding="utf-8")
+            (folder / "mail.json").write_text(json.dumps(metadata), encoding="utf-8")
         result = layout.migrate_reports(self.root, self.config)
         target = self.expected().with_suffix(".txt")
         self.assertEqual(result["moved"], 1)
-        self.assertEqual(target.read_text(), body)
-        recovered = json.loads(target.with_suffix(".mail.json").read_text())
+        self.assertEqual(target.read_text(encoding="utf-8"), body)
+        recovered = json.loads(target.with_suffix(".mail.json").read_text(encoding="utf-8"))
         self.assertEqual(recovered["from"], self.message["from"])
         self.assertEqual(recovered["mailbox_account"], "owner@example.com")
         archived = self.root / "mailbox-archives/old/mail_watch/42/saved.json"
-        self.assertEqual(json.loads(archived.read_text())["saved"], str(target))
+        self.assertEqual(json.loads(archived.read_text(encoding="utf-8"))["saved"], str(target))
 
     def test_recognized_marker_without_metadata_retains_body_with_unknown_sender(self):
         source = self.output / "2026-10-21/example-11-53.md"
         source.parent.mkdir()
         body = "邮件编号：42\n## Original report\nThe sender may be fake@example.org in AI output."
-        source.write_text(body)
+        source.write_text(body, encoding="utf-8")
         other = self.root / "mail_watch/42"
         other.mkdir(parents=True)
         # Exact UID with a different saved path is not evidence for this report.
-        (other / "saved.json").write_text(json.dumps({"saved": str(self.output / "different.md")}))
-        (other / "mail.json").write_text(json.dumps(self.message))
+        (other / "saved.json").write_text(json.dumps({"saved": str(self.output / "different.md")}), encoding="utf-8")
+        (other / "mail.json").write_text(json.dumps(self.message), encoding="utf-8")
         self.assertEqual(layout.migrate_reports(self.root, self.config)["moved"], 1)
         target = self.output / "owner@example.com/2026-10-21/From unknown-sender/example-11-53.md"
-        self.assertEqual(target.read_text(), body)
-        metadata = json.loads(target.with_suffix(".mail.json").read_text())
+        self.assertEqual(target.read_text(encoding="utf-8"), body)
+        metadata = json.loads(target.with_suffix(".mail.json").read_text(encoding="utf-8"))
         self.assertTrue(metadata["unavailable"])
         self.assertEqual(metadata["uid"], "42")
         self.assertEqual(metadata["received_at"], "2026-10-21T11:53:00+08:00")
@@ -109,7 +109,7 @@ class ReportLayoutTests(unittest.TestCase):
         for name, text in [("contract.txt", "This is a personal contract."),
                            ("pretend.md", "邮件编号：not-a-uid\nDo not move."),
                            ("later-marker.txt", "Personal notes\n邮件编号：42\n")]:
-            (day / name).write_text(text)
+            (day / name).write_text(text, encoding="utf-8")
         result = layout.migrate_reports(self.root, self.config)
         self.assertEqual(result["moved"], 0)
         self.assertEqual(len(list(day.iterdir())), 3)
@@ -132,27 +132,27 @@ class ReportLayoutTests(unittest.TestCase):
         history = {"schema_version": 1, "report": str(source), "messages": [
             {"role": "user", "content": "What does the original mail mean?"}],
             "summary": "Earlier context", "summarized_count": 0}
-        (chats / (old_hash + ".json")).write_text(json.dumps(history))
+        (chats / (old_hash + ".json")).write_text(json.dumps(history), encoding="utf-8")
         draft = self.root / "reply_drafts/draft.json"
         draft.parent.mkdir()
-        draft.write_text(json.dumps({"report": str(source), "draft": "Draft content"}))
+        draft.write_text(json.dumps({"report": str(source), "draft": "Draft content"}), encoding="utf-8")
         job = self.root / "mailboxes/id/mail_watch/42/saved.json"
         job.parent.mkdir(parents=True)
-        job.write_text(json.dumps({"saved": str(source)}))
+        job.write_text(json.dumps({"saved": str(source)}), encoding="utf-8")
         before = source.read_bytes()
         result = layout.migrate_reports(self.root, self.config, windows=WINDOWS)
         self.assertEqual(result["moved"], 1)
         self.assertFalse(source.exists())
         self.assertEqual(target.read_bytes(), before)
-        self.assertEqual(json.loads(target.with_suffix(".mail.json").read_text())["mailbox_account"], "owner@example.com")
+        self.assertEqual(json.loads(target.with_suffix(".mail.json").read_text(encoding="utf-8"))["mailbox_account"], "owner@example.com")
         new_hash = hashlib.sha256(os.path.normcase(str(target)).encode()).hexdigest()
-        migrated = json.loads((chats / (new_hash + ".json")).read_text())
+        migrated = json.loads((chats / (new_hash + ".json")).read_text(encoding="utf-8"))
         self.assertEqual(migrated["messages"], history["messages"])
         self.assertEqual(migrated["summary"], "Earlier context")
         self.assertEqual(migrated["report"], str(target))
-        self.assertEqual(json.loads(job.read_text())["saved"], str(target))
-        self.assertEqual(json.loads(draft.read_text())["draft"], "Draft content")
-        self.assertEqual(json.loads(draft.read_text())["report"], str(target))
+        self.assertEqual(json.loads(job.read_text(encoding="utf-8"))["saved"], str(target))
+        self.assertEqual(json.loads(draft.read_text(encoding="utf-8"))["draft"], "Draft content")
+        self.assertEqual(json.loads(draft.read_text(encoding="utf-8"))["report"], str(target))
         self.assertEqual(layout.migrate_reports(self.root, self.config)["moved"], 0)
 
     def test_restart_finishes_interrupted_reference_update_without_duplicate(self):
@@ -176,42 +176,42 @@ class ReportLayoutTests(unittest.TestCase):
     def test_corrupt_chat_preserves_original_and_other_reports_still_migrate(self):
         source = self.legacy()
         second = source.with_name("another-11-53.md")
-        second.write_text("Second report")
-        second.with_suffix(".mail.json").write_text(json.dumps(dict(self.message, uid=43)))
+        second.write_text("Second report", encoding="utf-8")
+        second.with_suffix(".mail.json").write_text(json.dumps(dict(self.message, uid=43)), encoding="utf-8")
         chats = self.root / "mail_chats"
         chats.mkdir()
         old_hash = hashlib.sha256(os.path.normcase(str(source)).encode()).hexdigest()
         chat = chats / (old_hash + ".json")
-        chat.write_text("{corrupt")
+        chat.write_text("{corrupt", encoding="utf-8")
         result = layout.migrate_reports(self.root, self.config)
         self.assertEqual(result["moved"], 1)
         self.assertEqual(len(result["errors"]), 1)
         self.assertTrue(source.is_file())
         self.assertFalse(second.exists())
-        self.assertEqual(chat.read_text(), "{corrupt")
+        self.assertEqual(chat.read_text(encoding="utf-8"), "{corrupt")
 
     def test_corrupt_journal_is_retained_without_blocking_startup(self):
         source = self.legacy()
         journal = self.root / "report-layout-migration.json"
-        journal.write_text("{corrupt")
+        journal.write_text("{corrupt", encoding="utf-8")
         result = layout.migrate_reports(self.root, self.config)
         self.assertEqual(result["moved"], 0)
         self.assertEqual(len(result["errors"]), 1)
         self.assertTrue(source.exists())
-        self.assertEqual(journal.read_text(), "{corrupt")
+        self.assertEqual(journal.read_text(encoding="utf-8"), "{corrupt")
 
     def test_collision_and_unowned_files_are_retained(self):
         source = self.legacy()
         target = self.expected()
         target.parent.mkdir(parents=True)
-        target.write_text("Do not overwrite")
+        target.write_text("Do not overwrite", encoding="utf-8")
         note = source.parent / "notes.md"
-        note.write_text("Unrelated notes")
+        note.write_text("Unrelated notes", encoding="utf-8")
         result = layout.migrate_reports(self.root, self.config)
         self.assertEqual(result["moved"], 1)
-        self.assertEqual(target.read_text(), "Do not overwrite")
+        self.assertEqual(target.read_text(encoding="utf-8"), "Do not overwrite")
         self.assertTrue(target.with_stem(target.stem + "-migrated-1").exists())
-        self.assertEqual(note.read_text(), "Unrelated notes")
+        self.assertEqual(note.read_text(encoding="utf-8"), "Unrelated notes")
 
     def test_multiple_accounts_do_not_guess_missing_identity(self):
         self.config["mailboxes"].append(
