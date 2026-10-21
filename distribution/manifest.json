@@ -2,102 +2,102 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610202319",
-      "sha256": "c9c4e04e31b2c66d03d037ddb2d7a77286dc202175ddaee42936e51d0e79f1f7",
-      "size": 24488905,
+      "version": "202610211813",
+      "sha256": "70360ec0129d5e1cd9bc87e20571e5bb9e5be39a1b7a7b1bdc5644925ee39544",
+      "size": 24513948,
       "notes": {
-        "zh": "新增回复草稿、附件OCR、历史补总结、报告来源、诊断导出、免打扰与独立通知；设置整页统一保存。修复Mac保存后仍标为未保存及SQLite连接；输入/输出Token和费用来源明确显示，支持手动查询受支持账户余额。Windows稍后更新继续下载。中英西界面与指南同步。",
-        "en": "Add reply drafts, attachment OCR, historical backfill, source inspection, diagnostics, quiet hours and separate notifications. Save each settings page once; fix Mac dirty state and SQLite handles. Clarify input/output tokens and cost sources, with manual supported account-balance queries. Windows update downloads continue after Later. Update Chinese, English and Spanish UI/help.",
-        "es": "Añade borradores, OCR de adjuntos, resúmenes históricos, fuentes, diagnósticos, horario silencioso y notificaciones independientes. Guardado por página; corrige el estado de Mac y las conexiones SQLite. Aclara tokens y costes e incorpora consulta manual de saldos compatibles. Más tarde mantiene la descarga de Windows. Interfaz y guías en tres idiomas."
+        "zh": "修复 Windows 报告树文件夹点击无反应，支持点击图标、文字和整行；修复返回上级后再次进入。WinUI 3 安装失败显示 HRESULT、原因并保留本地日志。",
+        "en": "Fix Windows report-tree folder clicks on icons, labels and full rows, including re-entry after going up. Show WinUI 3 installer HRESULT and reason, and retain a local diagnostic log.",
+        "es": "Corrige los clics en las carpetas del árbol de informes de Windows, incluidos iconos, texto y toda la fila, también al volver a entrar. Muestra el HRESULT y la causa de errores de WinUI 3 y conserva un registro local."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Windows-x64-Setup-202610202319.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Windows-x64-Setup-202610211813.exe"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610202319.exe"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Windows-x64-Setup-202610211813.exe"
     },
     "macos-arm64": {
-      "version": "202610202318",
-      "sha256": "21e1e10bd53ce9e0f0be46bb610449415ebb5250078081c263cffb43e59bdb08",
-      "size": 24418589,
+      "version": "202610211416",
+      "sha256": "fd9f1a98051d6d71332bd60d450ef2bdbe290383921de417314fc371192dc78c",
+      "size": 24505237,
       "notes": {
-        "zh": "新增回复草稿、附件OCR、历史补总结、报告来源、诊断导出、免打扰与独立通知；设置整页统一保存。修复Mac保存后仍标为未保存及SQLite连接；输入/输出Token和费用来源明确显示，支持手动查询受支持账户余额。Windows稍后更新继续下载。中英西界面与指南同步。",
-        "en": "Add reply drafts, attachment OCR, historical backfill, source inspection, diagnostics, quiet hours and separate notifications. Save each settings page once; fix Mac dirty state and SQLite handles. Clarify input/output tokens and cost sources, with manual supported account-balance queries. Windows update downloads continue after Later. Update Chinese, English and Spanish UI/help.",
-        "es": "Añade borradores, OCR de adjuntos, resúmenes históricos, fuentes, diagnósticos, horario silencioso y notificaciones independientes. Guardado por página; corrige el estado de Mac y las conexiones SQLite. Aclara tokens y costes e incorpora consulta manual de saldos compatibles. Más tarde mantiene la descarga de Windows. Interfaz y guías en tres idiomas."
+        "zh": "更新报告树浏览体验，支持按邮箱、日期、发件人浏览报告；提供报告来源、邮件提问与本地报告整理。",
+        "en": "Browse the report tree by mailbox, date and sender, with source inspection, email Q&A and local report organization.",
+        "es": "Explora el árbol de informes por buzón, fecha y remitente; incluye consulta de fuentes, preguntas sobre correos y organización local de informes."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Mac-AppleSilicon-202610202318.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Mac-AppleSilicon-202610211416.dmg"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610202318.dmg"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Mac-AppleSilicon-202610211416.dmg"
     },
     "macos-x86_64": {
-      "version": "202610202318",
-      "sha256": "7b641bad69efb15e7fff983e8b010d1a1d7a885fbbbc8c033c9a3fb4a6d0216a",
-      "size": 18465219,
+      "version": "202610211418",
+      "sha256": "59e940327dd52b92e1bfbe25d3adaf38c224a9c19c8f55cf65f38981914e38a4",
+      "size": 19106843,
       "notes": {
-        "zh": "新增回复草稿、附件OCR、历史补总结、报告来源、诊断导出、免打扰与独立通知；设置整页统一保存。修复Mac保存后仍标为未保存及SQLite连接；输入/输出Token和费用来源明确显示，支持手动查询受支持账户余额。Windows稍后更新继续下载。中英西界面与指南同步。",
-        "en": "Add reply drafts, attachment OCR, historical backfill, source inspection, diagnostics, quiet hours and separate notifications. Save each settings page once; fix Mac dirty state and SQLite handles. Clarify input/output tokens and cost sources, with manual supported account-balance queries. Windows update downloads continue after Later. Update Chinese, English and Spanish UI/help.",
-        "es": "Añade borradores, OCR de adjuntos, resúmenes históricos, fuentes, diagnósticos, horario silencioso y notificaciones independientes. Guardado por página; corrige el estado de Mac y las conexiones SQLite. Aclara tokens y costes e incorpora consulta manual de saldos compatibles. Más tarde mantiene la descarga de Windows. Interfaz y guías en tres idiomas."
+        "zh": "更新报告树浏览体验，支持按邮箱、日期、发件人浏览报告；提供报告来源、邮件提问与本地报告整理。",
+        "en": "Browse the report tree by mailbox, date and sender, with source inspection, email Q&A and local report organization.",
+        "es": "Explora el árbol de informes por buzón, fecha y remitente; incluye consulta de fuentes, preguntas sobre correos y organización local de informes."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Mac-Intel-202610202318.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Mac-Intel-202610211418.dmg"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610202318.dmg"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Mac-Intel-202610211418.dmg"
     }
   },
   "language_packs": {
-    "windows-zh": {
-      "version": "202610202318",
-      "sha256": "5a15989c4ec8c0ed69f707f4f054f565bf4d09874c843eaa3a6082f355a19920",
-      "size": 40299,
-      "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-zh-202610202318.json"
-      ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202610202318.json"
-    },
-    "windows-en": {
-      "version": "202610202318",
-      "sha256": "d3cef794dfefe48218abe90644f6d38b03175e243c25f79804b2f28ace80ee2f",
-      "size": 120418,
-      "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-en-202610202318.json"
-      ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-windows-en-202610202318.json"
-    },
-    "windows-es": {
-      "version": "202610202318",
-      "sha256": "fb5cd881f9ccd05f279801269567dc4776cda40623babcf98c6c61392bee088c",
-      "size": 130250,
-      "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-es-202610202318.json"
-      ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-windows-es-202610202318.json"
-    },
-    "macos-zh": {
-      "version": "202610202318",
-      "sha256": "441b288d50ebdc22a89fb946fc0a1d00899fcd11442d9dbfa055306f409c495f",
-      "size": 39915,
-      "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-zh-202610202318.json"
-      ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202610202318.json"
-    },
     "macos-en": {
       "version": "202610202318",
       "sha256": "7e8cdd7fd4937dc5c7dc1bd4a2cd60b52b0fbd7be1deed6cc6c32e23636a9f18",
       "size": 121052,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-en-202610202318.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-macos-en-202610202318.json"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-macos-en-202610202318.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-macos-en-202610202318.json"
     },
     "macos-es": {
       "version": "202610202318",
       "sha256": "17bb20e8de3d19613028c76ac5fc171d818cf4e34cf5477cf5ba2c1f97148307",
       "size": 131325,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-es-202610202318.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-macos-es-202610202318.json"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-macos-es-202610202318.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-macos-es-202610202318.json"
+    },
+    "macos-zh": {
+      "version": "202610202318",
+      "sha256": "441b288d50ebdc22a89fb946fc0a1d00899fcd11442d9dbfa055306f409c495f",
+      "size": 39915,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-macos-zh-202610202318.json"
+      ],
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-macos-zh-202610202318.json"
+    },
+    "windows-en": {
+      "version": "202610202318",
+      "sha256": "d3cef794dfefe48218abe90644f6d38b03175e243c25f79804b2f28ace80ee2f",
+      "size": 120418,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-windows-en-202610202318.json"
+      ],
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-windows-en-202610202318.json"
+    },
+    "windows-es": {
+      "version": "202610202318",
+      "sha256": "fb5cd881f9ccd05f279801269567dc4776cda40623babcf98c6c61392bee088c",
+      "size": 130250,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-windows-es-202610202318.json"
+      ],
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-windows-es-202610202318.json"
+    },
+    "windows-zh": {
+      "version": "202610202318",
+      "sha256": "5a15989c4ec8c0ed69f707f4f054f565bf4d09874c843eaa3a6082f355a19920",
+      "size": 40299,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-windows-zh-202610202318.json"
+      ],
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-windows-zh-202610202318.json"
     }
   }
 }
