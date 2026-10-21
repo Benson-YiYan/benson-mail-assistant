@@ -29,6 +29,19 @@ class LocalReportTests(unittest.TestCase):
             entry=report_entry(path)
             self.assertEqual(entry['title'],'test'); self.assertEqual(entry['time'],'2026-10-14 19:02')
             self.assertTrue(matches(entry,'正文')); self.assertFalse(matches(entry,attachments='无附件'))
+    def test_nested_metadata_and_date_fallback_discovery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output=Path(temporary)/'reports'
+            path=output/'account@example.invalid'/'2026-10-21'/'From sender@example.invalid'/'example-11-53.md'
+            path.parent.mkdir(parents=True); path.write_text('original fallback searchable')
+            controller=Controller(Path(temporary)/'state',lambda event:None)
+            controller.config['output_dir']=str(output)
+            rows=controller.command('reports',{'start':'2026-10-21','end':'2026-10-21'})
+            self.assertEqual(len(rows),1)
+            self.assertEqual(rows[0]['day'],'2026-10-21')
+            self.assertEqual(rows[0]['account'],'account@example.invalid')
+            self.assertEqual(rows[0]['sender_email'],'sender@example.invalid')
+            self.assertEqual(rows[0]['time'],'2026-10-21 11:53')
     def test_markdown_and_legacy_collision_and_mixed_search(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary); output=root/'reports'; day=output/'2026-10-15'; day.mkdir(parents=True)
@@ -38,7 +51,7 @@ class LocalReportTests(unittest.TestCase):
             before=sidecar.read_bytes()
             message=dict(old_metadata,sender='new@example.invalid',body='New Zebra',attachments=[{'name':'contract.pdf'}])
             new=export_report(output,message,'## 1. Zebra','other-account-7')
-            self.assertEqual(new.suffix,'.md'); self.assertNotEqual(new.stem,legacy.stem)
+            self.assertEqual(new.suffix,'.md'); self.assertNotEqual(new.parent,legacy.parent)
             new.with_suffix('.mail.json').write_text(json.dumps(message),encoding='utf-8')
             self.assertEqual(sidecar.read_bytes(),before)
             controller=Controller(root/'state',lambda event:None); controller.config['output_dir']=str(output)
@@ -49,7 +62,7 @@ class LocalReportTests(unittest.TestCase):
             self.assertIn('## 1.',controller.command('read_report',{'path':str(new)}))
             self.assertIn(legacy.resolve(),report_files(output)); self.assertIn(new.resolve(),report_files(output))
             # An orphan metadata file must also reserve its stem.
-            reserved=day/'Reserved-09-02.mail.json'; reserved.write_text('{}')
+            reserved=new.parent/'Reserved-09-02.mail.json'; reserved.write_text('{}')
             collision=export_report(output,dict(message,subject='Reserved'),'report','8')
             self.assertNotEqual(collision.stem,'Reserved-09-02')
 

@@ -39,7 +39,7 @@ Use 24-hour HH:mm format, e.g. 22:00 and 08:00. Times follow the computer’s lo
 
 7. Report folder, reading, search and filters
 Use Browse under General settings.
-New files use chosen-folder/date/subject-received-time.md, creating missing directories. Changing folders does not move old reports; open them at the old location or select that folder again. The list shows the original subject and a separate receipt time; filenames still include time. Markdown previews support headings, lists and tables; older TXT reports remain readable.
+Enable Report tree to browse mailbox → date → sender → report, use Up one level to return, or switch it off for the flat list. Search and filters apply in both views. New files use chosen-folder/receiving-account/date/From sender-address/subject-received-time.md, creating missing directories. Changing folders does not move old reports; open them at the old location or select that folder again. The list shows the original subject and a separate receipt time; filenames still include time. Markdown previews support headings, lists and tables; older TXT reports remain readable.
 Select a report on the left to read it on the right. Open the report or its folder; Mac also offers Copy original, which copies the report’s source text, not a sent email. Search uses locally saved subjects, bodies, senders and attachment names, not the entire remote inbox. Combine receipt-date, sender and attachment filters; clear search or reset filters if nothing matches.
 Drag the report/chat divider to resize the areas. A report can remain readable without its original-email index, but original-dependent chat, drafts and regeneration report an error. Generated summaries never substitute for original evidence.
 

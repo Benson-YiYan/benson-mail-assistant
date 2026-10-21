@@ -820,7 +820,12 @@
     "账户余额查询的安全连接失败，请检查网络代理与系统证书。": "Falló la conexión segura para consultar el saldo. Revisa el proxy y los certificados del sistema.",
     "无法解析余额查询服务器地址，请检查网络与 DNS。": "No se pudo resolver la dirección del servidor de saldo. Revisa la red y el DNS.",
     "服务商返回了无法识别的余额响应。": "El proveedor devolvió una respuesta de saldo no reconocida.",
-    "OpenRouter 余额接口可能要求管理权限，普通推理 Key 可能返回 403。无需为了查询余额将推理 Key 换成管理 Key。": "El endpoint de saldo de OpenRouter puede requerir permisos de gestión; una clave normal de inferencia puede devolver 403. No es necesario sustituir una clave de inferencia por una de gestión solo para consultar el saldo."
+    "OpenRouter 余额接口可能要求管理权限，普通推理 Key 可能返回 403。无需为了查询余额将推理 Key 换成管理 Key。": "El endpoint de saldo de OpenRouter puede requerir permisos de gestión; una clave normal de inferencia puede devolver 403. No es necesario sustituir una clave de inferencia por una de gestión solo para consultar el saldo.",
+    "报告树": "Árbol de informes",
+    "上一级": "Subir un nivel",
+    "全部邮箱": "Todos los buzones",
+    "未知邮箱": "Buzón desconocido",
+    "部分旧报告未能整理到新目录；原文件已保留，其他功能可继续使用。": "No se pudieron organizar algunos informes antiguos en las nuevas carpetas. Los originales se conservaron; las demás funciones siguen disponibles."
   },
   "templates": [
     {

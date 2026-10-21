@@ -19,6 +19,8 @@ enum AppSelfTest {
             guard store.reports.count == 2, store.alive else {
                 throw Failure("fixture report/status failed: count=\(store.reports.count), preview=\(store.reportText.contains("建议回复")), alive=\(store.alive)")
             }
+            checks += try ReportTreeSelfTest.run(base: store.base)
+            checks += try ReportUninstallSelfTest.run(base: store.base)
             if args.contains("--settings-self-test-only") {
                 checks += try await SettingsDraftSelfTest.run(store: store, output: output)
                 try JSONSerialization.data(withJSONObject: ["ok": true, "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("result.json"))

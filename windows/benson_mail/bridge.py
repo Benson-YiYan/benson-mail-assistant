@@ -9,7 +9,7 @@ from pathlib import Path
 from . import platform_windows as platform
 from .ai_api import complete, identity
 from .core import Service, IMAPMailbox, save_json
-from .report_index import report_entry, matches
+from .report_index import report_entry, matches, report_paths
 from .mailbox_config import PRESETS, normalize, mailbox_id
 MAIL_FIELDS = ('account', 'username', 'host', 'port', 'security', 'mail_folder', 'mail_auth',
                'mail_provider', 'secret_binding', 'mail_secret_file', 'proxy_mode', 'proxy_host', 'proxy_port')
@@ -25,6 +25,15 @@ class Controller:
         self.config.setdefault('interval', 60)
         if not self.config.get('account') and self.config.get('mailboxes'):
             self.config.update({k: self.config['mailboxes'][0][k] for k in MAIL_FIELDS if k in self.config['mailboxes'][0]})
+        from .report_layout import migrate_reports
+        try:
+            self.report_migration = migrate_reports(self.root, self.config, windows=True)
+        except Exception as error:
+            # Failed migration must never prevent mailbox settings or old
+            # reports from opening. Keep source files intact and show a warning.
+            self.report_migration = {'moved': 0, 'skipped': 0,
+                                     'errors': [{'source': self.config.get('output_dir', ''),
+                                                 'error': type(error).__name__}]}
         self.emit = emit
         self.launcher = launcher
         self.service = None
@@ -113,6 +122,17 @@ class Controller:
     def command(self, name, data):
         if self.prepared_exit and name not in ('shutdown', 'resume_after_exit_cancel', 'config', 'reports', 'read_report', 'runtime_info'):
             raise ValueError('正在准备退出，请稍候。')
+        if name == 'report_view':
+            path = self.root / 'view-preferences.json'
+            with self.config_lock:
+                try: preferences = json.loads(path.read_text(encoding='utf-8'))
+                except (OSError, ValueError): preferences = {}
+                if not isinstance(preferences, dict): preferences = {}
+                if 'report_tree' in data:
+                    if not isinstance(data['report_tree'], bool): raise ValueError('Invalid report tree preference.')
+                    preferences['report_tree'] = data['report_tree']
+                    save_json(path, preferences)
+                return {'report_tree': bool(preferences.get('report_tree', False))}
         if name == 'prepare_exit':
             services = self.all_services()
             acquired = []
@@ -153,6 +173,7 @@ class Controller:
             return {**self.config, 'mailboxes': [{**p, 'id': mailbox_id(p)} for p in self.profiles()], 'running': self.active(),
                     'selected_mailbox_id': mailbox_id(self.config) if self.config.get('account') else '',
                     'output_dir': self.config.get('output_dir') or str(platform.documents_dir() / '邮件'),
+                    'report_migration': self.report_migration,
                     'has_mail_secret': bool(self.config.get('account')) and self.secret_path().exists()}
         if name in ('policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records'):
             from .mail_policy import policy_status, policy_save, policy_remove_records, policy_summarize_records, sender_address
@@ -177,7 +198,7 @@ class Controller:
             senders = set(result.get('senders', []))
             output = self.config.get('output_dir')
             if output:
-                for sidecar in Path(output).glob('*/*.mail.json'):
+                for sidecar in report_paths(output, ('.mail.json',)):
                     try:
                         if sidecar.stat().st_size > 4 * 1024 * 1024: continue
                         message = json.loads(sidecar.read_text(encoding='utf-8'))
@@ -352,7 +373,7 @@ class Controller:
             return '已请求立即检查。'
         if name == 'reports':
             output = self.config.get('output_dir')
-            paths = sorted((p for p in Path(output).glob('*/*') if p.suffix.lower() in ('.txt', '.md')), key=lambda p: p.stat().st_mtime,
+            paths = sorted(report_paths(output), key=lambda p: p.stat().st_mtime,
                            reverse=True) if output else []
             entries = []
             for path in paths:
@@ -479,7 +500,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('validate_settings_page', 'save_settings_page', 'assistant_features', 'config', 'reports', 'read_report', 'report_retry', 'chat_history', 'chat_send', 'policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'save_notifications', 'language_status', 'prepare_exit', 'resume_after_exit_cancel'):
+                if fixture and command not in ('validate_settings_page', 'save_settings_page', 'assistant_features', 'config', 'report_view', 'reports', 'read_report', 'report_retry', 'chat_history', 'chat_send', 'policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'save_notifications', 'language_status', 'prepare_exit', 'resume_after_exit_cancel'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})

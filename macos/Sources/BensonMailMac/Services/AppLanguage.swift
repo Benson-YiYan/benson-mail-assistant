@@ -115,6 +115,7 @@ final class AppLanguage: ObservableObject {
         guard code != "zh" else { return text }
         if let value = AssistantToolsLocalization.translate(text, language: code) { return value }
         if let value = exact[text] { return value }
+        if let value = ReportTree.translate(text, language: code) { return value }
         if let value = SenderPolicyLocalization.translate(text, language: code) { return value }
         let networkCodePrefix = "网络错误代码："
         if text.hasPrefix(networkCodePrefix) {

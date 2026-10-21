@@ -11,6 +11,15 @@ struct Report: Identifiable {
     var text: String = ""
     var subject: String = ""
     var receivedAt: Date? = nil
+    var mailboxAccount: String = ""
+    var senderAddress: String {
+        let raw = sender.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let range = raw.range(of: #"[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+"#, options: [.regularExpression, .caseInsensitive]) {
+            return String(raw[range]).lowercased()
+        }
+        let folder = url.deletingLastPathComponent().lastPathComponent
+        return folder.hasPrefix("From ") ? String(folder.dropFirst(5)) : raw
+    }
     var id: String { url.path }
     var title: String {
         if !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return subject }
@@ -32,8 +41,15 @@ struct Report: Identifiable {
         }
         return dateLabel
     }
-    var dateLabel: String { url.deletingLastPathComponent().lastPathComponent }
-    var searchableText: String { [title, sender, body, attachmentNames.joined(separator: " "), text].joined(separator: "\n") }
+    var dateLabel: String {
+        var parent = url.deletingLastPathComponent()
+        while parent.path != "/" {
+            if parent.lastPathComponent.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil { return parent.lastPathComponent }
+            parent.deleteLastPathComponent()
+        }
+        return ""
+    }
+    var searchableText: String { [title, mailboxAccount, sender, body, attachmentNames.joined(separator: " "), text].joined(separator: "\n") }
 }
 
 enum AttachmentFilter: String, CaseIterable, Identifiable {

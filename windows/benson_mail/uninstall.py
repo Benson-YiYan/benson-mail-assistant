@@ -26,15 +26,30 @@ def installation(path):
     return folder
 
 
+def _report_folders(root):
+    """Only owned layout shapes qualify; never traverse directory links."""
+    def safe_directory(path):
+        return (path.is_dir() and not path.is_symlink()
+                and not (hasattr(path, 'is_junction') and path.is_junction()))
+    for child in root.iterdir():
+        if not safe_directory(child): continue
+        if re.fullmatch(r'\d{4}-\d{2}-\d{2}', child.name):
+            yield child
+        elif '@' in child.name or child.name == 'unknown-account':
+            for day in child.iterdir():
+                if not safe_directory(day) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', day.name): continue
+                for sender in day.iterdir():
+                    if safe_directory(sender) and sender.name.startswith('From '):
+                        yield sender
+
+
 def report_files(directory):
     root = Path(directory).resolve()
     found = []
     if not root.is_dir():
         return found
-    for day in root.iterdir():
-        if day.is_symlink() or (hasattr(day, 'is_junction') and day.is_junction()) or not day.is_dir() or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', day.name):
-            continue
-        for metadata in day.glob('*.mail.json'):
+    for folder in _report_folders(root):
+        for metadata in folder.glob('*.mail.json'):
             if metadata.is_symlink():
                 continue
             try:
@@ -56,11 +71,13 @@ def remove_reports(directory):
     for path in files:
         path.unlink(missing_ok=True)
     root = Path(directory).resolve()
-    folders = {p.parent for p in files}
+    folders = {parent for path in files for parent in path.parents if parent != root and parent.is_relative_to(root)}
     if root.is_dir():
-        folders.update(day for day in root.iterdir() if re.fullmatch(r'\d{4}-\d{2}-\d{2}', day.name)
-                       and not day.is_symlink() and not (hasattr(day, 'is_junction') and day.is_junction()))
-    for folder in folders:
+        # Include empty layout leaves as well, keeping unrelated user folders.
+        for folder in _report_folders(root):
+            folders.update(parent for parent in (folder, *folder.parents)
+                           if parent != root and parent.is_relative_to(root))
+    for folder in sorted(folders, key=lambda path: len(path.parts), reverse=True):
         try:
             folder.rmdir()
         except OSError:

@@ -92,21 +92,7 @@ struct ContentView: View {
             FilterBar(store: store)
             Divider()
             HSplitView {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(T("邮件报告")).font(.headline).padding(14)
-                    List(selection: Binding(get: { store.selected?.id }, set: { id in
-                        if let report = store.reports.first(where: { $0.id == id }) { store.select(report) }
-                    })) {
-                        ForEach(store.filteredReports) { report in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(report.title).lineLimit(1)
-                                if !report.sender.isEmpty { Text(report.sender).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
-                                Text(report.receivedLabel).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                            }.padding(.vertical, 3).tag(report.id)
-                        }
-                    }.listStyle(.sidebar)
-                    if store.filteredReports.isEmpty { Text(store.reports.isEmpty ? T("新邮件的六项报告会出现在这里") : T("没有符合筛选条件的邮件")).font(.caption).foregroundStyle(.secondary).padding(14) }
-                }.frame(minWidth: 210, idealWidth: 265, maxWidth: 350)
+                ReportBrowserView(store: store).frame(minWidth: 235, idealWidth: 290, maxWidth: 380)
                 VStack(alignment: .leading, spacing: 12) {
                     if let selected = store.selected {
                         HStack {

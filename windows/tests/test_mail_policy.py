@@ -45,7 +45,7 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(len(calls),1); self.assertEqual(policy_status(self.root)['count'],0)
         service().check_once(); self.assertEqual(len(calls),1)
         self.assertEqual(policy_status(self.root)['policy']['addresses'],['notifications@github.com'])
-        self.assertEqual(len(list((self.root/'reports').glob('*/*.md'))),1)
+        self.assertEqual(len(list((self.root/'reports').rglob('*.md'))),1)
     def test_delete_local_record_does_not_touch_cached_or_server(self):
         policy_save(self.root,self.config())
         self.assertTrue(intercept(self.root,{'sender':'notifications@github.com','subject':'test'},'account','v1',2))

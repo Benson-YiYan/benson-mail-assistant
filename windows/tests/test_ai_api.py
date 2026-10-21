@@ -90,10 +90,10 @@ class APITests(unittest.TestCase):
             service.check_once(); box.uids=[1]; self.status=401
             with self.assertRaises(RuntimeError): service.check_once()
             self.assertIn('1',service.state['pending'])
-            self.assertFalse(list(Path(config['output_dir']).glob('*/*.md')))
+            self.assertFalse(list(Path(config['output_dir']).rglob('*.md')))
             self.status=200; service.check_once(); service.check_once()
             self.assertNotIn('1',service.state['pending'])
-            reports=list(Path(config['output_dir']).glob('*/*.md'))
+            reports=list(Path(config['output_dir']).rglob('*.md'))
             self.assertEqual(len(reports),1); self.assertIn('6 回复',reports[0].read_text(encoding='utf-8'))
             self.assertIn('合同100元',self.requests[-1][2]['messages'][0]['content'])
             self.assertEqual(len(self.requests),2)

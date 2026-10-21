@@ -35,12 +35,29 @@ Windows and Mac packages in one release may have different version numbers. Veri
 
 - Multiple mailboxes, provider presets and custom IMAP host, port and encryption.
 - Six-section Markdown reports, with legacy TXT viewing support.
+- Reports organized by receiving mailbox, date and sender; optional Report tree browsing alongside the flat list.
 - Local search across message bodies, senders and attachment names; date, sender and attachment filters.
 - Simplified Chinese, English and Spanish interfaces and new reports; existing reports remain unchanged.
 - Tray/menu bar operation, configurable intervals and report locations.
 - In-app update downloads: when several sources are available, bounded speed probes select a faster route; network failures try another source. SHA256 is verified before installation. Uninstall can retain settings and reports.
 
 Attachment analysis depends on extractable text; scanned images and encrypted documents may not be readable. Search covers locally saved mail data and reports, not your entire remote inbox.
+
+### Report folders and Report tree
+
+Choose a report root in General settings, for example `Documents/Mail`. Reports use this structure:
+
+```text
+Mail/
+└── 123@456.com/
+    └── 2026-10-21/
+        └── From 234@567.com/
+            └── example-11-53.md
+```
+
+The first folder identifies the added mailbox that received the message. Dates and filename times use Beijing time; sender folders use email addresses. Unknown receiving accounts and senders use `unknown-account` and `From unknown-sender`, respectively. Characters unsuitable for filenames are safely replaced.
+
+Enable Report tree in Mail reports to browse mailbox → date → sender → report. Disable it to return to the flat list. Changing the view does not change where files are saved.
 
 ## Screenshots
 

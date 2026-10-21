@@ -16,6 +16,7 @@ from email import policy
 from pathlib import Path
 from xml.etree import ElementTree
 from .mailbox_config import connect, state_identity, MailConnectionError, mail_error, normalize, IMAP_ERROR, require_ok
+from .report_layout import report_folder
 
 BEIJING = timezone(timedelta(hours=8))
 MAX_ATTACHMENT = 20 * 1024 * 1024
@@ -194,7 +195,7 @@ def export_report(directory, message, answer, uid, target=None):
     received=datetime.fromisoformat(message['received']).astimezone(BEIJING)
     title=re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_',message['subject']).strip(' .')[:80] or _t('无标题')
     if title.split('.')[0].upper() in ['CON','PRN','AUX','NUL']+[f'{p}{n}' for p in ('COM','LPT') for n in range(1,10)]: title='_'+title
-    folder=Path(directory)/received.strftime('%Y-%m-%d'); folder.mkdir(parents=True,exist_ok=True)
+    folder=report_folder(message, directory); folder.mkdir(parents=True,exist_ok=True)
     base=f'{title}-{received:%H-%M}'
     for count in range(10000):
         suffix='' if count==0 else f'-UID{uid}'+('' if count==1 else f'-{count}')
@@ -367,7 +368,8 @@ class Service:
                 job=pending[key]
                 if 'message' not in job:
                     job['message']=extract_message(*box.fetch(int(key)))
-                    job['message'].update(uid=str(key), uidvalidity=validity, mailbox_key=mailbox_id(self.config))
+                    job['message'].update(uid=str(key), uidvalidity=validity, mailbox_key=mailbox_id(self.config),
+                                          mailbox_account=normalize(self.config)['account'])
                     if job.get('historical'): job['message']['historical'] = True
                     from .mail_policy import spam_metadata
                     detected = spam_metadata({}, getattr(box, 'last_flags', ''), self.config.get('mail_folder', 'INBOX'))
@@ -397,6 +399,11 @@ class Service:
         else: self.persist()
     @localized_method
     def _finish_job(self, key, job, validity, manual=False):
+        # Durable jobs from older versions predate the account field. Use the
+        # mailbox being processed, never the recipient header or the login name.
+        if job['message'].get('mailbox_account') != normalize(self.config)['account']:
+            job['message']['mailbox_account'] = normalize(self.config)['account']
+            self._persist_job(job, manual)
         if not job.get('new_notified'):
             job['new_notified']=True; self._persist_job(job, manual)
             self.callback({'notification':{'id':f'{self.identity}:{validity}:{key}:new','title':_t('收到新邮件'),'message':job['message']['subject']+_t('\n正在整理中文报告。')}})

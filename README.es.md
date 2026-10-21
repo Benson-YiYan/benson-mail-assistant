@@ -40,12 +40,29 @@ Si no está instalado el idioma elegido, aparece «No has descargado este idioma
 
 - Varias cuentas con preajustes y servidor, puerto, cifrado y proxy IMAP personalizables.
 - Informes Markdown `.md` con vista previa; lectura de informes TXT antiguos.
+- Informes organizados por buzón receptor, fecha y remitente; vista opcional de árbol además de la lista plana.
 - Búsqueda local en cuerpo, remitente y nombres de adjuntos; filtros por fecha, remitente y presencia de adjuntos.
 - Funcionamiento en bandeja del sistema o barra de menús; intervalo y carpeta de informes configurables.
 - Actualizaciones dentro de la aplicación. Si hay varias fuentes, pruebas de velocidad limitadas eligen una ruta y se prueba otra si falla la red. Se verifica SHA256 antes de instalar y se solicita tu acción.
 - Desinstalación con opciones independientes para conservar configuración e informes. Eliminar informes requiere otra confirmación.
 
 El análisis de adjuntos depende del texto extraíble; las imágenes escaneadas y los documentos cifrados pueden no ser legibles. La búsqueda cubre el correo y los informes guardados localmente, no todo el buzón remoto.
+
+### Carpetas y árbol de informes
+
+Elige la carpeta raíz de informes en Configuración general, por ejemplo `Documentos/Correo`. Los informes siguen esta estructura:
+
+```text
+Correo/
+└── 123@456.com/
+    └── 2026-10-21/
+        └── From 234@567.com/
+            └── example-11-53.md
+```
+
+La primera carpeta identifica el buzón añadido que recibió el mensaje. Las fechas y las horas del nombre de archivo usan la hora de Pekín; las carpetas de remitentes usan direcciones de correo. Si no se conoce el buzón receptor o el remitente, se usan `unknown-account` y `From unknown-sender`, respectivamente. Los caracteres no válidos para nombres de archivo se sustituyen de forma segura.
+
+Activa el árbol en Informes de correo para navegar por buzón → fecha → remitente → informe. Desactívalo para volver a la lista plana. Cambiar la vista no cambia la ubicación de los archivos.
 
 ## Proxy del correo
 

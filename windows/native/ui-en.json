@@ -820,7 +820,12 @@
     "账户余额查询的安全连接失败，请检查网络代理与系统证书。": "The secure connection for the balance query failed. Check the proxy and system certificates.",
     "无法解析余额查询服务器地址，请检查网络与 DNS。": "The balance server address could not be resolved. Check the network and DNS.",
     "服务商返回了无法识别的余额响应。": "The provider returned an unrecognized balance response.",
-    "OpenRouter 余额接口可能要求管理权限，普通推理 Key 可能返回 403。无需为了查询余额将推理 Key 换成管理 Key。": "The OpenRouter balance endpoint may require management permissions; ordinary inference keys may return 403. You do not need to replace an inference key with a management key just to query the balance."
+    "OpenRouter 余额接口可能要求管理权限，普通推理 Key 可能返回 403。无需为了查询余额将推理 Key 换成管理 Key。": "The OpenRouter balance endpoint may require management permissions; ordinary inference keys may return 403. You do not need to replace an inference key with a management key just to query the balance.",
+    "报告树": "Report tree",
+    "上一级": "Up one level",
+    "全部邮箱": "All mailboxes",
+    "未知邮箱": "Unknown mailbox",
+    "部分旧报告未能整理到新目录；原文件已保留，其他功能可继续使用。": "Some older reports could not be organized into the new folders. Original files were retained; other features remain available."
   },
   "templates": [
     {

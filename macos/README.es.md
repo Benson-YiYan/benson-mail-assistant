@@ -34,7 +34,7 @@ El primer inicio elige chino para un sistema chino, español para uno español e
 
 Intervalo predeterminado: 60 segundos; ajustable entre 10 y 86400. La primera comprobación de un buzón nuevo registra su punto de partida y no analiza todo el correo antiguo. Con progreso guardado, al reanudar se comprueban mensajes recibidos durante pausas o apagados si siguen en la carpeta seleccionada.
 
-Los informes nuevos usan `carpeta/fecha/asunto-hora-de-recepción.md`, con fecha y hora de Pekín y nombres sin colisiones. La vista previa admite títulos, negrita, listas anidadas, enlaces, tablas y código; los TXT antiguos siguen disponibles. La búsqueda cubre los datos locales, no todo el servidor. Cambiar de carpeta solo afecta a informes nuevos.
+Los informes nuevos usan `carpeta/cuenta-receptora/fecha/From dirección-remitente/asunto-hora-de-recepción.md`, con fecha y hora de Pekín y nombres sin colisiones. Activa Árbol de informes para navegar por cuenta → fecha → remitente → informe y vuelve con Subir un nivel o la ruta; desactívalo para la lista plana. La búsqueda y los filtros siguen activos. Al iniciar se organizan los informes antiguos identificables y se conservan los vínculos con el correo original y las conversaciones. La vista previa admite títulos, negrita, listas anidadas, enlaces, tablas y código; los TXT antiguos siguen disponibles. La búsqueda cubre los datos locales, no todo el servidor. Cambiar de carpeta solo afecta a informes nuevos.
 
 ## Proxy
 

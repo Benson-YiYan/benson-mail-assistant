@@ -12,6 +12,25 @@ from benson_mail.uninstall import report_files, remove_reports, installation, co
 
 
 class UninstallTests(unittest.TestCase):
+    def test_nested_reports_remove_owned_leaves_without_following_links(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve() / 'reports'
+            sender = root / 'receiver@example.invalid' / '2026-10-21' / 'From sender@example.invalid'
+            sender.mkdir(parents=True)
+            report = sender / 'Example-11-53.md'; report.write_text('report')
+            metadata = report.with_suffix('.mail.json')
+            metadata.write_text(json.dumps({'subject': 'Example', 'sender': 'sender@example.invalid', 'received': '2026-10-21'}))
+            keep = root / 'other-user-files'; keep.mkdir(); (keep / 'contract.md').write_text('keep')
+            outside = Path(temporary) / 'outside'; outside.mkdir()
+            (outside / 'foreign.md').write_text('keep')
+            try: (sender / 'linked').symlink_to(outside, target_is_directory=True)
+            except OSError: pass
+            self.assertEqual(set(report_files(root)), {report, metadata})
+            self.assertEqual(remove_reports(root), 2)
+            self.assertTrue((outside / 'foreign.md').exists())
+            self.assertTrue((keep / 'contract.md').exists())
+            self.assertTrue(root.exists())
+
     def test_native_preparation_is_non_destructive_while_application_runs(self):
         # Staging now precedes the UI's permission-to-exit prompt. It must not
         # acquire the main app mutex or change installation/configuration bytes.

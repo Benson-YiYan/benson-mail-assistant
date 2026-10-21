@@ -272,6 +272,13 @@ def check_profiles():
 
 
 def monitor():
+    from report_layout import migrate_reports
+    try:
+        migration = migrate_reports(BASE, settings())
+        if migration.get('errors'):
+            log('Report layout migration retained reports needing attention; see migration journal')
+    except (OSError, ValueError, RuntimeError):
+        log('Report layout migration unavailable; existing reports retained')
     last_error = None
     log('automatic Markdown monitor started; empty checks never invoke AI')
     next_check = 0

@@ -17,6 +17,11 @@ from urllib.parse import urlsplit
 
 WINDOWS = bool(__package__)
 
+if WINDOWS:
+    from .report_layout import report_files as _report_files, migrate_reports
+else:
+    from report_layout import report_files as _report_files, migrate_reports
+
 def _chat():
     if WINDOWS:
         from . import mail_chat
@@ -390,7 +395,7 @@ def history_preview(root, request, controller=None):
     done = set()
     output = Path(config.get('output_dir') or Path.home() / 'Documents' / '邮件').expanduser()
     if output.is_dir():
-        for path in list(output.glob('*.mail.json')) + list(output.glob('*/*.mail.json')):
+        for path in [p.with_suffix('.mail.json') for p in _report_files(output) if p.with_suffix('.mail.json').is_file()]:
             try:
                 if path.stat().st_size > 4 * 1024 * 1024: continue
                 message = json.loads(path.read_text(encoding='utf-8'))
@@ -465,7 +470,7 @@ def existing_history_report(root, message):
     cached = _SOURCE_INDEX.get(key)
     if cached is None or time.monotonic() - cached[0] > 30:
         index = {}
-        for sidecar in list(output.glob('*.mail.json')) + list(output.glob('*/*.mail.json')):
+        for sidecar in [p.with_suffix('.mail.json') for p in _report_files(output) if p.with_suffix('.mail.json').is_file()]:
             try:
                 if sidecar.stat().st_size > 4 * 1024 * 1024: continue
                 original = json.loads(sidecar.read_text(encoding='utf-8'))
@@ -500,6 +505,7 @@ def consume_history(root, identifier, validity, persist):
 
 def _dispatch(root, request, controller=None):
     action = request.get('action') or request.get('op')
+    if action == 'reports_migrate': return migrate_reports(root, _chat()._config(root), windows=WINDOWS)
     if action in ('reply_draft', 'draft_reply'): return reply_draft(root, request)
     if action in ('draft_save', 'reply_draft_save'): return draft_save(root, request)
     if action in ('usage', 'usage_summary'): return usage_summary(root)

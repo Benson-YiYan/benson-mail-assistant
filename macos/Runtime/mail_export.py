@@ -8,6 +8,7 @@ import sys
 import unicodedata
 from zoneinfo import ZoneInfo
 from runtime_paths import data_home
+from report_layout import report_folder, account_for, migrate_reports
 os.umask(0o077)
 BASE = data_home()
 
@@ -25,9 +26,16 @@ def report_path(message, root=None):
     received = received.astimezone(ZoneInfo('Asia/Shanghai'))
     title = unicodedata.normalize('NFC', message.get('subject') or '无主题')
     title = re.sub(r'[\\/:\x00-\x1f\x7f]', '＿', title).strip(' .')[:80] or '无主题'
-    return root / received.strftime('%Y-%m-%d') / (title + '-' + received.strftime('%H-%M') + '.md')
+    return report_folder(message, root) / (title + '-' + received.strftime('%H-%M') + '.md')
 
 def export(message, answer):
+    config_path = BASE / 'settings.json'
+    config = json.loads(config_path.read_text(encoding='utf-8')) if config_path.exists() else {}
+    message = dict(message)
+    account = account_for(message, config)
+    if account:
+        message['mailbox_account'] = account
+    migrate_reports(BASE, config)
     target = report_path(message)
     target.parent.mkdir(parents=True, exist_ok=True)
     identity = '邮件编号：' + str(message['uid']) + '\n'

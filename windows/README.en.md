@@ -31,7 +31,7 @@ OAuth2 tokens must currently be supplied and replaced manually. The Microsoft he
 - Checks default to 60 seconds; choose any interval from 10 to 86400 seconds.
 - **The first check of a newly added mailbox records its current position. It does not analyze the entire existing inbox.**
 - With saved progress, messages received while paused or offline are checked on resume if still in the selected folder. Pause and wait for current work before editing connection settings.
-- New reports use `selected-folder/date/subject-received-time.md`, with dates and times in Beijing time. Collisions are avoided.
+- Enable **Report tree** to browse mailbox → date → sender → report; use **Up one level** to go back, or switch it off for the flat list. Search and filters apply in both views. New reports use `selected-folder/receiving-account/date/From sender-address/subject-received-time.md`, with dates and times in Beijing time. Collisions are avoided.
 - The preview renders headings, bold, lists, links, tables and code blocks. Existing TXT reports remain readable, searchable and filterable.
 - Search uses locally saved bodies, senders, attachment names and reports. Combine date, sender and attachment filters. It does not scan the remote mailbox.
 - Open report opens the saved file; Open report folder opens its folder.
@@ -60,7 +60,7 @@ Source is in `windows/` on the main branch. See the [development guide](docs/DEV
 
 The interface, installer and uninstaller support **Simplified Chinese, English and Spanish**. First use selects Chinese for Chinese system languages, Spanish for Spanish system languages and English otherwise. You can change it in General settings. Windows Setup offers **Download Simplified Chinese**, **Download English** and **Download Spanish**.
 
-Only installed language packs can be used. Choosing a missing language asks “You have not downloaded this language. Download it now?” Confirm to download; cancelling or a failed download keeps the current language. New reports use the selected language with the same six analysis requirements; existing reports are not translated. The product name is **Email Assistant** in English and **Asistente de correo electrónico** in Spanish.
+Only installed language packs can be used. Choosing a missing language asks “You have not downloaded this language. Download it now?” Confirm to download; cancelling or a failed download keeps the current language. Enable **Report tree** to browse mailbox → date → sender → report; use **Up one level** to go back, or switch it off for the flat list. Search and filters apply in both views. New reports use the selected language with the same six analysis requirements; existing reports are not translated. The product name is **Email Assistant** in English and **Asistente de correo electrónico** in Spanish.
 
 ## Mailbox proxies
 

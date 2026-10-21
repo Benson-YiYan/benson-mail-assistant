@@ -27,6 +27,16 @@ def main():
     import truststore
     os.environ.setdefault('SSL_CERT_FILE', certifi.where())
     truststore.inject_into_ssl()
+    if operation == '--migrate-reports':
+        from report_layout import migrate_reports
+        try:
+            config_path = home / 'settings.json'
+            config = json.loads(config_path.read_text(encoding='utf-8')) if config_path.exists() else {}
+            print(json.dumps({'ok': True, **migrate_reports(home, config)}, ensure_ascii=False))
+        except Exception as error:
+            print(json.dumps({'ok': False, 'error': str(error)}, ensure_ascii=False))
+            raise SystemExit(1)
+        return
     if operation in ('--assistant-tools', '--assistant-features'):
         from assistant_tools import dispatch
         try:

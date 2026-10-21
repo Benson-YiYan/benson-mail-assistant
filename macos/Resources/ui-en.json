@@ -830,7 +830,17 @@
     "余额接口返回了不允许的重定向，查询已停止。": "The balance endpoint returned a disallowed redirect. The query was stopped.",
     "服务商返回的余额数据无效或过大，请稍后重试。": "The provider returned invalid or oversized balance data. Try again later.",
     "账户余额查询失败，请稍后重试。": "The account balance query failed. Try again later.",
-    "OpenRouter 余额接口需要管理权限，普通推理 Key 可能无法查询；不建议为此把推理 Key 换成管理 Key。": "OpenRouter’s balance endpoint requires management permissions. A regular inference key may not work; replacing it with a management key just for balance queries is not recommended."
+    "OpenRouter 余额接口需要管理权限，普通推理 Key 可能无法查询；不建议为此把推理 Key 换成管理 Key。": "OpenRouter’s balance endpoint requires management permissions. A regular inference key may not work; replacing it with a management key just for balance queries is not recommended.",
+    "报告树": "Report tree",
+    "按邮箱、日期、发件人逐层浏览；搜索和筛选仍然生效。": "Browse by account, date and sender; search and filters still apply.",
+    "上一级": "Up one level",
+    "全部邮箱": "All accounts",
+    "选择邮箱": "Choose an account",
+    "选择日期": "Choose a date",
+    "选择发件人": "Choose a sender",
+    "未识别的邮箱": "Unidentified account",
+    "未识别的发件人": "Unidentified sender",
+    "报告目录整理失败，原报告仍保留；请检查运行记录。": "Could not organize report folders. Original reports are retained; check the activity log."
   },
   "templates": [
     {

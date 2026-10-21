@@ -10,6 +10,25 @@ from benson_mail.bridge import Controller
 
 
 class BridgeTests(unittest.TestCase):
+    def test_migration_failure_keeps_controller_available_with_warning(self):
+        with patch('benson_mail.report_layout.migrate_reports', side_effect=OSError('synthetic denied')):
+            controller = Controller(self.root, lambda event: None)
+        controller.config['output_dir'] = str(self.root / 'reports')
+        result = controller.command('config', {})
+        self.assertEqual(result['report_migration']['errors'][0]['error'], 'OSError')
+        self.assertEqual(controller.command('reports', {}), [])
+
+    def test_report_tree_view_preference_persists_without_saving_page_settings(self):
+        before = self.controller.path.read_bytes() if self.controller.path.exists() else None
+        self.assertFalse(self.controller.command('report_view', {})['report_tree'])
+        self.assertTrue(self.controller.command('report_view', {'report_tree': True})['report_tree'])
+        fresh = Controller(self.root, lambda event: None)
+        self.assertTrue(fresh.command('report_view', {})['report_tree'])
+        self.assertFalse(fresh.command('report_view', {'report_tree': False})['report_tree'])
+        after = self.controller.path.read_bytes() if self.controller.path.exists() else None
+        self.assertEqual(before, after)
+        with self.assertRaises(ValueError): fresh.command('report_view', {'report_tree': 'yes'})
+
     def test_sender_policy_bridge_persists_global_settings_and_known_senders(self):
         service = Mock()
         service.config = {}
