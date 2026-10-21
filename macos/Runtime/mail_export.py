@@ -9,6 +9,7 @@ import unicodedata
 from zoneinfo import ZoneInfo
 from runtime_paths import data_home
 from report_layout import report_folder, account_for, migrate_reports
+from report_metadata import read_metadata, write_metadata
 os.umask(0o077)
 BASE = data_home()
 
@@ -47,14 +48,13 @@ def export(message, answer):
         for existing in (candidate, candidate.with_suffix('.txt')):
             if existing.exists() and not existing.read_text(encoding='utf-8').startswith(identity):
                 return True
-        sidecar = candidate.with_suffix('.mail.json')
-        if sidecar.exists():
-            try:
-                saved = json.loads(sidecar.read_text(encoding='utf-8'))
-                return str(saved.get('uid')) != str(message['uid']) or saved.get('mailbox_key', '') != message.get('mailbox_key', '')
-            except (ValueError, OSError):
-                return True
-        return False
+        try:
+            saved = read_metadata(BASE, candidate)
+            return str(saved.get('uid')) != str(message['uid']) or saved.get('mailbox_key', '') != message.get('mailbox_key', '')
+        except FileNotFoundError:
+            return False
+        except (ValueError, OSError):
+            return True
     while conflicts(target):
         count += 1
         suffix = '-' + str(message['uid']) + ('-' + str(count) if count > 1 else '')
@@ -65,10 +65,7 @@ def export(message, answer):
     temp = target.with_suffix('.md.tmp')
     temp.write_text(identity + answer.strip() + '\n', encoding='utf-8')
     temp.replace(target)
-    metadata = target.with_suffix('.mail.json')
-    temporary = metadata.with_suffix('.tmp')
-    temporary.write_text(json.dumps(message, ensure_ascii=False), encoding='utf-8')
-    temporary.replace(metadata)
+    write_metadata(BASE, target, message)
     return target
 
 if __name__ == '__main__':

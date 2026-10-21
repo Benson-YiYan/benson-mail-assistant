@@ -22,6 +22,23 @@ class LocalReportTests(unittest.TestCase):
             self.assertFalse(matches(entry,attachments='无附件'))
             self.assertFalse(matches(entry,start='2026-10-16'))
             self.assertEqual(path.name,'safe-title-09-02.txt')
+    def test_private_metadata_provides_original_search_without_json_in_output(self):
+        from benson_mail.report_metadata import write_metadata, metadata_path
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); home=root/'data'; path=root/'reports'/'owner@example.invalid'/'2026-10-21'/'From sender@example.invalid'/'report-11-53.md'
+            path.parent.mkdir(parents=True); path.write_text('# Summary',encoding='utf-8')
+            write_metadata(home,path,{'subject':'Original subject','sender':'sender@example.invalid','received':'2026-10-21T03:53:00+00:00','body':'Original searchable Zebra','attachments':[{'name':'invoice.pdf'}]})
+            entry=report_entry(path,home)
+            self.assertEqual(entry['title'],'Original subject')
+            self.assertTrue(matches(entry,'Zebra invoice.pdf'))
+            self.assertFalse(list((root/'reports').rglob('*.json')))
+            # A damaged private record must not fall back to stale exported originals.
+            path.with_suffix('.mail.json').write_text(json.dumps({'subject':'Stale secret','body':'stale-original'}),encoding='utf-8')
+            metadata_path(home,path).write_text('{corrupt',encoding='utf-8')
+            entry=report_entry(path,home)
+            self.assertNotEqual(entry['title'],'Stale secret')
+            self.assertFalse(matches(entry,'stale-original'))
+
     def test_legacy_and_missing_metadata(self):
         with tempfile.TemporaryDirectory() as temporary:
             path=Path(temporary)/'2026-10-14'/'test-19-02-UID15-2.txt'

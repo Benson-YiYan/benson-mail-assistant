@@ -18,6 +18,10 @@ import threading
 import time
 
 IS_WINDOWS_PACKAGE = bool(__package__)
+if IS_WINDOWS_PACKAGE:
+    from .report_metadata import read_metadata
+else:
+    from report_metadata import read_metadata
 MAX_CONTEXT = 60000
 MAX_INPUT = 20000
 MAX_SUMMARY = 10000
@@ -211,14 +215,12 @@ def _attachments(files, config):
 
 
 def _mail_context(root, report, config, require_original=False):
-    sidecar = report.with_suffix('.mail.json')
-    if not sidecar.exists():
+    try:
+        message = read_metadata(root, report)
+    except FileNotFoundError:
         if require_original:
             raise _error(config, '缺少原邮件数据，无法可靠回答或重新总结。请先重新获取原邮件；不会根据总结报告猜测原文。', 'Original email data is missing. Retrieve the original message before asking questions or regenerating the report; the generated report cannot substitute for the original.', 'Falta el correo original. Recupéralo antes de hacer preguntas o regenerar el informe; un informe generado no sustituye al original.')
         return {'original_mail_available': False, 'limitation': 'Original mail and attachments are unavailable. Retrieve the original email before asking questions; generated reports cannot substitute for it.'}
-    if sidecar.stat().st_size > 4 * 1024 * 1024:
-        raise ValueError('Original mail metadata exceeds the 4 MB limit; nothing was sent to AI.')
-    message = json.loads(sidecar.read_text(encoding='utf-8'))
     if not isinstance(message, dict) or message.get('unavailable'):
         raise ValueError('Original mail is unavailable; its content cannot be reconstructed.')
     message = dict(message)

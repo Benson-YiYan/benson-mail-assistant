@@ -33,6 +33,7 @@ The Help menu provides the usage guide, authorization-code tutorial, update chec
 
 Checks default to 60 seconds and can be set from 10 to 86400 seconds. **The first check of a new mailbox records its current position; it does not analyze the entire old inbox.** With saved progress, mail received while paused or offline is checked after resuming if still in the selected folder.
 New files use `selected-folder/receiving-account/date/From sender-address/subject-received-time.md`, with Beijing dates and times and collision avoidance. Enable Report tree to browse account → date → sender → report, with an Up button and breadcrumb; disable it for a flat list. Search and filters still apply. Startup organizes identifiable older reports while retaining original-email and conversation links. The preview renders headings, bold, nested lists, links, tables and code. Older TXT reports remain readable, searchable and filterable.
+The report folder contains reports only. Original-message data and attachment indexes are managed in the app’s private data directory; upgrading relocates legacy JSON without changing reports or their source links. Keeping reports when uninstalling also retains their original-message data.
 Search uses locally saved bodies, senders, attachment names and report text, not the whole remote mailbox. Changing the folder affects new reports; older files remain where they were saved.
 
 ## Updates, quitting and uninstall

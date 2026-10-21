@@ -17,7 +17,9 @@ enum ReportTreeSelfTest {
             try fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
             try "# Original report\n\nReport body".write(to: file, atomically: true, encoding: .utf8)
             if let metadata {
-                try JSONSerialization.data(withJSONObject: metadata).write(to: file.deletingPathExtension().appendingPathExtension("mail.json"))
+                let target = ReportMetadata.location(for: file, base: root)
+                try fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try JSONSerialization.data(withJSONObject: metadata).write(to: target)
             }
             return file
         }
@@ -29,6 +31,10 @@ enum ReportTreeSelfTest {
         _ = try write("a@example.com/2026-10-20/From older@example.com/older-10-00.md", metadata: nil)
         _ = try write("2026-10-19/legacy-09-00.txt", metadata: nil)
         _ = try write("unrelated.txt", metadata: nil)
+        guard ((fm.enumerator(at: output, includingPropertiesForKeys: nil)?.allObjects as? [URL]) ?? [])
+            .allSatisfy({ $0.pathExtension.lowercased() != "json" }) else {
+            throw Failure("internal metadata leaked into the readable report folder")
+        }
         let external = root.appendingPathComponent("outside")
         try fm.createDirectory(at: external, withIntermediateDirectories: true)
         try "# Excluded".write(to: external.appendingPathComponent("outside.md"), atomically: true, encoding: .utf8)
@@ -61,7 +67,7 @@ enum ReportTreeSelfTest {
         guard cached.map(\.id) == reports.map(\.id), cached.first(where: { $0.url.lastPathComponent == first.lastPathComponent })?.mailboxAccount == "a@example.com" else {
             throw Failure("report metadata cache lost account identity")
         }
-        return ["recursive report index supports account/date/sender and legacy TXT, reads sidecars without UID headers, excludes symlinks and unrelated files",
+        return ["recursive report index supports account/date/sender and legacy TXT, reads internal original-message data without JSON beside reports, excludes symlinks and unrelated files",
                 "report tree isolates same-UID mailboxes, sorts dates, repairs breadcrumbs, preserves search/date/attachment metadata and cached account identity"]
     }
 }

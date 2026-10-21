@@ -59,6 +59,8 @@ The first folder identifies the added mailbox that received the message. Dates a
 
 Enable Report tree in Mail reports to browse mailbox → date → sender → report. Disable it to return to the flat list. Changing the view does not change where files are saved.
 
+Report folders contain report files only. Original message data and JSON indexes stay in the application's own data folder; indexes stored beside reports by older versions move there automatically. No manual cleanup is needed. Keeping reports during uninstall also retains this internal data so that reading original messages and asking questions can continue after reinstalling.
+
 ## Screenshots
 
 Screenshots show synthetic test messages, not real user mail.

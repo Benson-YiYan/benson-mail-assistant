@@ -19,8 +19,10 @@ WINDOWS = bool(__package__)
 
 if WINDOWS:
     from .report_layout import report_files as _report_files, migrate_reports
+    from .report_metadata import read_metadata
 else:
     from report_layout import report_files as _report_files, migrate_reports
+    from report_metadata import read_metadata
 
 def _chat():
     if WINDOWS:
@@ -395,10 +397,9 @@ def history_preview(root, request, controller=None):
     done = set()
     output = Path(config.get('output_dir') or Path.home() / 'Documents' / '邮件').expanduser()
     if output.is_dir():
-        for path in [p.with_suffix('.mail.json') for p in _report_files(output) if p.with_suffix('.mail.json').is_file()]:
+        for report in _report_files(output):
             try:
-                if path.stat().st_size > 4 * 1024 * 1024: continue
-                message = json.loads(path.read_text(encoding='utf-8'))
+                message = read_metadata(root, report)
                 if str(message.get('mailbox_key', '')) == identifier and str(message.get('uidvalidity', '')) == validity: done.add(int(message['uid']))
             except (OSError, ValueError, KeyError, TypeError): continue
     if WINDOWS:
@@ -470,13 +471,9 @@ def existing_history_report(root, message):
     cached = _SOURCE_INDEX.get(key)
     if cached is None or time.monotonic() - cached[0] > 30:
         index = {}
-        for sidecar in [p.with_suffix('.mail.json') for p in _report_files(output) if p.with_suffix('.mail.json').is_file()]:
+        for report in _report_files(output):
             try:
-                if sidecar.stat().st_size > 4 * 1024 * 1024: continue
-                original = json.loads(sidecar.read_text(encoding='utf-8'))
-                report = sidecar.with_name(sidecar.name[:-10] + '.md')
-                if not report.is_file(): report = report.with_suffix('.txt')
-                if not report.is_file(): continue
+                original = read_metadata(root, report)
                 digest = _fingerprint(original)
                 if digest:
                     index.setdefault(digest, []).append((str(report), original.get('mailbox_key', '')))

@@ -154,24 +154,27 @@ enum ServiceInstaller {
                 // Reports may have been deliberately saved inside the app's data directory.
                 let reports = MailStore.shared.output.standardizedFileURL
                 var retainedSettings = MailStore.shared.settings
+                var retainedMetadata: [String: Data] = [:]
                 if options.deleteReports {
                     try removeReports(in: reports)
-                } else if (reports.path == base.standardizedFileURL.path ||
-                    reports.path.hasPrefix(base.standardizedFileURL.path + "/") ||
-                    reports.path.hasPrefix(Bundle.main.bundleURL.path + "/")), fm.fileExists(atPath: reports.path) {
-                    let preserved = fm.homeDirectoryForCurrentUser.appendingPathComponent("Documents/邮件-卸载保留-" + UUID().uuidString.prefix(8))
-                    try fm.createDirectory(at: preserved, withIntermediateDirectories: true)
-                    // Move recognized report families only: an account directory can also
-                    // contain unrelated files, and the data root contains credentials/config.
-                    if reports.path == base.standardizedFileURL.path {
+                } else {
+                    let needsRelocation = reports.path == base.standardizedFileURL.path ||
+                        reports.path.hasPrefix(base.standardizedFileURL.path + "/") ||
+                        reports.path.hasPrefix(Bundle.main.bundleURL.path + "/")
+                    let preserved = needsRelocation
+                        ? fm.homeDirectoryForCurrentUser.appendingPathComponent("Documents/邮件-卸载保留-" + UUID().uuidString.prefix(8))
+                        : nil
+                    retainedMetadata = try metadataForPreservedReports(in: reports, base: base, relocatedTo: preserved)
+                    if let preserved, fm.fileExists(atPath: reports.path) {
+                        try fm.createDirectory(at: preserved, withIntermediateDirectories: true)
+                        // Only readable reports leave the app-data root. Their original
+                        // message data stays private, re-keyed to the new report paths.
                         try preserveReportFiles(in: reports, to: preserved)
-                    } else {
-                        try fm.removeItem(at: preserved)
-                        try fm.moveItem(at: reports, to: preserved)
+                        retainedSettings.output_dir = preserved.path
                     }
-                    retainedSettings.output_dir = preserved.path
                 }
-                try removeUserData(base: base, preserving: options.preserveConfiguration ? retainedSettings : nil)
+                try removeUserData(base: base, preserving: options.preserveConfiguration ? retainedSettings : nil,
+                                   preservingReportMetadata: retainedMetadata)
                 try fm.trashItem(at: Bundle.main.bundleURL, resultingItemURL: nil)
                 MailStore.shared.uninstalling = true
                 NSApp.terminate(nil)
@@ -236,10 +239,11 @@ enum ServiceInstaller {
         try removeEmptyReportParents(files, root: root)
     }
     /// Used when reports share the application data root. Move only recognized
-    /// report files and paired metadata, preserving their account/date/sender paths.
+    /// readable report files, preserving their account/date/sender paths.
+    /// Call metadataForPreservedReports first to retain original messages privately.
     static func preserveReportFiles(in root: URL, to destination: URL) throws {
         let fm = FileManager.default
-        let files = try reportFiles(in: root)
+        let files = try reportFiles(in: root).filter { ["md", "txt"].contains($0.url.pathExtension.lowercased()) }
         let destinations = files.map { file in file.relative.reduce(destination) { $0.appendingPathComponent($1) } }
         for target in destinations where fm.fileExists(atPath: target.path) { throw CocoaError(.fileWriteFileExists) }
         for (file, target) in zip(files, destinations) {
@@ -248,15 +252,65 @@ enum ServiceInstaller {
         }
         try removeEmptyReportParents(files, root: root)
     }
-    static func removeUserData(base: URL, preserving settings: MailSettings?) throws {
+    /// Retain only metadata belonging to recognized reports, including legacy
+    /// sidecars. Never move implementation files into the readable report tree.
+    static func metadataForPreservedReports(in root: URL, base: URL, relocatedTo destination: URL? = nil) throws -> [String: Data] {
+        let fm = FileManager.default
+        var retained: [String: Data] = [:]
+        for file in try reportFiles(in: root) where ["md", "txt"].contains(file.url.pathExtension.lowercased()) {
+            let internalURL = ReportMetadata.location(for: file.url, base: base)
+            let legacy = file.url.deletingPathExtension().appendingPathExtension("mail.json")
+            let source = ReportMetadata.exists(at: internalURL) ? internalURL : legacy
+            guard ReportMetadata.exists(at: source) else { continue }
+            let bytes = try Data(contentsOf: source)
+            let first = try String(contentsOf: file.url, encoding: .utf8).split(separator: "\n", maxSplits: 1).first ?? ""
+            let uid = first.dropFirst("邮件编号：".count).trimmingCharacters(in: .whitespaces)
+            guard let value = try JSONSerialization.jsonObject(with: bytes) as? NSDictionary,
+                  String(describing: value["uid"] ?? "") == uid else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            if source == internalURL, ReportMetadata.exists(at: legacy) {
+                guard let old = try JSONSerialization.jsonObject(with: Data(contentsOf: legacy)) as? NSDictionary,
+                      value.isEqual(old) else { throw CocoaError(.fileWriteFileExists) }
+            }
+            try fm.createDirectory(at: internalURL.deletingLastPathComponent(), withIntermediateDirectories: true,
+                                   attributes: [.posixPermissions: 0o700])
+            if source != internalURL {
+                try bytes.write(to: internalURL, options: .atomic)
+                try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: internalURL.path)
+                guard try Data(contentsOf: internalURL) == bytes else { throw CocoaError(.fileWriteUnknown) }
+            }
+            // The internal copy has been verified before removing any legacy file.
+            if ReportMetadata.exists(at: legacy) { try fm.removeItem(at: legacy) }
+            let report = destination.map { root in file.relative.reduce(root) { $0.appendingPathComponent($1) } } ?? file.url
+            retained[ReportMetadata.location(for: report, base: base).lastPathComponent] = bytes
+        }
+        return retained
+    }
+    static func removeUserData(base: URL, preserving settings: MailSettings?,
+                               preservingReportMetadata metadata: [String: Data] = [:]) throws {
         let fm = FileManager.default
         // Encode before deleting anything, so invalid settings cannot cause partial preservation.
         let bytes = try settings.map { try JSONEncoder().encode($0) }
+        guard metadata.keys.allSatisfy({ $0.range(of: #"^[a-f0-9]{64}\.json$"#, options: .regularExpression) != nil }) else {
+            throw CocoaError(.fileWriteInvalidFileName)
+        }
         if fm.fileExists(atPath: base.path) { try fm.trashItem(at: base, resultingItemURL: nil) }
-        if let bytes {
+        if bytes != nil || !metadata.isEmpty {
             try fm.createDirectory(at: base, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        }
+        if let bytes {
             try bytes.write(to: base.appendingPathComponent("settings.json"), options: .atomic)
             try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: base.appendingPathComponent("settings.json").path)
+        }
+        if !metadata.isEmpty {
+            let folder = base.appendingPathComponent("report_metadata")
+            try fm.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            for (name, bytes) in metadata {
+                let target = folder.appendingPathComponent(name)
+                try bytes.write(to: target, options: .atomic)
+                try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
+            }
         }
     }
 }

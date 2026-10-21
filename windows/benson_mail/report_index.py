@@ -6,6 +6,7 @@ from datetime import datetime
 from email.utils import parseaddr
 from pathlib import Path
 from .core import BEIJING
+from .report_metadata import read_metadata
 
 def report_paths(directory, suffixes=('.txt', '.md')):
     """Discover both old and nested layouts without following linked folders."""
@@ -22,9 +23,9 @@ def report_paths(directory, suffixes=('.txt', '.md')):
                 found.append(path)
     return found
 
-def report_entry(path):
+def report_entry(path, home=None):
     path=Path(path)
-    try: metadata=json.loads(path.with_suffix('.mail.json').read_text(encoding='utf-8'))
+    try: metadata=read_metadata(home, path) if home is not None else json.loads(path.with_suffix('.mail.json').read_text(encoding='utf-8'))
     except (OSError,ValueError): metadata={}
     stem=path.stem
     suffix=re.search(r'-(\d{2})-(\d{2})(?:-UID\d+(?:-\d+)?)?$',stem)

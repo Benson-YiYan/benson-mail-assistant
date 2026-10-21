@@ -11,6 +11,11 @@ import tempfile
 import time
 import unicodedata
 
+if __package__:
+    from .report_metadata import metadata_path, read_metadata, write_metadata, remove_metadata, migrate_metadata
+else:
+    from report_metadata import metadata_path, read_metadata, write_metadata, remove_metadata, migrate_metadata
+
 BEIJING = timezone(timedelta(hours=8))
 PATH_KEYS = {"report", "saved", "target", "latest_report", "path"}
 
@@ -281,7 +286,7 @@ def _cached_report_metadata(home):
     return found
 
 
-def _restore_legacy_sidecar(source, config, cached):
+def _restore_legacy_sidecar(home, source, config, cached):
     """Recover original metadata only when both the saved path and UID match."""
     identity = _legacy_identity(source)
     if identity is None:
@@ -310,8 +315,7 @@ def _restore_legacy_sidecar(source, config, cached):
         } - {""}
         if len(accounts) == 1:
             metadata["mailbox_account"] = next(iter(accounts))
-    data = json.dumps(metadata, ensure_ascii=False, indent=2).encode("utf-8")
-    _create_complete_file(source.with_suffix(".mail.json"), data)
+    write_metadata(home, source, metadata, replace=False)
     return True
 
 
@@ -319,39 +323,47 @@ def _move_report(home, output, configured_output, item):
     source, target = Path(item["source"]), Path(item["target"])
     if not source.is_relative_to(output) or not target.is_relative_to(output):
         return False
-    old_meta, new_meta = source.with_suffix(".mail.json"), target.with_suffix(".mail.json")
-    for path in (source, target, old_meta, new_meta):
+    for path in (source, target):
         _safe(path, output)
     mapping = {str(source): str(target), str(configured_output / source.relative_to(output)): str(target)}
-    if not source.exists() and target.is_file() and new_meta.is_file():
-        # Recover a crash after deleting the source but before committing the journal.
-        _rewrite_references(home, mapping)
-        if old_meta.is_file():
-            metadata = json.loads(old_meta.read_text(encoding="utf-8"))
+    if not source.exists() and target.is_file():
+        # Older journals may have committed a sibling sidecar before the source deletion.
+        metadata = read_metadata(home, target)
+        write_metadata(home, target, metadata, replace=False)
+        old_sidecar = source.with_suffix(".mail.json")
+        _safe(old_sidecar, output)
+        try:
+            previous = read_metadata(home, source)
+        except FileNotFoundError:
+            previous = None
+        if previous is not None:
             if item["account"]:
-                metadata["mailbox_account"] = item["account"]
-            if json.loads(new_meta.read_text(encoding="utf-8")) != metadata:
-                raise ValueError("Original metadata changed; both copies were retained.")
-            old_meta.unlink()
+                previous["mailbox_account"] = item["account"]
+            if previous != metadata:
+                raise ValueError("Original metadata changed; both records were retained.")
+        _rewrite_references(home, mapping)
+        if old_sidecar.is_file():
+            old_sidecar.unlink()
+        remove_metadata(home, source)
         return True
-    if not source.is_file() or not old_meta.is_file():
+    if not source.is_file():
         return False
-    target.parent.mkdir(parents=True, exist_ok=True)
-    metadata = json.loads(old_meta.read_text(encoding="utf-8"))
+    metadata = read_metadata(home, source)
     if item["account"]:
         metadata["mailbox_account"] = item["account"]
+    target.parent.mkdir(parents=True, exist_ok=True)
     _create_complete_file(target, source.read_bytes())
-    _create_complete_file(new_meta, json.dumps(metadata, ensure_ascii=False, indent=2).encode("utf-8"))
+    write_metadata(home, target, metadata, replace=False)
     _rewrite_references(home, mapping)
     source.unlink()
-    old_meta.unlink()
+    remove_metadata(home, source)
     return True
 
 
 def migrate_reports(home, config, windows=False):
     """Only migrate recognized legacy reports; journal every move before touching data."""
     # Unconfigured startup must not touch the real default report directory.
-    if not config.get("output_dir") and not any(config.get(key) for key in ("mailboxes", "mailbox", "account", "connection")):
+    if not config.get("output_dir"):
         return {"moved": 0, "skipped": 0, "errors": []}
     home = Path(home).expanduser().resolve()
     configured_output = Path(config.get("output_dir") or Path.home() / "Documents" / "邮件").expanduser().absolute()
@@ -359,6 +371,7 @@ def migrate_reports(home, config, windows=False):
     if not output.is_dir():
         return {"moved": 0, "skipped": 0, "errors": []}
     with _migration_lock(home):
+        metadata_migration = migrate_metadata(home, output)
         journal = home / "report-layout-migration.json"
         try:
             state = json.loads(journal.read_text()) if journal.exists() else {"schema_version": 1, "moves": []}
@@ -372,6 +385,7 @@ def migrate_reports(home, config, windows=False):
             return {"moved": 0, "skipped": 0, "errors": [
                 {"source": str(journal), "error": type(error).__name__ + ": migration journal retained"}]}
         known = {item["source"] for item in moves}
+        metadata_conflicts = {item["source"] for item in metadata_migration["errors"]}
         skipped = 0
         cached_metadata = None
         for source in sorted(report_files(output)):
@@ -379,17 +393,19 @@ def migrate_reports(home, config, windows=False):
             if len(relative.parts) > 2 or str(source) in known:
                 continue
             sidecar = source.with_suffix(".mail.json")
-            if _linked(sidecar):
+            if _linked(sidecar) or str(sidecar) in metadata_conflicts:
                 skipped += 1
                 continue
             try:
-                if not sidecar.is_file():
+                try:
+                    message = read_metadata(home, source)
+                except FileNotFoundError:
                     if cached_metadata is None:
                         cached_metadata = _cached_report_metadata(home)
-                    if not _restore_legacy_sidecar(source, config, cached_metadata):
+                    if not _restore_legacy_sidecar(home, source, config, cached_metadata):
                         skipped += 1
                         continue
-                message = json.loads(sidecar.read_text(encoding="utf-8"))
+                    message = read_metadata(home, source)
                 account = account_for(message, config)
                 if account:
                     message["mailbox_account"] = account
@@ -397,7 +413,7 @@ def migrate_reports(home, config, windows=False):
                 folder = report_folder(message, output, day)
                 target = folder / source.name
                 count = 0
-                while (target.exists() or target.with_suffix(".mail.json").exists()
+                while (target.exists() or target.with_suffix(".mail.json").exists() or metadata_path(home, target).exists()
                        or any(item["target"] == str(target) for item in moves)):
                     count += 1
                     target = folder / (source.stem + f"-migrated-{count}" + source.suffix)
@@ -413,7 +429,7 @@ def migrate_reports(home, config, windows=False):
             return {"moved": 0, "skipped": skipped, "errors": [
                 {"source": str(journal), "error": type(error).__name__ + ": no reports moved"}]}
         moved = 0
-        errors = []
+        errors = list(metadata_migration["errors"])
         for item in moves:
             if item["status"] == "done":
                 continue
@@ -438,4 +454,4 @@ def migrate_reports(home, config, windows=False):
             except OSError as error:
                 errors.append({"source": str(journal), "error": type(error).__name__ + ": progress retained on disk"})
                 break
-        return {"moved": moved, "skipped": skipped, "errors": errors}
+        return {"moved": moved, "metadata_moved": metadata_migration["moved"], "skipped": skipped, "errors": errors}

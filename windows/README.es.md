@@ -32,6 +32,8 @@ Preajustes: 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft
 - La primera comprobación registra el punto de partida del buzón; no analiza todos los mensajes antiguos.
 - Con progreso guardado, al reanudar se comprueban los recibidos durante pausas o apagados que permanezcan en la carpeta. Pausa y espera al fin de tareas antes de editar conexiones.
 - Activa **Árbol de informes** para recorrer buzón → fecha → remitente → informe; **Subir un nivel** vuelve atrás y desactivarlo restaura la lista plana. La búsqueda y los filtros funcionan en ambas vistas. Nuevos informes: `carpeta/cuenta-receptora/fecha/From dirección-remitente/asunto-hora-de-recepción.md`, con hora de Pekín y nombres sin colisiones. La vista previa admite títulos, negrita, listas, enlaces, tablas y código. Los TXT antiguos siguen disponibles.
+
+Las carpetas de informes solo contienen documentos. Los índices del correo original y los metadatos de adjuntos se guardan en los datos privados de la aplicación; los JSON junto a informes antiguos se trasladan allí automáticamente. Conservar informes al desinstalar también conserva sus originales privados para reinstalar; al eliminar informes se borran esos originales.
 - Busca en cuerpo, remitente, nombres de adjuntos e informes locales. Combina filtros de fechas, remitente y adjuntos; no se busca en todo el buzón remoto.
 - Abrir informe abre el archivo; Abrir carpeta de informes abre su carpeta.
 

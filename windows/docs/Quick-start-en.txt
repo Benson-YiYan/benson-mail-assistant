@@ -43,6 +43,8 @@ Enable Report tree to browse mailbox → date → sender → report, use Up one 
 Select a report on the left to read it on the right. Open the report or its folder; Mac also offers Copy original, which copies the report’s source text, not a sent email. Search uses locally saved subjects, bodies, senders and attachment names, not the entire remote inbox. Combine receipt-date, sender and attachment filters; clear search or reset filters if nothing matches.
 Drag the report/chat divider to resize the areas. A report can remain readable without its original-email index, but original-dependent chat, drafts and regeneration report an error. Generated summaries never substitute for original evidence.
 
+Report folders contain report documents only. Original-email indexes and extracted attachment metadata are kept in private application data; JSON files beside older reports are moved there automatically. Keeping reports during uninstall also keeps their private originals for reinstall; deleting reports removes those originals too.
+
 8. Regeneration, email chat and context
 Summarize again reprocesses the original message and original attachments with current language and AI settings. Success replaces the report; failure keeps the old report. Charges may apply again.
 In Ask about this email, type a question, optionally Add attachments from the file picker, and send. Each email has a saved conversation that can be restored. Extra files are distinguished from original attachments. Factual answers use the original message body and extracted original attachments; generated reports, previous assistant answers and compressed summaries are not factual evidence. Missing original data causes an explicit error rather than guessing from the summary.

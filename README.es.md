@@ -64,6 +64,8 @@ La primera carpeta identifica el buzón añadido que recibió el mensaje. Las fe
 
 Activa el árbol en Informes de correo para navegar por buzón → fecha → remitente → informe. Desactívalo para volver a la lista plana. Cambiar la vista no cambia la ubicación de los archivos.
 
+Las carpetas de informes solo contienen informes. Los mensajes originales y los índices JSON se guardan en la carpeta de datos de la aplicación; los índices que las versiones anteriores dejaban junto a los informes se trasladan automáticamente. No hace falta borrarlos ni organizarlos a mano. Conservar los informes al desinstalar también conserva estos datos internos para seguir leyendo los originales y haciendo preguntas después de reinstalar.
+
 ## Proxy del correo
 
 Cada buzón admite Directa, Proxy del sistema, HTTP CONNECT o SOCKS5. En los ajustes del buzón, abre Opciones avanzadas de conexión y proxy. Inicia v2rayN o tu aplicación de proxy e indica su dirección, puerto y protocolo reales; guarda y prueba. 10808 es solo un ejemplo. Un proxy explícito no requiere TUN.

@@ -32,6 +32,8 @@ OAuth2 tokens must currently be supplied and replaced manually. The Microsoft he
 - **The first check of a newly added mailbox records its current position. It does not analyze the entire existing inbox.**
 - With saved progress, messages received while paused or offline are checked on resume if still in the selected folder. Pause and wait for current work before editing connection settings.
 - Enable **Report tree** to browse mailbox → date → sender → report; use **Up one level** to go back, or switch it off for the flat list. Search and filters apply in both views. New reports use `selected-folder/receiving-account/date/From sender-address/subject-received-time.md`, with dates and times in Beijing time. Collisions are avoided.
+
+Report folders contain report documents only. Original-email indexes and extracted attachment metadata are kept in private application data; JSON files beside older reports are moved there automatically. Keeping reports during uninstall also keeps their private originals for reinstall; deleting reports removes those originals too.
 - The preview renders headings, bold, lists, links, tables and code blocks. Existing TXT reports remain readable, searchable and filterable.
 - Search uses locally saved bodies, senders, attachment names and reports. Combine date, sender and attachment filters. It does not scan the remote mailbox.
 - Open report opens the saved file; Open report folder opens its folder.

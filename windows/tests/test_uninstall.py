@@ -31,6 +31,41 @@ class UninstallTests(unittest.TestCase):
             self.assertTrue((keep / 'contract.md').exists())
             self.assertTrue(root.exists())
 
+    def test_private_metadata_identifies_reports_for_delete_and_preserve(self):
+        from benson_mail.report_metadata import write_metadata, metadata_path, read_metadata
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); data=root/'data'; output=root/'reports'
+            report=output/'owner@example.invalid'/'2026-10-21'/'From sender@example.invalid'/'example-11-53.md'
+            report.parent.mkdir(parents=True); report.write_text('Original report',encoding='utf-8')
+            message={'subject':'Example','sender':'sender@example.invalid','received':'2026-10-21','body':'Original email'}
+            private=write_metadata(data,report,message)
+            (data/'secret.bin').write_bytes(b'synthetic-secret')
+            self.assertEqual(report_files(output,data),[report.resolve()])
+            clear_user_data(data,False,True)
+            self.assertTrue(private.is_file());self.assertFalse((data/'secret.bin').exists())
+            self.assertEqual(read_metadata(data,report),message)
+            self.assertEqual(remove_reports(output,data),2)
+            self.assertFalse(report.exists());self.assertFalse(private.exists());self.assertTrue(output.exists())
+
+    def test_preserve_reports_moves_internal_output_and_rekeys_private_original(self):
+        from benson_mail.report_metadata import write_metadata, metadata_path, read_metadata
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); program=root/'BensonMail-202610211200'; (program/'_internal').mkdir(parents=True)
+            data=root/'data'; output=data/'reports'; docs=root/'documents';docs.mkdir()
+            report=output/'owner@example.invalid'/'2026-10-21'/'From sender@example.invalid'/'example-11-53.md'
+            report.parent.mkdir(parents=True);report.write_text('Original report',encoding='utf-8')
+            message={'subject':'Example','sender':'sender@example.invalid','received':'2026-10-21','body':'Original email'}
+            private=write_metadata(data,report,message)
+            (data/'config.json').write_text(json.dumps({'output_dir':str(output)}),encoding='utf-8')
+            with patch('benson_mail.platform_windows.documents_dir',return_value=docs),patch('benson_mail.platform_windows.set_autostart'),patch('benson_mail.platform_windows.remove_uninstall_registration'),patch('benson_mail.uninstall.remove_shortcuts'):
+                cleanup_installation(program,data,False,lambda _:None)
+            moved=next(docs.rglob('*.md'))
+            self.assertEqual(moved.read_text(encoding='utf-8'),'Original report')
+            self.assertEqual(read_metadata(data,moved),message)
+            self.assertFalse(private.exists());self.assertFalse((data/'config.json').exists());self.assertFalse(program.exists())
+            self.assertEqual({p.name for p in data.iterdir()},{'report_metadata'})
+            self.assertFalse(list(docs.rglob('*.json')))
+
     def test_native_preparation_is_non_destructive_while_application_runs(self):
         # Staging now precedes the UI's permission-to-exit prompt. It must not
         # acquire the main app mutex or change installation/configuration bytes.

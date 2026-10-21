@@ -10,6 +10,7 @@ from . import platform_windows as platform
 from .ai_api import complete, identity
 from .core import Service, IMAPMailbox, save_json
 from .report_index import report_entry, matches, report_paths
+from .report_metadata import read_metadata, write_metadata
 from .mailbox_config import PRESETS, normalize, mailbox_id
 MAIL_FIELDS = ('account', 'username', 'host', 'port', 'security', 'mail_folder', 'mail_auth',
                'mail_provider', 'secret_binding', 'mail_secret_file', 'proxy_mode', 'proxy_host', 'proxy_port')
@@ -198,10 +199,9 @@ class Controller:
             senders = set(result.get('senders', []))
             output = self.config.get('output_dir')
             if output:
-                for sidecar in report_paths(output, ('.mail.json',)):
+                for report in report_paths(output):
                     try:
-                        if sidecar.stat().st_size > 4 * 1024 * 1024: continue
-                        message = json.loads(sidecar.read_text(encoding='utf-8'))
+                        message = read_metadata(self.root, report)
                         address = sender_address(message.get('sender') or message.get('from'))
                         if address: senders.add(address)
                     except (OSError, ValueError, AttributeError):
@@ -377,7 +377,7 @@ class Controller:
                            reverse=True) if output else []
             entries = []
             for path in paths:
-                entry = report_entry(path)
+                entry = report_entry(path, self.root)
                 if matches(entry, data.get('query', ''), data.get('sender', ''),
                            data.get('start', ''), data.get('end', ''), data.get('attachments', '全部')):
                     entries.append({k: str(v) if isinstance(v, Path) else v for k, v in entry.items()
@@ -486,7 +486,7 @@ def run(launcher=None, fixture=None):
         report.write_text('1 新邮件提醒\n收到模拟邮件\n2 发件人\n妈妈 <demo@example.invalid>\n'
                           '3 中文摘要\n请检查合同。\n4 具体待办及截止时间\n周五检查并回复。\n'
                           '5 附件实际内容\n合同.pdf：模拟附件文字。\n6 建议回复\n收到，我会检查。', encoding='utf-8')
-        save_json(report.with_suffix('.mail.json'), {'subject': '模拟合同检查', 'sender': 'demo@example.invalid',
+        write_metadata(root, report, {'subject': '模拟合同检查', 'sender': 'demo@example.invalid',
                   'body': '请检查合同正文', 'received': '2026-10-17T01:15:00+00:00',
                   'attachments': [{'name': '合同.pdf'}]})
         controller.config.update(output_dir=str(output.parent), interval=60)

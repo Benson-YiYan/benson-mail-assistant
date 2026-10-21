@@ -130,7 +130,7 @@ class MailChatTests(unittest.TestCase):
         # Use the real export name so a later daemon export exercises identity detection.
         import mail_export
         report.unlink(); report.with_suffix('.mail.json').unlink()
-        with patch.object(mail_export, 'destination', return_value=Path(config['output_dir'])):
+        with patch.object(mail_export, 'BASE', root), patch.object(mail_export, 'destination', return_value=Path(config['output_dir'])):
             report = mail_export.export(source, 'Old report')
         folder = root / 'mailboxes' / source['mailbox_key'] / 'mail_watch' / '42'
         folder.mkdir(parents=True)
@@ -140,7 +140,7 @@ class MailChatTests(unittest.TestCase):
             result = mac.report_retry(root, report)
         self.assertTrue(result['text'].startswith('邮件编号：42\n邮箱标识：abcdef1234\n'))
         self.assertEqual((folder / 'answer.txt').read_text(), '## Regenerated report')
-        with patch.object(mail_export, 'destination', return_value=Path(config['output_dir'])):
+        with patch.object(mail_export, 'BASE', root), patch.object(mail_export, 'destination', return_value=Path(config['output_dir'])):
             again = mail_export.export(source, (folder / 'answer.txt').read_text())
         self.assertEqual(again, report)
         self.assertEqual(len(list(Path(config['output_dir']).rglob('*.md'))), 1)

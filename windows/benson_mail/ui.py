@@ -300,7 +300,7 @@ class Application:
         self.reports.delete(*self.reports.get_children())
         self.report_paths=[]
         for path in paths:
-            entry=report_entry(path)
+            entry=report_entry(path,self.directory)
             if not matches(entry,self.search.get(),self.sender_filter.get(),self.start_day.get(),self.end_day.get(),self.attachment_filter.get()): continue
             self.report_paths.append(path)
             self.reports.insert('', 'end',iid=str(path),values=(entry['title'],entry['sender'],entry['time']))

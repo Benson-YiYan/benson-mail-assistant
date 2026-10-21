@@ -35,7 +35,9 @@ class BridgeTests(unittest.TestCase):
         self.controller.service = service
         day = self.root / 'reports' / 'day'
         day.mkdir(parents=True)
-        (day / 'mail.mail.json').write_text(json.dumps({'sender': 'Known Sender <known@example.invalid>'}), encoding='utf-8')
+        from benson_mail.report_metadata import write_metadata
+        report=day/'mail.md'; report.write_text('Synthetic report',encoding='utf-8')
+        write_metadata(self.root,report,{'sender': 'Known Sender <known@example.invalid>'})
         self.controller.config['output_dir'] = str(day.parent)
         result = self.controller.command('policy_save', {'mode': 'whitelist', 'addresses': ['Benson <allowed@example.invalid>'], 'skip_spam': True})
         expected = {'mode': 'whitelist', 'addresses': ['allowed@example.invalid'], 'skip_spam': True}
@@ -145,9 +147,10 @@ class BridgeTests(unittest.TestCase):
         day.mkdir(parents=True)
         report = day / '标题-09-15.txt'
         report.write_text('模拟六项报告', encoding='utf-8')
-        report.with_suffix('.mail.json').write_text(json.dumps({
+        from benson_mail.report_metadata import write_metadata
+        write_metadata(self.root,report,{
             'subject': '原始标题', 'sender': 'demo@example.invalid', 'body': '合同正文',
-            'received': '2026-10-17T01:15:00+00:00', 'attachments': [{'name': '合同.pdf'}]}), encoding='utf-8')
+            'received': '2026-10-17T01:15:00+00:00', 'attachments': [{'name': '合同.pdf'}]})
         self.controller.config['output_dir'] = str(day.parent)
         entries = self.controller.command('reports', {'query': '合同.pdf', 'attachments': '有附件'})
         self.assertEqual(len(entries), 1)

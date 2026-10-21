@@ -31,8 +31,10 @@ enum ReportIndex {
                 let uid = firstLine.hasPrefix("邮件编号：") ? String(firstLine.dropFirst("邮件编号：".count)).trimmingCharacters(in: .whitespaces) : ""
                 let safeUID = !uid.isEmpty && uid.allSatisfy(\.isNumber)
                 let sidecar = file.deletingPathExtension().appendingPathExtension("mail.json")
+                let internalMetadata = ReportMetadata.location(for: file, base: data.deletingLastPathComponent())
                 var metadataURL = data.appendingPathComponent(safeUID ? uid : "missing").appendingPathComponent("mail.json")
-                if fm.fileExists(atPath: sidecar.path) { metadataURL = sidecar }
+                if ReportMetadata.exists(at: internalMetadata) { metadataURL = internalMetadata }
+                else if ReportMetadata.exists(at: sidecar) { metadataURL = sidecar }
                 else if safeUID {
                     for directory in metadataDirectories {
                         let candidate = directory.appendingPathComponent(uid)
@@ -45,7 +47,7 @@ enum ReportIndex {
                 }
                 let savedURL = metadataURL.deletingLastPathComponent().appendingPathComponent("saved.json")
                 let saved = (try? Data(contentsOf: savedURL)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-                let belongsToReport = metadataURL == sidecar || ((saved?["saved"] as? String).map { $0 == file.path } ?? true)
+                let belongsToReport = metadataURL == internalMetadata || metadataURL == sidecar || ((saved?["saved"] as? String).map { $0 == file.path } ?? true)
                 let metadataModified = belongsToReport ? (try? metadataURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) : nil
                 if let previous, previous.modified == modified, previous.metadataModified == metadataModified { found.append(previous); continue }
                 var report = Report(url: file, modified: modified)

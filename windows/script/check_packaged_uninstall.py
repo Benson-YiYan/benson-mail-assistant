@@ -101,6 +101,13 @@ try:
     config = {'account': 'synthetic@example.invalid', 'host': 'imap.example.invalid',
               'output_dir': str(reports), 'api_base': 'https://example.invalid/v1', 'api_model': 'fixture'}
     (data / 'config.json').write_text(json.dumps(config), encoding='utf-8')
+    # Preserve reports retain their private original-mail record across reinstall.
+    from benson_mail.report_metadata import write_metadata, read_metadata, metadata_path
+    private_report = reports / 'owner@example.invalid' / '2026-10-21' / 'From sender@example.invalid' / 'private-original-11-53.md'
+    private_report.parent.mkdir(parents=True, exist_ok=True)
+    private_report.write_text('Synthetic retained report', encoding='utf-8')
+    private_message = {'subject': 'Retained', 'sender': 'sender@example.invalid', 'received': '2026-10-21', 'body': 'SYNTHETIC-ORIGINAL-FACT'}
+    private_record = write_metadata(data, private_report, private_message)
     platform.save_secret(data / 'secret.bin', config['account'], 'SYNTHETIC-MAIL-CODE')
     api_dir = data / 'api-keys'
     api_dir.mkdir()
@@ -125,6 +132,9 @@ try:
     from benson_mail.bridge import Controller
     reinstalled = Controller(data, lambda _: None)
     assert reinstalled.secret() == 'SYNTHETIC-MAIL-CODE'
+    assert private_record.is_file() and read_metadata(data, private_report) == private_message
+    assert not list(reports.rglob('*.json')), 'Report folders contain only user-facing documents'
+    evidence['checks'].append('Preserved report originals remain in private application data without JSON in report folders and reopen after reinstall')
     evidence['checks'].append('optional preservation reopens mailbox and AI configuration with decryptable DPAPI credentials; cached mail removed')
     result.write_text(json.dumps(evidence, ensure_ascii=False, indent=2), encoding='utf-8')
     process.wait(timeout=10)

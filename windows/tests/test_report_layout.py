@@ -12,10 +12,12 @@ WINDOWS = Path(__file__).resolve().parents[1].name == "windows"
 if WINDOWS:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from benson_mail import report_layout as layout
+    from benson_mail.report_metadata import read_metadata, metadata_path
     from benson_mail.mailbox_config import mailbox_id
 else:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "Runtime"))
     import report_layout as layout
+    from report_metadata import read_metadata, metadata_path
     from mailbox_config import mailbox_id
 
 
@@ -36,6 +38,8 @@ class ReportLayoutTests(unittest.TestCase):
         with patch.object(layout, "report_files", side_effect=AssertionError("must not scan")):
             self.assertEqual(layout.migrate_reports(self.root, {}), {"moved": 0, "skipped": 0, "errors": []})
         self.assertFalse((self.root / "report-layout-migration.json").exists())
+        with patch.object(layout, "migrate_metadata", side_effect=AssertionError("must not touch default output")):
+            self.assertEqual(layout.migrate_reports(self.root, {"account": "test@example.org"})["moved"], 0)
 
     def tearDown(self):
         self.temp.cleanup()
@@ -78,7 +82,7 @@ class ReportLayoutTests(unittest.TestCase):
         target = self.expected().with_suffix(".txt")
         self.assertEqual(result["moved"], 1)
         self.assertEqual(target.read_text(encoding="utf-8"), body)
-        recovered = json.loads(target.with_suffix(".mail.json").read_text(encoding="utf-8"))
+        recovered = read_metadata(self.root, target)
         self.assertEqual(recovered["from"], self.message["from"])
         self.assertEqual(recovered["mailbox_account"], "owner@example.com")
         archived = self.root / "mailbox-archives/old/mail_watch/42/saved.json"
@@ -97,7 +101,7 @@ class ReportLayoutTests(unittest.TestCase):
         self.assertEqual(layout.migrate_reports(self.root, self.config)["moved"], 1)
         target = self.output / "owner@example.com/2026-10-21/From unknown-sender/example-11-53.md"
         self.assertEqual(target.read_text(encoding="utf-8"), body)
-        metadata = json.loads(target.with_suffix(".mail.json").read_text(encoding="utf-8"))
+        metadata = read_metadata(self.root, target)
         self.assertTrue(metadata["unavailable"])
         self.assertEqual(metadata["uid"], "42")
         self.assertEqual(metadata["received_at"], "2026-10-21T11:53:00+08:00")
@@ -144,7 +148,7 @@ class ReportLayoutTests(unittest.TestCase):
         self.assertEqual(result["moved"], 1)
         self.assertFalse(source.exists())
         self.assertEqual(target.read_bytes(), before)
-        self.assertEqual(json.loads(target.with_suffix(".mail.json").read_text(encoding="utf-8"))["mailbox_account"], "owner@example.com")
+        self.assertEqual(read_metadata(self.root, target)["mailbox_account"], "owner@example.com")
         new_hash = hashlib.sha256(os.path.normcase(str(target)).encode()).hexdigest()
         migrated = json.loads((chats / (new_hash + ".json")).read_text(encoding="utf-8"))
         self.assertEqual(migrated["messages"], history["messages"])

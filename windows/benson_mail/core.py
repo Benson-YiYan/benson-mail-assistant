@@ -17,6 +17,7 @@ from pathlib import Path
 from xml.etree import ElementTree
 from .mailbox_config import connect, state_identity, MailConnectionError, mail_error, normalize, IMAP_ERROR, require_ok
 from .report_layout import report_folder
+from .report_metadata import metadata_path, write_metadata
 
 BEIJING = timezone(timedelta(hours=8))
 MAX_ATTACHMENT = 20 * 1024 * 1024
@@ -176,7 +177,7 @@ def extract_message(raw, received):
     return {'subject':str(msg.get('Subject',_t('无标题'))), 'sender':str(msg.get('From',_t('未知发件人'))), 'body':limited('\n'.join(bodies),120000), 'received':received.astimezone(BEIJING).isoformat(), 'attachments':attachments, **spam_metadata(msg)}
 
 @localized
-def export_report(directory, message, answer, uid, target=None):
+def export_report(directory, message, answer, uid, target=None, metadata_home=None):
     if target is not None:
         path=Path(target)
         if path.exists():
@@ -200,9 +201,9 @@ def export_report(directory, message, answer, uid, target=None):
     for count in range(10000):
         suffix='' if count==0 else f'-UID{uid}'+('' if count==1 else f'-{count}')
         path=folder/(base+suffix+'.md')
-        if not any(candidate.exists() for candidate in (path, path.with_suffix('.txt'), path.with_suffix('.mail.json'))):
+        if not any(candidate.exists() for candidate in (path, path.with_suffix('.txt'), path.with_suffix('.mail.json'))) and not (metadata_home is not None and metadata_path(metadata_home,path).exists()):
             if answer is None: return path
-            try: return export_report(directory,message,answer,uid,target=path)
+            try: return export_report(directory,message,answer,uid,target=path,metadata_home=metadata_home)
             except FileExistsError: continue
     raise OSError(_t('同名文件过多'))
 
@@ -415,9 +416,9 @@ class Service:
         if self.cancel.is_set(): return
         with EXPORT_LOCK:
             if 'target' not in job:
-                job['target']=str(export_report(self.config['output_dir'],job['message'],None,key)); self._persist_job(job, manual)
+                job['target']=str(export_report(self.config['output_dir'],job['message'],None,key,metadata_home=self.root.parent)); self._persist_job(job, manual)
             path=export_report(self.config['output_dir'],job['message'],job['answer'],key,target=job['target'])
-            save_json(path.with_suffix('.mail.json'),job['message'])
+            write_metadata(self.root.parent,path,job['message'])
         completed=self.state.setdefault('completed_notifications',[])
         notice_id=f'{self.identity}:{validity}:{key}:complete'
         notify=notice_id not in completed
