@@ -671,6 +671,7 @@ sealed partial class MainWindow : Window
         ScrollViewer.SetVerticalScrollBarVisibility(preview, ScrollBarVisibility.Auto);
         reports.SelectionChanged += async (_, _) => await Guard(async () =>
         {
+            if (relabelingReportRows) return;
             var generation = ++previewGeneration;
             preview.Text = "";
             ResetConversation();
@@ -931,6 +932,7 @@ sealed partial class MainWindow : Window
     string ReportSender(Report report) => "From " + (string.IsNullOrEmpty(report.sender_email) ? "unknown-sender" : report.sender_email);
     string ReportTreeLabel(int level, string name) => level == 0 && name == "unknown-account" ? L.T("未知邮箱")
         : level == 2 && name == "From unknown-sender" ? "From " + L.T("未知发件人") : name;
+    bool relabelingReportRows;
     void RenderReportRows(string? selected = null)
     {
         reports.Items.Clear();
@@ -1294,7 +1296,10 @@ sealed partial class MainWindow : Window
             RefreshSenderPolicyLanguage();
             RenderSenderPolicyAddresses();
             senderPolicyStatus.Text = L.T(senderPolicyStatus.Text);
-            RenderReportRows(SelectedReport?.path);
+            // Relabel folder rows without firing a new report read or resetting the chat.
+            relabelingReportRows = true;
+            try { RenderReportRows(SelectedReport?.path); }
+            finally { relabelingReportRows = false; }
         } finally { changingLanguage = false; }
     }
     void Restore() { AppWindow.Show(); Activate(); }

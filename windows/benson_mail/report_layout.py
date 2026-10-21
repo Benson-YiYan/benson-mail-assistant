@@ -66,17 +66,24 @@ def report_folder(message, root, fallback_date=None):
             / ("From " + component(sender_address(message), "unknown-sender")))
 
 
+def _linked(path):
+    """Junctions are directory links too, including with os.walk(followlinks=False)."""
+    path = Path(path)
+    is_junction = getattr(path, "is_junction", None)
+    return path.is_symlink() or (is_junction is not None and is_junction())
+
+
 def report_files(root):
-    """Read old and new layouts without traversing symbolic-link directories."""
+    """Read old and new layouts without traversing symbolic links or junctions."""
     root = Path(root)
-    if not root.is_dir():
+    if not root.is_dir() or _linked(root):
         return
     for folder, directories, files in os.walk(root, followlinks=False):
-        directories[:] = [name for name in directories if not (Path(folder) / name).is_symlink()
+        directories[:] = [name for name in directories if not _linked(Path(folder) / name)
                           and not name.startswith(".")]
         for name in files:
             path = Path(folder) / name
-            if path.suffix.lower() in (".md", ".txt") and not path.is_symlink():
+            if path.suffix.lower() in (".md", ".txt") and not _linked(path):
                 yield path
 
 
@@ -160,8 +167,8 @@ def _safe(path, root):
     for candidate in [path, *path.parents]:
         if candidate == root.parent:
             break
-        if candidate.is_symlink():
-            raise ValueError("Report migration does not follow symbolic links.")
+        if _linked(candidate):
+            raise ValueError("Report migration does not follow symbolic links or junctions.")
 
 
 def _patch_paths(value, mapping):
@@ -176,13 +183,13 @@ def _patch_paths(value, mapping):
 def _rewrite_references(home, mapping):
     for directory in ("mail_watch", "mailboxes", "mailbox-archives", "state", "blocked_mail", "reply_drafts", "notifications"):
         folder = home / directory
-        if not folder.is_dir():
+        if not folder.is_dir() or _linked(folder):
             continue
         for parent, directories, files in os.walk(folder, followlinks=False):
-            directories[:] = [name for name in directories if not (Path(parent) / name).is_symlink()]
+            directories[:] = [name for name in directories if not _linked(Path(parent) / name)]
             for name in files:
                 path = Path(parent) / name
-                if path.suffix != ".json" or path.is_symlink():
+                if path.suffix != ".json" or _linked(path):
                     continue
                 # Do not read original messages, attachment text, or credential configuration.
                 if name in ("mail.json", "pending.json", "settings.json", "config.json"):
@@ -195,12 +202,16 @@ def _rewrite_references(home, mapping):
                 if changed != value:
                     _atomic(path, changed)
     chats = home / "mail_chats"
+    if _linked(chats):
+        return
     for old, new in mapping.items():
         old_id = hashlib.sha256(os.path.normcase(old).encode()).hexdigest()
         new_id = hashlib.sha256(os.path.normcase(new).encode()).hexdigest()
         source, target = chats / (old_id + ".json"), chats / (new_id + ".json")
-        if not source.is_file() or source.is_symlink():
+        if not source.is_file() or _linked(source):
             continue
+        if _linked(target):
+            raise ValueError("Conversation migration does not follow symbolic links or junctions.")
         value = json.loads(source.read_text(encoding="utf-8"))
         changed = _patch_paths(value, {old: new})
         if target.exists() and json.loads(target.read_text(encoding="utf-8")) != changed:
@@ -246,16 +257,15 @@ def _cached_report_metadata(home):
     found = {}
     for directory in ("mail_watch", "mailboxes", "mailbox-archives"):
         base = home / directory
-        if not base.is_dir() or base.is_symlink():
+        if not base.is_dir() or _linked(base):
             continue
         for parent, directories, files in os.walk(base, followlinks=False):
-            directories[:] = [name for name in directories if not (Path(parent) / name).is_symlink()
-                              and not (hasattr(Path(parent) / name, "is_junction") and (Path(parent) / name).is_junction())]
+            directories[:] = [name for name in directories if not _linked(Path(parent) / name)]
             if "saved.json" not in files or "mail.json" not in files:
                 continue
             saved, mail = Path(parent) / "saved.json", Path(parent) / "mail.json"
             try:
-                if saved.is_symlink() or mail.is_symlink() or saved.stat().st_size > 65536 or mail.stat().st_size > 4 * 1024 * 1024:
+                if _linked(saved) or _linked(mail) or saved.stat().st_size > 65536 or mail.stat().st_size > 4 * 1024 * 1024:
                     continue
                 reference = json.loads(saved.read_text(encoding="utf-8"))
                 metadata = json.loads(mail.read_text(encoding="utf-8"))
@@ -369,7 +379,7 @@ def migrate_reports(home, config, windows=False):
             if len(relative.parts) > 2 or str(source) in known:
                 continue
             sidecar = source.with_suffix(".mail.json")
-            if sidecar.is_symlink():
+            if _linked(sidecar):
                 skipped += 1
                 continue
             try:

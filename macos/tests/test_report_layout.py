@@ -231,6 +231,37 @@ class ReportLayoutTests(unittest.TestCase):
         self.assertTrue(source.exists())
         self.assertEqual(list(outside.iterdir()), [])
 
+    def test_junctions_are_not_discovered_read_patched_or_used_as_destinations(self):
+        source = self.legacy()
+        linked_reports = self.output / "linked"
+        linked_reports.mkdir()
+        foreign = linked_reports / "foreign.md"; foreign.write_text("Foreign document")
+        linked_cache = self.root / "mail_watch/42"
+        linked_cache.mkdir(parents=True)
+        (linked_cache / "saved.json").write_text(json.dumps({"saved": str(source)}))
+        (linked_cache / "mail.json").write_text(json.dumps(self.message))
+        linked_refs = self.root / "reply_drafts/linked"
+        linked_refs.mkdir(parents=True)
+        reference = linked_refs / "draft.json"
+        original = json.dumps({"report": str(source)})
+        reference.write_text(original)
+        linked_destination = self.output / "owner@example.com"
+        linked_destination.mkdir()
+        blocked = {linked_reports, linked_cache, linked_refs, linked_destination}
+        # Simulate Windows reparse points on any test host without real junctions.
+        with patch.object(Path, "is_junction", new=lambda path: path in blocked, create=True):
+            self.assertEqual(list(layout.report_files(self.output)), [source])
+            self.assertEqual(list(layout.report_files(linked_reports)), [])
+            self.assertEqual(layout._cached_report_metadata(self.root), {})
+            layout._rewrite_references(self.root, {str(source): str(self.expected())})
+            self.assertEqual(reference.read_text(), original)
+            with self.assertRaises(ValueError):
+                layout._safe(self.expected(), self.output)
+            self.assertEqual(layout.migrate_reports(self.root, self.config)["moved"], 0)
+        self.assertTrue(source.is_file())
+        self.assertEqual(foreign.read_text(), "Foreign document")
+        self.assertEqual(list(linked_destination.iterdir()), [])
+
 
 if __name__ == "__main__":
     unittest.main()
