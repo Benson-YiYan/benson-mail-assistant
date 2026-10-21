@@ -652,9 +652,16 @@ sealed partial class MainWindow : Window
         reading.Children.Add(Card(reportBrowser, 4));
         reports.IsItemClickEnabled = true;
         reports.ItemClick += (_, e) => {
-            if (e.ClickedItem is ListViewItem { Tag: ReportFolder folder }) {
+            // WinUI reports the Content of an explicitly supplied ListViewItem
+            // as ClickedItem. Resolve it back to the row holding our folder tag.
+            var clicked = reports.Items.OfType<ListViewItem>().FirstOrDefault(item =>
+                ReferenceEquals(item, e.ClickedItem) || ReferenceEquals(item.Content, e.ClickedItem));
+            if (clicked?.Tag is not ReportFolder folder) return;
+            // Finish the native click/selection event before replacing its items.
+            DispatcherQueue.TryEnqueue(() => {
+                if (exitRequested || reportTree.IsChecked != true || !reports.Items.Contains(clicked)) return;
                 reportTreePath.Add(folder.Name); RenderReportRows();
-            }
+            });
         };
         RenderReportRows();
         var article = new Grid { RowSpacing = 12 };
@@ -1529,17 +1536,7 @@ sealed partial class MainWindow : Window
             reportTree.IsChecked = true;
             Check((await bridge.Call("report_view")).GetProperty("report_tree").GetBoolean(),
                 "Report tree preference persists independently of editable settings pages");
-            reportTreePath.Clear(); RenderReportRows();
-            Check(reports.Items.Count == 1 && ((ListViewItem)reports.Items[0]).Tag is ReportFolder,
-                "Report tree begins with mailbox folders");
-            for (var level = 0; level < 3; level++) {
-                var node = (ReportFolder)((ListViewItem)reports.Items[0]).Tag;
-                reportTreePath.Add(node.Name); RenderReportRows();
-                Check(reportTreePath.Count == level + 1 && reports.Items.Count == 1,
-                    "Report tree drills through mailbox date and sender level " + level);
-            }
-            Check(((ListViewItem)reports.Items[0]).Tag is Report leaf && leaf.path == report.path,
-                "Report tree leaf preserves original report selection and path");
+            await ReportTreePointerSelfTest(Check, report);
             reportTree.IsChecked = false;
             Check(!(await bridge.Call("report_view")).GetProperty("report_tree").GetBoolean(),
                 "Flat report preference persists after disabling the tree");
