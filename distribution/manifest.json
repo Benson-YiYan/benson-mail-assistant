@@ -13,7 +13,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Windows-x64-Setup-202610202319.exe"
       ],
-      "url": "https://tongue-flower-clarke-lotus.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610202319.exe"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Windows-x64-Setup-202610202319.exe"
     },
     "macos-arm64": {
       "version": "202610202318",
@@ -27,7 +27,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Mac-AppleSilicon-202610202318.dmg"
       ],
-      "url": "https://tongue-flower-clarke-lotus.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610202318.dmg"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Mac-AppleSilicon-202610202318.dmg"
     },
     "macos-x86_64": {
       "version": "202610202318",
@@ -41,7 +41,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Mac-Intel-202610202318.dmg"
       ],
-      "url": "https://tongue-flower-clarke-lotus.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610202318.dmg"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Mac-Intel-202610202318.dmg"
     }
   },
   "language_packs": {
@@ -52,7 +52,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-zh-202610202318.json"
       ],
-      "url": "https://tongue-flower-clarke-lotus.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202610202318.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-zh-202610202318.json"
     },
     "windows-en": {
       "version": "202610202318",
@@ -61,7 +61,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-en-202610202318.json"
       ],
-      "url": "https://tongue-flower-clarke-lotus.trycloudflare.com/downloads/BensonMail-Language-windows-en-202610202318.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-en-202610202318.json"
     },
     "windows-es": {
       "version": "202610202318",
@@ -70,7 +70,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-es-202610202318.json"
       ],
-      "url": "https://tongue-flower-clarke-lotus.trycloudflare.com/downloads/BensonMail-Language-windows-es-202610202318.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-windows-es-202610202318.json"
     },
     "macos-zh": {
       "version": "202610202318",
@@ -79,7 +79,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-zh-202610202318.json"
       ],
-      "url": "https://tongue-flower-clarke-lotus.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202610202318.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-zh-202610202318.json"
     },
     "macos-en": {
       "version": "202610202318",
@@ -88,7 +88,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-en-202610202318.json"
       ],
-      "url": "https://tongue-flower-clarke-lotus.trycloudflare.com/downloads/BensonMail-Language-macos-en-202610202318.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-en-202610202318.json"
     },
     "macos-es": {
       "version": "202610202318",
@@ -97,7 +97,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-es-202610202318.json"
       ],
-      "url": "https://tongue-flower-clarke-lotus.trycloudflare.com/downloads/BensonMail-Language-macos-es-202610202318.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261020.4/BensonMail-Language-macos-es-202610202318.json"
     }
   }
 }
