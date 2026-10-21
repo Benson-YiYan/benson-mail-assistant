@@ -51,7 +51,7 @@ sealed partial class MainWindow
             Row(Action(L.T("移除选中地址"), () => RunSenderPolicy(async () => {
                 senderPolicyAddressValues.RemoveAll(address => senderPolicyAddressSelection.Contains(address));
                 await SaveSenderPolicy();
-            })), Action(L.T("保存屏蔽设置"), () => RunSenderPolicy(SaveSenderPolicy))),
+            }))),
             Action(L.T("刷新屏蔽记录"), () => RunSenderPolicy(LoadSenderPolicy)),
             senderPolicyRecordDisclosure, senderPolicyStatus);
         senderPolicyBody.Content = content;
@@ -86,7 +86,8 @@ sealed partial class MainWindow
     {
         var result = await bridge.Call("policy_status");
         if (exitRequested) return;
-        SetSenderPolicy(result);
+        if (senderPolicyLoaded && SettingsDirty("mail") && !loadingSettingsDrafts) { senderPolicySnapshot = result.Clone(); RenderSenderPolicyRecords(); }
+        else SetSenderPolicy(result);
     }
 
     void SetSenderPolicy(JsonElement result)
@@ -115,11 +116,11 @@ sealed partial class MainWindow
         if (senderPolicyAddressValues.Count == 0) senderPolicyAddresses.Children.Add(Note(L.T("名单为空。")));
     }
 
-    async Task SaveSenderPolicy()
+    Task SaveSenderPolicy()
     {
-        await bridge.Call("policy_save", new { mode = senderPolicyMode.SelectedIndex == 1 ? "whitelist" : "blacklist",
-            addresses = senderPolicyAddressValues.ToArray(), skip_spam = senderPolicySpam.IsOn });
-        await LoadSenderPolicy();
+        RenderSenderPolicyAddresses(); RefreshSettingsDirty();
+        senderPolicyStatus.Text = L.T("名单修改尚未保存，请使用本页底部的保存按钮。");
+        return Task.CompletedTask;
     }
 
     async Task AddSenderPolicyAddress()
@@ -233,7 +234,10 @@ sealed partial class MainWindow
             senderPolicyMode.SelectedIndex = 1;
             senderPolicySpam.IsOn = true;
             senderPolicyAddressValues.Add("allowed@example.invalid");
+            var beforeDraft = (await bridge.Call("config")).GetRawText();
             await SaveSenderPolicy();
+            check((await bridge.Call("config")).GetRawText() == beforeDraft, "Sender policy controls stage locally until the single mailbox-page Save");
+            await SaveMail();
             var saved = await bridge.Call("config");
             check(saved.GetProperty("mail_policy").GetProperty("mode").GetString() == "whitelist" &&
                 saved.GetProperty("mail_policy").GetProperty("skip_spam").GetBoolean() &&
@@ -265,7 +269,7 @@ sealed partial class MainWindow
         finally {
             await bridge.Call("policy_save", originalPolicy);
             senderPolicyRecordSelection.Clear();
-            await LoadSenderPolicy();
+            await LoadPageDraft("mail");
         }
     }
 }

@@ -58,10 +58,16 @@ try:
         state['pending'] = sorted(set(state['pending']) | set(fresh))
         state['next_uid'] = max(state['next_uid'], next_uid)
         save(state)
+        from assistant_tools import consume_history, _root
+        def queue_history(uids):
+            state['pending'] = sorted(set(state['pending']) | (set(uids) & available))
+            save(state)
+        consume_history(_root(), identity, validity, queue_history)
         messages = []
         for uid in state['pending']:
             if uid not in available:
-                messages.append({'uid': uid, 'uidvalidity': validity, 'unavailable': True, 'mailbox_key': identity})
+                messages.append({'uid': uid, 'uidvalidity': validity, 'unavailable': True, 'mailbox_key': identity,
+                                 'mailbox_account': connection['account']})
                 continue
             status, data = client.uid('fetch', str(uid), '(INTERNALDATE BODY.PEEK[] FLAGS)')
             if status != 'OK':
@@ -98,7 +104,7 @@ try:
                         bodies.append({'type': part.get_content_type(), 'text': (part.get_payload(decode=True) or b'').decode('utf-8', errors='replace')})
             from mail_policy import spam_metadata
             metadata = spam_metadata(msg, fetched[0].decode('utf-8', errors='replace'), connection.get('mail_folder', 'INBOX'))
-            messages.append({**metadata, 'uidvalidity': validity, 'uid': uid, 'mailbox_key': identity, 'from': str(msg.get('From', '')), 'subject': str(msg.get('Subject', '')), 'date': str(msg.get('Date', '')), 'received_at': received_at, 'reply_to': str(msg.get('Reply-To', '')), 'bodies': bodies, 'attachments': attachments})
+            messages.append({**metadata, 'uidvalidity': validity, 'uid': uid, 'mailbox_key': identity, 'mailbox_account': connection['account'], 'from': str(msg.get('From', '')), 'subject': str(msg.get('Subject', '')), 'date': str(msg.get('Date', '')), 'received_at': received_at, 'reply_to': str(msg.get('Reply-To', '')), 'bodies': bodies, 'attachments': attachments})
         report = ROOT / 'pending.json'
         report.write_text(json.dumps(messages, ensure_ascii=False, indent=2))
         report.chmod(0o600)

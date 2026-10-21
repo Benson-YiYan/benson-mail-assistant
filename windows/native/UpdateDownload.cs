@@ -97,64 +97,89 @@ sealed class UpdateDownload : IDisposable
                 try { return await DownloadFrom(release, sources[index], progress, cancellation).ConfigureAwait(false); }
                 catch (Exception error) when (!cancellation.IsCancellationRequested && index + 1 < sources.Count &&
                     error is HttpRequestException or TimeoutException or IOException) {
-                    // Each attempt deletes its own .part file; never combine bytes across sources.
+                    // Partial data is bound to this package and source; a later retry can resume it.
                 }
             }
             throw new IOException("No update download source completed.");
         }
         finally { gate.Release(); }
     }
+    string PartialPath(UpdateRelease release, Uri url)
+    {
+        // Separate each mirror so bytes from independent sources are never mixed.
+        var source = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(url.AbsoluteUri)))[..16];
+        return Path.Combine(cache, "update-" + release.Version + "-" + release.Sha256.ToLowerInvariant() + "-" + source + ".part");
+    }
     async Task<VerifiedUpdate> DownloadFrom(UpdateRelease release, Uri url, IProgress<DownloadProgress>? progress, CancellationToken cancellation)
     {
-        string? partial = null;
+        var partial = PartialPath(release, url);
+        var destination = Path.Combine(cache, "BensonMail-Setup-" + release.Version + "-" + release.Sha256.ToLowerInvariant() + ".exe");
         try {
-            // A unique partial file is never executable. Only a fully verified payload is promoted.
-            partial = System.IO.Path.Combine(cache, Guid.NewGuid().ToString("N") + ".part");
-            var destination = System.IO.Path.Combine(cache, "BensonMail-Setup-" + release.Version + "-" + release.Sha256.ToLowerInvariant() + ".exe");
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
-            using var headersTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-            headersTimeout.CancelAfter(TimeSpan.FromSeconds(45));
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headersTimeout.Token).ConfigureAwait(false);
-            ValidateUrl(response.RequestMessage?.RequestUri ?? url);
-            response.EnsureSuccessStatusCode();
-            var declared = response.Content.Headers.ContentLength;
-            if (release.Size is <= 0 or > MaximumBytes || release.Size.HasValue && declared.HasValue && release.Size != declared)
-                throw new InvalidDataException("The update size does not match its manifest.");
-            var total = release.Size ?? declared;
-            if (total is <= 0 or > MaximumBytes) throw new InvalidDataException("The update size is empty or exceeds the 1 GB limit.");
-            await using var source = await response.Content.ReadAsStreamAsync(cancellation).ConfigureAwait(false);
-            long received = 0;
-            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            await using (var output = new FileStream(partial, FileMode.CreateNew, FileAccess.Write, FileShare.None, 131072, true)) {
-                var buffer = new byte[131072];
-                while (true) {
-                    using var idleTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-                    idleTimeout.CancelAfter(TimeSpan.FromSeconds(45));
-                    var count = await source.ReadAsync(buffer.AsMemory(), idleTimeout.Token).ConfigureAwait(false);
-                    if (count == 0) break;
-                    received += count;
-                    if (received > MaximumBytes || total.HasValue && received > total.Value)
-                        throw new InvalidDataException("The update exceeds its declared or allowed size.");
-                    hash.AppendData(buffer, 0, count);
-                    await output.WriteAsync(buffer.AsMemory(0, count), cancellation).ConfigureAwait(false);
-                    progress?.Report(new(received, total, url.Host));
-                }
-                await output.FlushAsync(cancellation).ConfigureAwait(false);
+            long received = File.Exists(partial) ? new FileInfo(partial).Length : 0;
+            if (received > MaximumBytes || release.Size.HasValue && received > release.Size.Value) {
+                File.Delete(partial); received = 0;
             }
-            cancellation.ThrowIfCancellationRequested();
-            if (received == 0 || total.HasValue && received != total.Value) throw new EndOfStreamException("The update download is incomplete.");
-            var actual = Convert.ToHexString(hash.GetHashAndReset());
-            if (!string.Equals(actual, release.Sha256, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("SHA256 verification failed. The downloaded installer was discarded.");
-            File.Move(partial, destination, true); partial = null;
+            var complete = release.Size.HasValue && received == release.Size.Value;
+            if (!complete) {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
+                request.Headers.AcceptEncoding.ParseAdd("identity");
+                if (received > 0) request.Headers.Range = new RangeHeaderValue(received, null);
+                using var headersTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+                headersTimeout.CancelAfter(TimeSpan.FromSeconds(45));
+                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headersTimeout.Token).ConfigureAwait(false);
+                ValidateUrl(response.RequestMessage?.RequestUri ?? url);
+                response.EnsureSuccessStatusCode();
+                var range = response.Content.Headers.ContentRange;
+                if (response.StatusCode == HttpStatusCode.PartialContent) {
+                    if (range?.From != received || !range.HasLength || release.Size.HasValue && range.Length != release.Size)
+                        throw new InvalidDataException("The resumed update range does not match its manifest.");
+                }
+                else {
+                    // A server may ignore Range. Truncate before writing its complete response.
+                    received = 0;
+                }
+                var declared = response.Content.Headers.ContentLength;
+                var total = release.Size ?? range?.Length ?? declared;
+                if (total is <= 0 or > MaximumBytes || declared.HasValue && total.HasValue && received + declared.Value != total.Value)
+                    throw new InvalidDataException("The update size does not match its manifest.");
+                await using var source = await response.Content.ReadAsStreamAsync(cancellation).ConfigureAwait(false);
+                await using (var output = new FileStream(partial, received > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 131072, true)) {
+                    progress?.Report(new(received, total, url.Host));
+                    var buffer = new byte[131072];
+                    while (true) {
+                        using var idleTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+                        idleTimeout.CancelAfter(TimeSpan.FromSeconds(45));
+                        var count = await source.ReadAsync(buffer.AsMemory(), idleTimeout.Token).ConfigureAwait(false);
+                        if (count == 0) break;
+                        received += count;
+                        if (received > MaximumBytes || total.HasValue && received > total.Value)
+                            throw new InvalidDataException("The update exceeds its declared or allowed size.");
+                        await output.WriteAsync(buffer.AsMemory(0, count), cancellation).ConfigureAwait(false);
+                        progress?.Report(new(received, total, url.Host));
+                    }
+                    await output.FlushAsync(cancellation).ConfigureAwait(false);
+                }
+                cancellation.ThrowIfCancellationRequested();
+                if (received == 0 || total.HasValue && received != total.Value) throw new EndOfStreamException("The update download is incomplete.");
+            }
+            await using (var file = new FileStream(partial, FileMode.Open, FileAccess.Read, FileShare.Read, 131072, true)) {
+                var actual = Convert.ToHexString(await SHA256.HashDataAsync(file, cancellation).ConfigureAwait(false));
+                if (!string.Equals(actual, release.Sha256, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("SHA256 verification failed. The downloaded installer was discarded.");
+            }
+            File.Move(partial, destination, true);
             return new(release, destination);
+        }
+        catch (InvalidDataException) {
+            // A malformed range, wrong size or bad hash must never be resumed.
+            try { File.Delete(partial); } catch (IOException) { }
+            throw;
         }
         catch (OperationCanceledException error) when (!cancellation.IsCancellationRequested) {
             throw new TimeoutException("The update server did not respond for 45 seconds. Please retry.", error);
         }
-        finally {
-            if (partial != null) { try { File.Delete(partial); } catch (IOException) { } }
-        }
+        // Transport failures and cancellations retain inert .part data for Retry.
     }
     internal static async Task VerifyBeforeInstall(VerifiedUpdate update, CancellationToken cancellation = default)
     {
@@ -226,11 +251,12 @@ sealed class UpdateDownload : IDisposable
         using var bodyCancel = new CancellationTokenSource();
         long partialBytes = 0;
         try {
-            await download.Download(release, new InlineProgress(value => { partialBytes = value.Bytes; bodyCancel.Cancel(); }), bodyCancel.Token);
+            await download.Download(release, new InlineProgress(value => { partialBytes = value.Bytes; if (value.Bytes > 0) bodyCancel.Cancel(); }), bodyCancel.Token);
             throw new Exception("Streaming cancellation ignored");
         } catch (OperationCanceledException) { }
-        Check(partialBytes > 0 && Directory.GetFiles(cache, "*.part").Length == 0,
-            "Cancellation after body bytes have been written removes the incomplete partial installer");
+        Check(partialBytes > 0 && Directory.GetFiles(cache, "*.part").Length > 0,
+            "Cancellation after body bytes retains an inert package-bound partial for retry");
+        foreach (var part in Directory.GetFiles(cache, "*.part")) File.Delete(part);
         try { await download.Download(release with { Size = bytes.Length + 1 }, null, default); throw new Exception("Wrong declared size accepted"); } catch (InvalidDataException) { }
         Check(Directory.GetFiles(cache, "*.part").Length == 0, "Manifest package length is checked against headers and streamed bytes");
         var retry = await download.Download(release, null, default);
@@ -270,9 +296,10 @@ sealed class UpdateDownload : IDisposable
         }))) {
             var recovered = await fallback.Download(multi, new InlineProgress(value => { if (value.SourceHost == alternate.Host) failedPrefix = Math.Max(failedPrefix, value.Bytes); }), default);
             Check(failedPrefix > 0 && fullRequests.SequenceEqual(new[] { alternate.Host, release.Url.Host }) &&
-                File.ReadAllBytes(recovered.Path).SequenceEqual(bytes) && Directory.GetFiles(cache, "*.part").Length == 0,
-                "A transport failure after partial bytes falls back to the other source with a fresh file and SHA256; source bytes are never mixed");
+                File.ReadAllBytes(recovered.Path).SequenceEqual(bytes),
+                "A transport failure falls back with a separate source-bound partial and final SHA256 verification");
         }
+        foreach (var part in Directory.GetFiles(cache, "*.part")) File.Delete(part);
         var fullBeforeBodyCancel = 0;
         using var multiBodyCancel = new CancellationTokenSource();
         using (var bodyCancelled = new UpdateDownload(cache, new FixtureHandler((request, _) => {
@@ -283,9 +310,10 @@ sealed class UpdateDownload : IDisposable
                 await bodyCancelled.Download(multi, new InlineProgress(value => { if (value.Bytes > 0) multiBodyCancel.Cancel(); }), multiBodyCancel.Token);
                 throw new Exception("Multi-source streaming cancellation ignored");
             } catch (OperationCanceledException) { }
-            Check(fullBeforeBodyCancel == 1 && Directory.GetFiles(cache, "*.part").Length == 0,
-                "Cancellation during the selected-source download deletes its partial file and never starts a fallback transfer");
+            Check(fullBeforeBodyCancel == 1,
+                "Cancellation during the selected-source download retains resumable data and never starts a fallback transfer");
         }
+        foreach (var part in Directory.GetFiles(cache, "*.part")) File.Delete(part);
         var fullAfterProbeCancel = 0;
         using var probeCancel = new CancellationTokenSource();
         using (var cancelledProbe = new UpdateDownload(cache, new FixtureHandler(async (request, token) => {
@@ -315,6 +343,52 @@ sealed class UpdateDownload : IDisposable
             catch (InvalidDataException) { }
             Check(fullRequests.Count == 1 && Directory.GetFiles(cache, "*.part").Length == 0,
                 "A mirror cannot bypass SHA256 verification; an integrity failure discards the attempt without executing or mixing sources");
+        }
+        var resumeCache = Path.Combine(folder, "resumable-update-downloads");
+        var resumeCalls = 0;
+        using (var resumable = new UpdateDownload(resumeCache, new FixtureHandler((request, _) => {
+            resumeCalls++;
+            if (resumeCalls == 1) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
+                RequestMessage = request, Content = new StreamContent(new BrokenReadStream(bytes)) });
+            var start = request.Headers.Range?.Ranges.First().From ?? 0;
+            Check(start == 7, "A retry requests exactly the persisted prefix offset");
+            var response = new HttpResponseMessage(HttpStatusCode.PartialContent) {
+                RequestMessage = request, Content = new ByteArrayContent(bytes[(int)start..]) };
+            response.Content.Headers.ContentRange = new ContentRangeHeaderValue(start, bytes.Length - 1, bytes.Length);
+            return Task.FromResult(response);
+        }))) {
+            try { await resumable.Download(release, null, default); throw new Exception("Broken stream accepted"); } catch (IOException) { }
+            Check(Directory.GetFiles(resumeCache, "*.part").Length == 1, "A disconnect retains a nonexecutable source-bound prefix");
+            var resumed = await resumable.Download(release, null, default);
+            await VerifyBeforeInstall(resumed);
+            Check(File.ReadAllBytes(resumed.Path).SequenceEqual(bytes) && Directory.GetFiles(resumeCache, "*.part").Length == 0,
+                "HTTP 206 resume verifies the entire package before atomic promotion");
+        }
+        var restartCache = Path.Combine(folder, "resume-server-ignores-range");
+        using (var broken = new UpdateDownload(restartCache, new FixtureHandler((request, _) => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new StreamContent(new BrokenReadStream(bytes)) })))) {
+            try { await broken.Download(release, null, default); } catch (IOException) { }
+        }
+        using (var restarted = new UpdateDownload(restartCache, new FixtureHandler((request, _) => {
+            Check(request.Headers.Range?.Ranges.First().From == 7, "A new updater instance resumes persisted data after app restart");
+            return Task.FromResult(Response(request));
+        }))) {
+            var recovered = await restarted.Download(release, null, default);
+            Check(File.ReadAllBytes(recovered.Path).SequenceEqual(bytes), "A server ignoring Range safely restarts from zero without duplicating the saved prefix");
+        }
+        var invalidRangeCache = Path.Combine(folder, "resume-invalid-range");
+        var invalidCalls = 0;
+        using (var badRange = new UpdateDownload(invalidRangeCache, new FixtureHandler((request, _) => {
+            if (++invalidCalls == 1) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
+                RequestMessage = request, Content = new StreamContent(new BrokenReadStream(bytes)) });
+            var response = new HttpResponseMessage(HttpStatusCode.PartialContent) { RequestMessage = request, Content = new ByteArrayContent(bytes) };
+            response.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, bytes.Length - 1, bytes.Length);
+            return Task.FromResult(response);
+        }))) {
+            try { await badRange.Download(release, null, default); } catch (IOException) { }
+            try { await badRange.Download(release, null, default); throw new Exception("Invalid resume range accepted"); } catch (InvalidDataException) { }
+            Check(Directory.GetFiles(invalidRangeCache, "*.part").Length == 0 && Directory.GetFiles(invalidRangeCache, "*.exe").Length == 0,
+                "An incorrect HTTP 206 offset discards untrusted partial data and never promotes an installer");
         }
         return checks.ToArray();
     }

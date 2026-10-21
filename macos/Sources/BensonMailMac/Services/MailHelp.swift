@@ -6,6 +6,7 @@ struct MailHelpCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .help) {
             Button(language.translate("使用指南")) { MailHelp.openQuickStart() }
+                .help(language.translate("查看所有功能和设置的逐步说明，包括通知、草稿、邮件问答、历史总结、费用、诊断和更新。"))
             Button(language.translate("如何获取授权码？")) { MailHelp.openAccountGuide() }
             Divider()
             Button(language.translate("检查更新")) {

@@ -8,6 +8,8 @@ import sys
 import unicodedata
 from zoneinfo import ZoneInfo
 from runtime_paths import data_home
+from report_layout import report_folder, account_for, migrate_reports
+from report_metadata import read_metadata, write_metadata
 os.umask(0o077)
 BASE = data_home()
 
@@ -25,9 +27,16 @@ def report_path(message, root=None):
     received = received.astimezone(ZoneInfo('Asia/Shanghai'))
     title = unicodedata.normalize('NFC', message.get('subject') or '无主题')
     title = re.sub(r'[\\/:\x00-\x1f\x7f]', '＿', title).strip(' .')[:80] or '无主题'
-    return root / received.strftime('%Y-%m-%d') / (title + '-' + received.strftime('%H-%M') + '.md')
+    return report_folder(message, root) / (title + '-' + received.strftime('%H-%M') + '.md')
 
 def export(message, answer):
+    config_path = BASE / 'settings.json'
+    config = json.loads(config_path.read_text(encoding='utf-8')) if config_path.exists() else {}
+    message = dict(message)
+    account = account_for(message, config)
+    if account:
+        message['mailbox_account'] = account
+    migrate_reports(BASE, config)
     target = report_path(message)
     target.parent.mkdir(parents=True, exist_ok=True)
     identity = '邮件编号：' + str(message['uid']) + '\n'
@@ -39,14 +48,13 @@ def export(message, answer):
         for existing in (candidate, candidate.with_suffix('.txt')):
             if existing.exists() and not existing.read_text(encoding='utf-8').startswith(identity):
                 return True
-        sidecar = candidate.with_suffix('.mail.json')
-        if sidecar.exists():
-            try:
-                saved = json.loads(sidecar.read_text(encoding='utf-8'))
-                return str(saved.get('uid')) != str(message['uid']) or saved.get('mailbox_key', '') != message.get('mailbox_key', '')
-            except (ValueError, OSError):
-                return True
-        return False
+        try:
+            saved = read_metadata(BASE, candidate)
+            return str(saved.get('uid')) != str(message['uid']) or saved.get('mailbox_key', '') != message.get('mailbox_key', '')
+        except FileNotFoundError:
+            return False
+        except (ValueError, OSError):
+            return True
     while conflicts(target):
         count += 1
         suffix = '-' + str(message['uid']) + ('-' + str(count) if count > 1 else '')
@@ -57,10 +65,7 @@ def export(message, answer):
     temp = target.with_suffix('.md.tmp')
     temp.write_text(identity + answer.strip() + '\n', encoding='utf-8')
     temp.replace(target)
-    metadata = target.with_suffix('.mail.json')
-    temporary = metadata.with_suffix('.tmp')
-    temporary.write_text(json.dumps(message, ensure_ascii=False), encoding='utf-8')
-    temporary.replace(metadata)
+    write_metadata(BASE, target, message)
     return target
 
 if __name__ == '__main__':

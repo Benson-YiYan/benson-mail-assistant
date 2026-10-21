@@ -122,6 +122,33 @@ try {
     $env:PROCESSOR_ARCHITEW6432 = $originalArchitecture6432
     Remove-Item Function:\Get-ItemProperty, Function:\Get-AppxPackage
 
+    # Reproduce the reported signed HRESULT, not a generic MSI error.
+    $reportedFailure = Get-RuntimeExitDetails -2147024448
+    Check ($reportedFailure.HResult -eq '0x800701C0' -and $reportedFailure.Reason -eq 'untrusted_mount_point') 'reported WinUI signed exit code maps to untrusted mount point'
+    Check ((Get-RuntimeExitDetails 1603).Reason -eq 'runtime_exit') 'unrelated runtime errors are not diagnosed as mount-point failures'
+
+    # Exercise the real console process and concurrent output capture without
+    # downloading or installing a runtime. Only publisher validation is mocked.
+    function Get-AuthenticodeSignature { param($LiteralPath); return @{Status='Valid';SignerCertificate=@{Subject='CN=Microsoft, O=Microsoft Corporation, C=US'}} }
+    $console = Join-Path $env:WINDIR 'System32\cmd.exe'
+    $consoleDefinition = @{Label='Synthetic console fixture'; Algorithm='SHA256';Hash=(Get-FileHash $console).Hash;Elevate=$false;Arguments='/d /c "echo synthetic-output & echo synthetic-error 1>&2 & echo CHILD_TEMP=%TEMP% & exit /b 448"'}
+    $junction = Join-Path $fixture 'runtime-junction'
+    $physicalTarget = Join-Path $fixture 'runtime-physical'
+    New-Item -ItemType Directory -Path $physicalTarget | Out-Null
+    New-Item -ItemType Junction -Path $junction -Target $physicalTarget | Out-Null
+    Check ((Get-PhysicalInstallerPath $junction).TrimEnd('\') -eq $physicalTarget.TrimEnd('\')) 'junction paths resolve to their physical directory before runtime execution'
+    $originalTemp = $env:TEMP
+    $consoleExit = Invoke-MicrosoftInstaller $consoleDefinition $console
+    $consoleLog = Get-Content -LiteralPath $script:RuntimeLogPath -Raw
+    Check ($consoleExit -eq 448 -and $consoleLog.Contains('synthetic-output') -and $consoleLog.Contains('synthetic-error')) 'hidden console runtime preserves exit code and both output streams'
+    Check ($consoleLog -match 'Runtime workspace: ([^\r\n]+)' -and $consoleLog.Contains('CHILD_TEMP=' + $Matches[1].Trim())) 'child extraction TEMP uses the resolved runtime workspace'
+    Check ($env:TEMP -eq $originalTemp) 'runtime TEMP override does not modify parent environment'
+    Check (@(Get-ChildItem (Split-Path $script:RuntimeLogPath) -Filter '*-temp' | Where-Object Name -eq (([IO.Path]::GetFileNameWithoutExtension($script:RuntimeLogPath)) + '-temp')).Count -eq 0) 'finished console workspace is removed but diagnostic log remains'
+    Remove-Item -LiteralPath $script:RuntimeLogPath -Force
+    # Remove the junction itself, never recurse through its target.
+    [IO.Directory]::Delete($junction)
+    Remove-Item Function:\Get-AuthenticodeSignature
+
     # Exercise the real install orchestrator. Only OS/network boundaries are mocked.
     $script:fakeState = @{dotnet=$true;winui=$true}
     $script:downloads = New-Object 'Collections.Generic.List[string]'
@@ -156,6 +183,9 @@ try {
     Check ($script:executions -eq $executionsBefore) 'failed download never executes a payload'
     $script:downloadFailure = $false; $script:installCode = 1603
     Expect-Failure { Invoke-PrerequisiteInstall @('dotnet') $fixture } 'exit code 1603' 'Microsoft installer failure is reported'
+    $script:installCode = -2147024448
+    Expect-Failure { Invoke-PrerequisiteInstall @('dotnet') $fixture } '0x800701C0' 'reported WinUI HRESULT is preserved in installation failure text'
+    Check ($script:RuntimeFailure.Reason -eq 'untrusted_mount_point') 'reported failure exposes a stable reason for localized Setup guidance'
     $script:installCode = 0; $script:makeAvailable = $false
     Expect-Failure { Invoke-PrerequisiteInstall @('dotnet') $fixture } 'still unavailable' 'success exit code alone cannot bypass runtime detection'
     foreach ($rebootCode in @(3010,1641)) {

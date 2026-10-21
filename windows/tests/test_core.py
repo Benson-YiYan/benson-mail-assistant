@@ -39,6 +39,19 @@ class CoreTests(unittest.TestCase):
         with mock.patch('benson_mail.core.export_report', side_effect=OSError('fake')):
             with self.assertRaises(OSError): s.check_once()
         self.service().check_once(); self.assertEqual(len(self.calls),1)
+    def test_report_layout_uses_monitored_account_not_message_to_or_login(self):
+        self.config['username'] = 'custom-server-login'
+        self.service().check_once()
+        message = EmailMessage()
+        message['Subject'] = 'Example'; message['From'] = 'Sender <sender@example.com>'
+        message['To'] = 'other-recipient@example.com'; message.set_content('Original body')
+        self.mb.messages[2] = message.as_bytes(), datetime(2026, 10, 21, 3, 53, tzinfo=timezone.utc)
+        self.service().check_once()
+        reports = list((self.root / '报告').rglob('*.md'))
+        self.assertEqual(len(reports), 1)
+        self.assertEqual(reports[0].relative_to(self.root / '报告').as_posix(),
+                         'synthetic@example.com/2026-10-21/From sender@example.com/Example-11-53.md')
+        self.assertEqual(self.calls[0]['mailbox_account'], 'synthetic@example.com')
     def test_validity_reset_baselines(self):
         self.service().check_once(); self.mb.validity='2'; self.mb.messages={10: mail()}; self.service().check_once(); self.assertEqual(self.calls,[])
     def test_account_independent(self):
@@ -46,11 +59,11 @@ class CoreTests(unittest.TestCase):
     def test_filename_collision_and_date(self):
         message=extract_message(*mail('CON:/标题?'))
         p=export_report(self.root,message,'answer',1); q=export_report(self.root,message,'different',2)
-        self.assertNotEqual(p,q); self.assertEqual(p.read_text(encoding='utf-8'),'answer'); self.assertIn('09-02',p.name); self.assertEqual(p.parent.name,'2026-10-14')
+        self.assertNotEqual(p,q); self.assertEqual(p.read_text(encoding='utf-8'),'answer'); self.assertIn('09-02',p.name); self.assertEqual(p.parent.parent.name,'2026-10-14'); self.assertEqual(p.parent.name,'From demo@example.com')
     def test_cancellation_and_monotonic_highwater(self):
         self.service().check_once(); self.mb.messages[2]=mail()
         def cancel(message,stop): stop.set(); return 'discarded'
-        self.service(cancel).check_once(); self.assertFalse(list((self.root/'报告').glob('*/*.md')))
+        self.service(cancel).check_once(); self.assertFalse(list((self.root/'报告').rglob('*.md')))
         self.mb.messages.pop(1); self.service().check_once(); self.assertEqual(len(self.calls),1)
         self.mb.messages={}; self.service().check_once(); self.mb.messages={2:mail()}; self.service().check_once(); self.assertEqual(len(self.calls),1)
     def test_export_recovery_after_written_before_commit(self):
@@ -62,7 +75,7 @@ class CoreTests(unittest.TestCase):
             original()
         with patch.object(s,'persist',side_effect=fail_final):
             with self.assertRaises(OSError): s.check_once()
-        self.service().check_once(); self.assertEqual(len(self.calls),1); self.assertEqual(len(list((self.root/'报告').glob('*/*.md'))),1)
+        self.service().check_once(); self.assertEqual(len(self.calls),1); self.assertEqual(len(list((self.root/'报告').rglob('*.md'))),1)
     def test_office_attachment_and_limits(self):
         import io,zipfile
         from benson_mail.core import attachment_text

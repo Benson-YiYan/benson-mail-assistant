@@ -18,7 +18,7 @@ sealed class UpdateProgress : Grid
     readonly Border fill = new() { CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left,
         Background = new SolidColorBrush(Microsoft.UI.Colors.RoyalBlue), Width = 0 };
     double current;
-    internal double Value { get => current; set { current = Math.Clamp(value, 0, 100); fill.Width = current * 4.2; } }
+    internal double Value { get => current; set { current = Math.Clamp(value, 0, 100); fill.Width = current * (double.IsNaN(Width) ? 420 : Width) / 100; } }
     internal bool IsIndeterminate { get; set; }
     internal UpdateProgress()
     {
@@ -41,6 +41,7 @@ sealed class UpdateDownloadView : IDisposable
     readonly UpdateDownload download;
     readonly Func<VerifiedUpdate, CancellationToken, Task> install;
     CancellationTokenSource? cancellation;
+    internal event Action? Changed;
     internal Task? ActiveTask { get; private set; }
     internal bool Busy => ActiveTask is { IsCompleted: false };
     internal VerifiedUpdate? Verified { get; private set; }
@@ -60,7 +61,8 @@ sealed class UpdateDownloadView : IDisposable
     {
         if (Busy) return;
         cancellation?.Dispose(); cancellation = new();
-        ActiveTask = Run(cancellation.Token);
+        ActiveTask = Run(cancellation.Token); Changed?.Invoke();
+        _ = ActiveTask.ContinueWith(_ => Content.DispatcherQueue.TryEnqueue(() => Changed?.Invoke()), TaskScheduler.Default);
     }
     async Task Run(CancellationToken token)
     {
@@ -74,7 +76,7 @@ sealed class UpdateDownloadView : IDisposable
                 if (!reportProgress || token.IsCancellationRequested) return;
                 if (value.Probing) {
                     Bar.IsIndeterminate = true;
-                    Status.Text = L.T("正在比较下载线路…");
+                    Status.Text = L.T("正在比较下载线路…"); Changed?.Invoke();
                     return;
                 }
                 Bar.IsIndeterminate = !value.Total.HasValue;
@@ -82,7 +84,7 @@ sealed class UpdateDownloadView : IDisposable
                 var amount = (value.Bytes / 1048576.0).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
                 var total = value.Total.HasValue ? " / " + (value.Total.Value / 1048576.0).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) : "";
                 Status.Text = (value.SourceHost == null ? "" : L.T("下载线路：") + value.SourceHost + "\n") +
-                    L.T("已下载：") + amount + total + " MB";
+                    L.T("已下载：") + amount + total + " MB"; Changed?.Invoke();
             });
             Verified = await download.Download(release, progress, token);
             reportProgress = false;
@@ -97,7 +99,7 @@ sealed class UpdateDownloadView : IDisposable
             reportProgress = false;
             CancelButton.Visibility = Visibility.Collapsed;
             Bar.IsIndeterminate = false;
-            DownloadButton.Content = L.T("重试下载"); DownloadButton.IsEnabled = true;
+            DownloadButton.Content = L.T("重试下载"); DownloadButton.IsEnabled = true; Changed?.Invoke();
         }
     }
     internal async Task Install()
@@ -121,7 +123,7 @@ sealed class UpdateDownloadView : IDisposable
                 DownloadButton.Visibility = Visibility.Visible;
             }
         }
-        finally { InstallButton.IsEnabled = true; CancelButton.Visibility = Visibility.Collapsed; CancelButton.Content = L.T("取消下载"); }
+        finally { InstallButton.IsEnabled = true; CancelButton.Visibility = Visibility.Collapsed; CancelButton.Content = L.T("取消下载"); Changed?.Invoke(); }
     }
     internal static async Task<string[]> OfflineUITests(XamlRoot root, string folder)
     {
@@ -150,7 +152,10 @@ sealed class UpdateDownloadView : IDisposable
             Check(view.Verified == null && launches == 0 && view.DownloadButton.IsEnabled,
                 "Native Cancel restores Retry without launching any file");
             Program.Trace("Update fixture starting success case");
-            view.BeginDownload(); await view.ActiveTask!;
+            view.BeginDownload();
+            dialog.Hide(); await showing;
+            Check(view.Busy && launches == 0, "Later dismisses the download dialog without cancelling its active background task or launching the installer");
+            await view.ActiveTask!;
             Check(view.Verified != null && view.Bar.Value == 100 && view.InstallButton.Visibility == Visibility.Visible && launches == 0 && requests == 2,
                 "Native retry finishes with verified-install action; download completion never executes installer");
             var info = UpdateInstall.StartInfo(view.Verified!, @"C:\Users\Fixture User\BensonMail", "en", 12345);

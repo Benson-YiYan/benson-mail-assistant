@@ -45,6 +45,13 @@ final class SenderPolicyStore: ObservableObject {
     @Published private(set) var notice = ""
     private let executor: Executor
     var dirty: Bool { draft != saved }
+    /// A staged page owns its rule. Refreshing records must never edit that rule.
+    var externalDraft: (() -> SenderPolicyRule)?
+    var draftDidEdit: ((SenderPolicyRule) -> Void)?
+    func editDraft(_ update: (inout SenderPolicyRule) -> Void) {
+        guard !busy else { return }
+        update(&draft); draftDidEdit?(draft)
+    }
     var policyDidSave: ((SenderPolicyRule, Bool) throws -> Void)?
 
     init(base: URL, offline: Bool = false, executor: Executor? = nil) {
@@ -79,11 +86,12 @@ final class SenderPolicyStore: ObservableObject {
         }
         for address in normalized where !draft.addresses.contains(address) { draft.addresses.append(address) }
         error = ""; notice = ""
+        draftDidEdit?(draft)
         return true
     }
     func removeAddress(_ address: String) {
         guard !busy else { return }
-        draft.addresses.removeAll { $0 == address }; notice = ""
+        draft.addresses.removeAll { $0 == address }; notice = ""; draftDidEdit?(draft)
     }
     func refresh() async { await perform(SenderPolicyRequest(action: "status"), savesDraft: false) }
     func save() async { await perform(SenderPolicyRequest(action: "save", policy: draft), savesDraft: true) }
@@ -108,7 +116,8 @@ final class SenderPolicyStore: ObservableObject {
             let snapshot = try JSONDecoder().decode(SenderPolicySnapshot.self, from: bytes)
             let preserveDraft = loaded && dirty && !savesDraft
             saved = snapshot.policy
-            if !preserveDraft { draft = snapshot.policy }
+            if let externalDraft { draft = externalDraft() }
+            else if !preserveDraft { draft = snapshot.policy }
             records = snapshot.records; knownSenders = snapshot.senders; loaded = true
             try policyDidSave?(snapshot.policy, savesDraft)
             if savesDraft { notice = "屏蔽规则已保存。" }

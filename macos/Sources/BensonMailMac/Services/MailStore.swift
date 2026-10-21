@@ -9,6 +9,8 @@ final class MailStore: ObservableObject {
     var uninstalling = false
     var updating = false
     lazy var reportConversation = ReportConversationStore(base: base, offline: isTest)
+    lazy var settingsDraft = SettingsDraft(store: self)
+    lazy var assistantTools = AssistantTools(base: base, offline: isTest)
     @Published var workspacePage: WorkspacePage = .reports
     @Published var settings = MailSettings()
     @Published var status = ServiceStatus()
@@ -35,6 +37,8 @@ final class MailStore: ObservableObject {
     private var timer: Timer?
     private var lastScan = Date.distantPast
     private var scanning = false
+    private var reportMigrationPending = false
+    private var reportMigrationStarted = false
     var settingsURL: URL { base.appendingPathComponent("settings.json") }
     var data: URL { base.appendingPathComponent("mail_watch") }
     var output: URL { URL(fileURLWithPath: settings.output_dir) }
@@ -102,6 +106,7 @@ final class MailStore: ObservableObject {
             do { try save() } catch { problem = "无法创建配置：\(error.localizedDescription)" }
         }
         // Load existing settings before migrating the new preference.
+        reportMigrationPending = !isTest
         refresh()
         if settings.ui_language == nil && AppLanguage.shared.canPersistInitialLanguage {
             settings.ui_language = AppLanguage.shared.code
@@ -313,6 +318,17 @@ final class MailStore: ObservableObject {
             if settings.enabled { startWorker() }
         } catch { settings = old; problem = "无法保存监听设置：\(error.localizedDescription)" }
     }
+    var notificationsAllowed: Bool { settings.notifications_enabled && !settings.quiet_hours.contains() }
+    func toggleNotifications() {
+        let previous = settings
+        settings.notifications_enabled.toggle()
+        do { try save() } catch { settings = previous; problem = error.localizedDescription }
+    }
+    func saveQuietHours(_ value: QuietHours) {
+        let previous = settings
+        settings.quiet_hours = value
+        do { try save() } catch { settings = previous; problem = error.localizedDescription }
+    }
     func pauseForUpdate() throws -> Bool {
         let wasEnabled = settings.enabled
         settings.enabled = false
@@ -344,14 +360,35 @@ final class MailStore: ObservableObject {
     func startWorker() {
         guard !isTest else { return }
         working = true
+        let migrate = !reportMigrationStarted
+        if migrate { reportMigrationStarted = true }
         Task {
             let home = base
-            let failure = await Task.detached { () -> String? in
-                do { try ServiceInstaller.launch(base: home); return nil }
-                catch { return error.localizedDescription }
+            let worker = ServiceInstaller.worker
+            let result = await Task.detached { () -> (String?, String?) in
+                var migrationError: String?
+                if migrate {
+                    do {
+                        let process = Process(), output = Pipe()
+                        process.executableURL = worker
+                        process.arguments = ["--home", home.path, "--migrate-reports"]
+                        process.standardOutput = output; process.standardError = FileHandle.nullDevice
+                        try process.run()
+                        let bytes = output.fileHandleForReading.readDataToEndOfFile()
+                        process.waitUntilExit()
+                        let reply = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any]
+                        let errors = reply?["errors"] as? [[String: Any]] ?? []
+                        if process.terminationStatus != 0 || reply?["ok"] as? Bool != true || !errors.isEmpty {
+                            migrationError = reply?["error"] as? String ?? T("报告目录整理失败，原报告仍保留；请检查运行记录。")
+                        }
+                    } catch { migrationError = T("报告目录整理失败，原报告仍保留；请检查运行记录。") }
+                }
+                do { try ServiceInstaller.launch(base: home); return (migrationError, nil) }
+                catch { return (migrationError, error.localizedDescription) }
             }.value
+            if migrate { reportMigrationPending = false; scanReports() }
             working = false
-            if let failure { problem = failure }
+            if let failure = result.1 ?? result.0 { problem = failure }
         }
     }
     nonisolated static func run(_ executable: String, _ arguments: [String]) -> Int32 {
@@ -360,7 +397,7 @@ final class MailStore: ObservableObject {
         do { try process.run(); process.waitUntilExit(); return process.terminationStatus } catch { return -1 }
     }
     func scanReports() {
-        guard !scanning else { return }
+        guard !scanning, !reportMigrationPending else { return }
         scanning = true
         lastScan = Date()
         let directory = output
@@ -383,7 +420,8 @@ final class MailStore: ObservableObject {
         let stamp = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? Date()
         let updated = Report(url: url, modified: stamp, metadataModified: original.metadataModified,
             sender: original.sender, body: original.body, attachmentNames: original.attachmentNames,
-            hasAttachments: original.hasAttachments, text: text, subject: original.subject, receivedAt: original.receivedAt)
+            hasAttachments: original.hasAttachments, text: text, subject: original.subject, receivedAt: original.receivedAt,
+            mailboxAccount: original.mailboxAccount)
         reports = reports.map { $0.id == originalPath ? updated : $0 }
         if selected?.id == originalPath { select(updated) }
     }
@@ -405,6 +443,14 @@ final class MailStore: ObservableObject {
                 self.selected = nil; self.reportText = ""; self.scanReports()
             } catch { self.settings = old; self.problem = "无法使用此文件夹：\(error.localizedDescription)" }
         }
+    }
+    func writeLoginSetting(_ enabled: Bool) throws {
+        guard !isTest else { return }
+        if enabled {
+            let value: [String: Any] = ["Label": "com.benson.mail-ui", "ProgramArguments": ["/usr/bin/open", "-g", Bundle.main.bundlePath, "--args", "--background"], "RunAtLoad": true]
+            try FileManager.default.createDirectory(at: loginURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try PropertyListSerialization.data(fromPropertyList: value, format: .xml, options: 0).write(to: loginURL, options: .atomic)
+        } else if FileManager.default.fileExists(atPath: loginURL.path) { try FileManager.default.removeItem(at: loginURL) }
     }
     func setLogin(_ enabled: Bool) {
         guard !isTest else { return }

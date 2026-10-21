@@ -141,7 +141,7 @@ class RuntimeTests(unittest.TestCase):
         for folder in (one, two):
             (self.root / 'settings.json').write_text(json.dumps({'output_dir': str(folder)}))
             path = exporter.export(message, '六项模拟报告')
-            self.assertEqual(path.parent, folder / '2026-10-15')
+            self.assertEqual(path.parent, folder / 'unknown-account' / '2026-10-15' / 'From unknown-sender')
             self.assertIn('16-03', path.name)
             self.assertIn('六项模拟报告', path.read_text())
 

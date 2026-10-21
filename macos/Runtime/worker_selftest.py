@@ -89,7 +89,8 @@ def conversation_test(home):
     (root / 'settings.json').write_text(json.dumps({'ui_language': 'es', 'output_dir': str(reports)}), encoding='utf-8')
     report = reports / 'synthetic.md'
     report.write_text('Original report', encoding='utf-8')
-    report.with_suffix('.mail.json').write_text(json.dumps({'uid': 456, 'subject': 'Fixture', 'bodies': [{'text': 'Original fact 42'}], 'attachments': []}), encoding='utf-8')
+    from report_metadata import write_metadata
+    write_metadata(root, report, {'uid': 456, 'subject': 'Fixture', 'bodies': [{'text': 'Original fact 42'}], 'attachments': []})
     selected = root / 'notes.txt'
     selected.write_text('User-selected fact 99', encoding='utf-8')
     with patch.object(mail_chat, '_complete', return_value='Informe nuevo') as model:

@@ -24,32 +24,5 @@ struct WorkspaceCard<Content: View>: View {
 
 struct GeneralSettingsPage: View {
     @ObservedObject var store: MailStore
-    @ObservedObject private var language = AppLanguage.shared
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                WorkspaceCard("界面语言") { LanguageSettings() }
-                WorkspaceCard("报告保存位置") {
-                    HStack { Text(store.settings.output_dir).textSelection(.enabled).lineLimit(2); Spacer(); Button(T("浏览……")) { store.chooseFolder() } }
-                    Text(T("新报告保存在所选文件夹／日期／邮件标题-收到时间.md。旧报告保留在原位置。"))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                WorkspaceCard("启动与运行") {
-                    Toggle(T("登录 Mac 时显示菜单栏图标"), isOn: Binding(get: { store.loginEnabled }, set: { store.setLogin($0) }))
-                    Text(T("关闭窗口后继续在菜单栏监听。通过 Dock、菜单或 ⌘Q 退出时，停止后台并保存暂停状态；再次打开后点“开始监听”恢复。"))
-                        .font(.callout).foregroundStyle(.secondary)
-                }
-                WorkspaceCard("软件更新") { UpdateSettings() }
-                WorkspaceCard("帮助") {
-                    Button(T("使用指南")) { MailHelp.openQuickStart() }
-                    Button(T("如何获取授权码？")) { try? MailAccountGuide.open() }
-                }
-                WorkspaceCard("卸载") {
-                    Button(T("卸载邮件小秘书……"), role: .destructive) { if !store.isTest { ServiceInstaller.uninstall(base: store.base) } }
-                    Text(T("停止后台服务并移除应用和缓存。卸载时可分别选择保留配置和邮件报告。"))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }.padding(20)
-        }
-    }
+    var body: some View { StagedSettingsPage(store: store, draft: store.settingsDraft, page: .general) }
 }

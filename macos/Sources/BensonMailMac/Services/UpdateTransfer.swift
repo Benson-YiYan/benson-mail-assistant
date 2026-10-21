@@ -14,6 +14,7 @@ final class UpdateTransfer: NSObject, URLSessionDownloadDelegate, @unchecked Sen
     private var continuation: CheckedContinuation<URL, Error>?
     private var result: Result<URL, Error>?
     private var destination: URL!
+    private var resumeFile: URL?
     private var expectedHash = ""
     private var expectedSize: Int64?
     private var progress: @Sendable (Int64, Int64) -> Void = { _, _ in }
@@ -36,20 +37,26 @@ final class UpdateTransfer: NSObject, URLSessionDownloadDelegate, @unchecked Sen
             let ordered = measured + sources.filter { !measured.contains($0) }
             var lastError: Error = URLError(.cannotConnectToHost)
             for source in ordered {
+              for attempt in 0..<2 {
                 if isCancelled { throw URLError(.cancelled) }
                 let child = UpdateTransfer(configuration: configuration)
                 register(child)
-                try? FileManager.default.removeItem(at: destination.appendingPathExtension("part"))
                 do { return try await child.run(url: source, destination: destination, sha256: sha256, size: size, progress: progress) }
                 catch {
                     if isCancelled || (error as? URLError)?.code == .cancelled { throw URLError(.cancelled) }
                     if case TransferError.invalid = error { throw error }
                     lastError = error
+                    if attempt == 0 { try await Task.sleep(nanoseconds: 250_000_000) }
                 }
+              }
             }
             throw lastError
         }
         self.destination = destination; self.expectedHash = sha256; self.expectedSize = size; self.progress = progress
+        // Resume bytes are scoped to both the immutable package hash and source URL.
+        // Never reuse an opaque resume request across mirrors or releases.
+        let sourceKey = SHA256.hash(data: Data((url.absoluteString + "\n" + sha256).utf8)).map { String(format: "%02x", $0) }.joined()
+        resumeFile = destination.deletingLastPathComponent().appendingPathComponent("resume-" + sourceKey + ".data")
         configuration.timeoutIntervalForRequest = 60
         configuration.timeoutIntervalForResource = 3600
         let queue = OperationQueue(); queue.maxConcurrentOperationCount = 1
@@ -57,7 +64,11 @@ final class UpdateTransfer: NSObject, URLSessionDownloadDelegate, @unchecked Sen
         self.session = session
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
-            let task = session.downloadTask(with: url)
+            let task: URLSessionDownloadTask
+            if let resumeFile, let bytes = try? Data(contentsOf: resumeFile), !bytes.isEmpty, bytes.count <= 8 * 1024 * 1024 {
+                try? FileManager.default.removeItem(at: resumeFile)
+                task = session.downloadTask(withResumeData: bytes)
+            } else { task = session.downloadTask(with: url) }
             lock.lock()
             self.task = task
             let stop = cancelled
@@ -70,7 +81,8 @@ final class UpdateTransfer: NSObject, URLSessionDownloadDelegate, @unchecked Sen
     private func register(_ probe: UpdateProbe) { lock.lock(); probes.append(probe); let stop = cancelled; lock.unlock(); if stop { probe.cancel() } }
     func cancel() {
         lock.lock(); cancelled = true; let current = task; let children = children; let probes = probes; lock.unlock()
-        current?.cancel(); children.forEach { $0.cancel() }; probes.forEach { $0.cancel() }
+        current?.cancel(byProducingResumeData: { [weak self] data in self?.saveResume(data) })
+        children.forEach { $0.cancel() }; probes.forEach { $0.cancel() }
     }
     private var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
@@ -89,7 +101,7 @@ final class UpdateTransfer: NSObject, URLSessionDownloadDelegate, @unchecked Sen
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         do {
             guard let response = downloadTask.response as? HTTPURLResponse else { throw TransferError.invalid("Non-HTTP download response") }
-            guard response.statusCode == 200 else { throw TransferError.transport("HTTP " + String(response.statusCode)) }
+            guard [200, 206].contains(response.statusCode) else { throw TransferError.transport("HTTP " + String(response.statusCode)) }
             guard response.url.map(AppUpdater.secure) == true else { throw TransferError.invalid("Download response URL must use HTTPS") }
             let partial = destination.appendingPathExtension("part")
             try? FileManager.default.removeItem(at: partial)
@@ -104,11 +116,13 @@ final class UpdateTransfer: NSObject, URLSessionDownloadDelegate, @unchecked Sen
                 if isCancelled { throw URLError(.cancelled) }
                 try? FileManager.default.removeItem(at: destination)
                 try FileManager.default.moveItem(at: partial, to: destination)
+                if let resumeFile { try? FileManager.default.removeItem(at: resumeFile) }
                 result = .success(destination)
             } catch { try? FileManager.default.removeItem(at: partial); throw error }
         } catch { result = .failure(error) }
     }
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error { saveResume((error as NSError).userInfo[NSURLSessionDownloadTaskResumeData] as? Data) }
         let value: Result<URL, Error>
         if isCancelled { value = .failure(URLError(.cancelled)) }
         else if let result, case .failure = result { value = result }
@@ -117,6 +131,11 @@ final class UpdateTransfer: NSObject, URLSessionDownloadDelegate, @unchecked Sen
         session.finishTasksAndInvalidate()
         self.session = nil
         lock.lock(); self.task = nil; lock.unlock()
+    }
+    private func saveResume(_ data: Data?) {
+        guard let data, !data.isEmpty, data.count <= 8 * 1024 * 1024, let resumeFile else { return }
+        try? data.write(to: resumeFile, options: .atomic)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: resumeFile.path)
     }
     static func verify(_ file: URL, sha256: String, size: Int64?) throws {
         let values = try file.resourceValues(forKeys: [.fileSizeKey])

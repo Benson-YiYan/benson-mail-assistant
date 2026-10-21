@@ -49,7 +49,7 @@ def self_test(result_path,screenshot):
             events=[]; service=Service(config,secret,directory/'state',events.append,mailbox=box,analyzer=analyze)
             service.check_once(); service.check_once(); assert not calls
             box.messages[1]=True; service.check_once(); service.check_once(); assert len(calls)==1
-            files=list((directory/'中文报告').glob('*/*.md')); assert len(files)==1; assert all(section in files[0].read_text(encoding='utf-8') for section in ('新邮件提醒','发件人','中文摘要','具体待办','附件实际内容','建议回复'))
+            files=list((directory/'中文报告').glob('*/*/From */*.md')); assert len(files)==1; assert all(section in files[0].read_text(encoding='utf-8') for section in ('新邮件提醒','发件人','中文摘要','具体待办','附件实际内容','建议回复'))
             result['checks'].append('synthetic baseline, empty check, six sections, Unicode export, deduplication')
             root=tk.Tk(); app=Application(root,directory/'ui',config,self_test=True)
             app.create_tray()

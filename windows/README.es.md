@@ -31,7 +31,9 @@ Preajustes: 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft
 - Predeterminado: 60 segundos; configurable entre 10 y 86400.
 - La primera comprobación registra el punto de partida del buzón; no analiza todos los mensajes antiguos.
 - Con progreso guardado, al reanudar se comprueban los recibidos durante pausas o apagados que permanezcan en la carpeta. Pausa y espera al fin de tareas antes de editar conexiones.
-- Nuevos informes: `carpeta/fecha/asunto-hora-de-recepción.md`, con hora de Pekín y nombres sin colisiones. La vista previa admite títulos, negrita, listas, enlaces, tablas y código. Los TXT antiguos siguen disponibles.
+- Activa **Árbol de informes** para recorrer buzón → fecha → remitente → informe; **Subir un nivel** vuelve atrás y desactivarlo restaura la lista plana. La búsqueda y los filtros funcionan en ambas vistas. Nuevos informes: `carpeta/cuenta-receptora/fecha/From dirección-remitente/asunto-hora-de-recepción.md`, con hora de Pekín y nombres sin colisiones. La vista previa admite títulos, negrita, listas, enlaces, tablas y código. Los TXT antiguos siguen disponibles.
+
+Las carpetas de informes solo contienen documentos. Los índices del correo original y los metadatos de adjuntos se guardan en los datos privados de la aplicación; los JSON junto a informes antiguos se trasladan allí automáticamente. Conservar informes al desinstalar también conserva sus originales privados para reinstalar; al eliminar informes se borran esos originales.
 - Busca en cuerpo, remitente, nombres de adjuntos e informes locales. Combina filtros de fechas, remitente y adjuntos; no se busca en todo el buzón remoto.
 - Abrir informe abre el archivo; Abrir carpeta de informes abre su carpeta.
 
@@ -61,7 +63,7 @@ Código en `windows/` de este repositorio. Consulta [Desarrollo](docs/DEVELOPMEN
 
 Selecciona un informe y elige Volver a resumir para generar las seis secciones en el idioma actual de la interfaz. Si falla, se conserva el informe anterior. Se utiliza el índice guardado del correo; los informes antiguos sin ese índice muestran una explicación.
 
-Preguntar sobre este correo permite preguntas de seguimiento y archivos adicionales mediante el selector. Cada correo conserva su propia conversación para continuar después. El contexto incluye el correo original, los adjuntos legibles, el informe actual y la conversación. Si crece demasiado, se resumen los turnos antiguos, se mantienen los recientes y se indica la compresión. El resumen no conserva cada palabra; el historial completo permanece guardado localmente. Cita y verifica cifras o frases importantes.
+Preguntar sobre este correo permite preguntas de seguimiento y archivos adicionales mediante el selector. Cada correo conserva su propia conversación para continuar después. Los hechos se basan en el correo original y sus adjuntos legibles. Se incluye la conversación, pero los informes generados, respuestas anteriores y resúmenes comprimidos no son pruebas de hechos. Si crece demasiado, se resumen los turnos antiguos, se mantienen los recientes y se indica la compresión. El resumen no conserva cada palabra; el historial completo permanece guardado localmente. Cita y verifica cifras o frases importantes.
 
 Estas acciones utilizan la IA configurada y pueden generar costes. Los archivos adicionales se leen solo para extraer texto; los archivos ilegibles o demasiado grandes producen un error explícito. No se envían correos. El historial se guarda en los datos locales de la aplicación. Se elimina al desinstalar, aunque conserves la configuración del correo y de IA; copia antes las conversaciones que necesites.
 
@@ -74,3 +76,28 @@ En Buzones y comprobación → Bloquear correos, elige una lista negra o una lis
 Los mensajes omitidos se agrupan por remitente en los registros locales. Puedes resumir uno o varios con el idioma y la IA actuales. Es una excepción para esa ocasión y no cambia las reglas; los fallos conservan el registro. Eliminar registro solo borra el registro local, nunca el correo original. Las reglas afectan a los mensajes nuevos comprobados y no eliminan informes existentes.
 
 Arrastra el divisor entre el informe y la conversación del correo para ajustar el tamaño de ambas áreas.
+
+## Nuevos flujos y mejoras de fiabilidad
+
+- **Borradores de respuesta:** elige tono, idioma e instrucciones, edita destinatario, asunto y cuerpo y guarda localmente o copia. La aplicación nunca envía el borrador automáticamente.
+- **Lectura mejorada de adjuntos:** las imágenes y los PDF escaneados usan primero OCR nativo local; el texto extraído se envía a la IA seleccionada. Hay límites de idioma del sistema, tamaño y calidad; se informa del contenido ilegible y no se garantiza el reconocimiento.
+- **Correos históricos:** selecciona buzón y fechas, consulta la cantidad pendiente y confirma para añadirlos a la cola. Puede generar costes de IA y respeta las reglas de remitentes y spam.
+- **Fuentes y preguntas continuas:** consulta el correo original guardado, el texto extraído y sus limitaciones. Las preguntas usan el correo original y sus adjuntos legibles como evidencia; los informes generados y las respuestas anteriores no sustituyen los originales. Se avisa si faltan fuentes de correos antiguos.
+- **Notificaciones y horario silencioso:** pausa las notificaciones del sistema independientemente de la supervisión. Durante el horario silencioso, incluso de noche, se siguen comprobando correos y guardando informes.
+- **Diagnóstico:** exporta manualmente información operativa sin datos sensibles para resolver problemas; no incluye claves, cuerpos, adjuntos ni conversaciones.
+- **Un guardado por página:** los cambios de buzón, IA y Ajustes generales se aplican al guardar su página. Salir con cambios pendientes pide confirmación. El idioma, la carpeta de informes y el inicio de sesión se gestionan en Ajustes generales.
+- **Descargas en Windows:** Ajustes generales tiene su propia página. Más tarde cierra el diálogo y mantiene la descarga y su progreso en segundo plano; solo Cancelar la detiene. Las interrupciones permiten reintentar o reanudar; se verifican tamaño y SHA256 y la instalación requiere tu acción.
+
+[简体中文完整指南](docs/Quick-start-zh.txt) · [Complete English guide](docs/Quick-start-en.txt) · [Guía completa en español](docs/Quick-start-es.txt)
+
+## Guía de todas las funciones y ajustes
+
+[Guía completa de uso](docs/Quick-start-es.txt)
+
+## Origen de los costes y saldos de cuenta
+
+Abre los registros de uso desde la configuración de IA para ver los tokens de entrada/salida, los costes informados por el proveedor, las estimaciones locales y las llamadas cubiertas por cada origen. El coste del proveedor tiene prioridad por llamada; esa llamada no se incluye en la estimación local. Si falta el coste, se estima con los precios guardados y el uso de tokens; sin datos suficientes se muestra Desconocido. Las monedas se mantienen separadas y no se inventan ni recalculan importes históricos.
+
+El `usage.cost` oficial de OpenRouter se registra en USD. Una API compatible debe devolver explícitamente `usage.cost` con `cost_currency`, o un objeto cost con `amount` y `currency`. Los demás proveedores siguen usando estimaciones. El importe informado no sustituye a la factura final.
+
+Consultar saldo de cuenta solo se ejecuta al pulsar el botón, admite los endpoints oficiales de DeepSeek y OpenRouter y no genera contenido de IA. El saldo pertenece a toda la cuenta y puede incluir otras aplicaciones; sus cambios no se atribuyen a esta aplicación. OpenRouter exige permisos de administración para consultar el saldo, por lo que puede rechazar una clave normal de inferencia. No sustituyas esa clave por una de administración solo para consultar el saldo. Un error no se presenta como saldo cero.

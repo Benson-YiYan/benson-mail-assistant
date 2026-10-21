@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -199,6 +200,9 @@ public sealed class Report
     public string title { get; set; }
     public string sender { get; set; }
     public string time { get; set; }
+    public string account { get; set; } = "";
+    public string day { get; set; } = "";
+    public string sender_email { get; set; } = "";
     public bool? attachments { get; set; }
     public Report(string path, string title, string sender, string time, bool? attachments)
     {
@@ -224,6 +228,9 @@ sealed partial class MainWindow : Window
     readonly TextBlock reportCount = new() { Opacity = .65, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock status = new() { Text = L.T("已暂停"), FontSize = 23, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
     readonly TextBlock detail = new() { Text = L.T("正在加载设置…"), TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
+    readonly TextBlock migrationWarning = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
+        FontSize = 12, Visibility = Visibility.Collapsed };
+    readonly List<(string source, string error)> migrationProblems = new();
     readonly TextBox account = new() { Header = L.T("邮箱地址"), PlaceholderText = "name@example.com" };
     readonly PasswordBox mailSecret = new() { Header = L.T("密码／授权码／OAuth2 访问令牌"), PlaceholderText = L.T("连接信息未变时可留空保留") };
     readonly ComboBox mailProvider = new() { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -254,6 +261,12 @@ sealed partial class MainWindow : Window
     readonly CalendarDatePicker to = new() { Header = L.T("结束日期"), PlaceholderText = L.T("不限"), MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ComboBox attachment = new() { Header = L.T("附件"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ListView reports = new() { SelectionMode = ListViewSelectionMode.Single };
+    readonly CheckBox reportTree = new() { Content = L.T("报告树"), VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock reportBreadcrumb = new() { TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .7 };
+    Button reportTreeUp = null!;
+    readonly List<Report> reportRows = new();
+    readonly List<string> reportTreePath = new();
+    sealed record ReportFolder(string Name);
     readonly MarkdownReportView preview = new() { VerticalAlignment = VerticalAlignment.Stretch };
     readonly Button toggle = new() { Content = L.T("开始监听"), CornerRadius = new CornerRadius(4) };
     readonly Button check = new() { Content = L.T("立即检查"), CornerRadius = new CornerRadius(4) };
@@ -318,7 +331,7 @@ sealed partial class MainWindow : Window
         BuildRight();
         Secondary(check);
         Program.Trace("Right controls");
-        foreach (var text in new[] { pageTitle, reportCount, status, detail })
+        foreach (var text in new[] { pageTitle, reportCount, status, detail, migrationWarning })
             text.FontFamily = MailTypography.Font;
         foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model, harnessPath,
             apiKey, interval, search, sender, from, to, attachment, mailProvider, mailHost, mailPort,
@@ -339,7 +352,7 @@ sealed partial class MainWindow : Window
         tray.BalloonTipClicked += (_, _) => DispatcherQueue.TryEnqueue(Restore);
         AppWindow.Closing += (_, e) =>
         {
-            if (!exiting) { e.Cancel = true; AppWindow.Hide(); }
+            if (!exiting) { e.Cancel = true; DispatcherQueue.TryEnqueue(async () => await Guard(async () => { if (await ConfirmLeaveSettings(PageKey(currentPageIndex))) AppWindow.Hide(); })); }
         };
         L.FixtureHome = fixture;
         bridge = new Bridge(fixture);
@@ -444,7 +457,8 @@ sealed partial class MainWindow : Window
         reportPage.Visibility = index == 0 ? Visibility.Visible : Visibility.Collapsed;
         mailPage.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
         aiPage.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
-        pageTitle.Text = index == 0 ? L.T("邮件报告") : index == 1 ? L.T("邮箱与检查") : L.T("AI 服务");
+        generalPage.Visibility = index == 3 ? Visibility.Visible : Visibility.Collapsed;
+        pageTitle.Text = index == 0 ? L.T("邮件报告") : index == 1 ? L.T("邮箱与检查") : index == 2 ? L.T("AI 服务") : L.T("通用设置");
     }
     void BuildLeft()
     {
@@ -465,7 +479,7 @@ sealed partial class MainWindow : Window
         var brand = Row(new SymbolIcon(Symbol.Mail) { Margin = new Thickness(4, 0, 0, 0) },
             new TextBlock { FontFamily = MailTypography.Font, Text = L.T("邮件小秘书"), FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center });
-        foreach (var (label, symbol) in new[] { (L.T("邮件报告"), Symbol.Mail), (L.T("邮箱与检查"), Symbol.Setting), (L.T("AI 服务"), Symbol.Message) })
+        foreach (var (label, symbol) in new[] { (L.T("邮件报告"), Symbol.Mail), (L.T("邮箱与检查"), Symbol.Setting), (L.T("AI 服务"), Symbol.Message), (L.T("通用设置"), Symbol.Setting) })
         {
             var indicator = new Border { Width = 3, Height = 18, CornerRadius = new CornerRadius(2),
                 Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 95, 184)),
@@ -477,14 +491,12 @@ sealed partial class MainWindow : Window
             navigation.SelectionChanged += (_, _) => indicator.Opacity = item.IsSelected ? 1 : 0;
             navigation.Items.Add(item);
         }
-        var footer = Stack(Action(L.T("打开报告文件夹"), () =>
+        var footer = Stack(Action(L.T("打开报告文件夹"), async () =>
         {
-            Directory.CreateDirectory(folder.Text); Open(folder.Text); return Task.CompletedTask;
-        }), Action(L.T("退出邮件小秘书"), Exit), Note(L.T("无新邮件，不调用 AI。")));
-        navigation.SelectionChanged += (_, _) =>
-        {
-            if (navigation.SelectedIndex >= 0) ShowPage(navigation.SelectedIndex);
-        };
+            var config = await bridge.Call("config"); var path = JsonText(config, "output_dir");
+            Directory.CreateDirectory(path); Open(path);
+        }), Action(L.T("使用指南"), OpenQuickStartGuide), Action(L.T("退出邮件小秘书"), Exit), Note(L.T("无新邮件，不调用 AI。")));
+        navigation.SelectionChanged += async (_, _) => { if (initialized) await Guard(() => NavigateSettings(navigation.SelectedIndex)); else if (navigation.SelectedIndex >= 0) { currentPageIndex = navigation.SelectedIndex; ShowPage(currentPageIndex); } };
         var sidebar = new Grid { Padding = new Thickness(12, 12, 12, 16), RowSpacing = 24 };
         sidebar.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         sidebar.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -502,14 +514,14 @@ sealed partial class MainWindow : Window
         var service = new Grid { ColumnSpacing = 16 };
         service.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         service.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        service.Children.Add(Stack(status, detail));
+        service.Children.Add(Stack(status, detail, migrationWarning));
         toggle.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
-        var serviceActions = Row(toggle, check); serviceActions.VerticalAlignment = VerticalAlignment.Center;
+        var serviceActions = Row(toggle, notificationToggle, check); serviceActions.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(serviceActions, 1); service.Children.Add(serviceActions);
         var serviceCard = Card(service, 16); Grid.SetRow(serviceCard, 1); shell.Children.Add(serviceCard);
         Grid.SetRow(pages, 2); shell.Children.Add(pages);
         pages.Padding = new Thickness(0);
-        pages.Children.Add(reportPage); pages.Children.Add(mailPage); pages.Children.Add(aiPage);
+        pages.Children.Add(reportPage); pages.Children.Add(mailPage); pages.Children.Add(aiPage); pages.Children.Add(generalPage);
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         layout.Children.Add(sidebar);
@@ -525,7 +537,7 @@ sealed partial class MainWindow : Window
         mailAuth.Items.Add(L.T("密码／客户端授权码")); mailAuth.Items.Add(L.T("OAuth2 访问令牌")); mailAuth.SelectedIndex = 0;
         mailProvider.SelectionChanged += (_, _) =>
         {
-            if (changingLanguage || mailProvider.SelectedIndex < 0 || mailProvider.SelectedIndex >= mailPresets.Count) return;
+            if (changingLanguage || loadingMailboxes || loadingSettingsDrafts || mailProvider.SelectedIndex < 0 || mailProvider.SelectedIndex >= mailPresets.Count) return;
             var preset = mailPresets[mailProvider.SelectedIndex];
             if (preset.GetProperty("id").GetString() == "custom") return;
             mailHost.Text = preset.GetProperty("host").GetString() ?? "";
@@ -543,53 +555,33 @@ sealed partial class MainWindow : Window
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
         oauthTokenButton = OAuthTokenButton(mailAuth);
         var advanced = Stack(mailUsername, mailLoginSummary, mailFolder, mailAuth, mailProxy.Panel); advanced.Visibility = Visibility.Collapsed;
-        savedMailboxes.SelectionChanged += async (_, _) =>
-        {
-            if (changingLanguage || loadingMailboxes || savedMailboxes.SelectedIndex < 0) return;
-            await Guard(async () => {
-                await Call("select_mail", new { id = mailboxProfiles[savedMailboxes.SelectedIndex].GetProperty("id").GetString() });
-                await ReloadMailboxes();
-            });
+        savedMailboxes.SelectionChanged += (_, _) => {
+            if (changingLanguage || loadingMailboxes || loadingSettingsDrafts || savedMailboxes.SelectedIndex < 0) return;
+            var selected = savedMailboxes.SelectedIndex; StoreMailboxDraft(); ShowMailboxDraft(selected);
         };
         mailPage.Children.Add(SettingsPage(Stack(
-            Card(Stack(languageChoice, Note(L.T("语言更改立即生效，下次打开时保留。")),
-                Note(L.T("当前版本：" + UpdateClient.InstalledVersion)), Row(updateButton), updateStatus, updateFallbackButton,
-                Note(L.T("每小时自动检查更新；仅提示下载，不会自动安装。")))),
             Card(Stack(Heading(L.T("管理邮箱")), savedMailboxes,
-                Row(Action(L.T("添加邮箱"), async () => {
-                    await Call("select_mail", new { id = "" }); await ReloadMailboxes();
-                }), Action(L.T("启用／暂停此邮箱"), async () => {
-                    if (savedMailboxes.SelectedIndex < 0) throw new InvalidOperationException(L.T("请先选择已添加的邮箱。"));
-                    var profile = mailboxProfiles[savedMailboxes.SelectedIndex];
-                    await Call("mail_enabled", new { id = profile.GetProperty("id").GetString(),
-                        enabled = !(profile.TryGetProperty("monitor_enabled", out var flag) && flag.GetBoolean()) });
-                    await ReloadMailboxes();
-                }), Action(L.T("移除此邮箱"), async () => {
-                    if (savedMailboxes.SelectedIndex < 0) return;
-                    var profile = mailboxProfiles[savedMailboxes.SelectedIndex];
-                    var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("移除此邮箱？"),
-                        Content = L.T("停止此邮箱监听并移出列表，已生成的报告保留。"), PrimaryButtonText = L.T("移除"), CloseButtonText = L.T("取消") };
-                    if (await dialog.ShowAsync() == ContentDialogResult.Primary) {
-                        await Call("remove_mail", new { id = profile.GetProperty("id").GetString() }); await ReloadMailboxes();
-                    }
-                })), Note(L.T("可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。")))),
+                Row(Action(L.T("添加邮箱"), AddMailboxDraft), Action(L.T("启用／暂停此邮箱"), ToggleMailboxDraft), Action(L.T("移除此邮箱"), RemoveMailboxDraft)),
+                Note(L.T("邮箱的添加、移除、启用及连接修改会在保存本页后一起生效。编辑连接前请先暂停监听。")))),
             BuildSenderPolicy(),
+            HistoryAndDiagnosticsCard(),
             Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
                 Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), oauthTokenButton),
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。")))),
-            Card(Stack(Heading(L.T("报告与后台运行")), folder, Action(L.T("浏览……"), PickFolder), startup,
-                Row(interval, Action(L.T("应用间隔"), async () =>
-                {
-                    if (!int.TryParse(interval.Text, out var seconds)) throw new InvalidOperationException(L.T("请填写整数秒数。"));
-                    await Call("interval", new { seconds });
-                }))))),
-            Row(mailSaveButton, Action(L.T("测试邮箱连接"), async () => { await SaveMail(); await Call("test_mail"); }))));
+            Card(Stack(Heading(L.T("检查频率")), interval))),
+            SettingsSaveBar("mail", mailSaveButton, Action(L.T("测试邮箱连接"), () => TestSavedSettings("mail")))));
         aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading(L.T("选择您喜欢的 AI")), provider, apiBase, model, apiKey, harnessPath,
             Row(Action(L.T("检测 Harness"), async () => { var found = await Call("harness_detect", new { path = harnessPath.Text }); harnessPath.Text = found.GetString() ?? ""; }), Action(L.T("浏览 Harness……"), PickHarness)),
-            Row(Action(L.T("查找 Codex"), async () => await Call("codex")), Action(L.T("浏览……"), PickCodex)),
-            Note(L.T("来信及可读取的附件文字交给所选 AI，整理为六项报告。Harness 使用用户已安装的应用及其登录、模型配置，不捆绑或下载运行时。请先在 Harness 中配置；测试连接会发送少量文字。"))))),
-            Row(aiSaveButton, Action(L.T("测试 AI 连接"), async () => { await SaveAI(); await Call("test_ai"); }))));
+            codexPath, Row(Action(L.T("浏览 Codex……"), PickCodex)),
+            Note(L.T("来信及可读取的附件文字交给所选 AI，整理为六项报告。Harness 使用用户已安装的应用及其登录、模型配置，不捆绑或下载运行时。请先在 Harness 中配置；测试连接会发送少量文字。")))), UsageSettingsCard()),
+            SettingsSaveBar("ai", aiSaveButton, Action(L.T("测试 AI 连接"), () => TestSavedSettings("ai")))));
+        var generalSave = Action(L.T("保存设置"), () => SaveSettingsPage("general")); generalSave.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+        generalPage.Children.Add(SettingsPage(Stack(Card(Stack(languageChoice, Note(L.T("语言选择在保存本页后生效。")), startup, folder, Action(L.T("浏览……"), PickFolder))),
+            NotificationSettingsCard(), Card(Stack(Heading(L.T("软件更新")), Note(L.T("当前版本：" + UpdateClient.InstalledVersion)), Row(updateButton, backgroundUpdateProgress, backgroundUpdateOpen), updateStatus, updateFallbackButton, Note(L.T("每小时自动检查更新；仅提示下载，不会自动安装。"))))), SettingsSaveBar("general", generalSave)));
+        BindSettingsDrafts();
+        backgroundUpdateOpen.Click += async (_, _) => await Guard(async () => { if (pendingUpdate != null) await ShowUpdateDownload(pendingUpdate); });
+        notificationToggle.Click += async (_, _) => await Guard(async () => { notificationToggle.IsEnabled = false; try { await SaveNotificationPreferences(!notificationsEnabled); } finally { notificationToggle.IsEnabled = true; } });
         toggle.Click += async (_, _) => await Guard(ToggleService);
         check.Click += async (_, _) => await Guard(async () =>
         {
@@ -600,7 +592,7 @@ sealed partial class MainWindow : Window
         languageChoice.SelectedIndex = L.Code == "zh" ? 0 : L.Code == "es" ? 2 : 1;
         languageChoice.SelectionChanged += async (_, _) => {
             if (changingLanguage || !initialized) return;
-            await Guard(async () => await ChangeLanguage(languageChoice.SelectedIndex == 0 ? "zh" : languageChoice.SelectedIndex == 2 ? "es" : "en"));
+            RefreshSettingsDirty();
         };
         ShowPage(0);
     }
@@ -623,6 +615,7 @@ sealed partial class MainWindow : Window
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.Children.Add(search);
         filterButton = new Button { FontFamily = MailTypography.Font, Content = Row(new SymbolIcon(Symbol.Filter) { Width = 16 },
             new TextBlock { FontFamily = MailTypography.Font, Text = L.T("筛选") }),
@@ -630,17 +623,52 @@ sealed partial class MainWindow : Window
         Secondary(filterButton);
         Grid.SetColumn(filterButton, 1); toolbar.Children.Add(filterButton);
         var refreshButton = Action(L.T("刷新"), Refresh); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
+        Grid.SetColumn(reportTree, 3); toolbar.Children.Add(reportTree);
+        reportTree.Checked += async (_, _) => {
+            var selected = SelectedReport;
+            reportTreePath.Clear();
+            if (selected != null) reportTreePath.AddRange(new[] { ReportAccount(selected), selected.day, ReportSender(selected) });
+            RenderReportRows(selected?.path);
+            if (initialized) await Guard(async () => { await bridge.Call("report_view", new { report_tree = true }); });
+        };
+        reportTree.Unchecked += async (_, _) => {
+            var selected = SelectedReport?.path; reportTreePath.Clear(); RenderReportRows(selected);
+            if (initialized) await Guard(async () => { await bridge.Call("report_view", new { report_tree = false }); });
+        };
         pane.Children.Add(toolbar);
         var reading = new Grid { ColumnSpacing = 12 };
         reading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
         reading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         reports.BorderThickness = new Thickness(0);
-        reading.Children.Add(Card(reports, 4));
+        reportTreeUp = Action(L.T("上一级"), () => {
+            if (reportTreePath.Count > 0) reportTreePath.RemoveAt(reportTreePath.Count - 1);
+            RenderReportRows(); return Task.CompletedTask;
+        });
+        var reportBrowser = new Grid { RowSpacing = 6 };
+        reportBrowser.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        reportBrowser.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        reportBrowser.Children.Add(Stack(reportTreeUp, reportBreadcrumb));
+        Grid.SetRow(reports, 1); reportBrowser.Children.Add(reports);
+        reading.Children.Add(Card(reportBrowser, 4));
+        reports.IsItemClickEnabled = true;
+        reports.ItemClick += (_, e) => {
+            // WinUI reports the Content of an explicitly supplied ListViewItem
+            // as ClickedItem. Resolve it back to the row holding our folder tag.
+            var clicked = reports.Items.OfType<ListViewItem>().FirstOrDefault(item =>
+                ReferenceEquals(item, e.ClickedItem) || ReferenceEquals(item.Content, e.ClickedItem));
+            if (clicked?.Tag is not ReportFolder folder) return;
+            // Finish the native click/selection event before replacing its items.
+            DispatcherQueue.TryEnqueue(() => {
+                if (exitRequested || reportTree.IsChecked != true || !reports.Items.Contains(clicked)) return;
+                reportTreePath.Add(folder.Name); RenderReportRows();
+            });
+        };
+        RenderReportRows();
         var article = new Grid { RowSpacing = 12 };
         article.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         article.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        article.Children.Add(Row(Heading(L.T("邮件报告")), Action(L.T("打开报告"), () =>
-            { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; }), retryReport, conversationProgress));
+        article.Children.Add(Stack(Heading(L.T("邮件报告")), Row(Action(L.T("打开报告"), () =>
+            { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; }), retryReport, Action(L.T("回复草稿"), ReplyDraft), Action(L.T("查看来源"), ShowSources), conversationProgress)));
         preview.BorderThickness = new Thickness(0);
         preview.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         preview.FontSize = 14;
@@ -650,6 +678,7 @@ sealed partial class MainWindow : Window
         ScrollViewer.SetVerticalScrollBarVisibility(preview, ScrollBarVisibility.Auto);
         reports.SelectionChanged += async (_, _) => await Guard(async () =>
         {
+            if (relabelingReportRows) return;
             var generation = ++previewGeneration;
             preview.Text = "";
             ResetConversation();
@@ -672,10 +701,25 @@ sealed partial class MainWindow : Window
         updateStatus.Text = text;
         updateFallbackButton.Visibility = failed ? Visibility.Visible : Visibility.Collapsed;
     }
+    readonly UpdateProgress backgroundUpdateProgress = new() { Visibility = Visibility.Collapsed, Width = 160 };
+    readonly Button backgroundUpdateOpen = new() { Content = L.T("查看下载"), Visibility = Visibility.Collapsed };
+    bool updateDialogOpen;
+    async Task ShowUpdateDownload(UpdateRelease release)
+    {
+        if (activeDownload == null) return;
+        if (updateDialogOpen || VisualTreeHelper.GetOpenPopupsForXamlRoot(layout.XamlRoot).Count > 0) return;
+        updateDialogOpen = true;
+        var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("发现新版本：") + release.Version,
+            Content = activeDownload.Content, CloseButtonText = L.T("稍后"), DefaultButton = ContentDialogButton.Close };
+        try { await dialog.ShowAsync(); }
+        finally { dialog.Content = null; updateDialogOpen = false; }
+        // Dismissing the window does not cancel or dispose the background transfer.
+    }
     async Task CheckUpdates(bool manual)
     {
         if (exitRequested || testResult != null || updateBusy) return;
         if (!manual && VisualTreeHelper.GetOpenPopupsForXamlRoot(layout.XamlRoot).Count > 0) return;
+        if (activeDownload != null && pendingUpdate != null) { if (manual) await ShowUpdateDownload(pendingUpdate); return; }
         updateBusy = true; updateButton.IsEnabled = false;
         SetUpdateCheckStatus(L.T("正在检查更新…"));
         try {
@@ -683,12 +727,12 @@ sealed partial class MainWindow : Window
             if (exitRequested) return;
             if (release == null) { SetUpdateCheckStatus(L.T("当前已是最新版本。")); return; }
             pendingUpdate = release;
-            if (VisualTreeHelper.GetOpenPopupsForXamlRoot(layout.XamlRoot).Count > 0) return;
             SetUpdateCheckStatus(L.T("发现新版本：") + release.Version);
-            using var view = new UpdateDownloadView(release,
+            activeDownload = new UpdateDownloadView(release,
                 new UpdateDownload(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail", "update-cache")),
                 async (verified, installCancellation) => {
                     if (testResult != null) throw new InvalidOperationException("Tests cannot launch installers.");
+                    if (SettingsDirty(PageKey(currentPageIndex))) throw new InvalidOperationException(L.T("请先保存或放弃当前页面的修改，再安装更新。"));
                     var prepared = await bridge.Call("prepare_exit");
                     try {
                         installCancellation.ThrowIfCancellationRequested();
@@ -701,27 +745,22 @@ sealed partial class MainWindow : Window
                     }
                     await Exit();
                 });
-            activeDownload = view;
-            var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("发现新版本：") + release.Version,
-                Content = view.Content, CloseButtonText = L.T("稍后"), DefaultButton = ContentDialogButton.Close };
-            dialog.Closing += (_, _) => view.Cancel();
-            try {
-                await dialog.ShowAsync();
-                await updates.MarkSeen(release.Version);
-                pendingUpdate = null;
-            }
-            finally {
-                view.Cancel();
-                if (view.ActiveTask != null) await view.ActiveTask;
-                activeDownload = null;
-            }
+            activeDownload.Changed += () => {
+                if (exitRequested || activeDownload == null) return;
+                backgroundUpdateProgress.Visibility = activeDownload.Busy || activeDownload.Verified != null ? Visibility.Visible : Visibility.Collapsed;
+                backgroundUpdateProgress.Value = activeDownload.Bar.Value;
+                backgroundUpdateProgress.IsIndeterminate = activeDownload.Bar.IsIndeterminate;
+                updateStatus.Text = activeDownload.Status.Text;
+                backgroundUpdateOpen.Visibility = Visibility.Visible;
+                backgroundUpdateOpen.Content = L.T(activeDownload.Verified != null ? "安装更新" : "查看下载");
+            };
+            await updates.MarkSeen(release.Version);
         }
         catch (Exception error) {
-            if (!exitRequested) {
-                SetUpdateCheckStatus(L.T("检查更新失败：") + UpdateTransport.ErrorDetails(error, L.Code), failed: true);
-            }
+            if (!exitRequested) SetUpdateCheckStatus(L.T("检查更新失败：") + UpdateTransport.ErrorDetails(error, L.Code), failed: true);
         }
         finally { updateBusy = false; if (!exitRequested) updateButton.IsEnabled = true; }
+        if (activeDownload != null && pendingUpdate != null) await ShowUpdateDownload(pendingUpdate);
     }
     static string OAuthTokenPath => Path.Combine(AppContext.BaseDirectory, "Get-Outlook-Token.bat");
     Button OAuthTokenButton(ComboBox authentication)
@@ -740,6 +779,12 @@ sealed partial class MainWindow : Window
         if (!File.Exists(OAuthTokenPath)) throw new FileNotFoundException(L.T("无法打开 OAuth2 获取工具，请重新安装邮件小秘书。"));
         Process.Start(new ProcessStartInfo(OAuthTokenPath) { UseShellExecute = true, Arguments = L.Code });
         return Task.CompletedTask;
+    }
+    static Task OpenQuickStartGuide()
+    {
+        var path = L.GuidePath("quick_start");
+        if (!File.Exists(path)) throw new FileNotFoundException(L.T("无法打开使用指南，请重新安装邮件小秘书。"));
+        Open(path); return Task.CompletedTask;
     }
     static string AccountGuidePath => L.GuidePath("mail_account");
     static Task OpenAccountGuide()
@@ -839,25 +884,8 @@ sealed partial class MainWindow : Window
             Host.Text = source.Host.Text; Port.Text = source.Port.Text; Mode.SelectedIndex = source.Mode.SelectedIndex;
         }
     }
-    async Task SaveMail()
-    {
-        var proxyPort = mailProxy.ValidPort();
-        if (!int.TryParse(mailPort.Text, out var port)) throw new InvalidOperationException(L.T("请输入有效的 IMAP 端口。"));
-        await Call("save_mail", new { account = account.Text, secret = mailSecret.Password,
-            output_dir = folder.Text, autostart = startup.IsOn,
-            mail_provider = mailProvider.SelectedIndex >= 0 ? mailPresets[mailProvider.SelectedIndex].GetProperty("id").GetString() : "custom",
-            host = mailHost.Text, port, security = mailSecurity.SelectedIndex == 1 ? "starttls" : "ssl",
-            proxy_mode = mailProxy.Value, proxy_host = mailProxy.Host.Text, proxy_port = proxyPort,
-            username = mailUsername.Text, mail_folder = mailFolder.Text, mail_auth = mailAuth.SelectedIndex == 1 ? "oauth2" : "password" });
-        mailSecret.Password = "";
-        await ReloadMailboxes();
-    }
-    async Task SaveAI()
-    {
-        await Call("save_ai", new { ai_provider = provider.SelectedIndex == 1 ? "codex" : provider.SelectedIndex == 2 ? "deepseek_harness" : "api",
-            api_base = apiBase.Text, api_model = model.Text, key = apiKey.Password, harness_path = harnessPath.Text });
-        apiKey.Password = "";
-    }
+    Task SaveMail() => SaveSettingsPage("mail");
+    Task SaveAI() => SaveSettingsPage("ai");
     async Task PickHarness()
     {
         var picker = new Windows.Storage.Pickers.FileOpenPicker();
@@ -880,7 +908,7 @@ sealed partial class MainWindow : Window
         WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
         picker.FileTypeFilter.Add(".exe"); picker.FileTypeFilter.Add(".cmd");
         var picked = await picker.PickSingleFileAsync();
-        if (picked != null && !exitRequested) await Call("codex", new { path = picked.Path });
+        if (picked != null && !exitRequested) codexPath.Text = picked.Path;
     }
     async Task Refresh()
     {
@@ -892,12 +920,55 @@ sealed partial class MainWindow : Window
             start = from.Date?.ToString("yyyy-MM-dd") ?? "", end = to.Date?.ToString("yyyy-MM-dd") ?? "",
             attachments = attachment.SelectedIndex == 1 ? "有附件" : attachment.SelectedIndex == 2 ? "无附件" : "全部" });
         if (exitRequested || generation != reportGeneration) return;
-        reports.Items.Clear();
+        reportRows.Clear();
         foreach (var row in result.EnumerateArray())
         {
             var report = new Report(row.GetProperty("path").GetString()!, row.GetProperty("title").GetString()!,
                 row.GetProperty("sender").GetString()!, row.GetProperty("time").GetString()!,
-                row.GetProperty("attachments").ValueKind == JsonValueKind.Null ? null : row.GetProperty("attachments").GetBoolean());
+                row.GetProperty("attachments").ValueKind == JsonValueKind.Null ? null : row.GetProperty("attachments").GetBoolean()) {
+                account = row.TryGetProperty("account", out var reportAccount) ? reportAccount.GetString() ?? "" : "",
+                day = row.TryGetProperty("day", out var reportDay) ? reportDay.GetString() ?? "" : "",
+                sender_email = row.TryGetProperty("sender_email", out var reportSender) ? reportSender.GetString() ?? "" : ""
+            };
+            reportRows.Add(report);
+        }
+        RenderReportRows(selected);
+        reportCount.Text = L.T($"{reportRows.Count} 封邮件");
+    }
+    string ReportAccount(Report report) => string.IsNullOrEmpty(report.account) ? "unknown-account" : report.account;
+    string ReportSender(Report report) => "From " + (string.IsNullOrEmpty(report.sender_email) ? "unknown-sender" : report.sender_email);
+    string ReportTreeLabel(int level, string name) => level == 0 && name == "unknown-account" ? L.T("未知邮箱")
+        : level == 2 && name == "From unknown-sender" ? "From " + L.T("未知发件人") : name;
+    bool relabelingReportRows;
+    void RenderReportRows(string? selected = null)
+    {
+        reports.Items.Clear();
+        var tree = reportTree.IsChecked == true;
+        reportTreeUp.Visibility = reportBreadcrumb.Visibility = tree ? Visibility.Visible : Visibility.Collapsed;
+        reportTreeUp.IsEnabled = reportTreePath.Count > 0;
+        reportBreadcrumb.Text = string.Join(" / ", new[] { L.T("全部邮箱") }.Concat(reportTreePath.Select((name, level) => ReportTreeLabel(level, name))));
+        IEnumerable<Report> shown = reportRows;
+        if (tree) {
+            if (reportTreePath.Count > 0) shown = shown.Where(report => ReportAccount(report) == reportTreePath[0]);
+            if (reportTreePath.Count > 1) shown = shown.Where(report => report.day == reportTreePath[1]);
+            if (reportTreePath.Count > 2) shown = shown.Where(report => ReportSender(report) == reportTreePath[2]);
+            if (reportTreePath.Count < 3) {
+                Func<Report, string> key = reportTreePath.Count == 0 ? ReportAccount : reportTreePath.Count == 1 ? report => report.day : ReportSender;
+                var grouped = shown.GroupBy(key).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase);
+                var ordered = reportTreePath.Count == 1 ? grouped.Reverse() : grouped;
+                foreach (var group in ordered) {
+                    reports.Items.Add(new ListViewItem {
+                        Tag = new ReportFolder(group.Key), HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                        Padding = new Thickness(12), CornerRadius = new CornerRadius(4),
+                        Content = Row(new SymbolIcon(Symbol.Folder) { Width = 20 },
+                            new TextBlock { FontFamily = MailTypography.Font, Text = ReportTreeLabel(reportTreePath.Count, group.Key), TextWrapping = TextWrapping.Wrap, MaxWidth = 200 },
+                            new TextBlock { Text = group.Count().ToString(), Opacity = .6 })
+                    });
+                }
+                return;
+            }
+        }
+        foreach (var report in shown) {
             var lines = Stack(new TextBlock { FontFamily = MailTypography.Font, Text = report.title, FontSize = 15,
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
                 new TextBlock { FontFamily = MailTypography.Font, Text = report.sender, FontSize = 12, Opacity = .7, TextTrimming = TextTrimming.CharacterEllipsis },
@@ -909,7 +980,13 @@ sealed partial class MainWindow : Window
             reports.Items.Add(item);
             if (report.path == selected) reports.SelectedItem = item;
         }
-        reportCount.Text = L.T($"{reports.Items.Count} 封邮件");
+    }
+    void RenderMigrationWarning()
+    {
+        migrationWarning.Visibility = migrationProblems.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        migrationWarning.Text = L.T("部分旧报告未能整理到新目录；原文件已保留，其他功能可继续使用。")
+            + "\n" + string.Join("\n", migrationProblems.Take(3).Select(problem =>
+                Path.GetFileName(problem.source) + " · " + problem.error));
     }
     void HandleEvent(JsonElement ev)
     {
@@ -936,7 +1013,7 @@ sealed partial class MainWindow : Window
                 if (!exitRequested) RenderSenderPolicyRecords();
             });
         if (ev.TryGetProperty("report", out _)) _ = Guard(Refresh);
-        if (ev.TryGetProperty("notification", out var notice) && notified.Add(notice.GetProperty("id").GetString()!))
+        if (NativeNotificationsAllowed() && ev.TryGetProperty("notification", out var notice) && notified.Add(notice.GetProperty("id").GetString()!))
         {
             try
             {
@@ -955,6 +1032,11 @@ sealed partial class MainWindow : Window
         try
         {
             var config = await bridge.Call("config");
+            if (config.TryGetProperty("report_migration", out var migration) &&
+                migration.TryGetProperty("errors", out var migrationErrors) && migrationErrors.ValueKind == JsonValueKind.Array) {
+                foreach (var problem in migrationErrors.EnumerateArray())
+                    migrationProblems.Add((JsonText(problem, "source"), JsonText(problem, "error")));
+            }
             if (await EnsureLanguage(L.Code)) {
                 L.Select(L.Code); L.Apply(Content as UIElement, reports, savedMailboxes, detail, chatMessages, questionFiles, conversationStatus, senderPolicyAddresses, senderPolicyRecords, senderPolicyStatus);
                 Title = L.T("邮件小秘书"); tray.Text = Title;
@@ -986,8 +1068,13 @@ sealed partial class MainWindow : Window
             startup.IsOn = config.TryGetProperty("autostart", out var auto) && auto.GetBoolean();
             await ReloadMailboxes();
             await LoadSenderPolicy();
+            LoadNotificationPreferences(config);
+            await LoadPageDraft("mail"); await LoadPageDraft("ai"); await LoadPageDraft("general");
+            var viewPreferences = await bridge.Call("report_view");
+            reportTree.IsChecked = viewPreferences.GetProperty("report_tree").GetBoolean();
             initialized = true;
             detail.Text = L.T("无新邮件不调用 AI。关闭窗口后会继续在托盘运行。");
+            RenderMigrationWarning();
             await Refresh();
             if (testResult != null) { await SelfTest(); return; }
             if (!config.GetProperty("has_mail_secret").GetBoolean() || account.Text.Length == 0)
@@ -1044,6 +1131,7 @@ sealed partial class MainWindow : Window
                 Note(L.T("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。")), error) } };
         async Task SaveOnboarding()
         {
+            if (mailboxDraftIndex < 0) await AddMailboxDraft();
             mailProvider.SelectedIndex = presetChoice.SelectedIndex;
             account.Text = address.Text; mailSecret.Password = secret.Password;
             mailHost.Text = host.Text; mailPort.Text = port.Text; mailUsername.Text = username.Text;
@@ -1147,6 +1235,7 @@ sealed partial class MainWindow : Window
             mailProxy.Load(config);
         }
         finally { loadingMailboxes = false; }
+        ResetMailboxDrafts();
     }
     async Task<bool> EnsureLanguage(string code)
     {
@@ -1177,12 +1266,12 @@ sealed partial class MainWindow : Window
         } finally { languageChoice.IsEnabled = true; }
     }
 
-    async Task ChangeLanguage(string code)
+    async Task ChangeLanguage(string code, bool persist = true)
     {
         try {
             if (!await EnsureLanguage(code)) return;
             if (!L.TryLoad(code)) throw new IOException(L.T("语言包不可用。"));
-            await bridge.Call("save_language", new { ui_language = code });
+            if (persist) await bridge.Call("save_language", new { ui_language = code });
             if (!L.Select(code)) throw new IOException(L.T("语言包不可用。"));
         } finally {
             changingLanguage = true;
@@ -1192,6 +1281,7 @@ sealed partial class MainWindow : Window
         changingLanguage = true;
         try {
             L.Apply(Content as UIElement, reports, savedMailboxes, detail, chatMessages, questionFiles, conversationStatus, senderPolicyAddresses, senderPolicyRecords, senderPolicyStatus);
+            RenderMigrationWarning();
             savedMailboxes.Header = savedMailboxes.Header is string mailboxHeader ? L.T(mailboxHeader) : savedMailboxes.Header;
             if (!detailIsUserSubject) detail.Text = L.T(detail.Text);
             L.Apply(filters.Content as UIElement);
@@ -1213,11 +1303,16 @@ sealed partial class MainWindow : Window
             RefreshSenderPolicyLanguage();
             RenderSenderPolicyAddresses();
             senderPolicyStatus.Text = L.T(senderPolicyStatus.Text);
+            // Relabel folder rows without firing a new report read or resetting the chat.
+            relabelingReportRows = true;
+            try { RenderReportRows(SelectedReport?.path); }
+            finally { relabelingReportRows = false; }
         } finally { changingLanguage = false; }
     }
     void Restore() { AppWindow.Show(); Activate(); }
     async Task Exit()
     {
+        if (!await ConfirmLeaveSettings(PageKey(currentPageIndex))) return;
         if (exiting || exitRequested) return;
         exitRequested = true;
         activeDownload?.Cancel();
@@ -1257,6 +1352,7 @@ sealed partial class MainWindow : Window
                 "Essential offline uninstall controls remain English and Spanish without optional application packs");
             Check(AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized },
                 "Main window starts maximized with the standard window presenter");
+            AssistantToolsSelfTest(Check);
             await UpdateRecoverySelfTest(Check);
             await SenderPolicySelfTest(Check);
             Program.Trace("Begin offline update transport and stream tests");
@@ -1437,6 +1533,15 @@ sealed partial class MainWindow : Window
             preview.Text = content.GetString() ?? "";
             Check(preview.Text.Contains("建议回复") && preview.Text.Contains("附件实际内容"), "Full report preview");
             var fixturePreview = preview.Text;
+            reportTree.IsChecked = true;
+            Check((await bridge.Call("report_view")).GetProperty("report_tree").GetBoolean(),
+                "Report tree preference persists independently of editable settings pages");
+            await ReportTreePointerSelfTest(Check, report);
+            reportTree.IsChecked = false;
+            Check(!(await bridge.Call("report_view")).GetProperty("report_tree").GetBoolean(),
+                "Flat report preference persists after disabling the tree");
+            Check(reports.Items.Count == 1 && ((ListViewItem)reports.Items[0]).Tag is Report,
+                "Report tree toggle restores the flat report list");
             preview.Show("## 1. Summary\n\n**Important**\n\n- first\n- second\n\n[Contact](mailto:demo@example.invalid)\n\n```text\ncode\n```\n\n| Name | Value |\n| --- | --- |\n| A | B |\n\n![remote](https://example.invalid/image.png)\n\n[unsafe](javascript:alert(1))\n\n<script>alert(1)</script>", true);
             Check(preview.HeadingCount == 1 && preview.BoldCount == 1 && preview.ListCount == 1 &&
                 preview.LinkCount == 1 && preview.CodeCount == 1 && preview.TableCount == 1,
@@ -1550,6 +1655,7 @@ sealed partial class MainWindow : Window
             Check(Title == "邮件小秘书" && account.Header?.ToString() == "邮箱地址", "Switching back to Chinese restores labels");
             navigation.SelectedIndex = 0;
             Program.Trace("Opening first-run dialog");
+            await SettingsPagesSelfTest(Check);
             await Onboard(true);
             checks.Add("First-run native account dialog renders");
             File.WriteAllText(testResult!, JsonSerializer.Serialize(new { ok = true, checks }, new JsonSerializerOptions { WriteIndented = true }));

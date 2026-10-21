@@ -14,6 +14,10 @@ app = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else project / 'dist/é‚®ä
 test_options = ['--markdown-self-test-only'] if '--markdown-only' in sys.argv[3:] else []
 if '--policy-only' in sys.argv[3:]:
     test_options = ['--policy-self-test-only']
+if '--assistant-tools-only' in sys.argv[3:]:
+    test_options = ['--assistant-tools-self-test-only']
+if '--settings-only' in sys.argv[3:]:
+    test_options = ['--settings-self-test-only']
 evidence.mkdir(parents=True, exist_ok=True)
 (evidence / 'result.json').unlink(missing_ok=True)
 with tempfile.TemporaryDirectory(prefix='BensonMail-UI-test-') as temporary:

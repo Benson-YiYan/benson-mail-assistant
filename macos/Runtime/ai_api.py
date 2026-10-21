@@ -4,6 +4,7 @@ import json
 import re
 import socket
 import ssl
+import subprocess
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -56,6 +57,15 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, fp, code, message, headers, newurl):
         return None
 
+
+def saved_api_key(root, config):
+    """Use the same OS credential and endpoint binding as email analysis."""
+    binding = identity(config.get('api_base', ''))
+    result = subprocess.run(
+        ['/usr/bin/security', 'find-generic-password', '-s', 'BensonMail-AI-API', '-a', binding, '-w'],
+        capture_output=True, text=True, timeout=30)
+    return result.stdout.strip() if result.returncode == 0 else ''
+
 @localized
 def complete(base, model, key, messages, stop=None):
     url = endpoint(base)
@@ -85,6 +95,11 @@ def complete(base, model, key, messages, stop=None):
         raise RuntimeError(connection_error(error, key)) from None
     except (ValueError, UnicodeError):
         raise RuntimeError(_t('AI 接口返回的不是有效 JSON，请检查基础地址。')) from None
+    try:
+        from assistant_tools import record_usage
+        record_usage('api', model, value.get('usage') if isinstance(value, dict) else None, base=base)
+    except Exception:
+        pass  # Storage errors must not invalidate an otherwise successful paid response.
     if stop is not None and stop.is_set():
         raise RuntimeError(_t('分析已停止，邮件将在下次重试。'))
     try:

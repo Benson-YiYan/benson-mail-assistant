@@ -9,7 +9,8 @@ from pathlib import Path
 from . import platform_windows as platform
 from .ai_api import complete, identity
 from .core import Service, IMAPMailbox, save_json
-from .report_index import report_entry, matches
+from .report_index import report_entry, matches, report_paths
+from .report_metadata import read_metadata, write_metadata
 from .mailbox_config import PRESETS, normalize, mailbox_id
 MAIL_FIELDS = ('account', 'username', 'host', 'port', 'security', 'mail_folder', 'mail_auth',
                'mail_provider', 'secret_binding', 'mail_secret_file', 'proxy_mode', 'proxy_host', 'proxy_port')
@@ -25,6 +26,15 @@ class Controller:
         self.config.setdefault('interval', 60)
         if not self.config.get('account') and self.config.get('mailboxes'):
             self.config.update({k: self.config['mailboxes'][0][k] for k in MAIL_FIELDS if k in self.config['mailboxes'][0]})
+        from .report_layout import migrate_reports
+        try:
+            self.report_migration = migrate_reports(self.root, self.config, windows=True)
+        except Exception as error:
+            # Failed migration must never prevent mailbox settings or old
+            # reports from opening. Keep source files intact and show a warning.
+            self.report_migration = {'moved': 0, 'skipped': 0,
+                                     'errors': [{'source': self.config.get('output_dir', ''),
+                                                 'error': type(error).__name__}]}
         self.emit = emit
         self.launcher = launcher
         self.service = None
@@ -113,6 +123,17 @@ class Controller:
     def command(self, name, data):
         if self.prepared_exit and name not in ('shutdown', 'resume_after_exit_cancel', 'config', 'reports', 'read_report', 'runtime_info'):
             raise ValueError('正在准备退出，请稍候。')
+        if name == 'report_view':
+            path = self.root / 'view-preferences.json'
+            with self.config_lock:
+                try: preferences = json.loads(path.read_text(encoding='utf-8'))
+                except (OSError, ValueError): preferences = {}
+                if not isinstance(preferences, dict): preferences = {}
+                if 'report_tree' in data:
+                    if not isinstance(data['report_tree'], bool): raise ValueError('Invalid report tree preference.')
+                    preferences['report_tree'] = data['report_tree']
+                    save_json(path, preferences)
+                return {'report_tree': bool(preferences.get('report_tree', False))}
         if name == 'prepare_exit':
             services = self.all_services()
             acquired = []
@@ -134,6 +155,12 @@ class Controller:
             self.prepared_exit = False
             self.shutting_down = False
             return self.command('start', {}) if data.get('resume') else '已取消退出。'
+        if name in ('assistant_features', 'reply_draft', 'usage_summary', 'usage_rates', 'usage_balance', 'diagnostics_export', 'history_preview', 'history_start', 'report_sources'):
+            from .assistant_tools import dispatch
+            request = data if name == 'assistant_features' else {**data, 'action': name}
+            if self.fixture and request.get('action') not in ('usage', 'usage_summary', 'usage_rates', 'usage_balance', 'sources', 'report_sources', 'diagnostics', 'diagnostics_export', 'draft_save'):
+                raise ValueError('模拟测试禁止访问真实邮件或 AI。')
+            return dispatch(self.root, request, self)
         if name == 'runtime_info':
             import ctypes
             from ctypes import wintypes
@@ -147,6 +174,7 @@ class Controller:
             return {**self.config, 'mailboxes': [{**p, 'id': mailbox_id(p)} for p in self.profiles()], 'running': self.active(),
                     'selected_mailbox_id': mailbox_id(self.config) if self.config.get('account') else '',
                     'output_dir': self.config.get('output_dir') or str(platform.documents_dir() / '邮件'),
+                    'report_migration': self.report_migration,
                     'has_mail_secret': bool(self.config.get('account')) and self.secret_path().exists()}
         if name in ('policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records'):
             from .mail_policy import policy_status, policy_save, policy_remove_records, policy_summarize_records, sender_address
@@ -171,10 +199,9 @@ class Controller:
             senders = set(result.get('senders', []))
             output = self.config.get('output_dir')
             if output:
-                for sidecar in Path(output).glob('*/*.mail.json'):
+                for report in report_paths(output):
                     try:
-                        if sidecar.stat().st_size > 4 * 1024 * 1024: continue
-                        message = json.loads(sidecar.read_text(encoding='utf-8'))
+                        message = read_metadata(self.root, report)
                         address = sender_address(message.get('sender') or message.get('from'))
                         if address: senders.add(address)
                     except (OSError, ValueError, AttributeError):
@@ -186,6 +213,23 @@ class Controller:
             if name == 'language_status':
                 return status(self.root, 'windows')
             return download(self.root, data.get('code'), 'windows')
+        if name in ('validate_settings_page', 'save_settings_page'):
+            from .settings_page import validate, commit
+            page = data.get('page'); values = data.get('values', {})
+            if name == 'validate_settings_page':
+                validate(self, page, values)
+                return {'valid': True, 'page': page}
+            return commit(self, page, values)
+        if name == 'save_notifications':
+            from .notification_policy import normalize_preferences
+            preferences = normalize_preferences({
+                'notifications_enabled': data.get('notifications_enabled', self.config.get('notifications_enabled', True)),
+                'quiet_hours': data.get('quiet_hours', self.config.get('quiet_hours', {}))})
+            self.config.update({key: preferences[key] for key in ('notifications_enabled', 'quiet_hours')})
+            self.persist()
+            for service in self.all_services():
+                service.config.update({key: preferences[key] for key in ('notifications_enabled', 'quiet_hours')})
+            return {key: preferences[key] for key in ('notifications_enabled', 'quiet_hours')}
         if name == 'save_language':
             language = data.get('ui_language')
             if language not in ('zh', 'en', 'es'):
@@ -234,61 +278,15 @@ class Controller:
             self.persist()
             return '已移除邮箱，历史报告保留。' if name == 'remove_mail' else '已更新此邮箱监听状态。'
         if name == 'save_mail':
-            self.paused()
-            profiles = self.profiles()
-            previous_id = mailbox_id(self.config) if self.config.get('account') else None
-            connection = normalize(data)
-            if any(mailbox_id(p) == mailbox_id(connection) and mailbox_id(p) != previous_id for p in profiles):
-                raise ValueError('这个邮箱连接已存在，请从已添加邮箱中选择。')
-            account = connection['account']
-            secret = data.get('secret', '')
-            changed = not self.config.get('account') or mailbox_id(connection) != mailbox_id(self.config)
-            if not secret and (changed or not self.secret()):
-                raise ValueError('新邮箱或连接设置变更后，请重新填写密码、授权码或 OAuth2 访问令牌。')
-            output = data.get('output_dir', '').strip()
-            if not output:
-                raise ValueError('请选择报告保存文件夹。')
-            Path(output).mkdir(parents=True, exist_ok=True)
-            if secret:
-                binding = 'mailbox:' + mailbox_id(connection)
-                relative = 'mail-secrets/' + mailbox_id(connection) + '.bin'
-                path = self.root / relative
-                path.parent.mkdir(parents=True, exist_ok=True)
-                platform.save_secret(path, binding, secret)
-                self.config['secret_binding'] = binding
-                self.config['mail_secret_file'] = relative
-            platform.set_autostart(bool(data.get('autostart')), launcher=self.launcher)
-            self.config.update(**connection, output_dir=output,
-                               autostart=bool(data.get('autostart')))
-            was_enabled = next((p.get('monitor_enabled', True) for p in profiles if mailbox_id(p) == previous_id), True)
-            saved = {**{k: self.config[k] for k in MAIL_FIELDS if k in self.config}, 'monitor_enabled': was_enabled}
-            self.config['mailboxes'] = [p for p in profiles if mailbox_id(p) != previous_id] + [saved]
-            self.persist()
+            from .settings_page import commit
+            commit(self, 'mail', data)
             return '邮箱设置已保存。'
         if name == 'harness_detect':
             from .deepseek_harness_ai import discover
             return discover(data.get('path', ''))
         if name == 'save_ai':
-            self.paused()
-            provider = data.get('ai_provider')
-            if provider not in ('api', 'codex', 'deepseek_harness'):
-                raise ValueError('请选择分析方式。')
-            base, model = data.get('api_base', '').strip(), data.get('api_model', '').strip()
-            if provider == 'api':
-                binding = identity(base)
-                if not model:
-                    raise ValueError('请填写模型名。')
-                path = self.key_path(base)
-                if data.get('key', '').strip():
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    platform.save_secret(path, binding, data['key'].strip())
-                elif not path.exists() or not platform.load_secret(path, binding):
-                    raise ValueError('请填写此基础地址的 API Key。')
-            if provider == 'deepseek_harness':
-                from .deepseek_harness_ai import discover
-                discover(data.get('harness_path', ''))
-            self.config.update(ai_provider=provider, api_base=base, api_model=model, harness_path=data.get('harness_path', '').strip())
-            self.persist()
+            from .settings_page import commit
+            commit(self, 'ai', data)
             return 'AI 设置已保存，六项总结提示词保持原样。'
         if name == 'interval':
             seconds = int(data['seconds'])
@@ -375,11 +373,11 @@ class Controller:
             return '已请求立即检查。'
         if name == 'reports':
             output = self.config.get('output_dir')
-            paths = sorted((p for p in Path(output).glob('*/*') if p.suffix.lower() in ('.txt', '.md')), key=lambda p: p.stat().st_mtime,
+            paths = sorted(report_paths(output), key=lambda p: p.stat().st_mtime,
                            reverse=True) if output else []
             entries = []
             for path in paths:
-                entry = report_entry(path)
+                entry = report_entry(path, self.root)
                 if matches(entry, data.get('query', ''), data.get('sender', ''),
                            data.get('start', ''), data.get('end', ''), data.get('attachments', '全部')):
                     entries.append({k: str(v) if isinstance(v, Path) else v for k, v in entry.items()
@@ -488,7 +486,7 @@ def run(launcher=None, fixture=None):
         report.write_text('1 新邮件提醒\n收到模拟邮件\n2 发件人\n妈妈 <demo@example.invalid>\n'
                           '3 中文摘要\n请检查合同。\n4 具体待办及截止时间\n周五检查并回复。\n'
                           '5 附件实际内容\n合同.pdf：模拟附件文字。\n6 建议回复\n收到，我会检查。', encoding='utf-8')
-        save_json(report.with_suffix('.mail.json'), {'subject': '模拟合同检查', 'sender': 'demo@example.invalid',
+        write_metadata(root, report, {'subject': '模拟合同检查', 'sender': 'demo@example.invalid',
                   'body': '请检查合同正文', 'received': '2026-10-17T01:15:00+00:00',
                   'attachments': [{'name': '合同.pdf'}]})
         controller.config.update(output_dir=str(output.parent), interval=60)
@@ -502,13 +500,16 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('config', 'reports', 'read_report', 'report_retry', 'chat_history', 'chat_send', 'policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'language_status', 'prepare_exit', 'resume_after_exit_cancel'):
+                if fixture and command not in ('validate_settings_page', 'save_settings_page', 'assistant_features', 'config', 'report_view', 'reports', 'read_report', 'report_retry', 'chat_history', 'chat_send', 'policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'save_notifications', 'language_status', 'prepare_exit', 'resume_after_exit_cancel'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})
                 if command == 'shutdown':
                     break
             except Exception as error:
+                from .assistant_tools import record_diagnostic
+                try: record_diagnostic(controller.root, command, error)
+                except Exception: pass
                 # Network errors from the API client are already sanitized. Do not echo input.
                 detail = str(error) if isinstance(error, (ValueError, RuntimeError)) else f'{type(error).__name__}：操作失败，请检查设置与文件权限。'
                 emit({'id': request.get('id'), 'ok': False, 'error': detail})

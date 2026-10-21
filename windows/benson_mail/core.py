@@ -16,6 +16,8 @@ from email import policy
 from pathlib import Path
 from xml.etree import ElementTree
 from .mailbox_config import connect, state_identity, MailConnectionError, mail_error, normalize, IMAP_ERROR, require_ok
+from .report_layout import report_folder
+from .report_metadata import metadata_path, write_metadata
 
 BEIJING = timezone(timedelta(hours=8))
 MAX_ATTACHMENT = 20 * 1024 * 1024
@@ -46,6 +48,12 @@ SPANISH_ANALYSIS_PROMPT = (
     "6. Respuesta sugerida: borrador que se pueda copiar en el idioma del mensaje recibido, con una explicación en español. "
     "No inventes compromisos ni acciones ya realizadas. No envíes correos. Genera Markdown con un encabezado de segundo nivel para cada una de las seis secciones numeradas. "
     "Puedes usar listas, tablas y negritas. No encierres todo el informe en un bloque de código ni generes HTML.\n")
+
+
+TRACEABILITY_PROMPT = '\nWithin the existing six sections, cite factual claims using [mail.body] or [attachment.N, page:P] (N is the attachment index starting at 1; P only when a [page:P] marker is present). Never fabricate page numbers or quotes. Distinguish explicit source facts, reasonable inferences and uncertainty in the selected report language. Source references identify material, not proof of correctness.'
+ANALYSIS_PROMPT += TRACEABILITY_PROMPT
+ENGLISH_ANALYSIS_PROMPT += TRACEABILITY_PROMPT
+SPANISH_ANALYSIS_PROMPT += TRACEABILITY_PROMPT
 
 
 def analysis_prompt(language=None):
@@ -121,6 +129,12 @@ def xlsx_text(archive):
 @localized
 def attachment_text(name, data):
     if len(data) > MAX_ATTACHMENT: return _t('【未读取：附件超过 20 MB】')
+    from .attachment_reader import enhanced_text
+    enhanced = enhanced_text(name, data)
+    if enhanced is not None:
+        if '[Attachment extraction failed' in enhanced or (enhanced.startswith('[image:1]') and '[OCR text;' not in enhanced):
+            return _t('【未读取：附件缺失、损坏、加密或解析失败】') + '\n' + enhanced
+        return enhanced
     suffix = Path(name).suffix.lower()
     try:
         if suffix in ('.txt','.csv','.md','.json','.xml'):
@@ -163,7 +177,7 @@ def extract_message(raw, received):
     return {'subject':str(msg.get('Subject',_t('无标题'))), 'sender':str(msg.get('From',_t('未知发件人'))), 'body':limited('\n'.join(bodies),120000), 'received':received.astimezone(BEIJING).isoformat(), 'attachments':attachments, **spam_metadata(msg)}
 
 @localized
-def export_report(directory, message, answer, uid, target=None):
+def export_report(directory, message, answer, uid, target=None, metadata_home=None):
     if target is not None:
         path=Path(target)
         if path.exists():
@@ -182,14 +196,14 @@ def export_report(directory, message, answer, uid, target=None):
     received=datetime.fromisoformat(message['received']).astimezone(BEIJING)
     title=re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_',message['subject']).strip(' .')[:80] or _t('无标题')
     if title.split('.')[0].upper() in ['CON','PRN','AUX','NUL']+[f'{p}{n}' for p in ('COM','LPT') for n in range(1,10)]: title='_'+title
-    folder=Path(directory)/received.strftime('%Y-%m-%d'); folder.mkdir(parents=True,exist_ok=True)
+    folder=report_folder(message, directory); folder.mkdir(parents=True,exist_ok=True)
     base=f'{title}-{received:%H-%M}'
     for count in range(10000):
         suffix='' if count==0 else f'-UID{uid}'+('' if count==1 else f'-{count}')
         path=folder/(base+suffix+'.md')
-        if not any(candidate.exists() for candidate in (path, path.with_suffix('.txt'), path.with_suffix('.mail.json'))):
+        if not any(candidate.exists() for candidate in (path, path.with_suffix('.txt'), path.with_suffix('.mail.json'))) and not (metadata_home is not None and metadata_path(metadata_home,path).exists()):
             if answer is None: return path
-            try: return export_report(directory,message,answer,uid,target=path)
+            try: return export_report(directory,message,answer,uid,target=path,metadata_home=metadata_home)
             except FileExistsError: continue
     raise OSError(_t('同名文件过多'))
 
@@ -261,6 +275,9 @@ class CodexAnalyzer:
                 if self.process.returncode: raise RuntimeError(_t('Codex 分析失败，请打开 Codex 检查登录后重试'))
                 output.seek(0); answer=output.read().decode('utf-8',errors='replace').strip()
                 if not answer: raise RuntimeError(_t('Codex 没有返回报告'))
+                from .assistant_tools import record_usage
+                try: record_usage('codex', '', root=self.workdir.parent)
+                except Exception: pass
                 return answer
             finally:
                 if self.process.poll() is None: self.terminate(force=True); self.process.wait()
@@ -276,12 +293,19 @@ class APIAnalyzer:
         if self.config.get('ai_provider') == 'deepseek_harness':
             from .deepseek_harness_ai import complete as transport
         options = {'cli_path': self.config.get('harness_path', '')} if self.config.get('ai_provider') == 'deepseek_harness' else {}
-        return transport(self.config.get('api_base',''),self.config.get('api_model',''),self.key,
+        answer = transport(self.config.get('api_base',''),self.config.get('api_model',''),self.key,
                         [{'role':'user','content':analysis_prompt(self.config.get('ui_language'))+json.dumps(message,ensure_ascii=False)}],stop,**options)
+        if self.config.get('ai_provider') == 'deepseek_harness':
+            from .assistant_tools import record_usage
+            try: record_usage('deepseek_harness', self.config.get('api_model', ''))
+            except Exception: pass
+        return answer
 
 class Service:
     def __init__(self,config,secret,root,callback,mailbox=None,analyzer=None,api_key=''):
-        self.config=dict(config); self.secret=secret; self.root=Path(root); self.callback=callback; self.mailbox=mailbox
+        self.config=dict(config); self.secret=secret; self.root=Path(root); self.mailbox=mailbox
+        from .notification_policy import notification_callback
+        self.callback=notification_callback(callback, self.root.parent / 'config.json', self.config)
         self.root.mkdir(parents=True,exist_ok=True)
         identity=state_identity(config)
         self.identity=identity
@@ -327,6 +351,15 @@ class Service:
             if self.state.get('validity')!=validity:
                 self.state={'validity':validity,'high':max(uids,default=0),'pending':{}}; self.persist()
                 self.callback({'status':'运行中','detail':_t('已记录当前邮件位置，等待新来信')}); return
+            from .assistant_tools import consume_history
+            from .mailbox_config import mailbox_id
+            def queue_history(uids):
+                for uid in uids:
+                    if uid in available_uids:
+                        self.state['pending'].setdefault(str(uid), {})['historical'] = True
+                self.persist()
+            available_uids = set(uids)
+            consume_history(self.root.parent, mailbox_id(self.config), validity, queue_history)
             pending=self.state['pending']
             for uid in uids:
                 if uid>self.state['high']: pending.setdefault(str(uid),{})
@@ -336,10 +369,19 @@ class Service:
                 job=pending[key]
                 if 'message' not in job:
                     job['message']=extract_message(*box.fetch(int(key)))
+                    job['message'].update(uid=str(key), uidvalidity=validity, mailbox_key=mailbox_id(self.config),
+                                          mailbox_account=normalize(self.config)['account'])
+                    if job.get('historical'): job['message']['historical'] = True
                     from .mail_policy import spam_metadata
                     detected = spam_metadata({}, getattr(box, 'last_flags', ''), self.config.get('mail_folder', 'INBOX'))
                     if detected['is_spam']: job['message'].update(detected)
                     self.persist()
+                from .assistant_tools import existing_history_report
+                previous = existing_history_report(self.root.parent, job['message'])
+                if previous:
+                    del pending[key]; self.persist()
+                    self.callback({'status':'运行中', 'report':previous, 'detail':_t('新邮件报告已保存')})
+                    continue
                 from .mail_policy import intercept
                 if intercept(self.root.parent, job['message'], self.identity, validity, key):
                     del pending[key]; self.persist()
@@ -358,6 +400,11 @@ class Service:
         else: self.persist()
     @localized_method
     def _finish_job(self, key, job, validity, manual=False):
+        # Durable jobs from older versions predate the account field. Use the
+        # mailbox being processed, never the recipient header or the login name.
+        if job['message'].get('mailbox_account') != normalize(self.config)['account']:
+            job['message']['mailbox_account'] = normalize(self.config)['account']
+            self._persist_job(job, manual)
         if not job.get('new_notified'):
             job['new_notified']=True; self._persist_job(job, manual)
             self.callback({'notification':{'id':f'{self.identity}:{validity}:{key}:new','title':_t('收到新邮件'),'message':job['message']['subject']+_t('\n正在整理中文报告。')}})
@@ -369,9 +416,9 @@ class Service:
         if self.cancel.is_set(): return
         with EXPORT_LOCK:
             if 'target' not in job:
-                job['target']=str(export_report(self.config['output_dir'],job['message'],None,key)); self._persist_job(job, manual)
+                job['target']=str(export_report(self.config['output_dir'],job['message'],None,key,metadata_home=self.root.parent)); self._persist_job(job, manual)
             path=export_report(self.config['output_dir'],job['message'],job['answer'],key,target=job['target'])
-            save_json(path.with_suffix('.mail.json'),job['message'])
+            write_metadata(self.root.parent,path,job['message'])
         completed=self.state.setdefault('completed_notifications',[])
         notice_id=f'{self.identity}:{validity}:{key}:complete'
         notify=notice_id not in completed
@@ -388,6 +435,9 @@ class Service:
                 self.check_once()
                 self.callback({'status':'运行中','detail':_t('检查完成；等待新邮件，空检查不调用 AI', self.config.get('ui_language', 'zh')),'check_done':True})
             except Exception as error:
+                from .assistant_tools import record_diagnostic
+                try: record_diagnostic(self.root.parent, 'mail_check', error)
+                except Exception: pass
                 # Connection errors are sanitized at the credential boundary; other errors retain the safe fallback.
                 detail = str(error) if isinstance(error, MailConnectionError) else _t('连接或分析失败。请测试连接；未完成邮件会自动重试。', self.config.get('ui_language', 'zh'))
                 self.callback({'status':'需要检查','detail':detail,'check_done':True})

@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from .core import Service, IMAPMailbox, save_json, APIAnalyzer
 from . import platform_windows as platform
-from .report_index import report_entry, matches
+from .report_index import report_entry, matches, report_paths
 from .ai_api import complete, identity
 
 class Application:
@@ -295,12 +295,12 @@ class Application:
             if 'report' in event: self.refresh_reports()
         if not self.exiting: self.root.after(100,self.drain)
     def refresh_reports(self):
-        paths=sorted((p for p in Path(self.output.get()).glob('*/*') if p.suffix.lower() in ('.txt', '.md')),key=lambda p:p.stat().st_mtime,reverse=True) if self.output.get() else []
+        paths=sorted(report_paths(self.output.get()),key=lambda p:p.stat().st_mtime,reverse=True) if self.output.get() else []
         selected=self.reports.selection()
         self.reports.delete(*self.reports.get_children())
         self.report_paths=[]
         for path in paths:
-            entry=report_entry(path)
+            entry=report_entry(path,self.directory)
             if not matches(entry,self.search.get(),self.sender_filter.get(),self.start_day.get(),self.end_day.get(),self.attachment_filter.get()): continue
             self.report_paths.append(path)
             self.reports.insert('', 'end',iid=str(path),values=(entry['title'],entry['sender'],entry['time']))

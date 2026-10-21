@@ -1,33 +1,99 @@
-Asistente de correo electrónico para Windows — Inicio rápido
+Asistente de correo electrónico para Windows — Guía completa de funciones y ajustes
 
-1. Primer inicio
-Se requiere Windows 10 / 11 x64. Ejecuta el instalador, elige la ubicación, accesos directos y paquetes de idioma. Si faltan .NET 8 o Windows App Runtime 1.8, solicita confirmación antes de instalarlos. No necesitas Python ni terminal.
-Elige un proveedor o bien Otro correo (IMAP personalizado). Activa IMAP e introduce dirección completa, servidor, puerto, cifrado y contraseña de aplicación o token OAuth2 requerido. Deja Nombre de usuario en blanco salvo que el proveedor indique lo contrario.
-Pulsa ¿Cómo obtengo un código de autorización? para abrir la guía completa. Guarda y prueba la conexión; no compartas credenciales ni tokens.
+1. Instalación y navegación
+Requiere Windows 10/11 x64. Ejecuta el instalador y elige destino y accesos directos de escritorio/Inicio para la app y el desinstalador. Puedes descargar chino simplificado, inglés y español. El instalador detecta el idioma del sistema. Si falta .NET 8 o Windows App Runtime 1.8 (WinUI 3), pide confirmación antes de instalar; reutiliza componentes compatibles. La opción final Eliminar este instalador borra solo el instalador, no la app. No requiere Python ni consola. No tiene firma de editor; verifica origen y SHA256 antes de aceptar avisos del sistema.
+La barra lateral tiene cuatro páginas: Informes de correo para lectura y chat; Buzones y comprobaciones para cuentas, conexiones, proxy, intervalo, reglas e historial; Servicio de IA para modelos y precios; Ajustes generales para idioma, carpeta, inicio, notificaciones, horario y actualizaciones.
+Cada página de ajustes tiene un único botón Guardar al final. Puedes cambiar seis campos y guardar una sola vez. Se indica Hay ajustes sin guardar. Añadir, quitar o activar buzones, cambiar listas y configurar proxy solo modifica el borrador local. Al cambiar de página, cerrar o salir se pregunta si quieres descartar los cambios; cancela para seguir editando. Guarda antes de probar la conexión. Los controles rápidos de supervisión y notificaciones son operaciones inmediatas.
+El primer inicio pide un buzón, una IA y una carpeta de informes. Si el sistema está en chino se usa chino simplificado; si está en español, español; en los demás casos, inglés. Las comprobaciones vacías sin reintentos pendientes no llaman a la IA. Las pruebas manuales, el chat, los borradores, la regeneración y los resúmenes históricos pueden generar cargos.
 
-2. IA e informes
-En Servicio de IA elige API o un Codex / DeepSeek Harness ya instalado y configurado. API necesita URL base, clave y modelo. Harness no se incluye ni se descarga.
-Guarda y prueba; la prueba de IA puede consumir algunos tokens. En Configuración general usa Examinar para elegir dónde guardar informes; se crean las carpetas necesarias.
-Cada correo nuevo produce seis secciones: aviso, remitente, resumen, acciones, contenido de adjuntos y propuesta de respuesta. Nunca se envían respuestas automáticamente. Sin correo nuevo no se llama a la IA.
+2. Añadir, seleccionar y gestionar buzones
+Abre Buzones y comprobaciones. Selecciona una cuenta guardada o pulsa Añadir cuenta. Cada una mantiene credenciales, conexión, proxy y progreso propios; comparten IA, carpeta de informes, intervalo y reglas de remitentes. Puedes activar/pausar cada cuenta o quitarla sin borrar informes ni mensajes del servidor. Pausa toda la supervisión y espera a que termine el trabajo antes de cambiar credenciales, direcciones, servidores, usuarios o carpetas.
+Activa IMAP primero en el correo web del proveedor. Elige un ajuste predefinido u Otro correo (IMAP personalizado) para empresas u otros servicios. También puedes modificar los servidores y puertos predefinidos. La aplicación recibe por IMAP; no es un cliente POP3 ni de envío SMTP.
+Dirección de correo: completa, como name@example.com.
+Servidor IMAP: solo dominio o IP, como imap.example.com, sin https://, ruta ni puerto.
+Puerto y cifrado: SSL/TLS suele usar 993 y STARTTLS, 143. Sigue las instrucciones del proveedor.
+Contraseña/código/token: utiliza la contraseña de aplicación o el OAuth2 access_token exigido por el proveedor. No introduzcas un código SMS, clave de IA, refresh_token ni id_token. Cambiar la identidad de conexión puede exigir nuevas credenciales; dejarlo vacío solo conserva una credencial ya guardada para una conexión sin cambios.
+Guarda y prueba antes de reanudar. ¿Cómo obtener un código de autorización? abre instrucciones por proveedor y sitios oficiales. Una IA que ya uses puede ayudarte con los pasos; nunca le pegues las credenciales.
 
-3. Buzones y supervisión
-Añade cuentas en Correo y comprobaciones. Cada buzón tiene dirección, conexión, credenciales, proxy y progreso propios; la IA, carpeta e intervalo se comparten.
-Inicia o pausa la supervisión en la ventana principal. Comprobar ahora solicita una comprobación inmediata. Ajusta el intervalo entre 10 y 86400 segundos; 60 es un minuto.
-La primera comprobación de cada cuenta nueva registra el punto de partida y no analiza todo el buzón antiguo. Al reanudar se comprueba el correo recibido durante la pausa si sigue en la carpeta.
+3. Usuario avanzado, carpeta y proxy
+Deja vacío el nombre de usuario para usar la dirección completa. Escríbelo solo si el proveedor exige otro; un usuario antiguo o apodo puede impedir el acceso incluso con la contraseña correcta.
+La carpeta predeterminada es INBOX. Solo se comprueba esa carpeta, no todos los archivos, etiquetas ni carpetas de spam. Usa el nombre exacto indicado por el proveedor.
+Elige Contraseña/código de autorización o Token de acceso OAuth2. Outlook/Microsoft 365 es más complejo; la guía de cuentas incluye todos los pasos. Obtener token OAuth2 de Microsoft solo sirve para Microsoft y requiere el ID de cliente de tu propia aplicación registrada. Renueva manualmente los tokens caducados; no hay inicio de sesión ni renovación automáticos. Las cuentas organizativas pueden necesitar permiso del administrador.
+Proxy: conexión directa, proxy del sistema, HTTP CONNECT o SOCKS5. Activa primero el proxy del sistema en v2rayN u otro cliente. El modo manual necesita su dirección y puerto reales; 127.0.0.1 es habitual y 10808 solo un ejemplo. El proxy IMAP explícito no requiere TUN. Solo afecta a las pruebas y recepción de ese buzón, no al tráfico API de IA. Si falla, se informa; nunca se cambia silenciosamente a conexión directa. No admite PAC ni proxy con usuario/contraseña. Guarda y prueba.
 
-4. Lectura, filtros y búsqueda
-Selecciona un informe a la izquierda para verlo a la derecha. La hora aparece separada del título. Los nuevos archivos son Markdown (.md) con vista previa; los TXT antiguos siguen legibles. El nombre del archivo conserva la hora de recepción.
-Busca en cuerpo, remitente y nombres de adjuntos guardados localmente. Combina filtros por fechas, remitente y presencia de adjuntos. Restablecer filtros los borra.
+4. Elegir IA
+Abre Servicio de IA y elige API, Codex o DeepSeek Harness.
+API: indica URL base, clave API y modelo del proveedor. Admite APIs compatibles con Chat Completions y completa /chat/completions. Usa HTTPS; localhost puede usar HTTP. Las claves se asocian a la URL base; una URL distinta necesita su clave. El modelo debe coincidir con el nombre del proveedor. Dejar la clave vacía conserva solo una ya guardada para esa URL.
+Codex: instálalo, inicia sesión y configúralo localmente. Usa Buscar Codex… para seleccionar su lanzador local con sesión iniciada.
+DeepSeek Harness: usa el dsh ya instalado y configurado. Detecta o busca su lanzador; con la ruta vacía se intenta detectar. No se incluyen ni descargan Harness ni su entorno. Configura primero su sesión, modelo y red.
+Guarda la IA y prueba. La prueba envía un texto corto y puede consumir saldo. El correo original y el texto legible de adjuntos se envían al servicio elegido; selecciona uno apropiado para esos datos. Los informes, preguntas y reintentos usan el idioma y la IA actuales. Nunca se envían correos automáticamente.
 
-5. Proxy
-Inicia v2rayN u otro cliente. En cada buzón elige Sistema, HTTP CONNECT o SOCKS5 y utiliza su dirección, puerto y protocolo reales. Para Sistema activa el proxy del sistema. Guarda y prueba. No se usa una conexión directa si falla. Solo afecta a IMAP; no a la IA. No se admiten PAC ni proxies con usuario y contraseña.
+5. Supervisión, intervalo, inicio y salida
+Iniciar/Pausar supervisión controla las comprobaciones automáticas. Comprobar ahora solicita una comprobación inmediata, sin necesidad de pulsar varias veces. La primera de una cuenta nueva registra el punto de partida, no analiza toda la bandeja antigua. Al reanudar se recuperan mensajes recibidos durante pausas, desconexión o apagado si siguen en la carpeta elegida. Los movidos o eliminados pueden no estar disponibles.
+Indica un número entero de segundos entre 10 y 86400 y guarda una vez la página de buzones; por defecto 60 segundos. Una comprobación vacía no llama a la IA, aunque un trabajo fallido pendiente puede reintentarse. La pausa deja terminar de forma segura las operaciones actuales.
+Configura el inicio de sesión en Windows en Ajustes generales. Cerrar mantiene la supervisión en la bandeja. El sobre restaura la ventana; Salir desde la bandeja termina el proceso.
 
-6. Idioma
-Primer uso: chino en sistemas chinos, español en sistemas españoles e inglés en los demás. Cambia en Configuración general. Si falta un idioma, pregunta «No has descargado este idioma. ¿Quieres descargarlo ahora?». Confirma para descargar; si cancelas o falla conservas el actual. Los informes nuevos siguen el idioma elegido con las mismas seis secciones. Los anteriores no se traducen.
-Nombres: 邮件小秘书 / Email Assistant / Asistente de correo electrónico.
+6. Notificaciones y horario de silencio
+Activar/Pausar notificaciones, junto a la supervisión, solo controla las notificaciones del sistema. Es independiente: la recepción y los informes continúan durante el silencio. Ajusta las horas en Ajustes generales → Notificaciones del sistema y horario de silencio y guarda los ajustes.
+Usa formato HH:mm de 24 horas, por ejemplo 22:00 y 08:00. Se utiliza la hora local del equipo y se puede cruzar medianoche; se incluye el inicio, no el final. Si se activa, horas iguales significan silencio todo el día. Las notificaciones silenciadas se descartan y no se reenvían. Los permisos o modos de concentración del sistema también pueden impedirlas.
 
-7. Actualizar, salir y desinstalar
-Usa Ayuda > Buscar actualizaciones o Configuración general. Las descargas muestran progreso y permiten cancelar. Tras verificar el paquete, pulsa Instalar y volver a abrir. Se conservan configuración e informes y se intenta restaurar la versión anterior si falla.
-Cerrar la ventana mantiene la supervisión en la bandeja del sistema. Salir desde su menú la detiene. Vuelve a abrir y pulsa Iniciar supervisión para continuar.
-Desinstala desde el acceso directo o Aplicaciones instaladas. Puedes conservar configuración e informes por separado; borrar informes pide otra confirmación.
-El instalador no tiene firma de editor; verifica el origen y SHA256 si Windows muestra un aviso.
+7. Carpeta, lectura, búsqueda y filtros
+Usa Examinar en Ajustes generales.
+Activa Árbol de informes para recorrer buzón → fecha → remitente → informe; Subir un nivel vuelve atrás y desactivarlo restaura la lista plana. La búsqueda y los filtros funcionan en ambas vistas. Los nuevos archivos se guardan como carpeta/cuenta-receptora/fecha/From dirección-remitente/asunto-hora-recibida.md; se crean las carpetas que falten. Cambiar de carpeta no mueve los informes anteriores: ábrelos en su ubicación o vuelve a elegirla. La lista muestra el asunto original y la hora aparte; el archivo conserva la hora en su nombre. La vista Markdown admite títulos, listas y tablas; los TXT antiguos siguen siendo legibles.
+Selecciona un informe a la izquierda y léelo a la derecha. Puedes abrir el archivo o su carpeta; en Mac, Copiar original copia el texto fuente del informe, no envía correo. La búsqueda usa asuntos, cuerpos, remitentes y nombres de adjuntos guardados localmente, no todo el buzón remoto. Combina fecha, remitente y presencia de adjuntos; limpia la búsqueda o restablece filtros si no hay resultados.
+Arrastra el separador entre informe y chat para ajustar la altura. Un informe sin índice del correo original se puede leer, pero el chat, los borradores y la regeneración que necesitan el original muestran un error. Un resumen generado no sustituye al original.
+
+Las carpetas de informes solo contienen documentos. Los índices del correo original y los metadatos de adjuntos se guardan en los datos privados de la aplicación; los JSON junto a informes antiguos se trasladan allí automáticamente. Conservar informes al desinstalar también conserva sus originales privados para reinstalar; al eliminar informes se borran esos originales.
+
+8. Volver a resumir, chat y contexto
+Volver a resumir procesa el correo y adjuntos originales con la IA y el idioma actuales. Si funciona, sustituye el informe; si falla, conserva el anterior. Puede volver a generar cargos.
+En Preguntar sobre este correo escribe una pregunta, añade archivos opcionales con el selector y envía. Cada correo conserva su propia conversación y se puede restaurar. Se distinguen los archivos añadidos de los adjuntos originales. Los hechos se fundamentan en el cuerpo original y el texto extraído de sus adjuntos; los informes generados, respuestas previas y resúmenes comprimidos no son pruebas de hechos. Si falta el original, se informa y no se adivina a partir del informe.
+Las conversaciones largas comprimen turnos antiguos y conservan los recientes. No es memoria literal; el historial completo sigue local. Cita y verifica importes, cláusulas y frases importantes. Si el material o el contexto reciente exceden el límite, se bloquea la solicitud con explicación, sin fingir que se leyó todo. Los archivos ilegibles o demasiado grandes también se indican. No se ejecutan enlaces, macros ni instrucciones incluidas en correos.
+
+9. Borradores de respuesta
+Selecciona un informe y pulsa Borrador de respuesta en el panel de lectura.
+Elige Formal, Breve o Cordial, genera en el idioma actual, edita y copia a tu correo para enviar. Puede generar cargos. Revisa destinatario, compromisos, fechas, archivos y tono. El asistente no envía mensajes, no adjunta archivos realmente ni afirma haber completado acciones.
+
+10. Adjuntos mejorados y fuentes
+Selecciona un informe y pulsa Ver fuentes en el panel de lectura.
+El cuerpo se cita como [mail.body] y los adjuntos como [attachment.N]. Solo se usa [attachment.N, page:P] si se extrajo realmente el marcador [page:P]. La vista de fuentes muestra el material enviado a la IA. Una cita localiza texto, no verifica independientemente las inferencias. Los informes antiguos no reciben citas automáticamente; vuelve a resumirlos. Se indica el texto truncado. No se consideran conocidos los adjuntos no leídos.
+Imágenes y PDF escaneados usan primero OCR nativo local: Apple Vision/PDFKit en Mac y APIs OCR/PDF de Windows, sin instalar Python. Windows puede necesitar idiomas de OCR del sistema; la calidad de la imagen afecta al resultado. Si el OCR nativo no funciona, se puede usar un Tesseract local existente; los PDF escaneados también necesitan pdftoppm en esa alternativa. No se descargan herramientas externas automáticamente. El OCR es local; después, el texto extraído se envía a la IA elegida.
+Límites: 20 MB por adjunto, aproximadamente 100000 caracteres extraídos y hasta 20 páginas escaneadas por PDF. Office extrae sobre todo texto, sin ejecutar macros ni reconstruir imágenes/formato. Se marcan como no leídos los archivos cifrados, dañados, no compatibles o agotados por tiempo. El OCR no interpreta todo el contenido visual.
+
+11. Reglas de remitentes y spam
+En Bloquear correos de Buzones y comprobaciones elige lista negra o blanca. La negra omite remitentes listados; la blanca solo resume los listados. Una lista blanca vacía omite todo correo nuevo. Coinciden direcciones completas sin distinguir mayúsculas, no dominios ni comodines *. Añade, selecciona remitentes conocidos en lote o elimina entradas. Las reglas son comunes a todas las cuentas y afectan al procesamiento futuro, sin borrar informes ni mensajes del servidor.
+No resumir spam usa marcas, cabeceras o carpetas explícitas, sin adivinar con IA. Solo se revisa la carpeta configurada; no es fiable si el proveedor no expone indicadores.
+Despliega los registros bloqueados agrupados por remitente. Resumir este correo o el resumen por lotes omite la regla solo esa vez, con la IA/idioma actuales y posibles cargos. Si falla, se conserva el registro. Eliminar registro o eliminar en lote solo borra registros locales de bloqueo, nunca mensajes del servidor.
+
+12. Resumir correos anteriores
+Selecciona primero el buzón en Buzones y comprobaciones; después Correos históricos y diagnóstico → Resumir correos anteriores.
+Elige las fechas, consulta la cantidad pendiente y confirma tras revisarla. La consulta no llama a la IA. Confirmar añade a la cola; debe estar activa la supervisión para procesarla y puede generar cargos. Se omiten correos completados mediante índices locales o registros disponibles; versiones antiguas sin índice no garantizan evitar todos los duplicados. Se respetan reglas de remitentes y spam. Las fechas son las de recepción del servidor. La consulta caduca en una hora; reduce intervalos que superen 10000 mensajes. No modifica, marca como leídos ni elimina originales.
+
+13. Costos y uso
+Abre Servicio de IA → Precios unitarios. Los precios por millón de tokens de entrada/salida y la moneda sirven para estimar costes, no indican uso ni límites. Pulsa Ver registros de uso para consultar solicitudes, tokens y costes de solo lectura; edita los precios en esa página y pulsa su único botón Guardar ajustes de IA.
+Solo se registran llamadas posteriores a esta versión. Consulta llamadas, tokens y llamadas con uso desconocido. Indica tarifas de entrada/salida por millón de tokens y una moneda de tres letras, como USD o CNY. Las estimaciones corresponden al modelo/URL base actuales y usan las tarifas guardadas en cada llamada; no se recalculan al cambiar precios después. Revisa tarifas al cambiar de modelo/proveedor. Cuando no hay coste informado por el proveedor, la falta de tarifas o datos de uso necesarios deja la estimación local como desconocida, nunca gratis. No se deducen facturas de suscripciones Codex/Harness ni herramientas locales. No se suman monedas distintas. La factura del proveedor es la referencia real.
+
+Los tokens de entrada son el contenido enviado a la IA, incluidos el correo original, los adjuntos y la conversación; los tokens de salida son el contenido devuelto por la IA. Las cifras separan los millares, por ejemplo entrada: 3,067 y salida: 627. Desconocido indica que faltan precios o datos de uso, no que sea gratis; el uso conocido puede cubrir solo parte de los registros. Los costes estimados no son facturas reales.
+
+Los costes del proveedor y las estimaciones locales se muestran separados, con el número de solicitudes cubiertas y las de coste desconocido. Nunca se suman ni se atribuye la factura de la cuenta a esta aplicación. Solo se estiman solicitudes sin coste informado por el proveedor.
+Pulsa Consultar saldo de la cuenta en la ventana de uso para solicitar el saldo. No hay consultas automáticas ni se genera contenido con IA. Solo se admiten los servicios oficiales de DeepSeek y OpenRouter con los ajustes API guardados. Otros proveedores, URL personalizadas y Codex/Harness muestran un estado no compatible. Una sección independiente muestra moneda, saldo disponible y fecha de consulta. Otras aplicaciones pueden usar la misma cuenta; su saldo o sus cambios no se atribuyen a esta aplicación. Un fallo o servicio no compatible nunca implica un saldo ni un coste.
+
+Alcance de los costes: usage.cost del servicio oficial de OpenRouter se registra en USD. Otras interfaces compatibles deben devolver usage.cost con cost_currency explícito, o un objeto cost con amount/currency, para registrar costes del proveedor. Sin coste y moneda explícitos solo hay estimación local o Desconocido. No todos los proveedores exponen datos de facturación. Los costes informados por la API no garantizan coincidir con la conciliación final.
+OpenRouter /credits puede requerir permisos de gestión; una clave normal de inferencia puede devolver 403 aunque las solicitudes de IA funcionen. No sustituyas la clave de inferencia por otra con mayores privilegios solo para consultar el saldo. Los permisos insuficientes, la autenticación fallida, la falta de clave, los fallos del almacén de credenciales y el tiempo agotado tienen mensajes distintos. Los fallos no implican un saldo.
+
+14. Diagnóstico y problemas frecuentes
+Usa Buzones y comprobaciones → Correos históricos y diagnóstico → Exportar diagnóstico y elige la carpeta de destino.
+Elige dónde guardar un ZIP que contiene solo versión, sistema, estado sin datos sensibles y categorías/etapas limitadas del error. No incluye claves, cuentas, URL de servidores, asuntos, cuerpos, adjuntos, chats, registros originales ni rutas. Al pedir ayuda, añade versión del sistema, pasos y hora del fallo, sin credenciales.
+Error de autenticación: revisa dirección completa, contraseña de aplicación, IMAP activado y usuario avanzado. Tiempo agotado/TLS: revisa servidor, puerto, proxy y reloj. La prueba corta de IA funciona pero un correo grande falla: consulta error real, saldo/contexto y límites, sin duplicar solicitudes. Permisos: elige con Examinar una carpeta escribible, no una imagen de instalación. Los errores deben conservar originales y trabajo recuperable.
+
+15. Idiomas, actualizaciones, desinstalación y ayuda
+Elige chino simplificado, English o Español en Ajustes generales y guarda la página para aplicarlo.
+Si falta el idioma, se pide descargarlo. Confirma para hacerlo; cancelar o fallar conserva el idioma actual. Los nuevos informes, borradores y respuestas siguen el idioma seleccionado; los informes previos no se traducen. Los nombres son Email Assistant en inglés y Asistente de correo electrónico en español.
+Pulsa Buscar actualizaciones en Ajustes generales.
+Se comprueba cada hora automáticamente y se avisa sin instalar. También hay comprobación manual. La descarga interna muestra progreso, servidor y cancelación; se puede reintentar/continuar tras una interrupción. El tamaño y SHA256 deben verificarse antes de instalar. Espera a que terminen las tareas de correo. Se conserva configuración e informes. Mac intenta restaurar la aplicación anterior si falla; Windows usa el instalador de actualización y conserva detalles de fallos. Sin confirmación, no se considera actualizada. Si falla la descarga o comprobación, Descargar la última versión desde GitHub permite reinstalar encima. No fuerces el apagado al instalar.
+Usa el acceso de desinstalación, su elemento en Inicio o Aplicaciones instaladas de Windows. Si está abierta, pregunta si deseas salir; espera las tareas de correo en curso.
+Conservar configuración de correo e IA y Conservar informes son interruptores independientes de texto fijo: activado conserva, desactivado borra. Borrar informes requiere segunda confirmación y afecta solo a informes/índices reconocidos, conservando otros archivos y la carpeta raíz elegida. Conservar configuración no garantiza conservar chats, cachés ni historial de uso; guarda aparte lo importante antes de desinstalar.
+Abre Guía de uso al final de la barra lateral o ¿Cómo obtener un código de autorización? para los pasos del proveedor. La guía sigue el idioma elegido; también hay TXT por idioma en la carpeta instalada.
+
+Guardar páginas completas y descargas en segundo plano
+El idioma solo se aplica al guardar Ajustes generales. La carpeta de informes y el inicio también están en esa página. Ver uso es de solo lectura: modifica los precios en Servicio de IA y utiliza su único botón Guardar. Más tarde cierra solo el cuadro de actualización; la descarga continúa mientras usas la aplicación. La barra junto a Buscar actualizaciones muestra el progreso; Ver descarga/Instalar actualización abre de nuevo el cuadro. Solo Cancelar descarga la detiene. Los borradores permiten editar destinatario, asunto y texto; Guardar borrador local conserva los cambios sin enviar correo.

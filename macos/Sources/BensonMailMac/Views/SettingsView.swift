@@ -33,13 +33,15 @@ struct SettingsView: View {
     @ObservedObject private var language = AppLanguage.shared
     @ObservedObject var store: MailStore
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Button(T("邮箱与检查")) { store.workspacePage = .mailbox; MailNotifications.shared.openWindow() }
-                Button(T("AI 服务")) { store.workspacePage = .ai; MailNotifications.shared.openWindow() }
-                Spacer()
-            }.padding(18)
-            GeneralSettingsPage(store: store)
-        }.frame(width: 600, height: 700)
+        VStack(alignment: .leading, spacing: 18) {
+            Text(T("设置……")).font(.title2.bold())
+            ForEach([WorkspacePage.mailbox, .ai, .general]) { page in
+                Button(T(page.rawValue)) { open(page) }
+            }
+        }.padding(24).frame(width: 420, height: 240)
+        .onAppear { open(.general) }
+    }
+    private func open(_ page: WorkspacePage) {
+        if store.settingsDraft.navigate(page) || store.workspacePage == page { MailNotifications.shared.openWindow() }
     }
 }

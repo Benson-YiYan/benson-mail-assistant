@@ -30,5 +30,11 @@ La respuesta final debe contener exactamente seis secciones numeradas, escritas 
 Devuelve únicamente estas seis secciones en Markdown. Usa encabezados de segundo nivel como "## 1. Correo nuevo", con párrafos, listas, negritas y citas cuando resulte útil. No encierres todo el informe en un bloque de código. No modifiques archivos."""
 
 
+TRACEABILITY_PROMPT = '\nWithin the existing six sections, cite factual claims using [mail.body] or [attachment.N, page:P] (N is the attachment index starting at 1; P only when a [page:P] marker is present). Never fabricate page numbers or quotes. Distinguish explicit source facts, reasonable inferences and uncertainty in the selected report language. Source references identify material, not proof of correctness.'
+ANALYSIS_PROMPT += TRACEABILITY_PROMPT
+ENGLISH_ANALYSIS_PROMPT += TRACEABILITY_PROMPT
+SPANISH_ANALYSIS_PROMPT += TRACEABILITY_PROMPT
+
+
 def analysis_prompt(language=None):
     return {'en': ENGLISH_ANALYSIS_PROMPT, 'es': SPANISH_ANALYSIS_PROMPT}.get(language, ANALYSIS_PROMPT)

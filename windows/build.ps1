@@ -12,7 +12,7 @@ foreach ($output in @('dist/native', 'dist/BensonMail')) {
 }
 dotnet publish native/BensonMail.csproj -c Release -r win-x64 --self-contained false -o dist/native -p:Platform=x64 -p:WindowsAppSDKSelfContained=false
 if ($LASTEXITCODE -ne 0) { throw 'WinUI publish failed' }
-python -m PyInstaller --noconfirm --clean --onedir --console --hide-console hide-early --name MailWorker --icon assets/mail.ico --hidden-import win32timezone --collect-all pypdf --collect-all certifi --collect-all truststore --exclude-module tkinter --exclude-module _tkinter --exclude-module PIL --exclude-module pystray --exclude-module benson_mail.ui --exclude-module benson_mail.app_icon worker.py
+python -m PyInstaller --noconfirm --clean --onedir --console --hide-console hide-early --name MailWorker --icon assets/mail.ico --hidden-import win32timezone --hidden-import benson_mail.assistant_tools --hidden-import benson_mail.upstream_billing --hidden-import benson_mail.attachment_reader --hidden-import benson_mail.notification_policy --collect-all pypdf --collect-all certifi --collect-all truststore --exclude-module tkinter --exclude-module _tkinter --exclude-module PIL --exclude-module pystray --exclude-module benson_mail.ui --exclude-module benson_mail.app_icon worker.py
 if ($LASTEXITCODE -ne 0) { throw 'Headless worker build failed' }
 New-Item -ItemType Directory -Force dist/BensonMail | Out-Null
 Copy-Item dist/MailWorker/* dist/BensonMail/ -Recurse -Force
@@ -23,6 +23,7 @@ Copy-Item dist/BensonMail/BensonMail.exe dist/BensonMail/Uninstall.exe -Force
 Copy-Item README.md dist/BensonMail/使用说明.md
 Copy-Item README.en.md "dist/BensonMail/Read me - English.md"
 Copy-Item docs/Mail-account-setup-*.txt dist/BensonMail/
+Copy-Item docs/Quick-start-*.txt dist/BensonMail/
 Copy-Item docs/Markdig-LICENSE.txt dist/BensonMail/
 Copy-Item docs/Get-Outlook-Token.bat, docs/Get-Outlook-Token.ps1 dist/BensonMail/
 New-Item -ItemType Directory -Force dist/BensonMail/assets | Out-Null

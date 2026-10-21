@@ -7,6 +7,24 @@ from benson_mail.core import Service
 from test_core import Mailbox,mail
 
 class NotificationTests(unittest.TestCase):
+    def test_muting_does_not_pause_processing_and_changes_apply_live(self):
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = {'account': 'synthetic@example.invalid', 'output_dir': str(root/'reports')}
+            path = root/'config.json'
+            path.write_text(json.dumps({'notifications_enabled': False}))
+            box = Mailbox(); box.messages = {1: mail()}; events = []
+            service = Service(config, 'synthetic', root/'state', events.append, mailbox=box, analyzer=lambda *args: 'report')
+            service.check_once(); box.messages[2] = mail()
+            service.check_once()
+            self.assertTrue(any('report' in event for event in events))
+            self.assertFalse(any('notification' in event for event in events))
+            path.write_text(json.dumps({'notifications_enabled': True}))
+            box.messages[3] = mail()
+            service.check_once()
+            self.assertEqual(len([event for event in events if 'notification' in event]), 2)
+
     def test_persist_new_and_completed_across_retries_and_restarts(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); config={'account':'synthetic@example.invalid','output_dir':str(root/'reports')}

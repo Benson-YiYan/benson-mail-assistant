@@ -76,6 +76,9 @@ def log(message):
     print(datetime.datetime.now().astimezone().isoformat(), message, flush=True)
 
 def notify(message, title, report=None):
+    from notification_policy import notifications_allowed, read_preferences
+    if not notifications_allowed(read_preferences(SETTINGS)):
+        return
     try:
         NOTIFICATIONS.mkdir(parents=True, exist_ok=True, mode=0o700)
         identifier = str(uuid.uuid4())
@@ -155,6 +158,10 @@ def analyze(message):
                 failed = result.returncode != 0
             if failed or not temp.exists() or not temp.read_text(encoding='utf-8').strip():
                 raise RuntimeError('AI analysis failed for UID ' + uid + '; message retained')
+            if settings().get('ai_provider', 'codex') == 'codex':
+                from assistant_tools import record_usage
+                try: record_usage('codex', '', root=BASE)
+                except Exception: pass
             temp.replace(answer)
     target = export_report(folder)
     if not message.get('_policy_record_id'):
@@ -254,6 +261,9 @@ def check_profiles():
             if state.exists():
                 pending.extend(json.loads(state.read_text()).get('pending', []))
         except Exception as error:
+            from assistant_tools import record_diagnostic
+            try: record_diagnostic(BASE, 'mail_check', error)
+            except Exception: pass
             label = profile['connection']['account'] if profile else runtime_text('邮箱', 'Mailbox', 'Buzón')
             detail = str(error) if isinstance(error, MailConnectionError) else type(error).__name__ + runtime_text('，请测试邮箱和 AI 连接；未完成邮件会重试。', ': test the mailbox and AI connections; unfinished messages will be retried.', ': prueba las conexiones del buzón y de la IA; se reintentará el procesamiento de los mensajes pendientes.')
             failures.append(label + '：' + detail)
@@ -262,6 +272,13 @@ def check_profiles():
 
 
 def monitor():
+    from report_layout import migrate_reports
+    try:
+        migration = migrate_reports(BASE, settings())
+        if migration.get('errors'):
+            log('Report layout migration retained reports needing attention; see migration journal')
+    except (OSError, ValueError, RuntimeError):
+        log('Report layout migration unavailable; existing reports retained')
     last_error = None
     log('automatic Markdown monitor started; empty checks never invoke AI')
     next_check = 0

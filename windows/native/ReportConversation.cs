@@ -14,7 +14,7 @@ sealed partial class MainWindow
     readonly Button sendQuestion = new() { Content = L.T("发送问题"), IsEnabled = false };
     readonly Button attachQuestion = new() { Content = L.T("添加附件"), IsEnabled = false };
     readonly Button clearQuestionFiles = new() { Content = L.T("移除附件"), IsEnabled = false };
-    readonly TextBox question = new() { Header = L.T("对邮件提问"), PlaceholderText = L.T("输入问题，可继续追问或添加附件"),
+    readonly TextBox question = new() { Header = L.T("对邮件提问"), PlaceholderText = L.T("针对原邮件和附件提问，可继续追问或添加文件"),
         AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 80, MinHeight = 60, MaxHeight = 80 };
     readonly TextBlock conversationStatus = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
     readonly TextBlock questionFiles = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = 20, IsTextSelectionEnabled = true };
@@ -153,7 +153,7 @@ sealed partial class MainWindow
             }
             chatMessages.Children.Add(Card(card, 12));
         }
-        if (chatMessages.Children.Count == 0) chatMessages.Children.Add(Note(L.T("针对这封邮件提问，聊天记录会自动保存。")));
+        if (chatMessages.Children.Count == 0) chatMessages.Children.Add(Note(L.T("基于原邮件和实际附件提问，可添加文件；不会用总结报告代替原文。聊天记录自动保存。")));
         UpdateConversationControls();
         chatScroll.UpdateLayout(); chatScroll.ChangeView(null, chatScroll.ScrollableHeight, null);
     }

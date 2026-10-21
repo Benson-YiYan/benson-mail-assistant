@@ -35,12 +35,31 @@ Windows and Mac packages in one release may have different version numbers. Veri
 
 - Multiple mailboxes, provider presets and custom IMAP host, port and encryption.
 - Six-section Markdown reports, with legacy TXT viewing support.
+- Reports organized by receiving mailbox, date and sender; optional Report tree browsing alongside the flat list.
 - Local search across message bodies, senders and attachment names; date, sender and attachment filters.
 - Simplified Chinese, English and Spanish interfaces and new reports; existing reports remain unchanged.
 - Tray/menu bar operation, configurable intervals and report locations.
 - In-app update downloads: when several sources are available, bounded speed probes select a faster route; network failures try another source. SHA256 is verified before installation. Uninstall can retain settings and reports.
 
 Attachment analysis depends on extractable text; scanned images and encrypted documents may not be readable. Search covers locally saved mail data and reports, not your entire remote inbox.
+
+### Report folders and Report tree
+
+Choose a report root in General settings, for example `Documents/Mail`. Reports use this structure:
+
+```text
+Mail/
+└── 123@456.com/
+    └── 2026-10-21/
+        └── From 234@567.com/
+            └── example-11-53.md
+```
+
+The first folder identifies the added mailbox that received the message. Dates and filename times use Beijing time; sender folders use email addresses. Unknown receiving accounts and senders use `unknown-account` and `From unknown-sender`, respectively. Characters unsuitable for filenames are safely replaced.
+
+Enable Report tree in Mail reports to browse mailbox → date → sender → report. Disable it to return to the flat list. Changing the view does not change where files are saved.
+
+Report folders contain report files only. Original message data and JSON indexes stay in the application's own data folder; indexes stored beside reports by older versions move there automatically. No manual cleanup is needed. Keeping reports during uninstall also retains this internal data so that reading original messages and asking questions can continue after reinstalling.
 
 ## Screenshots
 
@@ -89,7 +108,7 @@ The legacy update address `benson-mail-updates/main/manifest.json` remains avail
 
 Select a report and choose Summarize again to regenerate all six sections in the current interface language. A failed attempt preserves the previous report. The saved email index provides the original message; older reports without that index show an explanation.
 
-Ask about this email supports follow-up questions and additional files selected with the file picker. Each email has its own saved conversation that can be reopened. Model context includes the original email, readable attachments, current report and conversation. Long conversations compress earlier turns into a summary while keeping recent messages, with a compression indicator. Compression is not word-for-word preservation; the complete conversation remains locally saved. Quote and verify critical figures or wording.
+Ask about this email supports follow-up questions and additional files selected with the file picker. Each email has its own saved conversation that can be reopened. Factual answers use the original email and readable original attachments. Conversation is included, but generated reports, previous answers and compressed summaries are not factual evidence. Long conversations compress earlier turns into a summary while keeping recent messages, with a compression indicator. Compression is not word-for-word preservation; the complete conversation remains locally saved. Quote and verify critical figures or wording.
 
 These actions call your configured AI and may incur charges. Supplementary files are read only for text extraction; unreadable or oversized files cause an explicit error. No emails are sent. Conversation history is stored in local application data. Uninstalling removes it even when mailbox and AI settings are retained; copy any conversations you need before uninstalling.
 
@@ -102,3 +121,34 @@ Under Mailboxes and checking → Block emails, choose a blacklist or whitelist. 
 Skipped emails are grouped by sender in the local records. Summarize one or several with the current language and AI settings. This is a one-time override and does not change the rules; failures keep the records. Delete record removes only the local record, never the original email. Rules apply to newly checked messages and do not remove existing reports.
 
 Drag the divider between the report and the email conversation to resize both areas.
+
+## New workflows and reliability improvements
+
+- **Reply drafts:** choose tone, language and instructions, then edit the recipient, subject and body before saving locally or copying. The app never sends the draft automatically.
+- **Enhanced attachment reading:** images and scanned PDFs first use native local OCR; extracted text then goes to the selected AI. System language support, file limits and recognition quality apply. Unreadable content is reported, and recognition is not guaranteed.
+- **Older-mail processing:** select a mailbox and date range, preview the pending count, then confirm to queue. Processing may incur AI charges and still follows sender and spam rules.
+- **Sources and continuous questions:** inspect saved original mail, attachment extraction and reading limitations. Questions use the original message and readable original attachments as factual evidence; generated reports and earlier AI replies do not replace originals. Missing sources for older mail are reported.
+- **Notifications and quiet hours:** system notifications can be paused independently of monitoring. Quiet hours, including overnight periods, keep checking mail and saving reports.
+- **Diagnostics:** manually export sanitized operational information for troubleshooting, excluding keys, message bodies, attachments and chat contents.
+- **One Save per settings page:** mailbox, AI and General settings stage edits until their page Save. Leaving a page with unsaved edits asks for confirmation. Language, report folder and login startup are managed in General settings.
+- **Windows update downloads:** General settings is a separate page. Later dismisses the download dialog while progress continues in the background; only explicit cancellation stops it. Interrupted downloads support retry/resume, package size and SHA256 are verified, and installation still requires your action.
+
+| Complete guides | 简体中文 | English | Español |
+| --- | --- | --- | --- |
+| Mac | [中文](macos/Resources/Quick-start-zh.txt) | [English](macos/Resources/Quick-start-en.txt) | [Español](macos/Resources/Quick-start-es.txt) |
+| Windows | [中文](windows/docs/Quick-start-zh.txt) | [English](windows/docs/Quick-start-en.txt) | [Español](windows/docs/Quick-start-es.txt) |
+
+## Complete feature and settings guide
+
+Step-by-step entry points for every feature and setting:
+
+- [Mac](macos/Resources/Quick-start-en.txt)
+- [Windows](windows/docs/Quick-start-en.txt)
+
+## Cost sources and account balances
+
+Open the usage records from AI settings to view input/output tokens, upstream-reported costs, local estimates and the number of calls covered by each source. Upstream costs take precedence per call; those calls are excluded from local estimates. Missing costs are estimated from saved rates and token usage, or shown as Unknown when the required data is absent. Currencies are kept separate; historical records are not guessed or repriced.
+
+Official OpenRouter `usage.cost` is recorded in USD. Compatible APIs must explicitly return `usage.cost` with `cost_currency`, or a cost object containing `amount` and `currency`. Other providers continue to use estimates. An upstream-reported amount is not a substitute for the final bill.
+
+Query account balance runs only when clicked, supports official DeepSeek and OpenRouter endpoints, and does not generate AI content. Balances belong to the entire provider account and may include other applications; balance changes cannot be attributed to this app. OpenRouter balance queries require management permissions, so a normal inference key may be refused. Do not replace an inference key with a management key merely to query balances. A failed query is not displayed as a zero balance.

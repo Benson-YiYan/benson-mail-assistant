@@ -26,47 +26,74 @@ def installation(path):
     return folder
 
 
-def report_files(directory):
+def _report_folders(root):
+    """Only owned layout shapes qualify; never traverse directory links."""
+    def safe_directory(path):
+        return (path.is_dir() and not path.is_symlink()
+                and not (hasattr(path, 'is_junction') and path.is_junction()))
+    for child in root.iterdir():
+        if not safe_directory(child): continue
+        if re.fullmatch(r'\d{4}-\d{2}-\d{2}', child.name):
+            yield child
+        elif '@' in child.name or child.name == 'unknown-account':
+            for day in child.iterdir():
+                if not safe_directory(day) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', day.name): continue
+                for sender in day.iterdir():
+                    if safe_directory(sender) and sender.name.startswith('From '):
+                        yield sender
+
+
+def report_files(directory, data=None):
+    """Recognize owned report files using private metadata or a legacy sibling."""
+    from .report_metadata import read_metadata
     root = Path(directory).resolve()
     found = []
     if not root.is_dir():
         return found
-    for day in root.iterdir():
-        if day.is_symlink() or (hasattr(day, 'is_junction') and day.is_junction()) or not day.is_dir() or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', day.name):
-            continue
-        for metadata in day.glob('*.mail.json'):
-            if metadata.is_symlink():
+    for folder in _report_folders(root):
+        for text in folder.iterdir():
+            if text.suffix.lower() not in ('.txt', '.md') or not text.is_file() or text.is_symlink():
                 continue
+            legacy = text.with_suffix('.mail.json')
             try:
-                value = json.loads(metadata.read_text(encoding='utf-8'))
-                if not isinstance(value, dict) or not all(k in value for k in ('subject', 'sender', 'received')):
+                value = read_metadata(data, text) if data is not None else json.loads(legacy.read_text(encoding='utf-8'))
+                if not isinstance(value, dict) or not (all(k in value for k in ('subject', 'sender', 'received'))
+                       or str(value.get('uid', '')).isdigit()):
                     continue
             except (ValueError, OSError):
                 continue
-            for suffix in ('.txt', '.md'):
-                text = metadata.with_name(metadata.name[:-10] + suffix)
-                if text.is_file() and not text.is_symlink():
-                    found.append(text)
-            found.append(metadata)
+            found.append(text)
+            if legacy.is_file() and not legacy.is_symlink() and legacy not in found:
+                found.append(legacy)
     return found
 
 
-def remove_reports(directory):
-    files = report_files(directory)
-    for path in files:
+def remove_reports(directory, data=None):
+    from .report_metadata import metadata_path
+    files = report_files(directory, data)
+    private = set()
+    if data is not None:
+        for report in files:
+            if report.suffix.lower() in ('.txt', '.md'):
+                metadata = metadata_path(data, report)
+                if metadata.is_file() and not metadata.is_symlink():
+                    private.add(metadata)
+    for path in [*files, *private]:
         path.unlink(missing_ok=True)
     root = Path(directory).resolve()
-    folders = {p.parent for p in files}
+    folders = {parent for path in files for parent in path.parents if parent != root and parent.is_relative_to(root)}
     if root.is_dir():
-        folders.update(day for day in root.iterdir() if re.fullmatch(r'\d{4}-\d{2}-\d{2}', day.name)
-                       and not day.is_symlink() and not (hasattr(day, 'is_junction') and day.is_junction()))
-    for folder in folders:
+        # Include empty layout leaves as well, keeping unrelated user folders.
+        for folder in _report_folders(root):
+            folders.update(parent for parent in (folder, *folder.parents)
+                           if parent != root and parent.is_relative_to(root))
+    for folder in sorted(folders, key=lambda path: len(path.parts), reverse=True):
         try:
             folder.rmdir()
         except OSError:
             pass
     # The user may have selected Documents itself; keep the chosen root folder.
-    return len(files)
+    return len(files) + len(private)
 
 
 def copy_runtime(folder, executable):
@@ -147,8 +174,8 @@ def remove_shortcuts(folder, places=None):
         pythoncom.CoUninitialize()
 
 
-def clear_user_data(data, keep_configuration=False):
-    """Retain only settings and encrypted credentials, never cached email bodies."""
+def clear_user_data(data, keep_configuration=False, keep_report_metadata=False):
+    """Retain selected settings and originals belonging to preserved reports."""
     data = Path(data)
     if data.is_symlink():
         data.unlink()
@@ -156,9 +183,13 @@ def clear_user_data(data, keep_configuration=False):
     if not data.exists():
         return
     keep = {'config.json', 'secret.bin', 'mail-secrets', 'api-keys'} if keep_configuration else set()
+    if keep_report_metadata:
+        keep.add('report_metadata')
     for path in data.iterdir():
         junction = hasattr(path, 'is_junction') and path.is_junction()
         if path.name in keep and not path.is_symlink() and not junction:
+            if path.name == 'report_metadata' and path.is_dir():
+                continue
             if path.is_file() or path.name in ('mail-secrets', 'api-keys'):
                 if path.is_dir():
                     for child in path.iterdir():
@@ -182,7 +213,7 @@ def clear_user_data(data, keep_configuration=False):
             path.rmdir()
         else:
             path.unlink()
-    if not keep_configuration:
+    if not keep_configuration and not keep_report_metadata:
         data.rmdir()
     else:
         try:
@@ -204,7 +235,7 @@ def cleanup_installation(folder, data, delete_saved_reports, progress, registry_
         config = {}
     if delete_saved_reports and config.get('output_dir'):
         progress('正在删除选中的邮件报告…')
-        remove_reports(config['output_dir'])
+        remove_reports(config['output_dir'], data)
         report_root = Path(config['output_dir']).resolve()
         if report_root == (platform.documents_dir() / '邮件').resolve():
             try:
@@ -212,9 +243,13 @@ def cleanup_installation(folder, data, delete_saved_reports, progress, registry_
             except OSError:
                 pass
     elif config.get('output_dir'):
+        from .report_metadata import migrate_metadata, metadata_path, read_metadata, write_metadata
         report_root = Path(config['output_dir']).resolve()
+        relocated = migrate_metadata(data, report_root)
+        if relocated['errors']:
+            raise OSError('无法安全保留报告原文数据，已停止卸载；请检查文件权限后重试。')
         if report_root.is_relative_to(folder) or report_root.is_relative_to(data.resolve()):
-            files = report_files(report_root)
+            files = report_files(report_root, data)
             if files:
                 preserved = platform.documents_dir() / ('邮件-卸载保留-' + uuid.uuid4().hex[:8])
                 if preserved.resolve().is_relative_to(folder) or preserved.resolve().is_relative_to(data.resolve()):
@@ -223,7 +258,11 @@ def cleanup_installation(folder, data, delete_saved_reports, progress, registry_
                 for source in files:
                     target = preserved / source.relative_to(report_root)
                     target.parent.mkdir(parents=True, exist_ok=True)
+                    if source.suffix.lower() in ('.md', '.txt'):
+                        write_metadata(data, target, read_metadata(data, source), replace=False)
                     shutil.move(str(source), str(target))
+                    if source.suffix.lower() in ('.md', '.txt'):
+                        metadata_path(data, source).unlink(missing_ok=True)
                 config['output_dir'] = str(preserved)
                 (data / 'config.json').write_text(json.dumps(config, ensure_ascii=False), encoding='utf-8')
                 progress('已将程序或数据目录中的报告保留到：' + str(preserved))
@@ -233,11 +272,12 @@ def cleanup_installation(folder, data, delete_saved_reports, progress, registry_
     progress('正在清理指向本次安装的快捷方式…')
     remove_shortcuts(folder, shortcut_places)
     progress('正在保留邮箱及 AI 配置、清理缓存…' if keep_configuration else '正在清理配置、加密密钥和缓存…')
-    clear_user_data(data, keep_configuration)
+    keep_report_metadata = not delete_saved_reports and (data / 'report_metadata').is_dir()
+    clear_user_data(data, keep_configuration, keep_report_metadata)
     progress('正在删除程序目录…')
     shutil.rmtree(folder)
     remove_empty_archive_wrapper(folder)
-    if folder.exists() or (data.exists() and not keep_configuration):
+    if folder.exists() or (data.exists() and not keep_configuration and not keep_report_metadata):
         raise OSError('部分目录仍然存在，请关闭占用它们的程序后重试。')
 
 

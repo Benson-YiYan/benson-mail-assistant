@@ -52,7 +52,7 @@ sealed partial class MainWindow
                 "Legacy Spanish language packs retain built-in sender policy labels");
             // Run the real language-change handler over the existing settings cards,
             // report/chat controls and tray. Dictionary coverage alone misses stale UI.
-            var chineseLabels = new[] { "管理邮箱", "邮箱连接", "报告与后台运行", "选择您喜欢的 AI" };
+            var chineseLabels = new[] { "管理邮箱", "邮箱连接", "检查频率", "选择您喜欢的 AI", "系统通知与免打扰", "历史邮件与诊断", "费用单价" };
             bool HasText(UIElement? element, string text)
             {
                 if (element == null || element == reports || element == savedMailboxes || element == chatMessages) return false;
@@ -71,6 +71,7 @@ sealed partial class MainWindow
                 check(retryReport.Content?.ToString() == L.T("重新总结") &&
                     sendQuestion.Content?.ToString() == L.T("发送问题") &&
                     question.Header?.ToString() == L.T("对邮件提问") &&
+                    notificationToggle.Content?.ToString() == L.T(notificationsEnabled ? "暂停系统通知" : "开启系统通知") &&
                     this.check.Content?.ToString() == L.T("立即检查"),
                     "Existing report/chat actions and check button refresh to " + language);
                 check(updateFallbackButton.Content?.ToString() == L.T("前往 GitHub 下载最新版") &&

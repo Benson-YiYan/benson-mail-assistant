@@ -46,13 +46,11 @@ class MailChatTests(unittest.TestCase):
         for module in (windows, mac):
             root, report, _ = self.fixture(module)
             report.with_suffix('.mail.json').unlink()
-            with patch.object(module, '_complete', return_value='Discussing existing report only') as provider:
-                with self.assertRaisesRegex(ValueError, 'Original mail data'): module.report_retry(root, report)
-                self.assertFalse(provider.called)
-                module.chat_send(root, report, 'What is known?', [])
-                context = provider.call_args.args[2][1]['content']
-                self.assertIn('original_mail_available', context); self.assertIn('false', context)
-                self.assertIn('ORIGINAL REPORT', context)
+            with patch.object(module, '_complete') as provider:
+                with self.assertRaisesRegex(ValueError, 'Original email data'): module.report_retry(root, report)
+                with self.assertRaisesRegex(ValueError, 'Original email data'): module.chat_send(root, report, 'What is known?', [])
+                provider.assert_not_called()
+                self.assertEqual(module.chat_history(root, report)['messages'], [])
             outside = root / 'outside.md'; outside.write_text('outside')
             with self.assertRaises(ValueError): module.chat_history(root, outside)
 
@@ -132,7 +130,7 @@ class MailChatTests(unittest.TestCase):
         # Use the real export name so a later daemon export exercises identity detection.
         import mail_export
         report.unlink(); report.with_suffix('.mail.json').unlink()
-        with patch.object(mail_export, 'destination', return_value=Path(config['output_dir'])):
+        with patch.object(mail_export, 'BASE', root), patch.object(mail_export, 'destination', return_value=Path(config['output_dir'])):
             report = mail_export.export(source, 'Old report')
         folder = root / 'mailboxes' / source['mailbox_key'] / 'mail_watch' / '42'
         folder.mkdir(parents=True)
@@ -142,7 +140,7 @@ class MailChatTests(unittest.TestCase):
             result = mac.report_retry(root, report)
         self.assertTrue(result['text'].startswith('邮件编号：42\n邮箱标识：abcdef1234\n'))
         self.assertEqual((folder / 'answer.txt').read_text(), '## Regenerated report')
-        with patch.object(mail_export, 'destination', return_value=Path(config['output_dir'])):
+        with patch.object(mail_export, 'BASE', root), patch.object(mail_export, 'destination', return_value=Path(config['output_dir'])):
             again = mail_export.export(source, (folder / 'answer.txt').read_text())
         self.assertEqual(again, report)
         self.assertEqual(len(list(Path(config['output_dir']).rglob('*.md'))), 1)

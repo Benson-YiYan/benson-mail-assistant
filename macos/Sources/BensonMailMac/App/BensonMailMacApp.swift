@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let store = MailStore.shared
         guard !store.isTest, !store.uninstalling, !store.updating else { return .terminateNow }
+        guard store.settingsDraft.mayLeave() else { return .terminateCancel }
         do { try store.prepareForExit() }
         catch {
             store.problem = "无法保存退出状态：\(error.localizedDescription)"
@@ -50,7 +51,7 @@ struct BensonMailMacApp: App {
     @StateObject private var language = AppLanguage.shared
     @StateObject private var store = MailStore.shared
     var body: some Scene {
-        WindowGroup(T("邮件小秘书"), id: "main") { ContentView(store: store).environment(\.locale, Locale(identifier: language.localeIdentifier)) }
+        WindowGroup(T("邮件小秘书"), id: "main") { ContentView(store: store).disclosureGroupStyle(WideDisclosureStyle()).environment(\.locale, Locale(identifier: language.localeIdentifier)) }
             .defaultSize(width: 1120, height: 760)
             .commands {
                 CommandGroup(replacing: .newItem) {}
@@ -61,6 +62,6 @@ struct BensonMailMacApp: App {
         } label: {
             Image(systemName: store.settings.enabled ? "envelope" : "envelope.badge").accessibilityLabel(T("邮件小秘书"))
         }
-        Settings { SettingsView(store: store).environment(\.locale, Locale(identifier: language.localeIdentifier)) }
+        Settings { SettingsView(store: store).disclosureGroupStyle(WideDisclosureStyle()).environment(\.locale, Locale(identifier: language.localeIdentifier)) }
     }
 }

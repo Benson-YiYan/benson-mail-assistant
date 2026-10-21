@@ -39,8 +39,15 @@ final class DownloadFixture: URLProtocol {
   Self.lock.lock()
   if probe { Self.ranges.append(request.value(forHTTPHeaderField:"Range")!) } else { Self.fullPaths.append(path) }
   Self.lock.unlock()
-  let status = path == "/http" || (!probe && path == "/fail-full") ? 503 : 200
+  Self.lock.lock()
+  let fullCount = Self.fullPaths.filter { $0 == path }.count
+  Self.lock.unlock()
+  let status = path == "/http" || (!probe && (path == "/fail-full" || (path == "/flaky" && fullCount == 1))) ? 503 : 200
   let deliver = DispatchWorkItem { [self] in
+  if path == "/interrupted" && !probe {
+   client?.urlProtocol(self,didFailWithError:NSError(domain:NSURLErrorDomain,code:URLError.networkConnectionLost.rawValue,userInfo:[NSURLSessionDownloadTaskResumeData:Data("fixture-resume-state".utf8)]))
+   return
+  }
   let response = HTTPURLResponse(url:request.url!,statusCode:status,httpVersion:"HTTP/1.1",headerFields:["Content-Length":"3"])!
   client?.urlProtocol(self,didReceive:response,cacheStoragePolicy:.notAllowed)
   if request.url!.path == "/cancel" { return }
@@ -155,6 +162,13 @@ final class DownloadFixture: URLProtocol {
   catch {precondition((error as? URLError)?.code == .cancelled)}
   do {_ = try await transfer().run(url:URL(string:"https://updates.example.invalid/ok")!,destination:cancelledTarget,sha256:expectedHash,size:2,progress:{_,_ in});fatalError("oversized download accepted")}
   catch {precondition(!FileManager.default.fileExists(atPath:cancelledTarget.path))}
+  let interruptedTarget = downloadRoot.appendingPathComponent("interrupted.dmg")
+  do { _ = try await transfer().run(url:URL(string:"https://updates.example.invalid/interrupted")!,destination:interruptedTarget,sha256:expectedHash,size:3,progress:{_,_ in});fatalError("interrupted download accepted") } catch {}
+  let resumeFiles = try FileManager.default.contentsOfDirectory(at:downloadRoot,includingPropertiesForKeys:nil).filter { $0.lastPathComponent.hasPrefix("resume-") }
+  precondition(resumeFiles.count == 1 && !FileManager.default.fileExists(atPath:interruptedTarget.path))
+  let resumeBytes = try Data(contentsOf:resumeFiles[0])
+  let resumePermissions = try FileManager.default.attributesOfItem(atPath:resumeFiles[0].path)[.posixPermissions] as? Int
+  precondition(resumeBytes == Data("fixture-resume-state".utf8) && resumePermissions == 0o600)
   // Mirrors remain optional; malformed or insecure arrays are rejected before transfer.
   for values: Any in [["https://updates.example.invalid/ok"], ["http://updates.example.invalid/ok"], Array(repeating:"https://updates.example.invalid/ok",count:4), "invalid"] {
    var body = try JSONSerialization.jsonObject(with:newer) as! [String:Any]
@@ -171,10 +185,13 @@ final class DownloadFixture: URLProtocol {
   precondition(DownloadFixture.fullPaths == ["/ok"] && DownloadFixture.ranges == ["bytes=0-262143","bytes=0-262143"])
   DownloadFixture.reset()
   _ = try await transfer().run(url:link("/fail-full"),mirrors:[link("/slow")],destination:output,sha256:expectedHash,size:3,progress:{_,_ in})
-  precondition(DownloadFixture.fullPaths == ["/fail-full","/slow"])
+  precondition(DownloadFixture.fullPaths == ["/fail-full","/fail-full","/slow"])
   DownloadFixture.reset()
   _ = try await transfer().run(url:link("/short"),mirrors:[link("/slow")],destination:output,sha256:expectedHash,size:3,progress:{_,_ in})
-  precondition(DownloadFixture.fullPaths == ["/short","/slow"])
+  precondition(DownloadFixture.fullPaths == ["/short","/short","/slow"])
+  DownloadFixture.reset()
+  _ = try await transfer().run(url:link("/flaky"),mirrors:[link("/slow")],destination:output,sha256:expectedHash,size:3,progress:{_,_ in})
+  precondition(DownloadFixture.fullPaths == ["/flaky","/flaky"])
   DownloadFixture.reset()
   do { _ = try await transfer().run(url:link("/ok"),mirrors:[link("/slow")],destination:output,sha256:String(repeating:"0",count:64),size:3,progress:{_,_ in}); fatalError("hash mismatch accepted") } catch {}
   precondition(DownloadFixture.fullPaths == ["/ok"])

@@ -113,7 +113,9 @@ final class AppLanguage: ObservableObject {
     func translate(_ text: String) -> String {
         if text == "邮件小秘书" { return Self.appName(code) }
         guard code != "zh" else { return text }
+        if let value = AssistantToolsLocalization.translate(text, language: code) { return value }
         if let value = exact[text] { return value }
+        if let value = ReportTree.translate(text, language: code) { return value }
         if let value = SenderPolicyLocalization.translate(text, language: code) { return value }
         let networkCodePrefix = "网络错误代码："
         if text.hasPrefix(networkCodePrefix) {
@@ -210,6 +212,22 @@ final class AppLanguage: ObservableObject {
             }
         }
     }
+    /// Downloads a missing catalog without changing the active or persisted language.
+    @MainActor func prepareSettingsLanguage(_ value: String) async -> Bool {
+        guard Self.supported.contains(value), !isDownloading else { return false }
+        if catalog(for: value) != nil { return true }
+        let alert = NSAlert(); alert.messageText = T("你没有下载这个语言，是否现在下载？")
+        alert.addButton(withTitle: T("下载")); alert.addButton(withTitle: T("取消"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+        isDownloading = true; defer { isDownloading = false }
+        do { try await Self.download(value, base: base); return catalog(for: value) != nil }
+        catch { MailStore.shared.problem = error.localizedDescription; return false }
+    }
+    @MainActor func applySettingsLanguage(_ value: String) {
+        guard let catalog = catalog(for: value) else { return }
+        install(catalog, language: value); MailHelp.refreshTitle()
+        for window in NSApp.windows where Self.appNames.contains(window.title) { window.title = T("邮件小秘书") }
+    }
     @MainActor func ensureStartupLanguage() {
         guard !startupHandled, !CommandLine.arguments.contains("--self-test") else { return }
         startupHandled = true
@@ -239,8 +257,13 @@ final class AppLanguage: ObservableObject {
     }
     func guideURL(_ kind: String, language: String? = nil) -> URL? {
         let target = language ?? code
-        guard Self.supported.contains(target), let text = catalog(for: target)?.guides[kind], !text.isEmpty else { return nil }
+        // An installed language remains required, but upgrading the app must also
+        // upgrade its guide instead of showing documentation from an old pack.
+        guard Self.supported.contains(target), let catalog = catalog(for: target) else { return nil }
         let name = kind == "mail_account" ? "Mail-account-setup-\(target).txt" : "Quick-start-\(target).txt"
+        let bundled = Bundle.main.resourceURL?.appendingPathComponent(name)
+        let current = bundled.flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+        guard let text = current ?? catalog.guides[kind], !text.isEmpty else { return nil }
         let directory = base.appendingPathComponent("languages/guides/\(target)")
         let file = directory.appendingPathComponent(name)
         do {
