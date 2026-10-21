@@ -58,6 +58,62 @@ class ReportLayoutTests(unittest.TestCase):
         self.assertNotEqual(layout.report_folder(message, self.output),
                             layout.report_folder(other, self.output))
 
+    def test_old_report_without_sidecar_recovers_exact_cached_mail_and_archive_reference(self):
+        source = self.output / "2026-10-21/example-11-53.txt"
+        source.parent.mkdir()
+        body = "邮件编号：42\n邮箱标识：" + self.message["mailbox_key"] + "\n## Original report\n"
+        source.write_text(body)
+        for base, path, metadata in [
+            ("mail_watch/42", str(source), self.message),
+            # Reusing the same UID from another saved report must not be selected.
+            ("mailboxes/other/mail_watch/42", str(self.output / "other.txt"),
+             dict(self.message, sender="wrong@example.org", mailbox_key="wrong")),
+            ("mailbox-archives/old/mail_watch/42", str(source), self.message),
+        ]:
+            folder = self.root / base
+            folder.mkdir(parents=True)
+            (folder / "saved.json").write_text(json.dumps({"saved": path}))
+            (folder / "mail.json").write_text(json.dumps(metadata))
+        result = layout.migrate_reports(self.root, self.config)
+        target = self.expected().with_suffix(".txt")
+        self.assertEqual(result["moved"], 1)
+        self.assertEqual(target.read_text(), body)
+        recovered = json.loads(target.with_suffix(".mail.json").read_text())
+        self.assertEqual(recovered["from"], self.message["from"])
+        self.assertEqual(recovered["mailbox_account"], "owner@example.com")
+        archived = self.root / "mailbox-archives/old/mail_watch/42/saved.json"
+        self.assertEqual(json.loads(archived.read_text())["saved"], str(target))
+
+    def test_recognized_marker_without_metadata_retains_body_with_unknown_sender(self):
+        source = self.output / "2026-10-21/example-11-53.md"
+        source.parent.mkdir()
+        body = "邮件编号：42\n## Original report\nThe sender may be fake@example.org in AI output."
+        source.write_text(body)
+        other = self.root / "mail_watch/42"
+        other.mkdir(parents=True)
+        # Exact UID with a different saved path is not evidence for this report.
+        (other / "saved.json").write_text(json.dumps({"saved": str(self.output / "different.md")}))
+        (other / "mail.json").write_text(json.dumps(self.message))
+        self.assertEqual(layout.migrate_reports(self.root, self.config)["moved"], 1)
+        target = self.output / "owner@example.com/2026-10-21/From unknown-sender/example-11-53.md"
+        self.assertEqual(target.read_text(), body)
+        metadata = json.loads(target.with_suffix(".mail.json").read_text())
+        self.assertTrue(metadata["unavailable"])
+        self.assertEqual(metadata["uid"], "42")
+        self.assertEqual(metadata["received_at"], "2026-10-21T11:53:00+08:00")
+        self.assertEqual(layout.sender_address(metadata), "")
+
+    def test_unrelated_text_and_nonnumeric_identity_are_not_migrated(self):
+        day = self.output / "2026-10-21"
+        day.mkdir()
+        for name, text in [("contract.txt", "This is a personal contract."),
+                           ("pretend.md", "邮件编号：not-a-uid\nDo not move."),
+                           ("later-marker.txt", "Personal notes\n邮件编号：42\n")]:
+            (day / name).write_text(text)
+        result = layout.migrate_reports(self.root, self.config)
+        self.assertEqual(result["moved"], 0)
+        self.assertEqual(len(list(day.iterdir())), 3)
+
     def test_unsafe_or_long_components_do_not_escape_or_collide(self):
         for value in ("../../escape", r"a\\b", "CON", "a"*300, "a\x00b"):
             result = layout.component(value, "unknown")

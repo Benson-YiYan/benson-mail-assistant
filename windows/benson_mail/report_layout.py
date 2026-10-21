@@ -174,7 +174,7 @@ def _patch_paths(value, mapping):
 
 
 def _rewrite_references(home, mapping):
-    for directory in ("mail_watch", "mailboxes", "state", "blocked_mail", "reply_drafts", "notifications"):
+    for directory in ("mail_watch", "mailboxes", "mailbox-archives", "state", "blocked_mail", "reply_drafts", "notifications"):
         folder = home / directory
         if not folder.is_dir():
             continue
@@ -227,6 +227,82 @@ def _create_complete_file(path, data):
             os.link(name, path)  # Atomic, exclusive creation of the completed file.
     finally:
         Path(name).unlink(missing_ok=True)
+
+
+def _legacy_identity(source):
+    """Only the old exporter's numeric first-line marker identifies a report."""
+    with source.open("r", encoding="utf-8-sig") as stream:
+        first = stream.readline(4096).rstrip("\r\n")
+        match = re.fullmatch(r"邮件编号[：:]\s*([0-9]+)\s*", first)
+        if not match:
+            return None
+        second = stream.readline(4096).rstrip("\r\n")
+    mailbox = re.fullmatch(r"邮箱标识[：:]\s*([a-zA-Z0-9]+)\s*", second)
+    return match[1], mailbox[1] if mailbox else ""
+
+
+def _cached_report_metadata(home):
+    """Index exact saved report paths; UID alone cannot identify an account."""
+    found = {}
+    for directory in ("mail_watch", "mailboxes", "mailbox-archives"):
+        base = home / directory
+        if not base.is_dir() or base.is_symlink():
+            continue
+        for parent, directories, files in os.walk(base, followlinks=False):
+            directories[:] = [name for name in directories if not (Path(parent) / name).is_symlink()
+                              and not (hasattr(Path(parent) / name, "is_junction") and (Path(parent) / name).is_junction())]
+            if "saved.json" not in files or "mail.json" not in files:
+                continue
+            saved, mail = Path(parent) / "saved.json", Path(parent) / "mail.json"
+            try:
+                if saved.is_symlink() or mail.is_symlink() or saved.stat().st_size > 65536 or mail.stat().st_size > 4 * 1024 * 1024:
+                    continue
+                reference = json.loads(saved.read_text(encoding="utf-8"))
+                metadata = json.loads(mail.read_text(encoding="utf-8"))
+                target = reference.get("saved")
+                if not isinstance(target, str) or not Path(target).is_absolute() or not isinstance(metadata, dict):
+                    continue
+                uid = str(metadata.get("uid", ""))
+                if not re.fullmatch(r"[0-9]+", uid):
+                    continue
+                found.setdefault(str(Path(target).expanduser().resolve()), []).append(metadata)
+            except (OSError, ValueError, TypeError, AttributeError):
+                continue
+    return found
+
+
+def _restore_legacy_sidecar(source, config, cached):
+    """Recover original metadata only when both the saved path and UID match."""
+    identity = _legacy_identity(source)
+    if identity is None:
+        return False
+    uid, mailbox_key = identity
+    matches = [message for message in cached.get(str(source), [])
+               if str(message.get("uid", "")) == uid
+               and (not mailbox_key or message.get("mailbox_key", "") == mailbox_key)]
+    # Ambiguous cache entries are never selected merely because they share a UID.
+    if matches and all(message == matches[0] for message in matches):
+        metadata = dict(matches[0])
+    else:
+        match = re.search(r"-(\d{2})-(\d{2})(?:-\d+(?:-\d+)?)?$", source.stem)
+        subject = source.stem[:match.start()] if match else source.stem
+        metadata = {"uid": uid, "subject": subject, "sender": "", "unavailable": True}
+        day = source.parent.name
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", day):
+            # Restore receipt time only from the export filename, never from AI text.
+            stamp = day + (f"T{match[1]}:{match[2]}:00+08:00" if match else "T00:00:00+08:00")
+            datetime.fromisoformat(stamp)  # Reject invalid folder dates or filename times.
+            metadata["received_at"] = stamp
+        accounts = {
+            str((profile.get("connection") or profile).get("account") or "").strip().lower()
+            for profile in (config.get("mailboxes") or [config.get("mailbox") or config])
+            if isinstance(profile, dict)
+        } - {""}
+        if len(accounts) == 1:
+            metadata["mailbox_account"] = next(iter(accounts))
+    data = json.dumps(metadata, ensure_ascii=False, indent=2).encode("utf-8")
+    _create_complete_file(source.with_suffix(".mail.json"), data)
+    return True
 
 
 def _move_report(home, output, configured_output, item):
@@ -287,15 +363,22 @@ def migrate_reports(home, config, windows=False):
                 {"source": str(journal), "error": type(error).__name__ + ": migration journal retained"}]}
         known = {item["source"] for item in moves}
         skipped = 0
+        cached_metadata = None
         for source in sorted(report_files(output)):
             relative = source.relative_to(output)
             if len(relative.parts) > 2 or str(source) in known:
                 continue
             sidecar = source.with_suffix(".mail.json")
-            if not sidecar.is_file() or sidecar.is_symlink():
+            if sidecar.is_symlink():
                 skipped += 1
                 continue
             try:
+                if not sidecar.is_file():
+                    if cached_metadata is None:
+                        cached_metadata = _cached_report_metadata(home)
+                    if not _restore_legacy_sidecar(source, config, cached_metadata):
+                        skipped += 1
+                        continue
                 message = json.loads(sidecar.read_text(encoding="utf-8"))
                 account = account_for(message, config)
                 if account:
