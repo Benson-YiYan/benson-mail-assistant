@@ -218,21 +218,21 @@ function Invoke-MicrosoftInstaller([hashtable]$Definition, [string]$Path) {
     $runName = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N')
     $script:RuntimeLogPath = Join-Path $logRoot ($runName + '.log')
     $workspace = Join-Path $logRoot ($runName + '-temp')
-    [IO.Directory]::CreateDirectory($workspace) | Out-Null
-    $physicalWorkspace = Get-PhysicalInstallerPath $workspace
-    # Stage both EXE and its extraction TEMP at resolved paths. Only this child
-    # receives TEMP/TMP; the user's global environment remains unchanged.
-    $stagedPayload = Join-Path $physicalWorkspace 'MicrosoftRuntimeSetup.exe'
-    Copy-Item -LiteralPath $physicalPayload -Destination $stagedPayload
-    Assert-MicrosoftPayload $stagedPayload $Definition
-    Write-InstallerLog ('Component: ' + $Definition.Label)
-    Write-InstallerLog ('Windows: ' + [Environment]::OSVersion.VersionString)
-    Write-InstallerLog ('Source payload: ' + $physicalPayload)
-    Write-InstallerLog ('Runtime workspace: ' + $physicalWorkspace)
     $process = $null
     $started = $false
     $finished = $false
+    Write-InstallerLog ('Component: ' + $Definition.Label)
+    Write-InstallerLog ('Windows: ' + [Environment]::OSVersion.VersionString)
+    Write-InstallerLog ('Source payload: ' + $physicalPayload)
     try {
+        [IO.Directory]::CreateDirectory($workspace) | Out-Null
+        $physicalWorkspace = Get-PhysicalInstallerPath $workspace
+        Write-InstallerLog ('Runtime workspace: ' + $physicalWorkspace)
+        # Stage both EXE and its extraction TEMP at resolved paths. Only this child
+        # receives TEMP/TMP; the user's global environment remains unchanged.
+        $stagedPayload = Join-Path $physicalWorkspace 'MicrosoftRuntimeSetup.exe'
+        Copy-Item -LiteralPath $physicalPayload -Destination $stagedPayload
+        Assert-MicrosoftPayload $stagedPayload $Definition
         if ($Definition.Elevate) {
             # ShellExecute is required for UAC. .NET writes its own installer log.
             $arguments = $Definition.Arguments + ' /log "' + $script:RuntimeLogPath + '.dotnet.log"'
