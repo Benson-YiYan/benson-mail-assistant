@@ -80,6 +80,15 @@ english.RuntimeDeclined=Required runtime installation was declined. No applicati
 chinesesimp.RuntimeDeclined=已取消安装必要运行时，软件文件和配置均未修改。需要时请重新运行安装程序并确认安装缺失组件。
 english.RuntimeFailed=Could not prepare the required runtimes. No application files were changed. Check the network and Windows security prompts, then retry.%n%1
 chinesesimp.RuntimeFailed=必要运行时准备失败，软件文件未修改。请检查网络和 Windows 安全授权提示后重试。%n%1
+english.RuntimeUntrustedMount=Windows blocked the WinUI 3 installer because a path contains an untrusted mount point (0x800701C0). This can involve redirected temporary or application folders. Try restarting Windows and running Setup from a local folder. If it fails again, send the installation log below for diagnosis; do not disable Windows security.
+chinesesimp.RuntimeUntrustedMount=Windows 拒绝运行 WinUI 3 安装：路径包含不受信任的挂载点（0x800701C0）。可能涉及被重定向的临时目录或应用目录。请重启电脑，从本机文件夹重新运行安装程序；若仍失败，请提供下方安装日志排查，无需关闭 Windows 安全防护。
+spanish.RuntimeUntrustedMount=Windows bloqueó la instalación de WinUI 3 porque una ruta contiene un punto de montaje no confiable (0x800701C0). Puede afectar a carpetas temporales o de aplicaciones redirigidas. Reinicia Windows y ejecuta el instalador desde una carpeta local. Si vuelve a fallar, envía el registro indicado abajo; no desactives la seguridad de Windows.
+english.RuntimeLog=Installation log: %1
+chinesesimp.RuntimeLog=安装日志：%1
+spanish.RuntimeLog=Registro de instalación: %1
+english.RuntimeOpenLog=Open the installation log now?
+chinesesimp.RuntimeOpenLog=现在打开安装日志吗？
+spanish.RuntimeOpenLog=¿Abrir el registro de instalación ahora?
 english.RuntimeRestart=Microsoft requires a Windows restart to finish installing the runtime. No application files were changed. Restart Windows, then run this installer again.
 chinesesimp.RuntimeRestart=微软运行时需要重启 Windows 才能完成安装。软件文件未修改。请重启电脑后重新运行此安装程序。
 english.RuntimeProgressTitle=Preparing required components
@@ -318,7 +327,8 @@ end;
 
 function RunPrerequisiteHelper(const Operation, Components: String; var Detail, Status: String): Boolean;
 var
-  ResultPath, Parameters: String;
+  ResultPath, Parameters, Reason, LogPath: String;
+  LogExitCode: Integer;
   ExitCode: Integer;
 begin
   ExitCode := -1;
@@ -334,6 +344,22 @@ begin
   Status := GetIniString('Prerequisites', 'Status', '', ResultPath);
   Detail := GetIniString('Prerequisites', 'Error', 'Runtime helper did not return a result. Windows exit code: ' + IntToStr(ExitCode), ResultPath);
   Result := Result and (ExitCode = 0) and (Status <> '');
+  if not Result then
+  begin
+    Reason := GetIniString('Prerequisites', 'Reason', '', ResultPath);
+    if Reason = 'untrusted_mount_point' then
+      Detail := CustomMessage('RuntimeUntrustedMount') + #13#10 + Detail;
+    LogPath := GetIniString('Prerequisites', 'LogPath', '', ResultPath);
+    if (LogPath <> '') and FileExists(LogPath) then
+    begin
+      Detail := Detail + #13#10 + FmtMessage(CustomMessage('RuntimeLog'), [LogPath]);
+      if not WizardSilent then
+        if SuppressibleMsgBox(Detail + #13#10 + #13#10 + CustomMessage('RuntimeOpenLog'),
+          mbError, MB_YESNO, IDNO) = IDYES then
+          ShellExec('', ExpandConstant('{sys}\notepad.exe'), '"' + LogPath + '"', '',
+            SW_SHOWNORMAL, ewNoWait, LogExitCode);
+    end;
+  end;
 end;
 
 function EnsurePrerequisites: String;

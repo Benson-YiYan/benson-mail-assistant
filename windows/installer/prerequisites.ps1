@@ -139,20 +139,150 @@ function Get-MicrosoftPayload([hashtable]$Definition, [string]$Path) {
     }
 }
 
+# Resolve junctions (including redirected profile/temp folders) before passing paths
+# to Microsoft's deployment service. A path through an untrusted mount point may
+# be rejected with ERROR_UNTRUSTED_MOUNT_POINT, even when the file itself is signed.
+function Get-PhysicalInstallerPath([string]$Path) {
+    if (-not ('BensonMail.InstallerPath' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Text;
+using Microsoft.Win32.SafeHandles;
+namespace BensonMail {
+    public static class InstallerPath {
+        [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+        static extern SafeFileHandle CreateFile(string path, uint access, uint share,
+            IntPtr security, uint creation, uint flags, IntPtr template);
+        [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+        static extern uint GetFinalPathNameByHandle(SafeFileHandle handle,
+            StringBuilder path, uint length, uint flags);
+        public static string Resolve(string path) {
+            using (var handle = CreateFile(path, 0, 7, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero)) {
+                if (handle.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error());
+                var result = new StringBuilder(32768);
+                uint length = GetFinalPathNameByHandle(handle, result, (uint)result.Capacity, 0);
+                if (length == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+                if (length >= result.Capacity) throw new InvalidOperationException("Resolved runtime path is too long.");
+                string value = result.ToString();
+                if (value.StartsWith(@"\\?\UNC\")) return @"\\" + value.Substring(8);
+                return value.StartsWith(@"\\?\") ? value.Substring(4) : value;
+            }
+        }
+    }
+}
+'@
+    }
+    return [BensonMail.InstallerPath]::Resolve([IO.Path]::GetFullPath($Path))
+}
+
+function Get-RuntimeExitDetails([int]$Code) {
+    $unsigned = [uint32]([int64]$Code -band 4294967295L)
+    $hex = '0x{0:X8}' -f $unsigned
+    $nativeCode = if (($unsigned -band 4294901760L) -eq 2147942400L) { [int]($unsigned -band 65535) } else { $Code }
+    $message = (New-Object ComponentModel.Win32Exception($nativeCode)).Message
+    $reason = if ($hex -eq '0x800701C0') { 'untrusted_mount_point' } else { 'runtime_exit' }
+    return @{ Reason=$reason; ExitCode=$Code; HResult=$hex; NativeMessage=$message }
+}
+
+function Write-InstallerLog([string]$Text) {
+    if ($script:RuntimeLogPath) {
+        [IO.File]::AppendAllText($script:RuntimeLogPath, $Text + [Environment]::NewLine, [Text.Encoding]::UTF8)
+    }
+}
+
+function Write-AppxDeploymentDiagnostics {
+    try {
+        $events = @(Get-WinEvent -FilterHashtable @{
+            LogName='Microsoft-Windows-AppXDeploymentServer/Operational'
+            StartTime=(Get-Date).AddMinutes(-5)
+            Level=2
+        } -MaxEvents 20 -ErrorAction Stop)
+        Write-InstallerLog 'Recent local AppX deployment errors (last five minutes, at most 20; may include another installation):'
+        foreach ($event in $events) {
+            Write-InstallerLog ('[' + $event.TimeCreated.ToString('o') + '] Event ' + $event.Id + ': ' + $event.Message)
+        }
+    } catch {
+        # Missing/disabled/restricted event channels must never replace the real failure.
+        Write-InstallerLog ('AppX event diagnostics unavailable: ' + $_.Exception.Message)
+    }
+}
+
 function Invoke-MicrosoftInstaller([hashtable]$Definition, [string]$Path) {
     # Recheck immediately before execution. Existing shared runtimes are never uninstalled.
     Assert-MicrosoftPayload $Path $Definition
-    $parameters = @{ FilePath = $Path; ArgumentList = $Definition.Arguments; PassThru = $true }
-    if ($Definition.Elevate) { $parameters.Verb = 'RunAs' }
-    $process = Start-Process @parameters
+    $physicalPayload = Get-PhysicalInstallerPath $Path
+    $logRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'BensonMail\InstallerLogs'
+    [IO.Directory]::CreateDirectory($logRoot) | Out-Null
+    $runName = (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N')
+    $script:RuntimeLogPath = Join-Path $logRoot ($runName + '.log')
+    $workspace = Join-Path $logRoot ($runName + '-temp')
+    [IO.Directory]::CreateDirectory($workspace) | Out-Null
+    $physicalWorkspace = Get-PhysicalInstallerPath $workspace
+    # Stage both EXE and its extraction TEMP at resolved paths. Only this child
+    # receives TEMP/TMP; the user's global environment remains unchanged.
+    $stagedPayload = Join-Path $physicalWorkspace 'MicrosoftRuntimeSetup.exe'
+    Copy-Item -LiteralPath $physicalPayload -Destination $stagedPayload
+    Assert-MicrosoftPayload $stagedPayload $Definition
+    Write-InstallerLog ('Component: ' + $Definition.Label)
+    Write-InstallerLog ('Windows: ' + [Environment]::OSVersion.VersionString)
+    Write-InstallerLog ('Source payload: ' + $physicalPayload)
+    Write-InstallerLog ('Runtime workspace: ' + $physicalWorkspace)
+    $process = $null
+    $started = $false
+    $finished = $false
     try {
-        if (!$process.WaitForExit(900000)) { throw 'Microsoft runtime installation is still running. Wait for it to finish, then retry Setup.' }
+        if ($Definition.Elevate) {
+            # ShellExecute is required for UAC. .NET writes its own installer log.
+            $arguments = $Definition.Arguments + ' /log "' + $script:RuntimeLogPath + '.dotnet.log"'
+            $process = Start-Process -FilePath $stagedPayload -ArgumentList $arguments -Verb RunAs -PassThru
+        } else {
+            $start = New-Object Diagnostics.ProcessStartInfo
+            $start.FileName = $stagedPayload
+            $start.Arguments = $Definition.Arguments
+            $start.WorkingDirectory = $physicalWorkspace
+            $start.UseShellExecute = $false
+            $start.CreateNoWindow = $true
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            $start.EnvironmentVariables['TEMP'] = $physicalWorkspace
+            $start.EnvironmentVariables['TMP'] = $physicalWorkspace
+            $process = New-Object Diagnostics.Process
+            $process.StartInfo = $start
+            if (!$process.Start()) { throw 'Microsoft runtime installer could not be started.' }
+            # Drain both streams concurrently; waiting first can deadlock a full pipe.
+            $stdout = $process.StandardOutput.ReadToEndAsync()
+            $stderr = $process.StandardError.ReadToEndAsync()
+        }
+        $started = $true
+        if (!$process.WaitForExit(900000)) {
+            Write-InstallerLog 'Installer is still running after 15 minutes. Its workspace was retained.'
+            throw 'Microsoft runtime installation is still running. Wait for it to finish, then retry Setup.'
+        }
+        $finished = $true
         $process.Refresh()
+        if (!$Definition.Elevate) {
+            Write-InstallerLog ('Standard output:' + [Environment]::NewLine + $stdout.GetAwaiter().GetResult())
+            Write-InstallerLog ('Standard error:' + [Environment]::NewLine + $stderr.GetAwaiter().GetResult())
+        }
+        Write-InstallerLog ('Exit code: ' + $process.ExitCode + ' (' + (Get-RuntimeExitDetails $process.ExitCode).HResult + ')')
+        if ($process.ExitCode -ne 0) { Write-AppxDeploymentDiagnostics }
         return $process.ExitCode
-    } finally { $process.Dispose() }
+    } catch {
+        Write-InstallerLog ('Failure: ' + $_.Exception.Message)
+        Write-AppxDeploymentDiagnostics
+        throw
+    } finally {
+        if ($process) { $process.Dispose() }
+        # Never remove the executable/workspace from a runtime still installing.
+        if ($finished -or !$started) { Remove-Item -LiteralPath $workspace -Recurse -Force -ErrorAction SilentlyContinue }
+    }
 }
 
 function Invoke-PrerequisiteInstall([string[]]$Requested, [string]$WorkingDirectory) {
+    $script:RuntimeLogPath = $null
+    $script:RuntimeFailure = @{}
     if (!$Requested.Count) { throw 'No explicitly approved runtime components were supplied.' }
     foreach ($component in $Requested) {
         if ($component -notin @('dotnet','winui')) { throw 'Unknown runtime component.' }
@@ -160,13 +290,22 @@ function Invoke-PrerequisiteInstall([string[]]$Requested, [string]$WorkingDirect
     $state = Get-PrerequisiteState
     foreach ($component in $Requested) {
         if ($state[$component]) { continue } # Another installer may have provided it since consent.
+        $script:RuntimeLogPath = $null
+        $script:RuntimeFailure = @{}
         $definition = $script:Prerequisites[$component]
         $file = Join-Path $WorkingDirectory ($component + '-' + [guid]::NewGuid().ToString('N') + '.exe')
         try {
             Get-MicrosoftPayload $definition $file
             $code = Invoke-MicrosoftInstaller $definition $file
             if ($code -in @(3010,1641)) { return 'reboot' }
-            if ($code -ne 0) { throw ($definition.Label + ' installer returned exit code ' + $code + '. No application files were changed.') }
+            if ($code -ne 0) {
+                $script:RuntimeFailure = Get-RuntimeExitDetails $code
+                $detail = $definition.Label + ' installer returned exit code ' + $code + ' (' + $script:RuntimeFailure.HResult + '). ' + $script:RuntimeFailure.NativeMessage
+                if ($script:RuntimeFailure.Reason -eq 'untrusted_mount_point') {
+                    $detail += ' Windows rejected a path through an untrusted mount point. Check redirected profile/temp folders and Windows AppX deployment events; the failing path is not yet known.'
+                }
+                throw ($detail + ' No application files were changed.')
+            }
             $state = Get-PrerequisiteState
             if (!$state[$component]) { throw ($definition.Label + ' is still unavailable for this Windows user after installation. Reopen Setup after checking Windows updates and runtime installation.') }
         } finally { Remove-Item -LiteralPath $file -Force -ErrorAction SilentlyContinue }
@@ -194,6 +333,11 @@ try {
     }
     exit 0
 } catch {
-    if ($ResultFile) { Write-PrerequisiteResult $ResultFile @{ Status='failed'; Error=$_.Exception.Message } }
+    if ($ResultFile) {
+        $failure = @{ Status='failed'; Error=$_.Exception.Message; Reason='installation_failed' }
+        if ($script:RuntimeFailure) { foreach ($key in $script:RuntimeFailure.Keys) { $failure[$key] = $script:RuntimeFailure[$key] } }
+        if ($script:RuntimeLogPath) { $failure.LogPath = $script:RuntimeLogPath }
+        Write-PrerequisiteResult $ResultFile $failure
+    }
     exit 1
 }
