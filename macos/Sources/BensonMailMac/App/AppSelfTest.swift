@@ -673,7 +673,11 @@ enum AppSelfTest {
             store.completeAccountSetup()
             try await Task.sleep(nanoseconds: 300_000_000)
             guard allFields(root).contains(where: { $0.stringValue == "setup-saved@example.invalid" }),
-                  allFields(root).contains(where: { $0.stringValue == "https://setup-saved.invalid/v1" }) else { throw Failure("main page drafts did not refresh after first-run setup") }
+                  allFields(root).contains(where: { $0.stringValue == "https://setup-saved.invalid/v1" }) else {
+                let emailFields = allFields(root).filter { $0.placeholderString == T("邮箱地址，例如 name@example.com") }.map(\.stringValue)
+                let apiFields = allFields(root).filter { $0.placeholderString == T("基础地址，例如 https://服务商地址/v1") }.map(\.stringValue)
+                throw Failure("main page drafts did not refresh after first-run setup: store=\(store.mailAccount), draft=\(store.settingsDraft.accounts.map { $0.connection.account }), api=\(store.settings.api_base)/\(store.settingsDraft.value.api_base), fields=\(emailFields)/\(apiFields)")
+            }
             checks.append("finishing first-run setup refreshes permanently mounted mailbox and AI drafts; subsequent navigation preserves unsaved edits")
             store.workspacePage = .mailbox
             try await Task.sleep(nanoseconds: 250_000_000)
