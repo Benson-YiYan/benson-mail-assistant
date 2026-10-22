@@ -2,102 +2,102 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610211813",
-      "sha256": "70360ec0129d5e1cd9bc87e20571e5bb9e5be39a1b7a7b1bdc5644925ee39544",
-      "size": 24513948,
+      "version": "202610221251",
+      "sha256": "a656516e905d04cb1d67604f249cc45a30be17058b55d144925d67395e368db5",
+      "size": 24541384,
       "notes": {
-        "zh": "修复 Windows 报告树文件夹点击无反应，支持点击图标、文字和整行；修复返回上级后再次进入。WinUI 3 安装失败显示 HRESULT、原因并保留本地日志。",
-        "en": "Fix Windows report-tree folder clicks on icons, labels and full rows, including re-entry after going up. Show WinUI 3 installer HRESULT and reason, and retain a local diagnostic log.",
-        "es": "Corrige los clics en las carpetas del árbol de informes de Windows, incluidos iconos, texto y toda la fila, también al volver a entrar. Muestra el HRESULT y la causa de errores de WinUI 3 y conserva un registro local."
+        "zh": "分开提供回复、原文和报告溯源；Mac统一蓝色并修复设置刷新和默认登录用户名；Windows支持测试未保存的邮箱设置。",
+        "en": "Separate reply, original message and provenance. Blue Mac UI and settings fixes; Windows tests unsaved mailbox settings.",
+        "es": "Respuesta, correo original y procedencia separados. Interfaz azul y correcciones en Mac; prueba de ajustes sin guardar en Windows."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Windows-x64-Setup-202610211813.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261022/BensonMail-Windows-x64-Setup-202610221251.exe"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610211813.exe"
+      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610221251.exe"
     },
     "macos-arm64": {
-      "version": "202610211416",
-      "sha256": "fd9f1a98051d6d71332bd60d450ef2bdbe290383921de417314fc371192dc78c",
-      "size": 24505237,
+      "version": "202610221553",
+      "sha256": "896c82fe79c9cfb330b83dbb6c63733d8fdc5d5539c65039fe2c5a9daf7a6ce6",
+      "size": 24632012,
       "notes": {
-        "zh": "更新报告树浏览体验，支持按邮箱、日期、发件人浏览报告；提供报告来源、邮件提问与本地报告整理。",
-        "en": "Browse the report tree by mailbox, date and sender, with source inspection, email Q&A and local report organization.",
-        "es": "Explora el árbol de informes por buzón, fecha y remitente; incluye consulta de fuentes, preguntas sobre correos y organización local de informes."
+        "zh": "分开提供回复、原文和报告溯源；Mac统一蓝色并修复设置刷新和默认登录用户名；Windows支持测试未保存的邮箱设置。",
+        "en": "Separate reply, original message and provenance. Blue Mac UI and settings fixes; Windows tests unsaved mailbox settings.",
+        "es": "Respuesta, correo original y procedencia separados. Interfaz azul y correcciones en Mac; prueba de ajustes sin guardar en Windows."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Mac-AppleSilicon-202610211416.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261022/BensonMail-Mac-AppleSilicon-202610221553.dmg"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610211416.dmg"
+      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610221553.dmg"
     },
     "macos-x86_64": {
-      "version": "202610211418",
-      "sha256": "59e940327dd52b92e1bfbe25d3adaf38c224a9c19c8f55cf65f38981914e38a4",
-      "size": 19106843,
+      "version": "202610221555",
+      "sha256": "dfd0281636f4aabc2cfee0f7c5c332265ada5fb22002773fb20e9cf1b3d124f4",
+      "size": 18604488,
       "notes": {
-        "zh": "更新报告树浏览体验，支持按邮箱、日期、发件人浏览报告；提供报告来源、邮件提问与本地报告整理。",
-        "en": "Browse the report tree by mailbox, date and sender, with source inspection, email Q&A and local report organization.",
-        "es": "Explora el árbol de informes por buzón, fecha y remitente; incluye consulta de fuentes, preguntas sobre correos y organización local de informes."
+        "zh": "分开提供回复、原文和报告溯源；Mac统一蓝色并修复设置刷新和默认登录用户名；Windows支持测试未保存的邮箱设置。",
+        "en": "Separate reply, original message and provenance. Blue Mac UI and settings fixes; Windows tests unsaved mailbox settings.",
+        "es": "Respuesta, correo original y procedencia separados. Interfaz azul y correcciones en Mac; prueba de ajustes sin guardar en Windows."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Mac-Intel-202610211418.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261022/BensonMail-Mac-Intel-202610221555.dmg"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610211418.dmg"
+      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610221555.dmg"
     }
   },
   "language_packs": {
     "macos-en": {
-      "version": "202610202318",
-      "sha256": "7e8cdd7fd4937dc5c7dc1bd4a2cd60b52b0fbd7be1deed6cc6c32e23636a9f18",
-      "size": 121052,
+      "version": "202610221254",
+      "sha256": "3f693ebfbd505e9ac7399601b8decc69eab14548eb4d2dcf0864511f9219e59b",
+      "size": 123246,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-macos-en-202610202318.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261022/BensonMail-Language-macos-en-202610221254.json"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-macos-en-202610202318.json"
+      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-macos-en-202610221254.json"
     },
     "macos-es": {
-      "version": "202610202318",
-      "sha256": "17bb20e8de3d19613028c76ac5fc171d818cf4e34cf5477cf5ba2c1f97148307",
-      "size": 131325,
+      "version": "202610221254",
+      "sha256": "bbb821b2c946b894eb0747c55274c04998720dd1764d7817c16421ebef8d16b4",
+      "size": 133774,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-macos-es-202610202318.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261022/BensonMail-Language-macos-es-202610221254.json"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-macos-es-202610202318.json"
+      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-macos-es-202610221254.json"
     },
     "macos-zh": {
-      "version": "202610202318",
-      "sha256": "441b288d50ebdc22a89fb946fc0a1d00899fcd11442d9dbfa055306f409c495f",
-      "size": 39915,
+      "version": "202610221254",
+      "sha256": "793692db72a4c6173ca79275e6696f940734150f414c6078c7c60fb61203b7e9",
+      "size": 41382,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-macos-zh-202610202318.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261022/BensonMail-Language-macos-zh-202610221254.json"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202610202318.json"
+      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202610221254.json"
     },
     "windows-en": {
-      "version": "202610202318",
-      "sha256": "d3cef794dfefe48218abe90644f6d38b03175e243c25f79804b2f28ace80ee2f",
-      "size": 120418,
+      "version": "202610221254",
+      "sha256": "e4b72ccbd761ede945aade28d76ea217c6585133a17d28e34e9a1af9b9282f59",
+      "size": 123008,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-windows-en-202610202318.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261022/BensonMail-Language-windows-en-202610221254.json"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-windows-en-202610202318.json"
+      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-windows-en-202610221254.json"
     },
     "windows-es": {
-      "version": "202610202318",
-      "sha256": "fb5cd881f9ccd05f279801269567dc4776cda40623babcf98c6c61392bee088c",
-      "size": 130250,
+      "version": "202610221254",
+      "sha256": "c6e0a9d3de1cd6fb98804c8bdab499ac16f21642ffec1bd28427cfdab59416eb",
+      "size": 133148,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-windows-es-202610202318.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261022/BensonMail-Language-windows-es-202610221254.json"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-windows-es-202610202318.json"
+      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-windows-es-202610221254.json"
     },
     "windows-zh": {
-      "version": "202610202318",
-      "sha256": "5a15989c4ec8c0ed69f707f4f054f565bf4d09874c843eaa3a6082f355a19920",
-      "size": 40299,
+      "version": "202610221254",
+      "sha256": "9c12a3db393732ce32199bef7e2e35f13167e13f4bd1e015a8094ddd4f3e0105",
+      "size": 41268,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261021.1/BensonMail-Language-windows-zh-202610202318.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261022/BensonMail-Language-windows-zh-202610221254.json"
       ],
-      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202610202318.json"
+      "url": "https://attorney-smell-concerts-describe.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202610221254.json"
     }
   }
 }
