@@ -12,7 +12,7 @@ struct ToolStatus: View {
     }
 }
 
-struct ReportToolsView: View {
+struct ReplyDraftView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var language = AppLanguage.shared
     @ObservedObject var store: MailStore
@@ -23,12 +23,21 @@ struct ReportToolsView: View {
     @ToolState private var recipient = ""
     @ToolState private var subject = ""
     @ToolState private var instructions = ""
-    @ToolState private var references: [[String: Any]] = []
+    @ToolState private var mailboxID = ""
+    @ToolState private var confirmSend = false
+    @ToolState private var sent = false
+    @ToolState private var sendStatus = ""
     @ObservedObject private var tools: AssistantTools
-    init(store: MailStore, report: Report) { self.store = store; self.report = report; self.tools = store.assistantTools }
+    init(store: MailStore, report: Report) {
+        self.store = store; self.report = report; self.tools = store.assistantTools
+        let profiles = store.mailboxProfiles
+        let initial = profiles.first(where: { $0.connection.account.caseInsensitiveCompare(report.mailboxAccount) == .orderedSame })?.id
+            ?? profiles.first?.id ?? ""
+        _mailboxID = ToolState(initialValue: initial)
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack { Text(T("草稿与来源")).font(.title2.bold()); Spacer(); Button(T("关闭")) { dismiss() } }
+            HStack { Text(T("回复")).font(.title2.bold()); Spacer(); Button(T("关闭")) { dismiss() } }
             Text(report.title).font(.headline).lineLimit(2)
             HStack {
                 Picker(T("回复风格"), selection: $tone) {
@@ -51,24 +60,130 @@ struct ReportToolsView: View {
                 }.disabled(draft.isEmpty)
             }
             TextField(T("回复要求（可选）"), text: $instructions).textFieldStyle(.roundedBorder).disabled(tools.busy)
-            Text(T("按当前界面语言生成，可编辑后复制到邮箱发送。")).font(.caption).foregroundStyle(.secondary)
-            if !recipient.isEmpty || !subject.isEmpty {
-                Text(T("收件人") + ": " + recipient + "\n" + T("主题") + ": " + subject).font(.caption).textSelection(.enabled)
-            }
-            TextEditor(text: $draft).font(.body).frame(minHeight: 125, idealHeight: 160).border(.quaternary).accessibilityIdentifier("reply-draft-editor")
-            Button(T("保存草稿"), systemImage: "square.and.arrow.down") {
-                Task {
-                    if await tools.perform("draft_save", ["draft_path": draftPath, "draft": draft]) != nil { tools.notice = T("已保存") }
-                }
-            }.disabled(draftPath.isEmpty || tools.busy)
-            ToolStatus(tools: tools).font(.caption)
-            Divider()
+            Text(T("按当前界面语言生成，可编辑；发送前会显示完整内容并再次确认。")).font(.caption).foregroundStyle(.secondary)
+            TextField(T("收件邮箱"), text: $recipient).textFieldStyle(.roundedBorder).disabled(tools.busy || sent)
+            TextField(T("主题"), text: $subject).textFieldStyle(.roundedBorder).disabled(tools.busy || sent)
+            TextEditor(text: $draft).font(.body).frame(minHeight: 125, idealHeight: 160).border(.quaternary)
+                .accessibilityIdentifier("reply-draft-editor").disabled(tools.busy || sent)
             HStack {
-                Text(T("报告溯源")).font(.headline)
-                Spacer()
-                Button(T("读取来源"), systemImage: "doc.text.magnifyingglass") { Task { await loadSources() } }.disabled(tools.busy)
+                Button(T("保存草稿"), systemImage: "square.and.arrow.down") {
+                    Task {
+                        if let saved = await tools.perform("draft_save", ["draft_path": draftPath, "draft": draft, "recipient": recipient, "subject": subject]) {
+                            draftPath = saved["path"] as? String ?? draftPath
+                            tools.notice = T("已保存")
+                        }
+                    }
+                }.disabled(draftPath.isEmpty || draft.isEmpty || tools.busy || sent)
+                Picker(T("发送邮箱"), selection: $mailboxID) {
+                    Text(T("请选择邮箱")).tag("")
+                    ForEach(store.mailboxProfiles) { profile in
+                        Text(profile.connection.account + (profile.enabled ? "" : " · " + T("已暂停监听"))).tag(profile.id)
+                    }
+                }.frame(minWidth: 230).disabled(tools.busy || store.mailboxProfiles.isEmpty)
+                Button(sent ? T("邮件已发送") : T("发送"), systemImage: sent ? "checkmark.circle.fill" : "paperplane.fill") { confirmSend = true }
+                    .disabled(sent || draftPath.isEmpty || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || recipient.isEmpty || mailboxID.isEmpty || tools.busy)
+                    .accessibilityIdentifier("reply-send")
             }
-            Text(T("来源是原始材料索引，AI 引用仍需核对；未读取的附件不会作为事实依据。")).font(.caption).foregroundStyle(.secondary)
+            if !sendStatus.isEmpty { Text(T(sendStatus)).font(.caption).foregroundStyle(sendStatus.hasPrefix("邮件已发送") ? Color.secondary : Color.orange).textSelection(.enabled) }
+            ToolStatus(tools: tools).font(.caption)
+            Spacer(minLength: 0)
+        }.padding(22).frame(minWidth: 720, idealWidth: 800, minHeight: 580)
+            .sheet(isPresented: $confirmSend) { sendReview }
+    }
+    private var selectedMailbox: MailboxProfile? { store.mailboxProfiles.first(where: { $0.id == mailboxID }) }
+    private var sendReview: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(T("确认发送邮件")).font(.title2.bold())
+            Text(T("你确定发送以下内容给") + recipient + T("吗？")).font(.headline)
+            Text(T("发送前请核对以下信息。确认后邮件会立即发送。")).foregroundStyle(.secondary)
+            Group {
+                Text(T("发件邮箱") + "：" + (selectedMailbox?.connection.account ?? ""))
+                Text(T("收件邮箱") + "：" + recipient)
+                Text(T("主题") + "：" + subject)
+            }.textSelection(.enabled)
+            Text(T("邮件正文")).font(.headline)
+            ScrollView {
+                Text(draft).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
+                    .padding(12).background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+            }.frame(minHeight: 180, maxHeight: .infinity)
+            HStack {
+                Spacer()
+                Button(T("取消")) { confirmSend = false }
+                Button(T("确认发送"), systemImage: "paperplane.fill") {
+                    confirmSend = false
+                    Task { await sendReply() }
+                }.disabled(tools.busy || selectedMailbox == nil).accessibilityIdentifier("reply-send-confirm")
+            }
+            ToolStatus(tools: tools).font(.caption)
+        }.padding(24).frame(width: 620, height: 650)
+    }
+    private func sendReply() async {
+        guard let profile = selectedMailbox, !draftPath.isEmpty else { return }
+        guard let saved = await tools.perform("draft_save", ["draft_path": draftPath, "draft": draft, "recipient": recipient, "subject": subject]) else { return }
+        let savedPath = saved["path"] as? String ?? draftPath
+        draftPath = savedPath
+        guard let result = await tools.perform("reply_send", [
+            "draft_path": savedPath, "draft": draft, "recipient": recipient, "subject": subject,
+            "mailbox_id": profile.id, "confirmed": true
+        ]) else { return }
+        if result["sent"] as? Bool == true {
+            sent = true
+            if result["draft_status_saved"] as? Bool == false {
+                sendStatus = "邮件已发送，但本机草稿状态保存失败；请检查已发送邮件。"
+            } else {
+                sendStatus = "邮件已发送"
+            }
+            tools.notice = ""
+        }
+    }
+}
+
+struct OriginalMailView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var language = AppLanguage.shared
+    let report: Report
+    private var originalBody: String { report.body.trimmingCharacters(in: .whitespacesAndNewlines) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack { Text(T("原文")).font(.title2.bold()); Spacer(); Button(T("关闭")) { dismiss() } }
+            Text(report.title).font(.headline).textSelection(.enabled)
+            HStack(spacing: 16) {
+                if !report.sender.isEmpty { Text(T("发件人") + "：" + report.sender) }
+                if !report.mailboxAccount.isEmpty { Text(T("邮箱") + "：" + report.mailboxAccount) }
+                Text(report.receivedLabel)
+            }.font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            if !report.attachmentNames.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(T("附件")).font(.headline)
+                    ForEach(Array(report.attachmentNames.enumerated()), id: \.offset) { _, name in Label(name, systemImage: "paperclip") }
+                }
+            }
+            Divider()
+            if originalBody.isEmpty {
+                ContentUnavailableView(T("原邮件正文不可用"), systemImage: "envelope.badge.questionmark", description: Text(T("本地没有保存这封邮件的原文。AI 总结报告不能代替原文。")))
+            } else {
+                ScrollView {
+                    Text(originalBody).font(.body).lineSpacing(5).frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled).padding(.vertical, 4)
+                }.accessibilityIdentifier("original-mail-body")
+            }
+        }.padding(22).frame(minWidth: 700, idealWidth: 850, minHeight: 520)
+    }
+}
+
+struct ReportSourcesView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var language = AppLanguage.shared
+    let store: MailStore
+    let report: Report
+    @ToolState private var references: [[String: Any]] = []
+    @ObservedObject private var tools: AssistantTools
+    init(store: MailStore, report: Report) { self.store = store; self.report = report; self.tools = store.assistantTools }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack { Text(T("报告溯源")).font(.title2.bold()); Spacer(); Button(T("关闭")) { dismiss() } }
+            Text(report.title).font(.headline).lineLimit(2)
+            Text(T("来源是原始材料索引，AI 引用仍需核对；未读取的附件不会作为事实依据。" )).font(.caption).foregroundStyle(.secondary)
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(Array(references.enumerated()), id: \.offset) { _, source in
@@ -82,7 +197,8 @@ struct ReportToolsView: View {
                     if references.isEmpty { Text(T("点击读取来源，查看邮件正文和附件中的可用内容。")).foregroundStyle(.secondary) }
                 }
             }.frame(minHeight: 100)
-        }.padding(22).frame(minWidth: 720, idealWidth: 800, minHeight: 700).task(id: report.id) { await loadSources() }
+            ToolStatus(tools: tools).font(.caption)
+        }.padding(22).frame(minWidth: 720, idealWidth: 800, minHeight: 500).task(id: report.id) { await loadSources() }
     }
     private func loadSources() async {
         if let result = await tools.perform("report_sources", ["path": report.id]) {

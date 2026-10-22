@@ -1,7 +1,11 @@
-"""Explicit user tools. No mail sending, background AI work, or configuration export."""
+"""Explicit user tools. Sending mail is available only after final UI confirmation."""
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from email.utils import parseaddr
+from email.message import EmailMessage
+import smtplib
+import socket
+import ssl
 import hashlib
 import json
 import math
@@ -255,7 +259,226 @@ def draft_save(root, request):
     return {**value, 'path': str(path)}
 
 
-_DIAGNOSTIC_STAGES = {'mail_check', 'reply_draft', 'usage_summary', 'usage_rates', 'diagnostics_export', 'history_preview', 'history_start', 'report_sources', 'chat_send', 'report_retry', 'test_mail', 'test_api', 'operation'}
+_SMTP_PRESETS = {
+    'imap.163.com': ('smtp.163.com', 465, 'ssl'),
+    'imap.126.com': ('smtp.126.com', 465, 'ssl'),
+    'imap.yeah.net': ('smtp.yeah.net', 465, 'ssl'),
+    'imap.qq.com': ('smtp.qq.com', 465, 'ssl'),
+    'imap.exmail.qq.com': ('smtp.exmail.qq.com', 465, 'ssl'),
+    'imap.gmail.com': ('smtp.gmail.com', 587, 'starttls'),
+    'outlook.office365.com': ('smtp.office365.com', 587, 'starttls'),
+    'imap.mail.me.com': ('smtp.mail.me.com', 587, 'starttls'),
+    'imap.mail.yahoo.com': ('smtp.mail.yahoo.com', 587, 'starttls'),
+}
+
+
+def smtp_endpoint(connection):
+    """Return only a documented preset SMTP endpoint; never guess a custom server."""
+    host = str(connection.get('host', '')).strip().lower()
+    if host in _SMTP_PRESETS:
+        return _SMTP_PRESETS[host]
+    raise ValueError('This mailbox provider has no known SMTP server. Configure a supported IMAP server name or use your provider’s mail app.')
+
+
+def _selected_mailbox(root, config, identifier, controller=None):
+    """Load only the explicitly selected mailbox and its Keychain secret."""
+    if WINDOWS:
+        from .mailbox_config import mailbox_id, normalize
+    else:
+        from mailbox_config import mailbox_id, normalize
+    profiles = config.get('mailboxes')
+    if profiles is None:
+        profiles = [{'connection': config.get('mailbox', {}), 'enabled': True}]
+    # Pausing a mailbox only pauses monitoring; it remains available as a
+    # deliberate sending account.
+    profile = next((item for item in profiles
+                    if mailbox_id(item.get('connection', item)) == identifier), None)
+    if profile is None:
+        raise ValueError('Choose a mailbox from Mailbox and checks.')
+    raw_connection = profile.get('connection', profile)
+    connection = normalize(raw_connection)
+    if WINDOWS:
+        if controller is not None:
+            secret = controller.mailbox_secret(profile)
+        else:
+            raise ValueError('Mailbox controller is required.')
+    else:
+        import subprocess
+        service = raw_connection.get('secret_service', 'BensonMail-IMAP')
+        if service not in ('Codex-Mail-163', 'BensonMail-IMAP'):
+            raise ValueError('Invalid credential service.')
+        args = ['/usr/bin/security', 'find-generic-password', '-s', service]
+        if raw_connection.get('secret_account'):
+            args += ['-a', raw_connection['secret_account']]
+        result = subprocess.run(args + ['-w'], capture_output=True, text=True, timeout=30)
+        if result.returncode or not result.stdout:
+            raise ValueError('Mailbox credentials are unavailable.')
+        secret = result.stdout.rstrip('\n')
+    # Preserve only the two transport selectors that normalization purposely
+    # excludes. Never return secret material in the connection mapping.
+    connection['secret_service'] = raw_connection.get('secret_service', 'BensonMail-IMAP')
+    connection['secret_account'] = raw_connection.get('secret_account', '')
+    return dict(connection), secret
+
+
+def _proxy_smtp_classes(proxy, context):
+    """Build per-send SMTP transports that reuse the mailbox's explicit proxy policy."""
+    if WINDOWS:
+        from .mailbox_config import proxy_socket
+    else:
+        from mailbox_config import proxy_socket
+
+    class ProxySMTP(smtplib.SMTP):
+        def _get_socket(self, host, port, timeout):
+            if proxy:
+                return proxy_socket(proxy, host, port, timeout)
+            return socket.create_connection((host, port), timeout)
+
+    class ProxySMTPSSL(smtplib.SMTP_SSL):
+        def _get_socket(self, host, port, timeout):
+            # SMTP_SSL.connect() wraps the returned raw socket exactly once.
+            return (proxy_socket(proxy, host, port, timeout) if proxy else
+                    socket.create_connection((host, port), timeout))
+    return ProxySMTP, ProxySMTPSSL
+
+
+def _validate_send_fields(recipient, subject, body):
+    if not isinstance(recipient, str) or len(recipient) > 254 or any(c in recipient for c in '\r\n'):
+        raise ValueError('Invalid draft recipient or subject.')
+    parsed_name, parsed_address = parseaddr(recipient)
+    if parsed_address != recipient.strip() or not re.fullmatch(r'[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+', parsed_address):
+        raise ValueError('Reply recipient must be one complete email address.')
+    if not isinstance(subject, str) or not subject.strip() or len(subject) > 1000 or any(c in subject for c in '\r\n'):
+        raise ValueError('Invalid draft recipient or subject.')
+    if not isinstance(body, str) or not body.strip() or len(body) > 60000:
+        raise ValueError('Reply draft must contain between 1 and 60000 characters.')
+    return parsed_address
+
+
+def _smtp_auth(client, connection, secret, oauth2):
+    username = connection.get('username') or connection.get('account')
+    if not oauth2:
+        client.login(username, secret)
+        return
+    if any(c in secret for c in '\r\n\x01') or any(c in username for c in '\r\n\x01'):
+        raise ValueError('OAuth2 access token or login name is invalid.')
+    response = f'user={username}\x01auth=Bearer {secret}\x01\x01'.encode('utf-8')
+    client.auth('XOAUTH2', lambda challenge: response)
+
+
+def reply_send(root, request, controller=None):
+    """Send only after the UI's explicit final confirmation; SMTP is always TLS protected."""
+    if request.get('confirmed') is not True:
+        raise ValueError('Confirm the sender, recipient, subject and complete reply before sending.')
+    folder = (Path(root) / 'reply_drafts').resolve()
+    path = Path(request.get('draft_path') or '').expanduser().resolve()
+    if not path.is_relative_to(folder) or path.suffix != '.json' or not path.is_file():
+        raise ValueError('Choose an existing local reply draft.')
+    chat = _chat()
+    # Serialize send attempts for this draft. Concurrent clicks and repeated
+    # requests cannot deliver the same draft twice.
+    with chat._locked(path):
+        return _reply_send_locked(root, request, controller, path, chat)
+
+
+def _reply_send_locked(root, request, controller, path, chat):
+    try:
+        existing_draft = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        raise ValueError('Choose an existing local reply draft.') from None
+    if existing_draft.get('sent') is True:
+        raise ValueError('This reply was already sent; create a new draft before sending another message.')
+    if existing_draft.get('send_state') in ('sending', 'unknown'):
+        raise ValueError('The previous send result is uncertain. Check the Sent folder before creating a new reply.')
+    recipient = _validate_send_fields(request.get('recipient'), request.get('subject'), request.get('draft'))
+    if (existing_draft.get('recipient') != recipient or existing_draft.get('subject') != request.get('subject')
+            or existing_draft.get('draft') != request.get('draft')):
+        raise ValueError('Save the latest reply draft before sending.')
+    mailbox_id_value = request.get('mailbox_id', '')
+    if not isinstance(mailbox_id_value, str) or not mailbox_id_value:
+        raise ValueError('Choose a mailbox from Mailbox and checks.')
+    config = chat._config(root)
+    # Fixtures can provide a controller for synthetic tests. Production macOS
+    # reads the already saved account credential directly from Keychain.
+    connection, secret = _selected_mailbox(root, config, mailbox_id_value, controller)
+    oauth2 = connection.get('mail_auth', 'password') == 'oauth2'
+    if oauth2 and connection.get('mail_provider') != 'outlook':
+        raise ValueError('This OAuth2 token is not configured for SMTP sending. Use a provider app password or mail app.')
+    server, port, security = smtp_endpoint(connection)
+    if WINDOWS:
+        from .mailbox_config import resolve_proxy
+        from .ai_api import tls_context
+        context = tls_context()
+    else:
+        from mailbox_config import resolve_proxy
+        context = ssl.create_default_context()
+    proxy = resolve_proxy(connection)
+    SMTP, SMTP_SSL = _proxy_smtp_classes(proxy, context)
+    message = EmailMessage()
+    message['From'] = connection.get('account', '')
+    message['To'] = recipient
+    message['Subject'] = request['subject']
+    message['Auto-Submitted'] = 'auto-generated'
+    message.set_content(request['draft'])
+    existing_draft['draft'] = request['draft']
+    existing_draft['recipient'] = recipient
+    existing_draft['subject'] = request['subject']
+    existing_draft['send_state'] = 'sending'
+    existing_draft['send_started_at'] = datetime.now(timezone.utc).isoformat()
+    chat._atomic(path, json.dumps(existing_draft, ensure_ascii=False))
+    submitting = False
+    try:
+        if security == 'ssl':
+            with SMTP_SSL(server, port, timeout=30, context=context) as client:
+                _smtp_auth(client, connection, secret, oauth2)
+                submitting = True
+                client.send_message(message, from_addr=connection.get('account'), to_addrs=[recipient])
+        else:
+            with SMTP(server, port, timeout=30) as client:
+                client.ehlo()
+                client.starttls(context=context)
+                client.ehlo()
+                _smtp_auth(client, connection, secret, oauth2)
+                submitting = True
+                client.send_message(message, from_addr=connection.get('account'), to_addrs=[recipient])
+    except Exception as error:
+        # Do not surface server text: a provider could echo addresses, body text,
+        # or credential material in a diagnostic response.
+        if isinstance(error, smtplib.SMTPAuthenticationError):
+            detail = 'SMTP authentication failed. Check the mailbox password/app password and whether SMTP is enabled.'
+        elif isinstance(error, (TimeoutError, socket.timeout)):
+            detail = 'SMTP operation timed out. The provider may have accepted the message; check Sent mail before retrying.'
+        elif isinstance(error, ssl.SSLError):
+            detail = 'SMTP TLS negotiation failed. Check the SMTP server and encryption settings.'
+        elif isinstance(error, smtplib.SMTPRecipientsRefused):
+            detail = 'SMTP rejected the recipient. Check the email address and provider restrictions.'
+        elif isinstance(error, smtplib.SMTPDataError):
+            detail = 'SMTP rejected the message. It was not accepted; correct the message or provider settings and retry.'
+        elif isinstance(error, (smtplib.SMTPException, OSError)):
+            detail = 'SMTP send failed. Check SMTP availability, network and proxy settings.'
+        else:
+            detail = 'SMTP send failed because of an unexpected error.'
+        if submitting and not isinstance(error, (smtplib.SMTPRecipientsRefused, smtplib.SMTPDataError)):
+            existing_draft['send_state'] = 'unknown'
+            existing_draft['send_error'] = 'submission_result_uncertain'
+        else:
+            existing_draft['send_state'] = 'not_sent'
+            existing_draft.pop('send_started_at', None)
+        chat._atomic(path, json.dumps(existing_draft, ensure_ascii=False))
+        raise RuntimeError(detail) from None
+    sent_at = datetime.now(timezone.utc).isoformat()
+    value = json.loads(path.read_text(encoding='utf-8'))
+    value.update({'draft': request['draft'], 'recipient': recipient,
+                  'subject': request['subject'], 'sent': True,
+                  'send_state': 'sent', 'sent_from': connection.get('account', ''), 'sent_at': sent_at})
+    chat._atomic(path, json.dumps(value, ensure_ascii=False))
+    persisted = True
+    return {'sent': True, 'sent_from': connection.get('account', ''),
+            'recipient': recipient, 'subject': request['subject'],
+            'sent_at': sent_at, 'draft_status_saved': persisted}
+
+
+_DIAGNOSTIC_STAGES = {'mail_check', 'reply_draft', 'reply_send', 'usage_summary', 'usage_rates', 'diagnostics_export', 'history_preview', 'history_start', 'report_sources', 'chat_send', 'report_retry', 'test_mail', 'test_api', 'operation'}
 _DIAGNOSTIC_TYPES = {'Error', 'error', 'TimeoutError', 'ConnectionError', 'ConnectionResetError', 'ConnectionRefusedError', 'BrokenPipeError', 'SSLError', 'SSLCertVerificationError', 'gaierror', 'MailConnectionError', 'HTTPError', 'URLError', 'ValueError', 'RuntimeError', 'TypeError', 'OSError', 'PermissionError', 'FileNotFoundError', 'FileExistsError', 'JSONDecodeError', 'CancelledError', 'TimeoutExpired', 'UnicodeDecodeError', 'AttributeError'}
 _DIAGNOSTIC_CATEGORIES = {'timeout', 'authentication', 'tls', 'dns', 'rate_limit', 'other'}
 
@@ -505,6 +728,7 @@ def _dispatch(root, request, controller=None):
     if action == 'reports_migrate': return migrate_reports(root, _chat()._config(root), windows=WINDOWS)
     if action in ('reply_draft', 'draft_reply'): return reply_draft(root, request)
     if action in ('draft_save', 'reply_draft_save'): return draft_save(root, request)
+    if action == 'reply_send': return reply_send(root, request, controller)
     if action in ('usage', 'usage_summary'): return usage_summary(root)
     if action == 'usage_balance':
         if controller is not None and getattr(controller, 'fixture', False):
@@ -519,6 +743,21 @@ def _dispatch(root, request, controller=None):
 
 
 _ERROR_TEXT = {
+    'This mailbox provider has no known SMTP server. Configure a supported IMAP server name or use your provider’s mail app.': ('无法根据该邮箱服务器确定安全的 SMTP 发件服务器；请核对服务商提供的服务器信息。', 'No se pudo determinar un servidor SMTP seguro para este buzón. Comprueba los datos proporcionados por el proveedor.'),
+    'Choose a mailbox from Mailbox and checks.': ('请选择“邮箱与检查”中已添加的邮箱。', 'Elige un buzón añadido en Buzones y comprobaciones.'),
+    'Confirm the sender, recipient, subject and complete reply before sending.': ('发送前请确认发件邮箱、收件人、主题和完整正文。', 'Confirma el buzón remitente, destinatario, asunto y respuesta completa antes de enviar.'),
+    'This reply was already sent; create a new draft before sending another message.': ('这份回复已经发送；如需再次发送，请新建一份回复草稿。', 'Esta respuesta ya se envió. Crea un borrador nuevo si quieres enviar otro mensaje.'),
+    'Save the latest reply draft before sending.': ('请先保存最新的回复内容，再发送。', 'Guarda la respuesta más reciente antes de enviarla.'),
+    'The previous send result is uncertain. Check the Sent folder before creating a new reply.': ('上次发送结果不确定，请检查邮箱的“已发送”，确认后再新建回复，避免重复发送。', 'El resultado del envío anterior es incierto. Revisa Enviados antes de crear otra respuesta para evitar duplicados.'),
+    'SMTP rejected the message. It was not accepted; correct the message or provider settings and retry.': ('SMTP 明确拒绝了邮件，服务商未接收。请修正邮件或邮箱设置后重试。', 'SMTP rechazó el mensaje y no lo aceptó. Corrige el mensaje o la configuración e inténtalo de nuevo.'),
+    'Reply recipient must be one complete email address.': ('收件人必须是一个完整的邮箱地址。', 'El destinatario debe ser una dirección de correo completa.'),
+    'This OAuth2 token is not configured for SMTP sending. Use a provider app password or mail app.': ('当前 OAuth2 令牌未配置 SMTP 发件权限；请按教程重新授权包含 SMTP.Send 的 Outlook 令牌，或使用邮箱客户端发送。', 'El token OAuth2 actual no tiene permiso SMTP. Vuelve a autorizar Outlook con SMTP.Send o utiliza tu aplicación de correo.'),
+    'SMTP authentication failed. Check the mailbox password/app password and whether SMTP is enabled.': ('SMTP 认证失败。请检查邮箱密码／应用专用密码，以及邮箱是否已启用 SMTP。', 'Falló la autenticación SMTP. Comprueba la contraseña o contraseña de aplicación y que SMTP esté habilitado.'),
+    'SMTP operation timed out. The provider may have accepted the message; check Sent mail before retrying.': ('SMTP 操作超时，服务商可能已经收下邮件。重试前请先检查“已发送”，避免重复发送。', 'La operación SMTP agotó el tiempo. El proveedor quizá aceptó el mensaje; revisa Enviados antes de volver a intentarlo.'),
+    'SMTP TLS negotiation failed. Check the SMTP server and encryption settings.': ('SMTP 安全连接失败，请核对发件服务器和加密设置。', 'Falló la conexión TLS de SMTP. Comprueba el servidor y el cifrado.'),
+    'SMTP rejected the recipient. Check the email address and provider restrictions.': ('SMTP 拒绝了收件人，请检查邮箱地址和服务商限制。', 'SMTP rechazó al destinatario. Comprueba la dirección y las restricciones del proveedor.'),
+    'SMTP send failed. Check SMTP availability, network and proxy settings.': ('SMTP 发送失败，请检查邮箱服务商 SMTP 状态、网络和代理。', 'Falló el envío SMTP. Comprueba el servicio SMTP, la red y el proxy.'),
+    'SMTP send failed because of an unexpected error.': ('邮件发送失败，请检查设置后重试。', 'No se pudo enviar el correo. Revisa la configuración e inténtalo de nuevo.'),
     'Automatic usage recording requires an explicit application data directory.': ('自动记录用量需要明确的应用数据目录。', 'El registro automático requiere una carpeta de datos explícita.'),
     'Choose an existing local reply draft.': ('请选择已保存的本地回复草稿。', 'Selecciona un borrador local guardado.'),
     'Reply draft must contain between 1 and 60000 characters.': ('回复草稿必须包含1至60000字符。', 'El borrador debe contener entre 1 y 60000 caracteres.'),

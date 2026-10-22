@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 import uuid
 
-SCOPE = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access'
+SCOPE = 'https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send offline_access'
 
 def post(url, values):
     request = urllib.request.Request(url, data=urllib.parse.urlencode(values).encode(), headers={'Content-Type': 'application/x-www-form-urlencoded'})

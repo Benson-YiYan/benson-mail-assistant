@@ -114,6 +114,69 @@ class MailDiagnosticTests(unittest.TestCase):
                 if search is not None and not isinstance(search,Exception): self.assertIn('Search unavailable',text)
                 remote.logout.assert_called_once()
 
+    def test_test_mail_draft_reuses_saved_secret_only_for_unchanged_connection(self):
+        from benson_mail.mailbox_config import mailbox_id, normalize
+        with tempfile.TemporaryDirectory() as root:
+            controller=Controller(root,lambda _:None)
+            old=normalize({'account':'saved@example.invalid','host':'imap.saved.invalid'})
+            old_id=mailbox_id(old)
+            controller.config['mailboxes']=[{**old,'id':old_id,'monitor_enabled':True}]
+            controller.persist(); before=controller.path.read_bytes()
+            # The mailbox itself is unchanged; other settings on the page are
+            # dirty. An empty password may reuse this exact connection's key.
+            profile={**old,'id':old_id,'monitor_enabled':True,'secret':''}
+            remote=client(); remote.response.return_value=('UIDVALIDITY',[b'123']); remote.uid.return_value=('OK',[b'1'])
+            with patch.object(controller,'mailbox_secret',return_value=SECRET) as saved_secret, \
+                 patch('benson_mail.bridge.IMAPMailbox',return_value=remote) as imap:
+                result=controller.command('test_mail_draft',{'values':{'mailboxes':[profile],
+                    'selected_mailbox_id':old_id,'seconds':'77','output_dir':'not-committed',
+                    'mail_policy':{'mode':'blacklist','addresses':['skip@example.invalid']}}})
+            self.assertIn('邮箱连接正常',result); self.assertIn('尚未保存',result)
+            tested=imap.call_args.args[0]
+            self.assertEqual(tested['account'],old['account']); self.assertEqual(tested['host'],old['host'])
+            self.assertEqual(imap.call_args.args[1],SECRET)
+            saved_secret.assert_called_once_with(controller.config['mailboxes'][0])
+            remote.close.assert_called_once()
+            self.assertEqual(controller.path.read_bytes(),before)
+
+    def test_test_mail_draft_rejects_changed_connection_without_new_secret(self):
+        from benson_mail.mailbox_config import mailbox_id, normalize
+        with tempfile.TemporaryDirectory() as root:
+            controller=Controller(root,lambda _:None)
+            old=normalize({'account':'saved@example.invalid','host':'imap.saved.invalid'})
+            old_id=mailbox_id(old)
+            controller.config['mailboxes']=[{**old,'id':old_id,'monitor_enabled':True}]
+            controller.persist(); before=controller.path.read_bytes()
+            changed=normalize({**old,'host':'imap.changed.invalid'})
+            profile={**changed,'id':old_id,'secret':''}
+            with patch.object(controller,'mailbox_secret',return_value=SECRET) as saved_secret, \
+                 patch('benson_mail.bridge.IMAPMailbox') as imap:
+                with self.assertRaisesRegex(ValueError,'连接设置已变更'):
+                    controller.command('test_mail_draft',{'values':{'mailboxes':[profile],
+                        'selected_mailbox_id':old_id}})
+            saved_secret.assert_not_called(); imap.assert_not_called()
+            self.assertEqual(controller.path.read_bytes(),before)
+
+    def test_test_mail_draft_uses_new_mail_secret_and_rejects_missing_secret_without_write(self):
+        with tempfile.TemporaryDirectory() as root:
+            controller=Controller(root,lambda _:None); controller.persist(); before=controller.path.read_bytes()
+            profile={'account':'new@example.invalid','host':'imap.new.invalid','port':'993','security':'ssl',
+                     'mail_folder':'INBOX','mail_auth':'password','secret':'SYNTHETIC-NEW',
+                     'client_id':'new-account','mail_provider':'custom','proxy_mode':'direct'}
+            remote=client(); remote.response.return_value=('UIDVALIDITY',[b'123']); remote.uid.return_value=('OK',[b''])
+            with patch.object(controller,'mailbox_secret') as saved_secret, \
+                 patch('benson_mail.bridge.IMAPMailbox',return_value=remote) as imap:
+                result=controller.command('test_mail_draft',{'mailboxes':[profile],'selected_mailbox_id':'new-account'})
+            self.assertIn('邮箱连接正常',result); imap.assert_called_once()
+            saved_secret.assert_not_called()
+            self.assertNotIn('SYNTHETIC-NEW',controller.path.read_text())
+            self.assertEqual(imap.call_args.args[1],'SYNTHETIC-NEW')
+            self.assertEqual(controller.path.read_bytes(),before)
+            profile['secret']=''
+            with self.assertRaisesRegex(ValueError,'新邮箱草稿请填写'):
+                controller.command('test_mail_draft',{'mailboxes':[profile],'selected_mailbox_id':'new-account'})
+            self.assertEqual(controller.path.read_bytes(),before)
+
     def test_background_preserves_only_sanitized_mail_diagnostic(self):
         with tempfile.TemporaryDirectory() as root:
             events=[]; service=Service(CONFIG,SECRET,root,events.append)

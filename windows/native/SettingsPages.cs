@@ -144,8 +144,15 @@ sealed partial class MainWindow
     }
     async Task TestSavedSettings(string page)
     {
+        if (page == "mail")
+        {
+            // Use the complete in-memory page draft. Testing must not force a
+            // save, overwrite credentials, or alter the live monitor.
+            await Call("test_mail_draft", new { values = SettingsValues("mail") });
+            return;
+        }
         if (SettingsDirty(page)) throw new InvalidOperationException(L.T("请先保存此页设置，再测试连接。"));
-        await Call(page == "mail" ? "test_mail" : "test_ai");
+        await Call("test_ai");
     }
     async Task SettingsPagesSelfTest(Action<bool, string> check)
     {
@@ -169,6 +176,9 @@ sealed partial class MainWindow
             "Six mailbox edits and policy edits expose the page-wide unsaved indicator");
         check(System.IO.File.ReadAllBytes(configPath).SequenceEqual(savedBytes) && (await bridge.Call("config")).GetRawText() == before.GetRawText(),
             "Editing six native controls changes neither backend config nor persisted configuration before Save");
+        await TestSavedSettings("mail");
+        check(SettingsDirty("mail") && System.IO.File.ReadAllBytes(configPath).SequenceEqual(savedBytes),
+            "Testing the selected staged mailbox uses the current draft without saving page settings or credentials");
         var promptSeen = false;
         settingsLeaveFixture = dialog => { promptSeen = dialog.Title?.ToString() == L.T("你有未保存的设置，确定要离开吗？"); return Task.FromResult(ContentDialogResult.None); };
         try { check(!await ConfirmLeaveSettings("mail") && promptSeen && SettingsDirty("mail"), "Cancelling the unsaved-settings prompt preserves all staged edits"); }

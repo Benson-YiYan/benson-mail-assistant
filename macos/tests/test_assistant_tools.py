@@ -2,6 +2,7 @@
 import io
 import json
 from pathlib import Path
+import ssl
 import sys
 import tempfile
 import unittest
@@ -31,6 +32,112 @@ class AssistantToolTests(unittest.TestCase):
         self.report.with_suffix('.mail.json').write_text(json.dumps(self.mail))
     def save_config(self): self.config_path.write_text(json.dumps(self.config))
     def tearDown(self): self.temporary.cleanup()
+
+    def test_reply_send_validation_and_provider_endpoints(self):
+        self.assertEqual(tools.smtp_endpoint({'host': 'imap.163.com'}), ('smtp.163.com', 465, 'ssl'))
+        self.assertEqual(tools.smtp_endpoint({'host': 'imap.gmail.com'}), ('smtp.gmail.com', 587, 'starttls'))
+        with self.assertRaises(ValueError): tools.smtp_endpoint({'host': 'imap.example.invalid'})
+        with self.assertRaises(ValueError):
+            tools._validate_send_fields('not-an-address', 'Subject', 'Body')
+        with self.assertRaises(ValueError):
+            tools._validate_send_fields('a@example.invalid', 'Subject\nInjected', 'Body')
+        with self.assertRaises(ValueError):
+            tools.reply_send(self.root, {'confirmed': False})
+
+    def test_reply_send_requires_confirmation_and_uses_selected_mailbox(self):
+        draft_folder = self.root / 'reply_drafts'; draft_folder.mkdir()
+        draft_path = draft_folder / 'fixture.json'
+        draft_path.write_text(json.dumps({'draft': 'Reply body', 'recipient': 'person@example.invalid', 'subject': 'Re: Question', 'sent': False}))
+        request = {'confirmed': False, 'draft_path': str(draft_path), 'draft': 'Reply body',
+                   'recipient': 'person@example.invalid', 'subject': 'Re: Question', 'mailbox_id': 'selected-id'}
+        with patch.object(tools, '_selected_mailbox') as selected, patch.object(tools, '_proxy_smtp_classes') as transports:
+            with self.assertRaisesRegex(ValueError, 'Confirm the sender'):
+                tools.reply_send(self.root, request)
+            selected.assert_not_called(); transports.assert_not_called()
+
+        class FakeSMTP:
+            def __init__(self, *args, **kwargs): self.sent = []
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def ehlo(self): pass
+            def starttls(self, context=None): self.tls_context = context
+            def login(self, user, password): self.login_args = (user, password)
+            def send_message(self, message, from_addr=None, to_addrs=None):
+                self.sent.append((message, from_addr, to_addrs))
+        transport = FakeSMTP()
+        request['confirmed'] = True
+        with patch.object(tools, '_selected_mailbox', return_value=({'account': 'owner@example.invalid', 'username': 'owner@example.invalid', 'host': 'imap.gmail.com', 'mail_auth': 'password'}, 'secret')), \
+             patch.object(tools, '_proxy_smtp_classes', return_value=(lambda *a, **k: transport, lambda *a, **k: transport)), \
+             patch('mailbox_config.resolve_proxy', return_value=None):
+            result = tools.reply_send(self.root, request)
+        self.assertTrue(result['sent'])
+        self.assertEqual(transport.login_args, ('owner@example.invalid', 'secret'))
+        self.assertEqual(transport.sent[0][1:], ('owner@example.invalid', ['person@example.invalid']))
+        self.assertEqual(transport.sent[0][0].get_content(), 'Reply body\n')
+        self.assertIsInstance(transport.tls_context, ssl.SSLContext)
+        self.assertEqual(transport.tls_context.verify_mode, ssl.CERT_REQUIRED)
+        self.assertTrue(json.loads(draft_path.read_text())['sent'])
+        with patch.object(tools, '_selected_mailbox') as selected:
+            with self.assertRaisesRegex(ValueError, 'already sent'):
+                tools.reply_send(self.root, request)
+            selected.assert_not_called()
+
+    def test_paused_mailbox_can_be_selected_without_exposing_keychain_values(self):
+        if WINDOWS: self.skipTest('macOS Keychain lookup only')
+        import mailbox_config
+        raw = {'account': 'owner@example.invalid', 'host': 'imap.gmail.com', 'mail_provider': 'gmail',
+               'secret_service': 'BensonMail-IMAP', 'secret_account': 'synthetic-binding', 'enabled': False}
+        identity = mailbox_config.mailbox_id(raw)
+        config = {'mailboxes': [{'connection': raw, 'enabled': False}]}
+        class Chat:
+            @staticmethod
+            def _config(_root): return config
+        with patch.object(tools, '_chat', return_value=Chat), patch('subprocess.run', return_value=type('Result', (), {'returncode': 0, 'stdout': 'synthetic-secret\n'})()) as keychain:
+            connection, secret = tools._selected_mailbox(self.root, config, identity)
+        self.assertEqual(secret, 'synthetic-secret')
+        self.assertEqual(connection['account'], 'owner@example.invalid')
+        self.assertIn('synthetic-binding', keychain.call_args.args[0])
+        self.assertNotIn(secret, json.dumps(connection))
+
+    def test_reply_send_rejects_external_draft_before_loading_mailbox(self):
+        outside = self.root / 'outside.json'; outside.write_text('{}')
+        request = {'confirmed': True, 'draft_path': str(outside), 'draft': 'Reply body',
+                   'recipient': 'person@example.invalid', 'subject': 'Re: Question', 'mailbox_id': 'selected-id'}
+        with patch.object(tools, '_selected_mailbox') as selected:
+            with self.assertRaisesRegex(ValueError, 'existing local reply draft'):
+                tools.reply_send(self.root, request)
+            selected.assert_not_called()
+
+    def test_reply_send_sanitizes_smtp_errors_and_marks_uncertain_result(self):
+        draft_folder = self.root / 'reply_drafts'; draft_folder.mkdir()
+        draft_path = draft_folder / 'fixture.json'
+        draft_path.write_text(json.dumps({'draft': 'Reply body', 'recipient': 'person@example.invalid', 'subject': 'Re: Question', 'sent': False}))
+        request = {'confirmed': True, 'draft_path': str(draft_path), 'draft': 'Reply body',
+                   'recipient': 'person@example.invalid', 'subject': 'Re: Question', 'mailbox_id': 'selected-id'}
+
+        class BrokenSMTP:
+            def __init__(self, *args, **kwargs): self.submitted = False
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def ehlo(self): pass
+            def starttls(self, context=None): pass
+            def login(self, user, password): pass
+            def send_message(self, *args, **kwargs):
+                self.submitted = True
+                raise TimeoutError('secret recipient@example.invalid Reply body')
+        transport = BrokenSMTP()
+        with patch.object(tools, '_selected_mailbox', return_value=({'account': 'owner@example.invalid', 'username': 'owner@example.invalid', 'host': 'imap.gmail.com', 'mail_auth': 'password'}, 'secret')), \
+             patch.object(tools, '_proxy_smtp_classes', return_value=(lambda *a, **k: transport, lambda *a, **k: transport)), \
+             patch('mailbox_config.resolve_proxy', return_value=None):
+            with self.assertRaisesRegex(RuntimeError, 'check Sent mail') as caught:
+                tools.reply_send(self.root, request)
+        self.assertNotIn('secret', str(caught.exception))
+        self.assertNotIn('recipient@example.invalid', str(caught.exception))
+        self.assertEqual(json.loads(draft_path.read_text())['send_state'], 'unknown')
+        with patch.object(tools, '_selected_mailbox') as selected:
+            with self.assertRaisesRegex(ValueError, 'result is uncertain'):
+                tools.reply_send(self.root, request)
+            selected.assert_not_called()
     def test_usage_database_commits_and_closes_on_success(self):
         with tools._db(self.root) as connection:
             connection.execute("INSERT INTO calls VALUES ('now', 'api', 'sample', 1, 2, NULL, 'USD')")

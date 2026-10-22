@@ -312,6 +312,54 @@ class Controller:
             finally:
                 mailbox.close()
             return '邮箱连接正常。'
+        if name == 'test_mail_draft':
+            # Test the selected UI draft in memory. This path never commits the
+            # page, writes a credential, or changes the live monitor settings.
+            values = data.get('values', data)
+            drafts = values.get('mailboxes')
+            selected = values.get('selected_mailbox_id') or values.get('selected_id') or ''
+            if not isinstance(drafts, list) or not isinstance(selected, str) or not selected:
+                raise ValueError('请选择要测试的邮箱。')
+            draft = next((item for item in drafts if isinstance(item, dict) and
+                          selected in (item.get('id'), item.get('client_id'), item.get('original_id'))), None)
+            if draft is None:
+                raise ValueError('找不到当前选中的邮箱草稿。')
+            from .mailbox_config import normalize
+            connection = normalize({key: value for key, value in draft.items() if key in MAIL_FIELDS})
+            secret = draft.get('secret', '')
+            if not isinstance(secret, str):
+                raise ValueError('邮箱凭据无效。')
+            secret = secret.strip()
+            if not secret:
+                source_id = draft.get('original_id') or draft.get('id') or ''
+                # A saved credential is tied to one exact connection identity.
+                # If the user edits the account, server, login name, folder or
+                # authentication settings, require a new credential instead
+                # of silently trying the old one.
+                if not source_id or mailbox_id(connection) != source_id:
+                    raise ValueError('连接设置已变更；新邮箱草稿请填写密码、授权码或 OAuth2 访问令牌。')
+                saved_profiles = self.config.get('mailboxes')
+                if saved_profiles is None:
+                    saved_profiles = [{**{key: self.config[key] for key in MAIL_FIELDS if key in self.config},
+                                       'monitor_enabled': True}] if self.config.get('account') else []
+                saved = next((profile for profile in saved_profiles
+                              if source_id and mailbox_id(profile) == source_id), None)
+                if saved is None:
+                    raise ValueError('新邮箱草稿请填写密码、授权码或 OAuth2 访问令牌。')
+                secret = self.mailbox_secret(saved)
+            if not secret:
+                raise ValueError('无法读取该邮箱已保存的凭据；请填写密码、授权码或 OAuth2 访问令牌。')
+            connection['ui_language'] = self.config.get('ui_language', 'zh')
+            if self.fixture:
+                # Fixture UI tests validate selection and staged parsing only;
+                # they never access a real network or mailbox.
+                return '模拟测试：邮箱草稿已验证，未连接真实邮箱。'
+            mailbox = IMAPMailbox(connection, secret)
+            try:
+                mailbox.snapshot()
+            finally:
+                mailbox.close()
+            return '邮箱连接正常。设置尚未保存。'
         if name == 'test_ai':
             if self.config.get('ai_provider') == 'deepseek_harness':
                 from .deepseek_harness_ai import complete as harness_complete
@@ -500,7 +548,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('validate_settings_page', 'save_settings_page', 'assistant_features', 'config', 'report_view', 'reports', 'read_report', 'report_retry', 'chat_history', 'chat_send', 'policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'save_notifications', 'language_status', 'prepare_exit', 'resume_after_exit_cancel'):
+                if fixture and command not in ('validate_settings_page', 'save_settings_page', 'assistant_features', 'config', 'report_view', 'reports', 'read_report', 'report_retry', 'chat_history', 'chat_send', 'policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'save_notifications', 'language_status', 'prepare_exit', 'resume_after_exit_cancel', 'test_mail_draft'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})

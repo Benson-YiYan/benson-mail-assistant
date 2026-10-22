@@ -79,6 +79,7 @@ struct ContentView: View {
             }.frame(minWidth: 800, maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .tint(.blue)
         .onAppear { MailNotifications.shared.showMainWindow = { openWindow(id: "main") } }
         .frame(minWidth: 1000, minHeight: 680)
         .disabled(updater.installing)
@@ -137,16 +138,26 @@ private struct ReportActionsView: View {
     @ObservedObject var store: MailStore
     @ObservedObject var conversation: ReportConversationStore
     let report: Report
-    @ToolState private var showTools = false
+    @ToolState private var showReply = false
+    @ToolState private var showOriginal = false
+    @ToolState private var showSources = false
     var body: some View {
         HStack {
             Button(T("重新总结"), systemImage: "sparkles") {
                 let path = report.id
                 Task { await conversation.regenerate(path) { original, url, text in store.applyRegeneratedReport(original, url: url, text: text) } }
             }.disabled(conversation.state(report.id).busy).accessibilityIdentifier("mail-report-regenerate")
-            Button(T("草稿与来源"), systemImage: "text.badge.checkmark") { showTools = true }
+            Button(T("回复"), systemImage: "arrowshape.turn.up.left") { showReply = true }
+                .accessibilityIdentifier("mail-report-reply")
+                .sheet(isPresented: $showReply) { ReplyDraftView(store: store, report: report).tint(.blue) }
+            Button(T("原文"), systemImage: "doc.text") { showOriginal = true }
+                .accessibilityIdentifier("mail-report-original")
+                .sheet(isPresented: $showOriginal) { OriginalMailView(report: report).tint(.blue) }
+            Button(T("报告溯源"), systemImage: "doc.text.magnifyingglass") { showSources = true }
+                .accessibilityIdentifier("mail-report-sources")
+                .sheet(isPresented: $showSources) { ReportSourcesView(store: store, report: report).tint(.blue) }
             Text(T("使用当前语言和 AI 设置，替换这份报告；原邮件不变。"))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-        }.sheet(isPresented: $showTools) { ReportToolsView(store: store, report: report) }
+        }
     }
 }

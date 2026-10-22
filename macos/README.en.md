@@ -45,7 +45,7 @@ Uninstall is in General settings. Settings and reports have separate retention c
 ## Connection problems and data
 
 Test the email connection and copy its stage, exception type and sanitized server response. Check credentials for authentication failures, webmail or administrator settings for disabled IMAP, provider security notices for Unsafe Login, and host, port, network, clock and proxy for DNS, timeout or TLS errors.
-Credentials and API keys are stored in the login Keychain. Message and readable attachment contents go to your chosen AI. Mailbox access is read-only; the app does not send replies. Images, scans, encrypted and unsupported attachments have reading limits. Review the original before using a draft.
+Credentials and API keys are stored in the login Keychain. Message and readable attachment contents go to your chosen AI. Monitoring and mailbox reads are read-only; a reply is sent through SMTP only after you review the complete message and confirm. Images, scans, encrypted and unsupported attachments have reading limits. Review the original before sending.
 The first launch follows the system language, using Chinese for Chinese languages, Spanish for Spanish languages and English otherwise. New reports follow your selected UI language; drafts follow the incoming message. Existing reports remain unchanged.
 
 ## Development
@@ -87,7 +87,7 @@ Drag the divider between the report and the email conversation to resize both ar
 
 ## New workflows and reliability improvements
 
-- **Reply drafts:** choose tone, language and instructions, then edit the recipient, subject and body before saving locally or copying. The app never sends the draft automatically.
+- **Reply and original email:** generate, edit and save replies, or send through a configured mailbox's SMTP service. Before sending, the app shows the sender mailbox, recipient, subject and full body and requires a second confirmation. The current Outlook IMAP-only OAuth2 token cannot send; custom SMTP endpoints are never guessed. A separate Original view displays locally saved message text and attachment details rather than substituting the AI report.
 - **Enhanced attachment reading:** images and scanned PDFs first use native local OCR; extracted text then goes to the selected AI. System language support, file limits and recognition quality apply. Unreadable content is reported, and recognition is not guaranteed.
 - **Older-mail processing:** select a mailbox and date range, preview the pending count, then confirm to queue. Processing may incur AI charges and still follows sender and spam rules.
 - **Sources and continuous questions:** inspect saved original mail, attachment extraction and reading limitations. Questions use the original message and readable original attachments as factual evidence; generated reports and earlier AI replies do not replace originals. Missing sources for older mail are reported.

@@ -65,7 +65,7 @@ Selecciona un informe y elige Volver a resumir para generar las seis secciones e
 
 Preguntar sobre este correo permite preguntas de seguimiento y archivos adicionales mediante el selector. Cada correo conserva su propia conversación para continuar después. Los hechos se basan en el correo original y sus adjuntos legibles. Se incluye la conversación, pero los informes generados, respuestas anteriores y resúmenes comprimidos no son pruebas de hechos. Si crece demasiado, se resumen los turnos antiguos, se mantienen los recientes y se indica la compresión. El resumen no conserva cada palabra; el historial completo permanece guardado localmente. Cita y verifica cifras o frases importantes.
 
-Estas acciones utilizan la IA configurada y pueden generar costes. Los archivos adicionales se leen solo para extraer texto; los archivos ilegibles o demasiado grandes producen un error explícito. No se envían correos. El historial se guarda en los datos locales de la aplicación. Se elimina al desinstalar, aunque conserves la configuración del correo y de IA; copia antes las conversaciones que necesites.
+Estas acciones utilizan la IA configurada y pueden generar costes. Los archivos adicionales se leen solo para extraer texto; las preguntas no envían correos y los archivos ilegibles o demasiado grandes producen un error explícito. Las respuestas solo se envían después de revisar el mensaje completo y confirmar. El historial se guarda en los datos locales de la aplicación. Se elimina al desinstalar, aunque conserves la configuración del correo y de IA; copia antes las conversaciones que necesites.
 
 ## Reglas de remitentes y correo no deseado
 
@@ -79,7 +79,7 @@ Arrastra el divisor entre el informe y la conversación del correo para ajustar 
 
 ## Nuevos flujos y mejoras de fiabilidad
 
-- **Borradores de respuesta:** elige tono, idioma e instrucciones, edita destinatario, asunto y cuerpo y guarda localmente o copia. La aplicación nunca envía el borrador automáticamente.
+- **Respuesta y correo original:** genera, edita y guarda respuestas, o envíalas mediante SMTP desde un buzón configurado. Antes del envío se muestran el buzón remitente, destinatario, asunto y cuerpo completo, y se pide una segunda confirmación. El token OAuth2 actual de Outlook, con permisos solo IMAP, no permite enviar; nunca se adivinan servidores SMTP personalizados. La vista Original muestra por separado el mensaje guardado localmente y los datos de sus adjuntos, sin sustituirlo por el informe de IA.
 - **Lectura mejorada de adjuntos:** las imágenes y los PDF escaneados usan primero OCR nativo local; el texto extraído se envía a la IA seleccionada. Hay límites de idioma del sistema, tamaño y calidad; se informa del contenido ilegible y no se garantiza el reconocimiento.
 - **Correos históricos:** selecciona buzón y fechas, consulta la cantidad pendiente y confirma para añadirlos a la cola. Puede generar costes de IA y respeta las reglas de remitentes y spam.
 - **Fuentes y preguntas continuas:** consulta el correo original guardado, el texto extraído y sus limitaciones. Las preguntas usan el correo original y sus adjuntos legibles como evidencia; los informes generados y las respuestas anteriores no sustituyen los originales. Se avisa si faltan fuentes de correos antiguos.

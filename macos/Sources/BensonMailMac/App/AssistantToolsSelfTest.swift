@@ -141,10 +141,13 @@ enum AssistantToolsSelfTest {
         }
     }
     static func run(store: MailStore, output: URL) async throws -> [String] {
-        guard store.isTest, let report = store.reports.first else { throw AppSelfTest.Failure("isolated report fixture required") }
+        guard store.isTest, var report = store.reports.first else { throw AppSelfTest.Failure("isolated report fixture required") }
+        report.body = "Original email body fixture: the meeting starts at 10:30."
+        report.sender = "Fixture sender <sender@example.invalid>"
+        report.mailboxAccount = "owner@example.invalid"
         let savedTools = store.assistantTools, savedSettings = store.settings
         let language = AppLanguage.shared, savedLanguage = language.code
-        let featureLabels = ["草稿与来源", "费用与用量记录", "历史邮件补总结", "启用免打扰时间"]
+        let featureLabels = ["回复", "原文", "报告溯源", "费用与用量记录", "历史邮件补总结", "启用免打扰时间"]
         var catalogBackups: [URL: Data] = [:]
         for code in ["en", "es"] {
             let path = store.base.appendingPathComponent("languages/" + code + ".json")
@@ -211,7 +214,9 @@ enum AssistantToolsSelfTest {
                 }
             }
             let views: [(String, AnyView, NSSize, String)] = [
-                ("reply-sources", AnyView(ReportToolsView(store: store, report: report)), NSSize(width: 900, height: 850), T("草稿与来源")),
+                ("reply", AnyView(ReplyDraftView(store: store, report: report)), NSSize(width: 900, height: 680), T("回复")),
+                ("original", AnyView(OriginalMailView(report: report)), NSSize(width: 900, height: 680), T("原文")),
+                ("sources", AnyView(ReportSourcesView(store: store, report: report)), NSSize(width: 900, height: 600), T("报告溯源")),
                 ("usage", AnyView(UsageSettingsView(store: store)), NSSize(width: 760, height: 580), T("费用与用量记录")),
                 ("history", AnyView(HistoryBackfillView(store: store)), NSSize(width: 700, height: 430), T("历史邮件补总结")),
                 ("notifications", AnyView(VStack(alignment: .leading, spacing: 20) { QuietHoursControl(store: store); AssistantUtilitySettings(store: store) }.padding(24)), NSSize(width: 900, height: 450), T("启用免打扰时间"))
@@ -234,10 +239,10 @@ enum AssistantToolsSelfTest {
                 func normalized(_ value: String) -> String { value.filter { !$0.isWhitespace }.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: code)) }
                 guard normalized(text).contains(normalized(title)) else { throw AppSelfTest.Failure("actual tool pane missing localized title: \(name)/\(code): \(text)") }
                 if name == "usage", !text.contains("fixture-model") { throw AppSelfTest.Failure("actual usage pane failed to render backend groups") }
-                if name == "reply-sources", !normalized(text).contains(normalized("Original fixture source")) { throw AppSelfTest.Failure("actual source pane failed to render source records: " + text) }
+                if name == "original", !normalized(text).contains(normalized("Original email body fixture")) { throw AppSelfTest.Failure("original mail pane did not show the saved original message: " + text) }
             }
         }
-        checks.append("twelve real-window captures: reply/source, usage with unknown counters, history confirmation and quiet-hours tools render in Chinese, English and Spanish")
+        checks.append("eighteen real-window captures: separate reply, original-mail and source panes, usage with unknown counters, history confirmation and quiet-hours tools render in Chinese, English and Spanish")
         checks.append("current native feature label fallback takes precedence over installed legacy language packs")
         return checks
     }
