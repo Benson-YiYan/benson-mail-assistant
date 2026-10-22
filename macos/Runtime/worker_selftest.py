@@ -133,7 +133,8 @@ def run():
     writer.add_blank_page(width=100, height=100)
     pdf = folder / 'blank.pdf'
     writer.write(pdf)
-    assert '扫描PDF' in ai_runner.attachment_text(pdf, folder)
+    scanned_pdf = ai_runner.attachment_text(pdf, folder)
+    assert '[page:1]' in scanned_pdf and '[Scanned page: no text layer.' in scanned_pdf
     checks.append('bundled PDF reader available without external PDF tools')
     requests = []
     class Handler(BaseHTTPRequestHandler):
