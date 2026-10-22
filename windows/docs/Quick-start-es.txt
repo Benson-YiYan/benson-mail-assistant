@@ -100,3 +100,5 @@ El idioma solo se aplica al guardar Ajustes generales. La carpeta de informes y 
 
 
 Codex puede instalarse en cualquier ubicación. Buscar Codex comprueba PATH, npm, Microsoft Store y las instalaciones registradas. También puedes seleccionar el ejecutable de línea de comandos. Pulsa Guardar para aplicar la selección.
+
+Al completar la descarga y verificación, se pregunta si deseas instalar y reiniciar. Confirmar inicia la instalación de inmediato. Más tarde conserva el paquete verificado sin descargarlo otra vez.

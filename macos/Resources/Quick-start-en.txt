@@ -96,3 +96,5 @@ Keep email and AI settings and Keep mail reports are independent fixed-label swi
 Help → User guide opens this document; How do I get an authorization code? opens provider steps; About Email Assistant shows version and processor architecture. Once the chosen language is installed, current bundled guides take precedence over older language-pack documentation.
 
 Codex mode: Select Codex in AI services, click Find Codex or browse to its command-line executable, then save the page. Discovery fills the path without saving. Windows supports Store and npm installations; Mac supports bundled Codex and ChatGPT CLI components.
+
+After download and verification, a confirmation asks whether to install and restart. Confirming starts installation immediately. Later retains the verified package without downloading again.

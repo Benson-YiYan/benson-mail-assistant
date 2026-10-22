@@ -96,3 +96,5 @@ Conservar configuración de correo e IA y Conservar informes son interruptores i
 Ayuda → Guía de uso abre este documento; ¿Cómo obtener un código de autorización? abre los pasos del proveedor; Acerca de muestra versión y arquitectura. Una vez instalado el idioma, la guía actual incluida tiene prioridad sobre la de un paquete antiguo.
 
 Modo Codex: Selecciona Codex en Servicios de IA, pulsa Buscar Codex o selecciona su ejecutable y guarda la página. La búsqueda rellena la ruta sin guardarla. Windows detecta instalaciones de Store y npm; Mac admite componentes CLI de Codex y ChatGPT.
+
+Al completar la descarga y verificación, se pregunta si deseas instalar y reiniciar. Confirmar inicia la instalación de inmediato. Más tarde conserva el paquete verificado sin descargarlo otra vez.

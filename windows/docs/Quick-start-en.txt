@@ -100,3 +100,5 @@ Language choices apply after saving General settings, not when selecting a field
 
 
 Codex can be installed anywhere. Find Codex checks PATH, npm, Microsoft Store and registered installations. You can also browse to the command-line executable. Click Save to apply the selection.
+
+After download and verification, a confirmation asks whether to install and restart. Confirming starts installation immediately. Later retains the verified package without downloading again.
