@@ -23,7 +23,7 @@ internal sealed class NativeTray : IDisposable
     readonly IntPtr window, icon;
     readonly SubclassProc callback;
     readonly uint taskbarCreated;
-    bool visible, disposed;
+    bool visible, disposed, menuOpen;
     string text;
     internal sealed class Command
     {
@@ -98,15 +98,32 @@ internal sealed class NativeTray : IDisposable
     }
     void ShowMenu()
     {
-        var menu = CreateMenu();
+        if (menuOpen) return;
+        menuOpen = true;
+        IntPtr menu = IntPtr.Zero, owner = IntPtr.Zero;
+        uint selected = 0;
         try
         {
-            GetCursorPos(out var point); SetForegroundWindow(window);
-            var selected = TrackPopupMenuEx(menu, 0x100 | 0x80 | 0x2, point.X, point.Y, window, IntPtr.Zero);
-            PostMessageW(window, 0, UIntPtr.Zero, IntPtr.Zero);
-            if (selected > 0 && selected <= Commands.Count) Commands[(int)selected - 1].Invoke();
+            menu = CreateMenu();
+            GetCursorPos(out var point);
+            // The main WinUI window may be hidden/minimized, so it cannot reliably
+            // become foreground. Give the menu its own visible, zero-size tool window.
+            owner = CreateWindowExW(0x00000008 | 0x00000080, "STATIC", "", 0x80000000,
+                point.X, point.Y, 0, 0, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+            if (owner == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+            ShowWindow(owner, 4); // SW_SHOWNOACTIVATE; no main-window flash or taskbar entry.
+            SetForegroundWindow(owner);
+            selected = TrackPopupMenuEx(menu, 0x100 | 0x80 | 0x2, point.X, point.Y, owner, IntPtr.Zero);
+            PostMessageW(owner, 0, UIntPtr.Zero, IntPtr.Zero);
         }
-        finally { DestroyMenu(menu); Send(3); }
+        finally
+        {
+            if (menu != IntPtr.Zero) DestroyMenu(menu);
+            if (owner != IntPtr.Zero) DestroyWindow(owner);
+            menuOpen = false;
+            Send(3);
+        }
+        if (selected > 0 && selected <= Commands.Count) Commands[(int)selected - 1].Invoke();
     }
     internal bool VerifyNativeState()
     {
@@ -147,6 +164,9 @@ internal sealed class NativeTray : IDisposable
     [DllImport("user32.dll")] static extern bool DestroyMenu(IntPtr menu);
     [DllImport("user32.dll")] static extern int GetMenuItemCount(IntPtr menu);
     [DllImport("user32.dll")] static extern bool GetCursorPos(out Point point);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern IntPtr CreateWindowExW(uint extendedStyle, string className, string title, uint style, int x, int y, int width, int height, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr parameter);
+    [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr window, int command);
+    [DllImport("user32.dll")] static extern bool DestroyWindow(IntPtr window);
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
     [DllImport("user32.dll")] static extern bool PostMessageW(IntPtr window, uint message, UIntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] static extern bool IsWindow(IntPtr window);
