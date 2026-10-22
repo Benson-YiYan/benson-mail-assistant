@@ -1,11 +1,19 @@
-# 邮件小秘书 · 更新确认与托盘菜单修复
+# 邮件小秘书 · 连接修复与错误诊断
 
-修复 Windows 托盘菜单被遮挡；恢复并增强两版 Codex 查找；更新下载校验完成后立即弹窗确认，确认后安装，稍后保留安装包。同步中英西指南和语言包。
+## 简体中文
+- 修复 Mac 安装包缺少运行时证书策略文件，导致 HTTPS、邮件提问及 AI 测试报 FileNotFoundError。
+- Mac AI 与邮箱连接测试显示等待状态和就近结果，防止重复测试。
+- 两版增加稳定错误码，区分本地文件、权限、DNS、TLS、超时、连接拒绝和接口 HTTP 状态；保留系统错误号并隐藏凭据。
 
-Fix Windows tray menu layering and improve Codex discovery on both platforms. Prompt immediately after update verification; confirm to install or choose Later to retain the package. Updated guides and language packs.
+## English
+- Fix the missing Mac runtime certificate policy file that prevented HTTPS and AI requests.
+- Show Mac connection test activity and inline results; prevent duplicate AI tests.
+- Add diagnostic codes on both platforms for local files, permissions, DNS, TLS, timeout, refused connections and HTTP status. Preserve OS error numbers and redact credentials.
 
-Corrige el menú de la bandeja de Windows y mejora la búsqueda de Codex en ambas plataformas. Confirmación al verificar la actualización: instalar o conservar para más tarde. Guías e idiomas actualizados.
+## Español
+- Corrige el archivo de certificados ausente en Mac que impedía HTTPS y las solicitudes de IA.
+- Muestra actividad y resultados de las pruebas de conexión en Mac y evita pruebas duplicadas.
+- Añade códigos en ambas plataformas para archivos, permisos, DNS, TLS, tiempo de espera, conexiones rechazadas y estados HTTP; oculta credenciales.
 
-Windows x64: 202610222248 · Mac Apple silicon: 202610222244 · Mac Intel: 202610222300
-
-Windows GitHub Actions 39798471152 passed build, native UI, update confirmation, and installer checks. Both Mac architectures passed compilation, packaged runtime and disposable service checks. Intel validation uses Rosetta. Actual Windows tray layering still needs user verification.
+Mac Apple silicon: 202610230736. Mac Intel: 202610230739. Intel verification uses Rosetta.
+Windows: GitHub Actions 39872819050. Mac packages pass TLS context, runtime and update preparation checks. AI connection succeeded with the repaired runtime; tests do not send email.
