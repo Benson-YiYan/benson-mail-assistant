@@ -175,6 +175,16 @@ sealed class UpdateDownloadView : IDisposable
             rejected.BeginDownload(); await rejected.ActiveTask!; await rejected.Install();
             Check(rejected.Status.Text.Contains("Setup rejected the target directory") && rejected.InstallButton.IsEnabled,
                 "Installer handoff rejection is actionable in native UI, restores Install and does not report success");
+            foreach (var accepted in new[] { false, true }) {
+                var prompts = 0; var automaticLaunches = 0;
+                using var prompted = new UpdateDownloadView(release, new UpdateDownload(Path.Combine(folder, "update-prompt-" + accepted),
+                    new UpdateDownload.FixtureHandler((request, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new ByteArrayContent(bytes) }))),
+                    (_, _) => { automaticLaunches++; return Task.CompletedTask; });
+                prompted.ConfirmInstall = () => { prompts++; return Task.FromResult(accepted); };
+                prompted.BeginDownload(); await prompted.ActiveTask!;
+                Check(prompts == 1 && automaticLaunches == (accepted ? 1 : 0) && prompted.Verified != null,
+                    accepted ? "Verified download prompts once and installs immediately after confirmation" : "Later retains the verified package without installing");
+            }
             File.AppendAllText(view.Verified!.Path, "changed");
             Program.Trace("Update fixture explicit install action");
             await view.Install();
