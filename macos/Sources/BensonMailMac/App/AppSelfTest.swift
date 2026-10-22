@@ -667,6 +667,9 @@ enum AppSelfTest {
             try await Task.sleep(nanoseconds: 250_000_000)
             store.mailAccount = "setup-saved@example.invalid"
             store.settings.mailbox?.account = store.mailAccount
+            if let connection = store.settings.mailbox {
+                store.settings.mailboxes = [MailboxProfile(connection: connection)]
+            }
             store.settings.api_base = "https://setup-saved.invalid/v1"
             store.settings.api_model = "setup-saved-model"
             try store.save()

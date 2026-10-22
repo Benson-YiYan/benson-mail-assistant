@@ -83,9 +83,7 @@ struct ContentView: View {
         .onAppear { MailNotifications.shared.showMainWindow = { openWindow(id: "main") } }
         .frame(minWidth: 1000, minHeight: 680)
         .disabled(updater.installing)
-        .sheet(isPresented: $store.needsAccountSetup, onDismiss: { store.settingsDraft.reload() }) {
-            SetupView(store: store).interactiveDismissDisabled()
-        }
+        .sheet(isPresented: $store.needsAccountSetup) { SetupView(store: store).interactiveDismissDisabled() }
         .alert(T("邮件小秘书"), isPresented: Binding(get: { store.problem != nil }, set: { if !$0 { store.problem = nil } })) {
             Button(T("知道了")) { store.problem = nil }
         } message: { Text(T(store.problem ?? "")) }

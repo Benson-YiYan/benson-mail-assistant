@@ -31,9 +31,6 @@ struct StagedSettingsPage: View {
                 if !draft.message.isEmpty { Text(T(draft.message)).font(.callout).textSelection(.enabled) }
             }.padding(18)
         }.textFieldStyle(.roundedBorder).disabled(draft.saving)
-        .onChange(of: store.needsAccountSetup) { wasNeeded, isNeeded in
-            if wasNeeded && !isNeeded { draft.reload() }
-        }
         .sheet(isPresented: $showUsage) { UsageSettingsView(store: store) }
     }
     private var mailbox: some View {
@@ -172,7 +169,10 @@ private struct StagedAccountFields: View {
                     account.connection.security = "ssl"; account.port = "993"
                 }
             })) { ForEach(MailPreset.all) { Text(T($0.name)).tag($0.id) } }
-            TextField(T("邮箱地址，例如 name@example.com"), text: $account.connection.account).accessibilityLabel(T("邮箱地址"))
+            TextField(T("邮箱地址，例如 name@example.com"), text: Binding(
+                get: { account.connection.account },
+                set: { account.connection = MailAccountDraft.changingAccount(account.connection, to: $0) }
+            )).accessibilityLabel(T("邮箱地址"))
             TextField(T("IMAP 收件服务器，例如 imap.example.com"), text: $account.connection.host)
             HStack {
                 TextField(T("端口"), text: $account.port).frame(width: 90)
@@ -189,12 +189,16 @@ private struct StagedAccountFields: View {
             if ["http", "socks5"].contains(account.connection.proxy_mode) {
                 HStack { TextField(T("代理地址，例如 127.0.0.1"), text: $account.connection.proxy_host); TextField(T("代理端口"), text: $account.proxyPort).frame(width: 90) }
             }
-            DisclosureGroup(T("高级连接选项")) {
+            DisclosureGroup {
                 VStack(spacing: 12) {
                     TextField(T("登录用户名；留空使用邮箱地址"), text: $account.connection.username)
                     TextField(T("邮件文件夹"), text: $account.connection.mail_folder)
                     Picker(T("登录方式"), selection: $account.connection.mail_auth) { Text(T("密码／客户端授权码")).tag("password"); Text(T("OAuth2 访问令牌")).tag("oauth2") }
                 }.padding(.top, 8)
+            } label: {
+                Text(T("高级连接选项")).background {
+                    if CommandLine.arguments.contains("--self-test") { NativeTestAnchor(identifier: "mail-advanced-disclosure") }
+                }
             }
         }
     }
