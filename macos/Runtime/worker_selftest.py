@@ -110,7 +110,9 @@ def run():
     import mail_daemon as daemon
     import ai_runner
     import ai_api
+    import http.client
     import urllib.request
+    from urllib.parse import urlsplit
     from pypdf import PdfWriter
     home = data_home()
     assert home.name.startswith('BensonMail-package-test-'), 'isolated fixture required'
@@ -151,9 +153,25 @@ def run():
     thread.start()
     # This server is deliberately local and synthetic. Do not let macOS system
     # proxy discovery route 127.0.0.1 through an unrelated desktop proxy.
-    build_opener = urllib.request.build_opener
-    def direct_local_opener(*handlers):
-        return build_opener(urllib.request.ProxyHandler({}), *handlers)
+    class DirectLocalOpener:
+        def open(self, request, timeout=120):
+            target = urlsplit(request.full_url)
+            if target.scheme != 'http' or target.hostname != '127.0.0.1' or target.port != server.server_port:
+                raise AssertionError('synthetic worker test attempted a non-local AI request')
+            connection = http.client.HTTPConnection(target.hostname, target.port, timeout=timeout)
+            path = target.path + (('?' + target.query) if target.query else '')
+            connection.request(request.get_method(), path, body=request.data,
+                               headers=dict(request.header_items()))
+            response = connection.getresponse()
+            class Response:
+                def __enter__(self): return self
+                def __exit__(self, *_):
+                    response.close()
+                    connection.close()
+                def read(self, size=-1): return response.read(size)
+            return Response()
+    def direct_local_opener(*_handlers):
+        return DirectLocalOpener()
     output = home / 'reports'
     config = {'enabled': True, 'ai_provider': 'api', 'api_base': f'http://127.0.0.1:{server.server_port}/v1',
               'api_model': 'synthetic', 'output_dir': str(output)}
