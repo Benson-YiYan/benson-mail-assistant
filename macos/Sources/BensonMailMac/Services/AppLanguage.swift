@@ -80,6 +80,9 @@ final class AppLanguage: ObservableObject {
     /// Small built-in bootstrap catalog is limited to the download dialog, so English/Spanish users can install their first language.
     static func bootstrap(_ text: String, language: String) -> String {
         let en = [
+            "是否现在安装并重启？": "Install and restart now?",
+            "更新已下载并通过校验。安装时将退出应用，完成后重新打开。": "The update has been downloaded and verified. The app will close for installation and reopen when finished.",
+            "安装并重启": "Install and restart",
             "你没有下载这个语言，是否现在下载？": "You have not downloaded this language. Download it now?",
             "下载语言": "Download language", "下载": "Download", "取消": "Cancel", "重试": "Retry", "稍后": "Later",
             "语言下载失败": "Language download failed", "正在下载语言…": "Downloading language…",
@@ -94,6 +97,9 @@ final class AppLanguage: ObservableObject {
             "前往 GitHub 下载最新版": "Download the latest version from GitHub"
         ]
         let es = [
+            "是否现在安装并重启？": "¿Instalar y reiniciar ahora?",
+            "更新已下载并通过校验。安装时将退出应用，完成后重新打开。": "La actualización se ha descargado y verificado. La aplicación se cerrará para instalar y se abrirá al terminar.",
+            "安装并重启": "Instalar y reiniciar",
             "你没有下载这个语言，是否现在下载？": "No has descargado este idioma. ¿Quieres descargarlo ahora?",
             "下载语言": "Descargar idioma", "下载": "Descargar", "取消": "Cancelar", "重试": "Reintentar", "稍后": "Más tarde",
             "语言下载失败": "Error al descargar el idioma", "正在下载语言…": "Descargando idioma…",
