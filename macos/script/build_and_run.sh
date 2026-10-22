@@ -39,8 +39,13 @@ if [[ ! -x "${PYTHON_RUN[${#PYTHON_RUN[@]}-1]}" ]]; then
   exit 1
 fi
 PYTHONPATH=Runtime "${PYTHON_RUN[@]}" -c 'import json; from mailbox_config import PRESETS; print(json.dumps(PRESETS, ensure_ascii=False))' > "$APP_BUNDLE/Contents/Resources/mail-presets.json"
+# Some managed Python distributions require this additional CA distrust bundle.
+# Preserve the runtime's certificate policy in the standalone package.
+CA_POLICY_FILE="$("${PYTHON_RUN[@]}" -c 'import ssl; from pathlib import Path; p=Path(ssl.__file__).with_name("codex-rejected-cas.pem"); print(p if p.is_file() else "")')"
+CA_POLICY_ARGS=()
+if [[ -n "$CA_POLICY_FILE" ]]; then CA_POLICY_ARGS=(--add-data "$CA_POLICY_FILE:."); fi
 PYINSTALLER_CONFIG_DIR="$ROOT_DIR/build/cache-$TARGET_ARCH" "${PYTHON_RUN[@]}" -m PyInstaller --noconfirm --clean --onedir --console \
-  --target-arch "$TARGET_ARCH" --distpath "$DIST_DIR" \
+  "${CA_POLICY_ARGS[@]}" --target-arch "$TARGET_ARCH" --distpath "$DIST_DIR" \
   --workpath "$ROOT_DIR/build/$TARGET_ARCH" --specpath "$ROOT_DIR/build/spec-$TARGET_ARCH" \
   --name MailWorker --paths Runtime --hidden-import mail_daemon \
   --hidden-import mail_watch --hidden-import mail_export --hidden-import ai_runner \

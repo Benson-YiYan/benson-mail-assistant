@@ -27,6 +27,12 @@ def main():
     import truststore
     os.environ.setdefault('SSL_CERT_FILE', certifi.where())
     truststore.inject_into_ssl()
+    if operation == '--test-tls':
+        import ssl
+        # Exercise the packaged SSL runtime without credentials or network traffic.
+        context = ssl.create_default_context()
+        print(json.dumps({'ok': context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname}))
+        return
     if operation == '--migrate-reports':
         from report_layout import migrate_reports
         try:

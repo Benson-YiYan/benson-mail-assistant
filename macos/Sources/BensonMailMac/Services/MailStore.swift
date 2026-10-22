@@ -170,8 +170,12 @@ final class MailStore: ObservableObject {
         settings.ai_provider = provider; settings.api_base = address; settings.api_model = modelName
         do { try save() } catch { settings = old; throw error }
     }
+    @Published var testingAPI = false
+    @Published var apiTestResult = ""
     func testAPI(completion: @escaping (String) -> Void) {
         guard !isTest else { completion("模拟测试不会请求真实 AI 服务。"); return }
+        guard !testingAPI else { return }
+        testingAPI = true; apiTestResult = "正在测试…"
         let executable = ServiceInstaller.worker
         let home = base.path
         Task {
@@ -188,7 +192,9 @@ final class MailStore: ObservableObject {
                     return String(data: bytes, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "AI 连接测试失败。"
                 } catch { return "无法启动连接测试，请检查后台组件。" }
             }.value
-            completion(result.isEmpty ? "AI 连接测试失败，请检查后台组件。" : result)
+            testingAPI = false
+            apiTestResult = result.isEmpty ? "AI 连接测试失败，请检查后台组件。" : result
+            completion(apiTestResult)
         }
     }
     func testMailbox() {
@@ -209,7 +215,7 @@ final class MailStore: ObservableObject {
                     return String(data: bytes, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "无法读取测试结果。"
                 } catch { return "无法启动邮箱连接测试，请重新安装完整应用。" }
             }.value
-            testingMailbox = false; mailboxTestResult = result
+            testingMailbox = false; mailboxTestResult = result.isEmpty ? "无法读取测试结果。" : result
         }
     }
     var mailboxProfiles: [MailboxProfile] {

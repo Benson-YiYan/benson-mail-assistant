@@ -50,6 +50,7 @@ struct StagedSettingsPage: View {
                 }
                 Text(T("凭据保存在系统钥匙串。更换账号、服务器、登录用户名或文件夹前，请先暂停监听；旧报告保留。"))
                     .font(.caption).foregroundStyle(.secondary)
+                if store.testingMailbox { ProgressView().controlSize(.small) }
                 Button(store.testingMailbox ? T("正在测试…") : T("测试邮箱连接")) { store.testMailbox() }
                     .disabled(draft.dirty(.mailbox) || store.testingMailbox || store.mailAccount.isEmpty)
                     .accessibilityIdentifier("settings-test-mailbox")
@@ -107,7 +108,12 @@ struct StagedSettingsPage: View {
             }
             Text(T("新报告使用所选界面语言，六项分析要求保持一致。无新邮件不调用 AI；手动测试连接会发送一条简短测试消息，可能消耗少量 Token。"))
                 .font(.caption).foregroundStyle(.secondary)
-            Button(T("测试 AI 连接")) { store.testAPI { draft.message = $0 } }.disabled(draft.dirty(.ai))
+            HStack {
+                Button(store.testingAPI ? T("正在测试…") : T("测试 AI 连接")) { store.testAPI { _ in } }
+                    .disabled(draft.dirty(.ai) || store.testingAPI)
+                if store.testingAPI { ProgressView().controlSize(.small) }
+            }
+            if !store.apiTestResult.isEmpty { Text(T(store.apiTestResult)).textSelection(.enabled).font(.caption) }
             if draft.dirty(.ai) { Text(T("请先保存设置，再测试连接。")).font(.caption).foregroundStyle(.secondary) }
         }
         WorkspaceCard("费用单价") {

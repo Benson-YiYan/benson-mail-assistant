@@ -16,6 +16,9 @@ evidence = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else project / 'evid
 evidence.mkdir(parents=True, exist_ok=True)
 worker = app / 'Contents/Resources/worker/MailWorker'
 checks = []
+tls = subprocess.run([str(worker), '--test-tls'], capture_output=True, text=True, timeout=30, check=True)
+assert json.loads(tls.stdout)['ok']
+checks.append('packaged default TLS context initializes with certificate verification enabled')
 architecture = set(subprocess.check_output(
     ['/usr/bin/lipo', '-archs', str(app / 'Contents/MacOS/BensonMailMac')], text=True).split())
 if architecture not in ({'arm64'}, {'x86_64'}):
