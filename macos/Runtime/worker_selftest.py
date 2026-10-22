@@ -109,6 +109,8 @@ def run():
     from mail_prompt import ANALYSIS_PROMPT, ENGLISH_ANALYSIS_PROMPT, SPANISH_ANALYSIS_PROMPT
     import mail_daemon as daemon
     import ai_runner
+    import ai_api
+    import urllib.request
     from pypdf import PdfWriter
     home = data_home()
     assert home.name.startswith('BensonMail-package-test-'), 'isolated fixture required'
@@ -147,6 +149,11 @@ def run():
     server = HTTPServer(('127.0.0.1', 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
+    # This server is deliberately local and synthetic. Do not let macOS system
+    # proxy discovery route 127.0.0.1 through an unrelated desktop proxy.
+    build_opener = urllib.request.build_opener
+    def direct_local_opener(*handlers):
+        return build_opener(urllib.request.ProxyHandler({}), *handlers)
     output = home / 'reports'
     config = {'enabled': True, 'ai_provider': 'api', 'api_base': f'http://127.0.0.1:{server.server_port}/v1',
               'api_model': 'synthetic', 'output_dir': str(output)}
@@ -157,7 +164,8 @@ def run():
                'bodies': [{'type': 'text/plain', 'text': 'SYNTHETIC_BODY'}],
                'attachments': [{'filename': 'contract.txt', 'path': str(attachment)}]}
     try:
-        with patch.object(ai_runner, 'api_config', return_value=(config, 'SYNTHETIC_KEY')), \
+        with patch.object(ai_api.urllib.request, 'build_opener', side_effect=direct_local_opener), \
+             patch.object(ai_runner, 'api_config', return_value=(config, 'SYNTHETIC_KEY')), \
              patch.object(daemon, 'run_reader', return_value={}) as ack, \
              patch.object(daemon, 'notify'):
             daemon.analyze(message)
@@ -173,7 +181,7 @@ def run():
         before = report.read_bytes()
         config['ui_language'] = 'en'
         (home / 'settings.json').write_text(json.dumps(config))
-        with patch.object(ai_runner, 'api_config', return_value=(config, 'SYNTHETIC_KEY')), patch.object(daemon, 'run_reader', return_value={}), patch.object(daemon, 'notify'):
+        with patch.object(ai_api.urllib.request, 'build_opener', side_effect=direct_local_opener), patch.object(ai_runner, 'api_config', return_value=(config, 'SYNTHETIC_KEY')), patch.object(daemon, 'run_reader', return_value={}), patch.object(daemon, 'notify'):
             daemon.analyze(message)
             assert len(requests) == 1 and report.read_bytes() == before
             ai_runner.analyze_api(message, folder)
@@ -182,7 +190,7 @@ def run():
         checks.append('frozen English prompt follows persisted language; cached existing report is unchanged with no AI recall')
         config['ui_language'] = 'es'
         (home / 'settings.json').write_text(json.dumps(config))
-        with patch.object(ai_runner, 'api_config', return_value=(config, 'SYNTHETIC_KEY')), patch.object(daemon, 'run_reader', return_value={}), patch.object(daemon, 'notify') as notice:
+        with patch.object(ai_api.urllib.request, 'build_opener', side_effect=direct_local_opener), patch.object(ai_runner, 'api_config', return_value=(config, 'SYNTHETIC_KEY')), patch.object(daemon, 'run_reader', return_value={}), patch.object(daemon, 'notify') as notice:
             ai_runner.analyze_api(message, folder)
             assert len(requests) == 3 and requests[-1]['messages'][0]['content'] == SPANISH_ANALYSIS_PROMPT
             unavailable = {'uid': 102, 'subject': 'SYNTHETIC_REMOVED', 'from': 'synthetic@example.invalid',
