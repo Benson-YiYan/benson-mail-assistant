@@ -31,6 +31,9 @@ struct StagedSettingsPage: View {
                 if !draft.message.isEmpty { Text(T(draft.message)).font(.callout).textSelection(.enabled) }
             }.padding(18)
         }.textFieldStyle(.roundedBorder).disabled(draft.saving)
+        .onChange(of: store.needsAccountSetup) { wasNeeded, isNeeded in
+            if wasNeeded && !isNeeded { draft.reload() }
+        }
         .sheet(isPresented: $showUsage) { UsageSettingsView(store: store) }
     }
     private var mailbox: some View {
