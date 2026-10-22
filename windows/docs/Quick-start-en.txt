@@ -97,3 +97,6 @@ Open User guide at the bottom of the sidebar, or How do I get an authorization c
 
 Whole-page settings and background downloads
 Language choices apply after saving General settings, not when selecting a field. The report folder and startup are on General settings. Later closes only the update dialog: downloads continue in the background while you use the app. Progress appears beside Check for updates; View download/Install update reopens the download. Cancel download explicitly stops it. Reply drafts can edit recipient, subject and body; Save local draft stores edits without sending.
+
+
+Codex can be installed anywhere. Find Codex checks PATH, npm, Microsoft Store and registered installations. You can also browse to the command-line executable. Click Save to apply the selection.

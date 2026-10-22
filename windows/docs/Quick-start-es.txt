@@ -97,3 +97,6 @@ Abre Guía de uso al final de la barra lateral o ¿Cómo obtener un código de a
 
 Guardar páginas completas y descargas en segundo plano
 El idioma solo se aplica al guardar Ajustes generales. La carpeta de informes y el inicio también están en esa página. Ver uso es de solo lectura: modifica los precios en Servicio de IA y utiliza su único botón Guardar. Más tarde cierra solo el cuadro de actualización; la descarga continúa mientras usas la aplicación. La barra junto a Buscar actualizaciones muestra el progreso; Ver descarga/Instalar actualización abre de nuevo el cuadro. Solo Cancelar descarga la detiene. Los borradores permiten editar destinatario, asunto y texto; Guardar borrador local conserva los cambios sin enviar correo.
+
+
+Codex puede instalarse en cualquier ubicación. Buscar Codex comprueba PATH, npm, Microsoft Store y las instalaciones registradas. También puedes seleccionar el ejecutable de línea de comandos. Pulsa Guardar para aplicar la selección.

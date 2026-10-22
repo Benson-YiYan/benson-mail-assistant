@@ -297,6 +297,11 @@ class Controller:
                 service.set_interval(seconds)
             self.persist()
             return f'已设置每{seconds}秒检查；无新邮件不调用 AI。'
+        if name == 'codex_detect':
+            command = platform.resolve_cli(data['path']) if data.get('path') else platform.discover_codex()
+            if not command or not platform.verify_codex(command):
+                raise ValueError('未找到可用的 Codex 命令行程序，请选择 resources 下的 codex.exe。')
+            return platform.codex_selection_path(command)
         if name == 'codex':
             self.paused()
             command = platform.resolve_cli(data['path']) if data.get('path') else platform.discover_codex()

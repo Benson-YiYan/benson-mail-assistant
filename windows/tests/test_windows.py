@@ -1,4 +1,5 @@
 import sys
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -143,3 +144,76 @@ class DiscoveryTests(unittest.TestCase):
     def test_dpapi_no_plaintext_fallback(self):
         if sys.platform!='win32':
             with self.assertRaises(RuntimeError): platform.crypt(b'secret','demo')
+
+class CodexDiscoveryRegressionTests(unittest.TestCase):
+    def test_store_install_location_finds_nested_cli_without_enumerating_windowsapps(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)/'OpenAI.Codex'; cli=root/'app/resources/codex.exe'
+            cli.parent.mkdir(parents=True); cli.write_bytes(b'CLI')
+            with patch.object(platform,'codex_store_locations',return_value=[root]), patch.object(platform.shutil,'which',return_value=None), patch.object(platform,'verify_codex',side_effect=lambda c: c==[str(cli)]):
+                self.assertEqual(platform.discover_codex(),[str(cli)])
+
+    def test_npm_user_directory_is_searched_without_path(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); shim=root/'npm/codex.cmd'; shim.parent.mkdir(); shim.write_text('npm')
+            cli=root/'npm/node_modules/@openai/codex-win32-x64/vendor/x86_64-pc-windows-msvc/codex/codex.exe'
+            cli.parent.mkdir(parents=True); cli.write_bytes(b'CLI')
+            with patch.dict(platform.os.environ,{'APPDATA':str(root)}), patch.object(platform.shutil,'which',return_value=None), patch.object(platform,'codex_store_locations',return_value=[]), patch.object(platform,'verify_codex',side_effect=lambda c: c==[str(cli)]):
+                self.assertEqual(platform.discover_codex(),[str(cli)])
+
+    def test_gui_selection_resolves_cli_and_gui_never_executes(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); gui=root/'Codex.exe'; gui.write_bytes(b'GUI')
+            resources=root/'resources'; resources.mkdir(); (resources/'app.asar').write_bytes(b'GUI')
+            cli=resources/'codex.exe'; cli.write_bytes(b'CLI')
+            self.assertEqual(platform.resolve_cli(gui),[str(cli)])
+            self.assertEqual(platform.resolve_cli(root),[str(cli)])
+            with patch.object(platform.subprocess,'run') as run:
+                self.assertFalse(platform.verify_codex([str(gui)])); run.assert_not_called()
+
+    def test_store_registry_output_is_parsed_without_launching_codex(self):
+        from unittest.mock import patch
+        import subprocess
+        output=json.dumps(['C:/Program Files/WindowsApps/OpenAI.Codex'])
+        with patch.object(platform.sys,'platform','win32'), patch.object(platform.subprocess,'run',return_value=subprocess.CompletedProcess([],0,output,'')) as run:
+            self.assertEqual(platform.codex_store_locations(),[Path('C:/Program Files/WindowsApps/OpenAI.Codex')])
+            self.assertEqual(run.call_args.args[0][0],'powershell.exe')
+            self.assertIn('Get-AppxPackage',run.call_args.args[0][-1])
+
+    def test_node_fallback_selection_keeps_npm_shim_for_save(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); shim=root/'codex.cmd'; shim.write_text('npm')
+            script=root/'node_modules/@openai/codex/bin/codex.js'; script.parent.mkdir(parents=True); script.write_text('js')
+            self.assertEqual(platform.codex_selection_path(['node.exe',str(script)]),str(shim))
+
+    def test_registered_custom_install_on_arbitrary_directory(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temporary:
+            custom=Path(temporary)/'another-drive/custom/AI tools'; cli=custom/'resources/codex.exe'
+            cli.parent.mkdir(parents=True); cli.write_bytes(b'CLI')
+            with patch.object(platform,'codex_registered_locations',return_value=[custom]), patch.object(platform,'codex_store_locations',return_value=[]), patch.object(platform.shutil,'which',return_value=None), patch.object(platform,'verify_codex',side_effect=lambda c: c==[str(cli)]):
+                self.assertEqual(platform.discover_codex(),[str(cli)])
+            self.assertEqual(platform.resolve_cli(custom),[str(cli)])
+
+    def test_uninstall_registry_reads_custom_location_and_icon_from_both_views(self):
+        from unittest.mock import patch, MagicMock
+        registry=MagicMock()
+        registry.HKEY_CURRENT_USER='user'; registry.HKEY_LOCAL_MACHINE='machine'
+        registry.KEY_READ=1; registry.KEY_WOW64_64KEY=2; registry.KEY_WOW64_32KEY=4
+        parent=MagicMock(); key=MagicMock()
+        def opened(hive,path,*args):
+            handle=parent if path.endswith('Uninstall') else key
+            context=MagicMock(); context.__enter__.return_value=handle
+            return context
+        registry.OpenKey.side_effect=opened
+        registry.QueryInfoKey.return_value=(1,0,0); registry.EnumKey.return_value='CustomCodex'
+        values={'DisplayName':'OpenAI Codex','InstallLocation':'Z:/Other Apps/Codex','DisplayIcon':'"Z:/Other Apps/Codex/Codex.exe",0'}
+        registry.QueryValueEx.side_effect=lambda handle,name:(values[name],1)
+        with patch.object(platform.sys,'platform','win32'), patch.dict(sys.modules,{'winreg':registry}):
+            self.assertEqual(platform.codex_registered_locations(),[Path('Z:/Other Apps/Codex')])
+        for hive in ('user','machine'):
+            for view in (3,5):
+                registry.OpenKey.assert_any_call(hive,r'Software\Microsoft\Windows\CurrentVersion\Uninstall',0,view)

@@ -114,6 +114,10 @@ def main():
     modules = {'--daemon': 'mail_daemon', '--reader': 'mail_watch',
                '--mail_watch': 'mail_watch', '--mail_export': 'mail_export',
                '--test-api': 'ai_runner'}
+    if operation == '--find-codex':
+        from runtime_paths import codex_executable
+        print(codex_executable(args[0] if args else ''))
+        return
     if operation == '--diagnose':
         from pypdf import PdfReader
         from zoneinfo import ZoneInfo

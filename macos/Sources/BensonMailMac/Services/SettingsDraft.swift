@@ -40,7 +40,7 @@ import CryptoKit
         let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
         switch page {
         case .mailbox: return (try? encoder.encode(accounts)) ?? Data()
-        case .ai: return Data([value.ai_provider, value.api_base, value.api_model, value.harness_path, apiKey, inputRate, outputRate, currency].joined(separator: "\u{0}").utf8)
+        case .ai: return Data([value.ai_provider, value.api_base, value.api_model, value.harness_path, value.codex_path, apiKey, inputRate, outputRate, currency].joined(separator: "\u{0}").utf8)
         case .general:
             struct General: Encodable { let output: String; let language: String?; let notifications: Bool; let quiet: QuietHours }
             return (try? encoder.encode(General(output: value.output_dir, language: value.ui_language, notifications: value.notifications_enabled, quiet: value.quiet_hours))) ?? Data()
@@ -77,6 +77,22 @@ import CryptoKit
     @discardableResult func navigate(_ page: WorkspacePage, confirmDiscard: (() -> Bool)? = nil) -> Bool {
         guard page != store.workspacePage, mayLeave(confirmDiscard: confirmDiscard) else { return false }
         reload(); store.workspacePage = page; return true
+    }
+    func findCodex() async {
+        let worker = ServiceInstaller.worker
+        let home = store.base.path
+        let result = await Task.detached { () -> (Int32, String) in
+            let process = Process(); process.executableURL = worker
+            process.arguments = ["--home", home, "--find-codex"]
+            let output = Pipe(); process.standardOutput = output; process.standardError = FileHandle.nullDevice
+            do {
+                try process.run()
+                let bytes = output.fileHandleForReading.readDataToEndOfFile(); process.waitUntilExit()
+                return (process.terminationStatus, String(data: bytes, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "")
+            } catch { return (1, "") }
+        }.value
+        if result.0 == 0 && !result.1.isEmpty { value.codex_path = result.1; message = "已找到 Codex。请保存本页设置。" }
+        else { message = "未找到 Codex，请浏览选择命令行程序。" }
     }
     func chooseFolder() {
         let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
@@ -134,7 +150,7 @@ import CryptoKit
                     if !apiKey.isEmpty { try writeSecret("BensonMail-AI-API", endpoint, apiKey, undo: &undo) }
                 }
                 next.ai_provider = value.ai_provider; next.api_base = value.api_base.trimmingCharacters(in: .whitespacesAndNewlines)
-                next.api_model = value.api_model.trimmingCharacters(in: .whitespacesAndNewlines); next.harness_path = value.harness_path
+                next.api_model = value.api_model.trimmingCharacters(in: .whitespacesAndNewlines); next.harness_path = value.harness_path; next.codex_path = value.codex_path
             case .general:
                 guard await AppLanguage.shared.prepareSettingsLanguage(value.ui_language ?? AppLanguage.shared.code) else { return }
                 guard validClock(value.quiet_hours.start), validClock(value.quiet_hours.end) else { throw MailCredentials.Failure("请输入有效的时间（HH:mm）。") }

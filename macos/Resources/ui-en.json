@@ -840,7 +840,11 @@
     "选择发件人": "Choose a sender",
     "未识别的邮箱": "Unidentified account",
     "未识别的发件人": "Unidentified sender",
-    "报告目录整理失败，原报告仍保留；请检查运行记录。": "Could not organize report folders. Original reports are retained; check the activity log."
+    "报告目录整理失败，原报告仍保留；请检查运行记录。": "Could not organize report folders. Original reports are retained; check the activity log.",
+    "已找到 Codex。请保存本页设置。": "Codex found. Save this settings page.",
+    "未找到 Codex，请浏览选择命令行程序。": "Codex was not found. Browse to select its command-line executable.",
+    "Codex 启动器": "Codex launcher",
+    "浏览 Codex……": "Browse for Codex…"
   },
   "templates": [
     {

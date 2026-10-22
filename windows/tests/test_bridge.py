@@ -10,6 +10,13 @@ from benson_mail.bridge import Controller
 
 
 class BridgeTests(unittest.TestCase):
+    def test_codex_detect_does_not_save_or_require_pause(self):
+        original=dict(self.controller.config)
+        with patch('benson_mail.bridge.platform.discover_codex',return_value=['C:/Codex/resources/codex.exe']), patch('benson_mail.bridge.platform.verify_codex',return_value=True), patch.object(self.controller,'persist') as persist, patch.object(self.controller,'paused') as paused:
+            self.assertEqual(self.controller.command('codex_detect',{}),'C:/Codex/resources/codex.exe')
+            self.assertEqual(self.controller.config,original)
+            persist.assert_not_called(); paused.assert_not_called()
+
     def test_migration_failure_keeps_controller_available_with_warning(self):
         with patch('benson_mail.report_layout.migrate_reports', side_effect=OSError('synthetic denied')):
             controller = Controller(self.root, lambda event: None)

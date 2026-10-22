@@ -573,7 +573,7 @@ sealed partial class MainWindow : Window
             SettingsSaveBar("mail", mailSaveButton, Action(L.T("测试邮箱连接"), () => TestSavedSettings("mail")))));
         aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading(L.T("选择您喜欢的 AI")), provider, apiBase, model, apiKey, harnessPath,
             Row(Action(L.T("检测 Harness"), async () => { var found = await Call("harness_detect", new { path = harnessPath.Text }); harnessPath.Text = found.GetString() ?? ""; }), Action(L.T("浏览 Harness……"), PickHarness)),
-            codexPath, Row(Action(L.T("浏览 Codex……"), PickCodex)),
+            codexPath, Row(Action(L.T("查找 Codex"), async () => { var found = await Call("codex_detect", new { }); codexPath.Text = found.GetString() ?? ""; }), Action(L.T("浏览 Codex……"), PickCodex)),
             Note(L.T("来信及可读取的附件文字交给所选 AI，整理为六项报告。Harness 使用用户已安装的应用及其登录、模型配置，不捆绑或下载运行时。请先在 Harness 中配置；测试连接会发送少量文字。")))), UsageSettingsCard()),
             SettingsSaveBar("ai", aiSaveButton, Action(L.T("测试 AI 连接"), () => TestSavedSettings("ai")))));
         var generalSave = Action(L.T("保存设置"), () => SaveSettingsPage("general")); generalSave.Style = (Style)Application.Current.Resources["AccentButtonStyle"];

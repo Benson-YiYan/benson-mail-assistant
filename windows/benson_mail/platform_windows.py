@@ -166,6 +166,15 @@ def has_autostart(name=APP_NAME):
 
 def resolve_cli(path):
     path=Path(path)
+    # App execution aliases can launch the desktop GUI; use the package location instead.
+    if path.parent.name.lower() == 'windowsapps': return None
+    # Selecting an installation folder or its Electron launcher resolves to the CLI.
+    if path.is_dir() or (path.parent/'resources'/'app.asar').exists():
+        root = path if path.is_dir() else path.parent
+        for pattern in ('resources/codex.exe', 'resources/bin/codex.exe', 'app/resources/codex.exe', 'resources/app.asar.unpacked/**/codex.exe', 'resources/**/codex.exe'):
+            for candidate in root.glob(pattern):
+                if candidate.is_file(): return [str(candidate)]
+        return None
     if path.suffix.lower() in ('.cmd','.bat'):
         # npm launchers point to the packaged native binary or the JS entrypoint.
         package=path.parent/'node_modules'/'@openai'/'codex'
@@ -182,24 +191,87 @@ def resolve_cli(path):
     if path.suffix.lower() not in ('.exe','') or not path.is_file(): return None
     return [str(path)]
 
+def codex_selection_path(command):
+    """Return a path the settings editor can resolve again on Save."""
+    if len(command) == 1: return command[0]
+    if len(command) == 2:
+        script=Path(command[1])
+        if script.name == 'codex.js' and len(script.parents) > 4:
+            shim=script.parents[4]/'codex.cmd'
+            if shim.is_file(): return str(shim)
+    raise ValueError('未找到可用的 Codex 命令行程序，请选择 resources 下的 codex.exe。')
+
+
 def verify_codex(command,timeout=12):
     if not command: return False
+    if len(command) == 1 and (Path(command[0]).parent/'resources'/'app.asar').exists(): return False
     try:
         result=subprocess.run(list(command)+['exec','--help'],capture_output=True,timeout=timeout,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
         text=(result.stdout+result.stderr).decode('utf-8',errors='replace').lower()
         return result.returncode==0 and '--ephemeral' in text and '--sandbox' in text
     except (OSError,subprocess.TimeoutExpired): return False
 
+def codex_store_locations():
+    """Ask the package registry; WindowsApps itself is often not enumerable."""
+    if sys.platform != 'win32': return []
+    try:
+        result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+            "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); Get-AppxPackage *Codex* | Select-Object -ExpandProperty InstallLocation | ConvertTo-Json -Compress"],
+            capture_output=True, text=True, encoding='utf-8', timeout=12,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        value = json.loads(result.stdout) if result.returncode == 0 and result.stdout.strip() else []
+        return [Path(p) for p in ([value] if isinstance(value, str) else value) if isinstance(p, str) and p]
+    except (OSError, ValueError, subprocess.TimeoutExpired): return []
+
+
+def codex_registered_locations():
+    """Read per-user/machine uninstall metadata, including custom installation drives."""
+    if sys.platform != 'win32': return []
+    import winreg
+    roots=[]
+    key_path=r'Software\Microsoft\Windows\CurrentVersion\Uninstall'
+    for hive in (winreg.HKEY_CURRENT_USER,winreg.HKEY_LOCAL_MACHINE):
+        for view in (winreg.KEY_WOW64_64KEY,winreg.KEY_WOW64_32KEY):
+            try:
+                with winreg.OpenKey(hive,key_path,0,winreg.KEY_READ|view) as parent:
+                    for index in range(winreg.QueryInfoKey(parent)[0]):
+                        try:
+                            with winreg.OpenKey(parent,winreg.EnumKey(parent,index)) as key:
+                                name=str(winreg.QueryValueEx(key,'DisplayName')[0])
+                                if 'codex' not in name.lower(): continue
+                                for field in ('InstallLocation','DisplayIcon'):
+                                    try: value=str(winreg.QueryValueEx(key,field)[0]).strip()
+                                    except OSError: continue
+                                    if not value: continue
+                                    if field == 'DisplayIcon':
+                                        value=value.rsplit(',',1)[0].strip().strip('"')
+                                        roots.append(Path(os.path.expandvars(value)).parent)
+                                    else: roots.append(Path(os.path.expandvars(value.strip('"'))))
+                        except OSError: continue
+            except OSError: continue
+    return list(dict.fromkeys(roots))
+
+
 def discover_codex():
     candidates=[]
     for name in ('codex.exe','codex.cmd','codex'):
         found=shutil.which(name)
         if found: candidates.append(Path(found))
-    roots=[Path(os.environ.get('LOCALAPPDATA',''))/'Programs',Path(os.environ.get('LOCALAPPDATA',''))/'Microsoft'/'WindowsApps',Path(os.environ.get('ProgramFiles','C:/Program Files'))/'WindowsApps',Path(os.environ.get('ProgramFiles','C:/Program Files'))/'Codex']
+    local=Path(os.environ.get('LOCALAPPDATA', str(Path.home()/'AppData/Local')))
+    roaming=Path(os.environ.get('APPDATA', str(Path.home()/'AppData/Roaming')))
+    candidates.extend([roaming/'npm/codex.cmd', local/'Microsoft/WindowsApps/codex.exe'])
+    roots=codex_store_locations()+codex_registered_locations()+[local/'Programs/Codex',local/'Codex',Path(os.environ.get('ProgramFiles','C:/Program Files'))/'Codex']
+    # Squirrel and Store layouts differ; inspect only Codex installation roots.
+    programs=local/'Programs'
+    try:
+        if programs.is_dir(): roots.extend(p for p in programs.iterdir() if 'codex' in p.name.lower())
+    except OSError: pass
     for root in roots:
         if not root.exists(): continue
         try:
-            for pattern in ('**/resources/codex.exe','**/resources/bin/codex.exe','**/resources/app.asar.unpacked/**/codex.exe','OpenAI.Codex*/**/codex.exe','**/vendor/*/codex/codex.exe'):
+            for pattern in ('resources/codex.exe','resources/bin/codex.exe','app/resources/codex.exe',
+                            'app-*/resources/codex.exe','resources/app.asar.unpacked/**/codex.exe',
+                            'app/resources/app.asar.unpacked/**/codex.exe','resources/**/codex.exe','app/resources/**/codex.exe'):
                 candidates.extend(root.glob(pattern))
         except OSError: continue
     seen=set()

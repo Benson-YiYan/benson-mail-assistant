@@ -82,6 +82,16 @@ struct StagedSettingsPage: View {
                 Text(T("支持 OpenAI 兼容的 Chat Completions 接口，自动补全 /chat/completions。API Key 保存在系统钥匙串。"))
                     .font(.caption).foregroundStyle(.secondary)
             }
+            if draft.value.ai_provider == "codex" {
+                TextField(T("Codex 启动器"), text: $draft.value.codex_path)
+                HStack {
+                    Button(T("查找 Codex")) { Task { await draft.findCodex() } }
+                    Button(T("浏览 Codex……")) {
+                        let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.treatsFilePackagesAsDirectories = false
+                        if panel.runModal() == .OK, let url = panel.url { draft.value.codex_path = url.path }
+                    }
+                }
+            }
             if draft.value.ai_provider == "deepseek_harness" {
                 HStack {
                     TextField(T("dsh 路径；留空自动查找"), text: $draft.value.harness_path)

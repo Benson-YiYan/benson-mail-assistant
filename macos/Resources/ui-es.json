@@ -840,7 +840,11 @@
     "选择发件人": "Elige un remitente",
     "未识别的邮箱": "Cuenta sin identificar",
     "未识别的发件人": "Remitente sin identificar",
-    "报告目录整理失败，原报告仍保留；请检查运行记录。": "No se pudieron organizar las carpetas de informes. Se conservan los originales; consulta el registro de actividad."
+    "报告目录整理失败，原报告仍保留；请检查运行记录。": "No se pudieron organizar las carpetas de informes. Se conservan los originales; consulta el registro de actividad.",
+    "已找到 Codex。请保存本页设置。": "Codex encontrado. Guarda esta página de configuración.",
+    "未找到 Codex，请浏览选择命令行程序。": "No se encontró Codex. Selecciona su ejecutable de línea de comandos.",
+    "Codex 启动器": "Ejecutable de Codex",
+    "浏览 Codex……": "Buscar archivo de Codex…"
   },
   "templates": [
     {

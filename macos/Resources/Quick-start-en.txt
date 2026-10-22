@@ -94,3 +94,5 @@ Checks run automatically every hour and notify without installing automatically.
 General settings → Uninstall → Uninstall Email Assistant stops the background service and offers removal choices.
 Keep email and AI settings and Keep mail reports are independent fixed-label switches: On retains, Off deletes. Report deletion requires a second confirmation and removes only recognized reports/indexes, retaining unrelated files and the user-selected root folder. Keeping settings does not guarantee preservation of chats, caches or usage history; back up important material first.
 Help → User guide opens this document; How do I get an authorization code? opens provider steps; About Email Assistant shows version and processor architecture. Once the chosen language is installed, current bundled guides take precedence over older language-pack documentation.
+
+Codex mode: Select Codex in AI services, click Find Codex or browse to its command-line executable, then save the page. Discovery fills the path without saving. Windows supports Store and npm installations; Mac supports bundled Codex and ChatGPT CLI components.
