@@ -328,7 +328,7 @@ def mail_error(error, value, secret, stage, language='zh'):
             'MAIL_DNS' if isinstance(error, socket.gaierror) else
             'MAIL_TIMEOUT' if isinstance(error, (TimeoutError, socket.timeout)) else
             'MAIL_CONNECTION_REFUSED' if isinstance(error, ConnectionRefusedError) else
-            'MAIL_AUTH_REJECTED' if isinstance(error, IMAP_ERROR) and stage in ('登录', '认证', 'login', 'authentication') else
+            'MAIL_AUTH_REJECTED' if isinstance(error, IMAP_ERROR) and stage in ('XOAUTH2 认证', 'LOGIN 认证') else
             'MAIL_OPERATION')
     if isinstance(error, (FileNotFoundError, PermissionError)):
         hint = {'en': 'A local runtime file is missing or inaccessible. Reinstall the complete app and check permissions.',

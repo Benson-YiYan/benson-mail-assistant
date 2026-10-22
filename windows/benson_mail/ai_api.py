@@ -53,7 +53,10 @@ def connection_error(error, key):
         hint = _t('服务器或代理拒绝连接，请检查地址、端口及代理是否运行')
     else:
         hint = _t('连接失败，请检查网络、代理和基础地址')
-    detail = str(reason).replace(key.strip(), _t('[已隐藏密钥]'))
+    detail = str(reason)
+    if key.strip():
+        for secret in (key.strip(), urllib.parse.quote(key.strip(), safe=''), urllib.parse.quote_plus(key.strip()), json.dumps(key.strip())[1:-1]):
+            detail = detail.replace(secret, _t('[已隐藏密钥]'))
     detail = re.sub(r'https?://\S+', _t('[地址已隐藏]'), detail)
     detail = re.sub(r'(?i)(bearer\s+|(?:api[_-]?key|token|authorization)\s*[=:]\s*)\S+',
                     _t(r'\1[已隐藏]'), detail)
