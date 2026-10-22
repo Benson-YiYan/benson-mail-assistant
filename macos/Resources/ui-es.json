@@ -844,7 +844,11 @@
     "已找到 Codex。请保存本页设置。": "Codex encontrado. Guarda esta página de configuración.",
     "未找到 Codex，请浏览选择命令行程序。": "No se encontró Codex. Selecciona su ejecutable de línea de comandos.",
     "Codex 启动器": "Ejecutable de Codex",
-    "浏览 Codex……": "Buscar archivo de Codex…"
+    "浏览 Codex……": "Buscar archivo de Codex…",
+    "是否现在安装并重启？": "¿Instalar y reiniciar ahora?",
+    "更新已下载并通过校验。安装时将退出应用，完成后重新打开。": "La actualización se ha descargado y verificado. La aplicación se cerrará para instalar y se abrirá al terminar.",
+    "安装并重启": "Instalar y reiniciar",
+    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Descarga completa y SHA256 verificado. Confirma para cerrar la aplicación y abrir el instalador."
   },
   "templates": [
     {

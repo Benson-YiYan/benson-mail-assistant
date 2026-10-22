@@ -37,6 +37,7 @@ sealed class UpdateDownloadView : IDisposable
     internal readonly Button DownloadButton = new() { Content = L.T("下载更新") };
     internal readonly Button CancelButton = new() { Content = L.T("取消下载"), Visibility = Visibility.Collapsed };
     internal readonly Button InstallButton = new() { Content = L.T("安装更新"), Visibility = Visibility.Collapsed };
+    internal Func<Task<bool>>? ConfirmInstall;
     readonly UpdateRelease release;
     readonly UpdateDownload download;
     readonly Func<VerifiedUpdate, CancellationToken, Task> install;
@@ -55,7 +56,9 @@ sealed class UpdateDownloadView : IDisposable
         Content.Children.Add(actions);
         DownloadButton.Click += (_, _) => BeginDownload();
         CancelButton.Click += (_, _) => Cancel();
-        InstallButton.Click += async (_, _) => await Install();
+        InstallButton.Click += async (_, _) => {
+            if (ConfirmInstall == null || await ConfirmInstall()) await Install();
+        };
     }
     internal void BeginDownload()
     {
@@ -89,7 +92,7 @@ sealed class UpdateDownloadView : IDisposable
             Verified = await download.Download(release, progress, token);
             reportProgress = false;
             Bar.IsIndeterminate = false; Bar.Value = 100;
-            Status.Text = L.T("下载完成，SHA256 校验通过。点击“安装更新”后将退出当前程序并打开安装程序。");
+            Status.Text = L.T("下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。");
             InstallButton.Visibility = Visibility.Visible;
             DownloadButton.Visibility = Visibility.Collapsed;
         }
@@ -101,10 +104,11 @@ sealed class UpdateDownloadView : IDisposable
             Bar.IsIndeterminate = false;
             DownloadButton.Content = L.T("重试下载"); DownloadButton.IsEnabled = true; Changed?.Invoke();
         }
+        if (Verified != null && ConfirmInstall != null && await ConfirmInstall()) await Install(true);
     }
-    internal async Task Install()
+    internal async Task Install(bool downloadCompleted = false)
     {
-        if (Verified == null || Busy || !InstallButton.IsEnabled) return;
+        if (Verified == null || (Busy && !downloadCompleted) || !InstallButton.IsEnabled) return;
         if (cancellation == null || cancellation.IsCancellationRequested) {
             cancellation?.Dispose(); cancellation = new();
         }

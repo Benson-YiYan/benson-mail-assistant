@@ -704,6 +704,7 @@ sealed partial class MainWindow : Window
     readonly UpdateProgress backgroundUpdateProgress = new() { Visibility = Visibility.Collapsed, Width = 160 };
     readonly Button backgroundUpdateOpen = new() { Content = L.T("查看下载"), Visibility = Visibility.Collapsed };
     bool updateDialogOpen;
+    ContentDialog? downloadDialog;
     async Task ShowUpdateDownload(UpdateRelease release)
     {
         if (activeDownload == null) return;
@@ -711,8 +712,9 @@ sealed partial class MainWindow : Window
         updateDialogOpen = true;
         var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("发现新版本：") + release.Version,
             Content = activeDownload.Content, CloseButtonText = L.T("稍后"), DefaultButton = ContentDialogButton.Close };
+        downloadDialog = dialog;
         try { await dialog.ShowAsync(); }
-        finally { dialog.Content = null; updateDialogOpen = false; }
+        finally { dialog.Content = null; downloadDialog = null; updateDialogOpen = false; }
         // Dismissing the window does not cancel or dispose the background transfer.
     }
     async Task CheckUpdates(bool manual)
@@ -745,6 +747,20 @@ sealed partial class MainWindow : Window
                     }
                     await Exit();
                 });
+            activeDownload.ConfirmInstall = async () => {
+                downloadDialog?.Hide();
+                while (updateDialogOpen || VisualTreeHelper.GetOpenPopupsForXamlRoot(layout.XamlRoot).Count > 0) {
+                    if (exitRequested) return false;
+                    await Task.Delay(100);
+                }
+                if (exitRequested) return false;
+                var confirmation = new ContentDialog { XamlRoot = layout.XamlRoot,
+                    Title = L.T("是否现在安装并重启？"),
+                    Content = L.T("更新已下载并通过校验。安装时将退出应用，完成后重新打开。"),
+                    PrimaryButtonText = L.T("安装并重启"), CloseButtonText = L.T("稍后"),
+                    DefaultButton = ContentDialogButton.Close };
+                return await confirmation.ShowAsync() == ContentDialogResult.Primary;
+            };
             activeDownload.Changed += () => {
                 if (exitRequested || activeDownload == null) return;
                 backgroundUpdateProgress.Visibility = activeDownload.Busy || activeDownload.Verified != null ? Visibility.Visible : Visibility.Collapsed;

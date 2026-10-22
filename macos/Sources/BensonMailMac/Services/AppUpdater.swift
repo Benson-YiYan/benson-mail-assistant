@@ -155,6 +155,7 @@ struct MailUpdate: Equatable {
                 else { status = "下载失败，可重试。"; detail = error.localizedDescription }
             }
             downloading = false; transfer = nil
+            if downloaded != nil { confirmInstall() }
         }
     }
     func cancelDownload() { transfer?.cancel() }
@@ -163,6 +164,18 @@ struct MailUpdate: Equatable {
         if available == nil { available = verifiedRelease }
         workspace = nil; downloaded = nil; verifiedRelease = nil
         download()
+    }
+    func confirmInstall() {
+        guard downloaded != nil, !installing else { return }
+        let alert = NSAlert()
+        alert.messageText = T("是否现在安装并重启？")
+        alert.informativeText = T("更新已下载并通过校验。安装时将退出应用，完成后重新打开。")
+        alert.addButton(withTitle: T("安装并重启"))
+        alert.addButton(withTitle: T("稍后"))
+        alert.buttons.first?.keyEquivalent = ""
+        alert.buttons.last?.keyEquivalent = "\r"
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn { install() }
     }
     func install() {
         guard !installing, let update = verifiedRelease, let image = downloaded, let root = workspace else { return }
@@ -350,7 +363,7 @@ struct UpdateActions: View {
                 Button(T("取消下载")) { updater.cancelDownload() }
             } else if updater.downloaded != nil {
                 HStack {
-                    Button(updater.installing ? T("正在安装…") : T("安装并重新打开")) { updater.install() }.disabled(updater.installing)
+                    Button(updater.installing ? T("正在安装…") : T("安装并重新打开")) { updater.confirmInstall() }.disabled(updater.installing)
                     Button(T("重新下载")) { updater.restartDownload() }.disabled(updater.installing)
                 }
             } else { Button(T("下载／重试更新")) { updater.download() }.disabled(updater.installing) }

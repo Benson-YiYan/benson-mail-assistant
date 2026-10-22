@@ -834,7 +834,11 @@
     "全部邮箱": "All mailboxes",
     "未知邮箱": "Unknown mailbox",
     "部分旧报告未能整理到新目录；原文件已保留，其他功能可继续使用。": "Some older reports could not be organized into the new folders. Original files were retained; other features remain available.",
-    "无法安全保留报告原文数据，已停止卸载；请检查文件权限后重试。": "Could not safely preserve original report data. Uninstall was stopped; check file permissions and try again."
+    "无法安全保留报告原文数据，已停止卸载；请检查文件权限后重试。": "Could not safely preserve original report data. Uninstall was stopped; check file permissions and try again.",
+    "是否现在安装并重启？": "Install and restart now?",
+    "更新已下载并通过校验。安装时将退出应用，完成后重新打开。": "The update has been downloaded and verified. The app will close for installation and reopen when finished.",
+    "安装并重启": "Install and restart",
+    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Download complete and SHA256 verified. Confirm to close the app and open the installer."
   },
   "templates": [
     {

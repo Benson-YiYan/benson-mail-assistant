@@ -834,7 +834,11 @@
     "全部邮箱": "Todos los buzones",
     "未知邮箱": "Buzón desconocido",
     "部分旧报告未能整理到新目录；原文件已保留，其他功能可继续使用。": "No se pudieron organizar algunos informes antiguos en las nuevas carpetas. Los originales se conservaron; las demás funciones siguen disponibles.",
-    "无法安全保留报告原文数据，已停止卸载；请检查文件权限后重试。": "No se pudieron conservar de forma segura los originales de los informes. Se detuvo la desinstalación; revisa los permisos y vuelve a intentarlo."
+    "无法安全保留报告原文数据，已停止卸载；请检查文件权限后重试。": "No se pudieron conservar de forma segura los originales de los informes. Se detuvo la desinstalación; revisa los permisos y vuelve a intentarlo.",
+    "是否现在安装并重启？": "¿Instalar y reiniciar ahora?",
+    "更新已下载并通过校验。安装时将退出应用，完成后重新打开。": "La actualización se ha descargado y verificado. La aplicación se cerrará para instalar y se abrirá al terminar.",
+    "安装并重启": "Instalar y reiniciar",
+    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Descarga completa y SHA256 verificado. Confirma para cerrar la aplicación y abrir el instalador."
   },
   "templates": [
     {
