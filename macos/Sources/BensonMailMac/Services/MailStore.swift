@@ -318,6 +318,10 @@ final class MailStore: ObservableObject {
             if settings.enabled { startWorker() }
         } catch { settings = old; problem = "无法保存监听设置：\(error.localizedDescription)" }
     }
+    func completeAccountSetup() {
+        settingsDraft.reload()
+        needsAccountSetup = false
+    }
     var notificationsAllowed: Bool { settings.notifications_enabled && !settings.quiet_hours.contains() }
     func toggleNotifications() {
         let previous = settings

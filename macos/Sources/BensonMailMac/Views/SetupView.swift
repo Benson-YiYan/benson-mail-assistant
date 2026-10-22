@@ -25,7 +25,7 @@ struct SetupView: View {
             }
             if !error.isEmpty { Text(T(error)).foregroundStyle(.red) }
             HStack {
-                Button(T("稍后配置")) { store.needsAccountSetup = false }
+                Button(T("稍后配置")) { store.completeAccountSetup() }
                 Spacer()
                 Button(T("完成配置并开始监听")) {
                     guard !store.mailAccount.isEmpty else { error = "请先保存邮箱地址与授权码。"; return }
@@ -34,7 +34,7 @@ struct SetupView: View {
                             error = "请先保存 AI 设置。"; return
                         }
                     }
-                    store.needsAccountSetup = false
+                    store.completeAccountSetup()
                     if !store.settings.enabled { store.toggle() }
                 }.buttonStyle(.borderedProminent).disabled(store.savingAccount || store.working)
             }

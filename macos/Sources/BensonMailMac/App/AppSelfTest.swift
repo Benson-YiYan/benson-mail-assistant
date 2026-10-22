@@ -451,7 +451,7 @@ enum AppSelfTest {
             guard window.attachedSheet != nil else { throw Failure("first-run setup sheet not presented") }
             try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
             _ = try? capture(window, to: output.appendingPathComponent("mac-setup.png"))
-            store.needsAccountSetup = false
+            store.completeAccountSetup()
             RunLoop.main.run(until: Date().addingTimeInterval(0.3))
             checks.append("first-run setup appears as an actual attached sheet")
             let agent = try ServiceInstaller.prepare(base: store.base, home: store.base.appendingPathComponent("test-home"))
@@ -670,7 +670,7 @@ enum AppSelfTest {
             store.settings.api_base = "https://setup-saved.invalid/v1"
             store.settings.api_model = "setup-saved-model"
             try store.save()
-            store.needsAccountSetup = false
+            store.completeAccountSetup()
             try await Task.sleep(nanoseconds: 300_000_000)
             guard allFields(root).contains(where: { $0.stringValue == "setup-saved@example.invalid" }),
                   allFields(root).contains(where: { $0.stringValue == "https://setup-saved.invalid/v1" }) else { throw Failure("main page drafts did not refresh after first-run setup") }
@@ -700,7 +700,7 @@ enum AppSelfTest {
                 store.settings.mailbox = connection
                 store.settings.mailboxes = [MailboxProfile(connection: connection)]
                 try store.save()
-                store.needsAccountSetup = false
+                store.completeAccountSetup()
                 store.workspacePage = .mailbox
                 try await Task.sleep(nanoseconds: 300_000_000)
             }
