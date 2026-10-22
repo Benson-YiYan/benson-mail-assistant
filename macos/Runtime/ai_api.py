@@ -9,19 +9,32 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from runtime_i18n import _LANGUAGE
+
 MAX_RESPONSE = 4 * 1024 * 1024
 
 @localized
 def connection_error(error, key):
     """Keep network diagnostics useful without exposing request credentials or URLs."""
     reason = error.reason if isinstance(error, urllib.error.URLError) else error
-    if isinstance(reason, ssl.SSLCertVerificationError):
+    code = 'AI_NETWORK'
+    if isinstance(reason, FileNotFoundError):
+        code = 'AI_LOCAL_FILE_MISSING'
+        hint = {'en': 'A required local runtime or certificate file is missing. Reinstall the latest complete app.', 'es': 'Falta un archivo local de ejecución o certificados. Reinstala la aplicación completa.'}.get(_LANGUAGE.get(), '本地运行组件或证书文件缺失，请重新安装最新版完整应用')
+    elif isinstance(reason, PermissionError):
+        code = 'AI_LOCAL_PERMISSION'
+        hint = {'en': 'Local runtime file access denied. Check app permissions.', 'es': 'Acceso a un archivo local denegado. Revisa los permisos.'}.get(_LANGUAGE.get(), '本地运行文件访问被拒绝，请检查应用权限')
+    elif isinstance(reason, ssl.SSLCertVerificationError):
+        code = 'AI_TLS_CERTIFICATE'
         hint = _t('TLS 证书验证失败，请检查电脑时间、代理或服务商证书')
     elif isinstance(reason, socket.gaierror):
+        code = 'AI_DNS'
         hint = _t('DNS 解析失败，请检查域名和 DNS 设置')
     elif isinstance(reason, (TimeoutError, socket.timeout)):
+        code = 'AI_TIMEOUT'
         hint = _t('连接或读取超时（最长等待 120 秒）')
     elif isinstance(reason, ConnectionRefusedError):
+        code = 'AI_CONNECTION_REFUSED'
         hint = _t('服务器或代理拒绝连接，请检查地址、端口及代理是否运行')
     else:
         hint = _t('连接失败，请检查网络、代理和基础地址')
@@ -36,7 +49,9 @@ def connection_error(error, key):
     detail = re.sub(r'(?i)(bearer\s+|(?:api[_-]?key|token|authorization)\s*["\']?\s*[=:]\s*["\']?)\S+',
                     _t(r'\1[已隐藏]'), detail)
     detail = ' '.join(detail.split())[:500]
-    return _t('AI 接口%s。\n具体原因：%s: %s') % (hint, type(reason).__name__, detail)
+    native = getattr(reason, 'errno', None)
+    suffix = f' [{code}' + (f'; OS={native}' if native is not None else '') + ']'
+    return (_t('AI 接口%s。\n具体原因：%s: %s') % (hint, type(reason).__name__, detail)) + suffix
 
 @localized
 def endpoint(base):
@@ -90,7 +105,7 @@ def complete(base, model, key, messages, stop=None):
         error.close()
         hints = {401: _t('API Key 无效或已过期'), 403: _t('API Key 没有权限'),
                  404: _t('基础地址或模型名不正确'), 429: _t('额度不足或请求过于频繁')}
-        raise RuntimeError(_t('AI 接口错误（HTTP %s）：%s。') % (code, hints.get(code, _t('请检查服务商状态和接口配置')))) from None
+        raise RuntimeError((_t('AI 接口错误（HTTP %s）：%s。') % (code, hints.get(code, _t('请检查服务商状态和接口配置')))) + f' [AI_HTTP_{code}]') from None
     except (urllib.error.URLError, TimeoutError, OSError) as error:
         raise RuntimeError(connection_error(error, key)) from None
     except (ValueError, UnicodeError):

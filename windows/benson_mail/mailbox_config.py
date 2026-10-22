@@ -320,6 +320,21 @@ def mail_error(error, value, secret, stage, language='zh'):
         hint = '服务器拒绝连接；请核对 IMAP 地址、端口及网络或代理设置。'
     else:
         hint = '邮箱操作失败；请结合下方阶段和服务器响应检查设置，尚不能确定原因。'
+    code = ('MAIL_PROXY' if isinstance(error, ProxyConnectionError) else
+            'MAIL_LOCAL_FILE_MISSING' if isinstance(error, FileNotFoundError) else
+            'MAIL_LOCAL_PERMISSION' if isinstance(error, PermissionError) else
+            'MAIL_TLS_CERTIFICATE' if isinstance(error, ssl.SSLCertVerificationError) else
+            'MAIL_TLS' if isinstance(error, ssl.SSLError) else
+            'MAIL_DNS' if isinstance(error, socket.gaierror) else
+            'MAIL_TIMEOUT' if isinstance(error, (TimeoutError, socket.timeout)) else
+            'MAIL_CONNECTION_REFUSED' if isinstance(error, ConnectionRefusedError) else
+            'MAIL_AUTH_REJECTED' if isinstance(error, IMAP_ERROR) and stage in ('登录', '认证', 'login', 'authentication') else
+            'MAIL_OPERATION')
+    if isinstance(error, (FileNotFoundError, PermissionError)):
+        hint = {'en': 'A local runtime file is missing or inaccessible. Reinstall the complete app and check permissions.',
+                'es': 'Falta un archivo local o no se puede acceder a él. Reinstala la aplicación y revisa los permisos.'}.get(language, '本地运行文件缺失或无权访问，请重新安装完整应用并检查权限。')
+        return MailConnectionError(f"{hint}\n[{code}; stage={stage}; OS={getattr(error, 'errno', None)}]")
+    detail += f" [{code}; OS={getattr(error, 'errno', None)}]"
     error_type = ('IMAP4.' + type(error).__name__) if isinstance(error, IMAP_ERROR) else type(error).__name__
     if language == 'es':
         hints = {
