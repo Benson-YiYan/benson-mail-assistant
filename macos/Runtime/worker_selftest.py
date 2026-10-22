@@ -166,7 +166,7 @@ def run():
         assert len(requests) == 1
         assert requests[0]['messages'][0]['content'] == ANALYSIS_PROMPT
         assert 'SYNTHETIC_ATTACHMENT_TEXT_101' in requests[0]['messages'][1]['content']
-        report = output / '2026-10-17/模拟独立安装邮件-08-00.md'
+        report = next(output.rglob('模拟独立安装邮件-08-00.md'))
         assert report.exists() and '6 建议回复' in report.read_text()
         checks.append('packaged API pipeline extracts real attachment text and preserves six-part prompt')
         checks.append('frozen exporter subprocess writes date folders and Markdown; cached retries avoid duplicate AI')
@@ -189,7 +189,7 @@ def run():
                            'received_at': '2026-10-17T00:00:00+00:00', 'unavailable': True}
             daemon.analyze(unavailable)
             assert len(requests) == 3
-            removed_report = output / '2026-10-17/SYNTHETIC_REMOVED-08-00.md'
+            removed_report = next(output.rglob('SYNTHETIC_REMOVED-08-00.md'))
             contents = removed_report.read_text()
             assert '## 1. Correo nuevo' in contents and '## 6. Respuesta sugerida' in contents
             assert 'revisa el archivo o la papelera' in contents
