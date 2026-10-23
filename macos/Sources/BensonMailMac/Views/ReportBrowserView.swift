@@ -23,26 +23,26 @@ struct ReportBrowserView: View {
                     .help(T("按邮箱、日期、发件人逐层浏览；搜索和筛选仍然生效。"))
             }.padding(14)
             if treeEnabled {
+                ScrollView(.horizontal, showsIndicators: true) {
+                    HStack(spacing: 5) {
+                        Button(T("全部邮箱")) { path = [] }.buttonStyle(.link)
+                        ForEach(Array(path.enumerated()), id: \.offset) { item in
+                            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.secondary)
+                            Button(folderLabel(item.element, level: item.offset)) { path = Array(path.prefix(item.offset + 1)) }
+                                .buttonStyle(.link)
+                        }
+                    }.lineLimit(1).fixedSize(horizontal: true, vertical: false).padding(.vertical, 4)
+                }.padding(.horizontal, 14).padding(.bottom, 8)
                 HStack(spacing: 8) {
                     Button { if !path.isEmpty { path.removeLast() } } label: {
-                        Image(systemName: "arrow.up")
+                        Image(systemName: "arrow.up").frame(width: 24, height: 24)
                     }.disabled(path.isEmpty).help(T("上一级")).accessibilityLabel(T("上一级"))
                         .accessibilityIdentifier("report-tree-up")
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 5) {
-                            Button(T("全部邮箱")) { path = [] }.buttonStyle(.link)
-                            ForEach(Array(path.enumerated()), id: \.offset) { item in
-                                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.secondary)
-                                Button(folderLabel(item.element, level: item.offset)) { path = Array(path.prefix(item.offset + 1)) }
-                                    .buttonStyle(.link).lineLimit(1).fixedSize()
-                            }
-                        }.padding(.vertical, 4)
-                    }
-                }.padding(.horizontal, 14).padding(.bottom, 8)
-                if path.count < 3 {
-                    Text(T(["选择邮箱", "选择日期", "选择发件人"][path.count]))
-                        .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 14).padding(.bottom, 5)
-                }
+                    Text(path.last.map { folderLabel($0, level: path.count - 1) } ?? T("全部邮箱"))
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        .help(path.last.map { folderLabel($0, level: path.count - 1) } ?? T("全部邮箱"))
+                    Spacer(minLength: 0)
+                }.padding(.horizontal, 14).padding(.bottom, 5)
             }
             if treeEnabled && path.count < 3 {
                 List {

@@ -262,7 +262,10 @@ sealed partial class MainWindow : Window
     readonly ComboBox attachment = new() { Header = L.T("附件"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ListView reports = new() { SelectionMode = ListViewSelectionMode.Single };
     readonly CheckBox reportTree = new() { Content = L.T("报告树"), VerticalAlignment = VerticalAlignment.Center };
-    readonly TextBlock reportBreadcrumb = new() { TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .7 };
+    readonly TextBlock reportBreadcrumb = new() { TextWrapping = TextWrapping.NoWrap, FontSize = 12, Opacity = .7 };
+    readonly TextBlock reportCurrentFolder = new() { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+    ScrollViewer reportPathScroll = null!;
+    Grid reportFolderHeader = null!;
     Button reportTreeUp = null!;
     readonly List<Report> reportRows = new();
     readonly List<string> reportTreePath = new();
@@ -647,7 +650,15 @@ sealed partial class MainWindow : Window
         var reportBrowser = new Grid { RowSpacing = 6 };
         reportBrowser.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         reportBrowser.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        reportBrowser.Children.Add(Stack(reportTreeUp, reportBreadcrumb));
+        reportPathScroll = new ScrollViewer { Content = reportBreadcrumb,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollMode = ScrollMode.Enabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalScrollMode = ScrollMode.Disabled };
+        reportFolderHeader = new Grid { ColumnSpacing = 8 };
+        reportFolderHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        reportFolderHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        reportFolderHeader.Children.Add(reportTreeUp);
+        Grid.SetColumn(reportCurrentFolder, 1); reportFolderHeader.Children.Add(reportCurrentFolder);
+        reportBrowser.Children.Add(Stack(reportPathScroll, reportFolderHeader));
         Grid.SetRow(reports, 1); reportBrowser.Children.Add(reports);
         reading.Children.Add(Card(reportBrowser, 4));
         reports.IsItemClickEnabled = true;
@@ -960,7 +971,9 @@ sealed partial class MainWindow : Window
     {
         reports.Items.Clear();
         var tree = reportTree.IsChecked == true;
-        reportTreeUp.Visibility = reportBreadcrumb.Visibility = tree ? Visibility.Visible : Visibility.Collapsed;
+        reportFolderHeader.Visibility = reportPathScroll.Visibility = tree ? Visibility.Visible : Visibility.Collapsed;
+        reportCurrentFolder.Text = reportTreePath.Count == 0 ? L.T("全部邮箱") : ReportTreeLabel(reportTreePath.Count - 1, reportTreePath[^1]);
+        ToolTipService.SetToolTip(reportCurrentFolder, reportCurrentFolder.Text);
         reportTreeUp.IsEnabled = reportTreePath.Count > 0;
         reportBreadcrumb.Text = string.Join(" / ", new[] { L.T("全部邮箱") }.Concat(reportTreePath.Select((name, level) => ReportTreeLabel(level, name))));
         IEnumerable<Report> shown = reportRows;
