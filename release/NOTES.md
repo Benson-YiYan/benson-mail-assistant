@@ -1,19 +1,11 @@
-# 邮件小秘书 · 连接修复与错误诊断
+# 邮件小秘书 · 报告树导航优化
 
-## 简体中文
-- 修复 Mac 安装包缺少运行时证书策略文件，导致 HTTPS、邮件提问及 AI 测试报 FileNotFoundError。
-- Mac AI 与邮箱连接测试显示等待状态和就近结果，防止重复测试。
-- 两版增加稳定错误码，区分本地文件、权限、DNS、TLS、超时、连接拒绝和接口 HTTP 状态；保留系统错误号并隐藏凭据。
+- 上一级按钮移到当前文件夹名左侧；标题显示当前邮箱、日期或发件人文件夹，根目录显示全部邮箱。
+- 完整路径保持单行，过长时使用横向滚动条查看。
+- Mac 和 Windows 同步调整。
 
-## English
-- Fix the missing Mac runtime certificate policy file that prevented HTTPS and AI requests.
-- Show Mac connection test activity and inline results; prevent duplicate AI tests.
-- Add diagnostic codes on both platforms for local files, permissions, DNS, TLS, timeout, refused connections and HTTP status. Preserve OS error numbers and redact credentials.
+Report tree navigation now places Up beside the current folder name. The full path stays on one line and scrolls horizontally. Updated on Mac and Windows.
 
-## Español
-- Corrige el archivo de certificados ausente en Mac que impedía HTTPS y las solicitudes de IA.
-- Muestra actividad y resultados de las pruebas de conexión en Mac y evita pruebas duplicadas.
-- Añade códigos en ambas plataformas para archivos, permisos, DNS, TLS, tiempo de espera, conexiones rechazadas y estados HTTP; oculta credenciales.
+La navegación muestra Subir junto a la carpeta actual. La ruta completa se mantiene en una línea con desplazamiento horizontal. Actualizado en Mac y Windows.
 
-Mac Apple silicon: 202610230736. Mac Intel: 202610230739. Intel verification uses Rosetta.
-Windows: GitHub Actions 39872819050. Mac packages pass TLS context, runtime and update preparation checks. AI connection succeeded with the repaired runtime; tests do not send email.
+Validation: Windows GitHub Actions 39878308958 passed. Mac native UI self-test passed on retry after a temporary test-service cleanup delay; both architectures passed packaged runtime and update preparation checks. Intel uses Rosetta.
