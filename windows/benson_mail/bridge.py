@@ -43,6 +43,7 @@ class Controller:
         self.prepared_exit = False
         self.config_lock = threading.Lock()
         self.fixture = False
+        self.report_entry_cache = {}
 
     def persist(self):
         with self.config_lock:
@@ -429,8 +430,30 @@ class Controller:
             paths = sorted(report_paths(output), key=lambda p: p.stat().st_mtime,
                            reverse=True) if output else []
             entries = []
+            live = set(paths)
+            self.report_entry_cache = {p: v for p, v in self.report_entry_cache.items() if p in live}
+            cached_bytes = sum(len(row[1].get('searchable', '')) * 4 for row in self.report_entry_cache.values())
+            from .report_metadata import metadata_path
+            def stamp(file):
+                try:
+                    value = file.stat()
+                    return (value.st_mtime_ns, value.st_size, value.st_ctime_ns)
+                except OSError:
+                    return None
             for path in paths:
-                entry = report_entry(path, self.root)
+                signature = (stamp(path), stamp(metadata_path(self.root, path)), stamp(path.with_suffix('.mail.json')))
+                cached = self.report_entry_cache.get(path)
+                if cached is not None and cached[0] == signature:
+                    entry = cached[1]
+                else:
+                    entry = report_entry(path, self.root)
+                    # Bound retained search text; large mailboxes still work without caching every report.
+                    previous = self.report_entry_cache.pop(path, None)
+                    if previous is not None: cached_bytes -= len(previous[1].get('searchable', '')) * 4
+                    cost = len(entry.get('searchable', '')) * 4
+                    if len(self.report_entry_cache) < 500 and cached_bytes + cost <= 8 * 1024 * 1024:
+                        self.report_entry_cache[path] = (signature, entry)
+                        cached_bytes += cost
                 if matches(entry, data.get('query', ''), data.get('sender', ''),
                            data.get('start', ''), data.get('end', ''), data.get('attachments', '全部')):
                     entries.append({k: str(v) if isinstance(v, Path) else v for k, v in entry.items()

@@ -288,7 +288,9 @@ def monitor():
     while True:
         try:
             if not enabled():
-                publish('paused', current_subject=None)
+                if time.monotonic() - last_heartbeat >= 15 or next_check != 0 or last_started is not None:
+                    publish('paused', current_subject=None)
+                    last_heartbeat = time.monotonic()
                 time.sleep(1)
                 next_check = 0
                 last_started = None

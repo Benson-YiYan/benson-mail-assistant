@@ -149,6 +149,28 @@ class BridgeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.controller.command('interval', {'seconds': 0})
 
+    def test_report_cache_reuses_and_invalidates_content_and_metadata(self):
+        from benson_mail.report_metadata import write_metadata
+        from benson_mail.bridge import report_entry
+        folder = self.root / 'reports'
+        folder.mkdir()
+        report = folder / 'cached.md'
+        report.write_text('before', encoding='utf-8')
+        self.controller.config['output_dir'] = str(folder)
+        with patch('benson_mail.bridge.report_entry', wraps=report_entry) as load:
+            self.controller.command('reports', {})
+            self.controller.command('reports', {'query': 'before'})
+            self.assertEqual(load.call_count, 1)
+            report.write_text('after edit', encoding='utf-8')
+            self.assertEqual(len(self.controller.command('reports', {'query': 'after'})), 1)
+            self.assertEqual(load.call_count, 2)
+            write_metadata(self.root, report, {'subject': 'new subject'})
+            self.assertEqual(self.controller.command('reports', {})[0]['title'], 'new subject')
+            self.assertEqual(load.call_count, 3)
+            report.unlink()
+            self.assertEqual(self.controller.command('reports', {}), [])
+            self.assertEqual(self.controller.report_entry_cache, {})
+
     def test_reports_search_metadata_and_containment(self):
         day = self.root / 'reports' / '2026-10-17'
         day.mkdir(parents=True)

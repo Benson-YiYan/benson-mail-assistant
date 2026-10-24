@@ -35,6 +35,8 @@ final class MailStore: ObservableObject {
     @Published var fromDate = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
     @Published var toDate = Date()
     private var timer: Timer?
+    private var lastSettingsBytes: Data?
+    private var lastStatusBytes: Data?
     private var lastScan = Date.distantPast
     private var scanning = false
     private var reportMigrationPending = false
@@ -119,13 +121,14 @@ final class MailStore: ObservableObject {
             // Start the bundled paused service on fresh installs as well.
             startWorker()
         }
-        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
+        timer?.tolerance = 0.2
     }
     func refresh() {
-        if let bytes = try? Data(contentsOf: settingsURL), let value = try? JSONDecoder().decode(MailSettings.self, from: bytes) { settings = value }
-        if let bytes = try? Data(contentsOf: data.appendingPathComponent("service.json")), let value = try? JSONDecoder().decode(ServiceStatus.self, from: bytes) { status = value }
+        if let bytes = try? Data(contentsOf: settingsURL), bytes != lastSettingsBytes, let value = try? JSONDecoder().decode(MailSettings.self, from: bytes) { lastSettingsBytes = bytes; settings = value }
+        if let bytes = try? Data(contentsOf: data.appendingPathComponent("service.json")), bytes != lastStatusBytes, let value = try? JSONDecoder().decode(ServiceStatus.self, from: bytes) { lastStatusBytes = bytes; status = value }
         if checkRequested {
             if status.last_check != requestedAfterCheck {
                 checkRequested = false
