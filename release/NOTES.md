@@ -1,11 +1,10 @@
-# 邮件小秘书 · 报告树导航优化
+# 邮件小秘书 · CPU 占用优化
 
-- 上一级按钮移到当前文件夹名左侧；标题显示当前邮箱、日期或发件人文件夹，根目录显示全部邮箱。
-- 完整路径保持单行，过长时使用横向滚动条查看。
-- Mac 和 Windows 同步调整。
+- Mac 避免未变化状态和报告列表触发重复界面更新，复用日期格式器，减少设置解析和暂停状态写盘。
+- Windows 缓存报告搜索索引，修改与删除自动失效，缓存上限 500 条、约 32 MB。
 
-Report tree navigation now places Up beside the current folder name. The full path stays on one line and scrolls horizontally. Updated on Mac and Windows.
+Mac avoids redundant UI updates and settings parsing. Windows reuses bounded report search indexes with file-change invalidation.
 
-La navegación muestra Subir junto a la carpeta actual. La ruta completa se mantiene en una línea con desplazamiento horizontal. Actualizado en Mac y Windows.
+Mac evita actualizaciones de interfaz y análisis repetidos. Windows reutiliza índices de búsqueda limitados e invalida los archivos modificados.
 
-Validation: Windows GitHub Actions 39878308958 passed. Mac native UI self-test passed on retry after a temporary test-service cleanup delay; both architectures passed packaged runtime and update preparation checks. Intel uses Rosetta.
+Validation: Windows GitHub Actions 40077833825 passed. Related cache tests passed (17). Mac compilation and packaged runtime checks passed on both architectures; Intel uses Rosetta. A synthetic 200-report search benchmark on Mac reduced backend CPU time by 71.5%; this is not a measured Windows desktop CPU reduction. Short Mac idle samples showed 0.0% CPU; results vary with workload.
