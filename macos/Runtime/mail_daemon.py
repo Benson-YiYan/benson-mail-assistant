@@ -28,8 +28,22 @@ NOTIFICATIONS = BASE / 'notifications' / 'pending'
 APP = pathlib.Path(os.environ.get('BENSON_MAIL_APP', str(pathlib.Path.home() / 'Applications' / '邮件小秘书.app')))
 DATA.mkdir(parents=True, exist_ok=True)
 
+_settings_signature = None
+_settings_cache = {}
 def settings():
-    return json.loads(SETTINGS.read_text(encoding='utf-8')) if SETTINGS.exists() else {}
+    global _settings_signature, _settings_cache
+    try:
+        stat = SETTINGS.stat()
+    except FileNotFoundError:
+        _settings_signature = None
+        _settings_cache = {}
+        return {}
+    signature = (str(SETTINGS), stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size)
+    if signature != _settings_signature:
+        value = json.loads(SETTINGS.read_text(encoding='utf-8'))
+        _settings_cache = value
+        _settings_signature = signature
+    return _settings_cache.copy()
 
 def runtime_text(zh, en, es):
     """Keep daemon-created notifications and fallback reports in the selected UI language."""

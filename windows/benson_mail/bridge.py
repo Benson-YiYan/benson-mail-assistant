@@ -451,7 +451,7 @@ class Controller:
                     previous = self.report_entry_cache.pop(path, None)
                     if previous is not None: cached_bytes -= len(previous[1].get('searchable', '')) * 4
                     cost = len(entry.get('searchable', '')) * 4
-                    if len(self.report_entry_cache) < 500 and cached_bytes + cost <= 8 * 1024 * 1024:
+                    if len(self.report_entry_cache) < 500 and cached_bytes + cost <= 32 * 1024 * 1024:
                         self.report_entry_cache[path] = (signature, entry)
                         cached_bytes += cost
                 if matches(entry, data.get('query', ''), data.get('sender', ''),

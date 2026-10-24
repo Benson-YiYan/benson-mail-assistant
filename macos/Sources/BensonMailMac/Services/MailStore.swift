@@ -53,11 +53,12 @@ final class MailStore: ObservableObject {
         return reports.filter { value.matches($0) }
     }
     var senders: [String] { Array(Set(reports.map(\.sender).filter { !$0.isEmpty })).sorted() }
-    func dayString(_ date: Date) -> String {
+    private static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter(); formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.timeZone = TimeZone(identifier: "Asia/Shanghai")
-        formatter.dateFormat = "yyyy-MM-dd"; return formatter.string(from: date)
-    }
+        formatter.dateFormat = "yyyy-MM-dd"; return formatter
+    }()
+    func dayString(_ date: Date) -> String { Self.dayFormatter.string(from: date) }
     func resetFilters() { filter = ReportFilter(); dateFilterEnabled = false; reconcileSelection() }
     func reconcileSelection() {
         let visible = filteredReports
@@ -142,9 +143,11 @@ final class MailStore: ObservableObject {
             }
         }
         if let raw = status.heartbeat ?? status.last_check, let heartbeat = Self.parseDate(raw) {
-            alive = Date().timeIntervalSince(heartbeat) < (status.phase == "analyzing" ? 1100 : (status.phase == "checking" ? 220 : 100))
-        } else { alive = false }
-        loginEnabled = FileManager.default.fileExists(atPath: loginURL.path)
+            let current = Date().timeIntervalSince(heartbeat) < (status.phase == "analyzing" ? 1100 : (status.phase == "checking" ? 220 : 100))
+            if alive != current { alive = current }
+        } else if alive { alive = false }
+        let login = FileManager.default.fileExists(atPath: loginURL.path)
+        if loginEnabled != login { loginEnabled = login }
         if Date().timeIntervalSince(lastScan) > 8 { scanReports() }
     }
     func save() throws {
@@ -420,8 +423,10 @@ final class MailStore: ObservableObject {
             let found = await Task.detached { ReportIndex.reports(in: directory, data: metadataDirectory, cached: cached) }.value
             scanning = false
             guard output == directory else { scanReports(); return }
-            reports = found
-            reconcileSelection()
+            let unchanged = reports.count == found.count && zip(reports, found).allSatisfy {
+                $0.id == $1.id && $0.modified == $1.modified && $0.metadataModified == $1.metadataModified
+            }
+            if !unchanged { reports = found; reconcileSelection() }
         }
     }
     func select(_ report: Report) {
