@@ -2,46 +2,46 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202610230831",
-      "sha256": "c0ae7c5245f9901cce314adba89343011871beb48a19533226ab60ec93e8ee14",
-      "size": 24550546,
+      "version": "202610241625",
+      "sha256": "7a3a6aeb94d2521dbcf3ccc7f8dc71115d14b1195860fec36a347fb35a1a722a",
+      "size": 24543283,
       "notes": {
-        "zh": "报告树上一级按钮移至当前文件夹名左侧，标题显示当前文件夹；长路径单行横向滚动。Mac与Windows同步优化。",
-        "en": "Place Up beside the current report folder name and scroll long paths horizontally on Mac and Windows.",
-        "es": "Subir junto al nombre de la carpeta actual y rutas largas con desplazamiento horizontal en Mac y Windows."
+        "zh": "优化CPU占用：Mac减少重复界面刷新、设置解析与暂停状态写盘；Windows缓存报告搜索索引，文件变化自动失效。",
+        "en": "Reduce redundant Mac UI updates, settings parsing and paused status writes; cache Windows report search indexes with change invalidation.",
+        "es": "Reduce actualizaciones y análisis repetidos en Mac; almacena índices de búsqueda en Windows con invalidación automática."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023.1/BensonMail-Windows-x64-Setup-202610230831.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261024/BensonMail-Windows-x64-Setup-202610241625.exe"
       ],
-      "url": "https://began-yeast-canvas-updated.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610230831.exe"
+      "url": "https://began-yeast-canvas-updated.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610241625.exe"
     },
     "macos-arm64": {
-      "version": "202610230831",
-      "sha256": "afbd45a277de449a0da331126d7d91175be3020808b2a3d93df439ba90ba1eab",
-      "size": 24645973,
+      "version": "202610241630",
+      "sha256": "c88d18835c7f95e56f9d5517cf828786b01e59b01d3c677d30633e0639fa7497",
+      "size": 24650700,
       "notes": {
-        "zh": "报告树上一级按钮移至当前文件夹名左侧，标题显示当前文件夹；长路径单行横向滚动。Mac与Windows同步优化。",
-        "en": "Place Up beside the current report folder name and scroll long paths horizontally on Mac and Windows.",
-        "es": "Subir junto al nombre de la carpeta actual y rutas largas con desplazamiento horizontal en Mac y Windows."
+        "zh": "优化CPU占用：Mac减少重复界面刷新、设置解析与暂停状态写盘；Windows缓存报告搜索索引，文件变化自动失效。",
+        "en": "Reduce redundant Mac UI updates, settings parsing and paused status writes; cache Windows report search indexes with change invalidation.",
+        "es": "Reduce actualizaciones y análisis repetidos en Mac; almacena índices de búsqueda en Windows con invalidación automática."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023.1/BensonMail-Mac-AppleSilicon-202610230831.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261024/BensonMail-Mac-AppleSilicon-202610241630.dmg"
       ],
-      "url": "https://began-yeast-canvas-updated.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610230831.dmg"
+      "url": "https://began-yeast-canvas-updated.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610241630.dmg"
     },
     "macos-x86_64": {
-      "version": "202610230831",
-      "sha256": "22520a236f260fee92ed4fba848dbaca827276d47eee308c732afdb7c46091e8",
-      "size": 18619856,
+      "version": "202610241630",
+      "sha256": "b997bfc834ef4f04d2bd0bff32b641c92eaec0f28e3861aff9c7bf06513967f0",
+      "size": 18626835,
       "notes": {
-        "zh": "报告树上一级按钮移至当前文件夹名左侧，标题显示当前文件夹；长路径单行横向滚动。Mac与Windows同步优化。",
-        "en": "Place Up beside the current report folder name and scroll long paths horizontally on Mac and Windows.",
-        "es": "Subir junto al nombre de la carpeta actual y rutas largas con desplazamiento horizontal en Mac y Windows."
+        "zh": "优化CPU占用：Mac减少重复界面刷新、设置解析与暂停状态写盘；Windows缓存报告搜索索引，文件变化自动失效。",
+        "en": "Reduce redundant Mac UI updates, settings parsing and paused status writes; cache Windows report search indexes with change invalidation.",
+        "es": "Reduce actualizaciones y análisis repetidos en Mac; almacena índices de búsqueda en Windows con invalidación automática."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023.1/BensonMail-Mac-Intel-202610230831.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261024/BensonMail-Mac-Intel-202610241630.dmg"
       ],
-      "url": "https://began-yeast-canvas-updated.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610230831.dmg"
+      "url": "https://began-yeast-canvas-updated.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610241630.dmg"
     }
   },
   "language_packs": {
