@@ -13,7 +13,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261024/BensonMail-Windows-x64-Setup-202610241625.exe"
       ],
-      "url": "https://effectively-guitars-measured-peterson.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202610241625.exe"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261024/BensonMail-Windows-x64-Setup-202610241625.exe"
     },
     "macos-arm64": {
       "version": "202610241630",
@@ -27,7 +27,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261024/BensonMail-Mac-AppleSilicon-202610241630.dmg"
       ],
-      "url": "https://effectively-guitars-measured-peterson.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202610241630.dmg"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261024/BensonMail-Mac-AppleSilicon-202610241630.dmg"
     },
     "macos-x86_64": {
       "version": "202610241630",
@@ -41,7 +41,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261024/BensonMail-Mac-Intel-202610241630.dmg"
       ],
-      "url": "https://effectively-guitars-measured-peterson.trycloudflare.com/downloads/BensonMail-Mac-Intel-202610241630.dmg"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261024/BensonMail-Mac-Intel-202610241630.dmg"
     }
   },
   "language_packs": {
@@ -52,7 +52,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-windows-zh-202610230745.json"
       ],
-      "url": "https://effectively-guitars-measured-peterson.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202610230745.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-windows-zh-202610230745.json"
     },
     "windows-en": {
       "version": "202610230745",
@@ -61,7 +61,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-windows-en-202610230745.json"
       ],
-      "url": "https://effectively-guitars-measured-peterson.trycloudflare.com/downloads/BensonMail-Language-windows-en-202610230745.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-windows-en-202610230745.json"
     },
     "windows-es": {
       "version": "202610230745",
@@ -70,7 +70,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-windows-es-202610230745.json"
       ],
-      "url": "https://effectively-guitars-measured-peterson.trycloudflare.com/downloads/BensonMail-Language-windows-es-202610230745.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-windows-es-202610230745.json"
     },
     "macos-zh": {
       "version": "202610230745",
@@ -79,7 +79,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-macos-zh-202610230745.json"
       ],
-      "url": "https://effectively-guitars-measured-peterson.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202610230745.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-macos-zh-202610230745.json"
     },
     "macos-en": {
       "version": "202610230745",
@@ -88,7 +88,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-macos-en-202610230745.json"
       ],
-      "url": "https://effectively-guitars-measured-peterson.trycloudflare.com/downloads/BensonMail-Language-macos-en-202610230745.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-macos-en-202610230745.json"
     },
     "macos-es": {
       "version": "202610230745",
@@ -97,7 +97,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-macos-es-202610230745.json"
       ],
-      "url": "https://effectively-guitars-measured-peterson.trycloudflare.com/downloads/BensonMail-Language-macos-es-202610230745.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261023/BensonMail-Language-macos-es-202610230745.json"
     }
   }
 }
