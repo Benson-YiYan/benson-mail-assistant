@@ -145,6 +145,8 @@ def _validate(controller, page, data):
             config['mail_policy'] = plan['policy']
     elif page == 'ai':
         controller.paused()
+        chat_enter_to_send=data.get('chat_enter_to_send',False)
+        if not isinstance(chat_enter_to_send,bool): raise ValueError('Invalid chat Enter shortcut setting.')
         provider = data.get('ai_provider')
         if provider not in ('api','codex','deepseek_harness'): raise ValueError('请选择分析方式。')
         base = data.get('api_base','').strip(); model = data.get('api_model','').strip()
@@ -166,7 +168,8 @@ def _validate(controller, page, data):
             command=platform.resolve_cli(cli_path) if cli_path else config.get('codex_command') or platform.discover_codex()
             if not platform.verify_codex(command):raise ValueError('未找到可用的 Codex 命令行程序，请选择 resources 下的 codex.exe。')
             config['codex_command']=command
-        config.update(ai_provider=provider, api_base=base, api_model=model, harness_path=harness)
+        config.update(ai_provider=provider, api_base=base, api_model=model, harness_path=harness,
+            chat_enter_to_send=chat_enter_to_send)
         if 'rates' in data:
             rate = validate_usage_rates(data['rates']);rate['model']=model
             plan['rates'] = (_rate_binding(model,base),rate)

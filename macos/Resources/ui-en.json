@@ -747,6 +747,7 @@
     "已加入历史邮件处理队列。": "Added to the older-mail processing queue.",
     "仅记录新发生的调用。接口未返回用量时标为未知；订阅和本地工具的账单无法推算。": "Only new calls are recorded. Usage is unknown when the provider omits it; subscription and local-tool bills cannot be inferred.",
     "币种": "Currency",
+    "按 Enter 发送，按 Shift+Enter 换行": "Press Enter to send; Shift+Enter for a new line",
     "输入／百万 Token": "Input / million tokens",
     "输出／百万 Token": "Output / million tokens",
     "保存单价": "Save rates",

@@ -19,6 +19,7 @@ sealed partial class MainWindow
     readonly TextBox inputRate = new() { Header = L.T("每百万输入 Token 单价"), Text = "0" };
     readonly TextBox outputRate = new() { Header = L.T("每百万输出 Token 单价"), Text = "0" };
     readonly TextBox rateCurrency = new() { Header = L.T("币种"), Text = "USD", MaxLength = 3 };
+    readonly ToggleSwitch chatEnterToSendSetting = new() { Header = L.T("按 Enter 发送，按 Shift+Enter 换行") };
     readonly TextBox codexPath = new() { Header = L.T("Codex 启动器"), PlaceholderText = L.T("留空使用已保存的 Codex 启动器") };
     bool loadingSettingsDrafts;
     bool navigatingSettings;
@@ -39,7 +40,8 @@ sealed partial class MainWindow
             ["ai_provider"] = provider.SelectedIndex == 1 ? "codex" : provider.SelectedIndex == 2 ? "deepseek_harness" : "api",
             ["api_base"] = apiBase.Text, ["api_model"] = model.Text, ["key"] = apiKey.Password, ["harness_path"] = harnessPath.Text,
             ["codex_path"] = codexPath.Text,
-            ["rates"] = new { input_per_million = inputRate.Text, output_per_million = outputRate.Text, currency = rateCurrency.Text }
+            ["rates"] = new { input_per_million = inputRate.Text, output_per_million = outputRate.Text, currency = rateCurrency.Text },
+            ["chat_enter_to_send"] = chatEnterToSendSetting.IsOn
         };
         return new() { ["output_dir"] = folder.Text, ["notifications_enabled"] = notificationsSetting.IsOn,
             ["quiet_hours"] = new { enabled = quietEnabled.IsOn, start = quietStart.Text, end = quietEnd.Text },
@@ -77,7 +79,7 @@ sealed partial class MainWindow
         mailSecret.PasswordChanged += (_, _) => RefreshSettingsDirty(); apiKey.PasswordChanged += (_, _) => RefreshSettingsDirty();
         foreach (var combo in new[] { mailProvider, mailSecurity, mailAuth, mailProxy.Mode, provider, senderPolicyMode, languageChoice })
             combo.SelectionChanged += (_, _) => RefreshSettingsDirty();
-        foreach (var toggle in new[] { startup, notificationsSetting, quietEnabled, senderPolicySpam }) toggle.Toggled += (_, _) => RefreshSettingsDirty();
+        foreach (var toggle in new[] { startup, notificationsSetting, quietEnabled, senderPolicySpam, chatEnterToSendSetting }) toggle.Toggled += (_, _) => RefreshSettingsDirty();
     }
     async Task LoadPageDraft(string page)
     {
@@ -92,6 +94,7 @@ sealed partial class MainWindow
                 provider.SelectedIndex = JsonText(config, "ai_provider") == "codex" ? 1 : JsonText(config, "ai_provider") == "deepseek_harness" ? 2 : 0;
                 apiBase.Text = JsonText(config, "api_base"); model.Text = JsonText(config, "api_model"); harnessPath.Text = JsonText(config, "harness_path");
                 codexPath.Text = ""; apiKey.Password = "";
+                chatEnterToSendSetting.IsOn = config.TryGetProperty("chat_enter_to_send", out var enterToSend) && enterToSend.ValueKind == JsonValueKind.True;
                 var usage = await Assistant("usage");
                 if (usage.TryGetProperty("rates", out var rates)) { inputRate.Text = JsonText(rates, "input_per_million", "0"); outputRate.Text = JsonText(rates, "output_per_million", "0"); rateCurrency.Text = JsonText(rates, "currency", "USD"); }
             }

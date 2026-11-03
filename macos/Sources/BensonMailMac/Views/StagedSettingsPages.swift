@@ -130,6 +130,9 @@ struct StagedSettingsPage: View {
             Text(T("仅记录新发生的调用。接口未返回用量时标为未知；订阅和本地工具的账单无法推算。"))
                 .font(.caption).foregroundStyle(.secondary)
         }
+        WorkspaceCard("对邮件提问") {
+            Toggle(T("按 Enter 发送，按 Shift+Enter 换行"), isOn: $draft.value.chat_enter_to_send)
+        }
         }
     }
     private var general: some View {

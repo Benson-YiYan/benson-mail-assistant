@@ -120,7 +120,8 @@ struct ContentView: View {
                                         .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                                 } }
                             }.frame(minHeight: 100, maxHeight: .infinity)
-                            ReportConversationView(conversation: store.reportConversation, path: selected.id)
+                            ReportConversationView(conversation: store.reportConversation, path: selected.id,
+                                                  enterToSend: store.settings.chat_enter_to_send)
                                 .frame(minHeight: 160, idealHeight: 285, maxHeight: .infinity)
                         }
                     } else {

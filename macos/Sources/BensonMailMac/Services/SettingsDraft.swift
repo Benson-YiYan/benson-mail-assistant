@@ -40,7 +40,7 @@ import CryptoKit
         let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
         switch page {
         case .mailbox: return (try? encoder.encode(accounts)) ?? Data()
-        case .ai: return Data([value.ai_provider, value.api_base, value.api_model, value.harness_path, value.codex_path, apiKey, inputRate, outputRate, currency].joined(separator: "\u{0}").utf8)
+        case .ai: return Data([value.ai_provider, value.api_base, value.api_model, value.harness_path, value.codex_path, apiKey, inputRate, outputRate, currency, String(value.chat_enter_to_send)].joined(separator: "\u{0}").utf8)
         case .general:
             struct General: Encodable { let output: String; let language: String?; let notifications: Bool; let quiet: QuietHours }
             return (try? encoder.encode(General(output: value.output_dir, language: value.ui_language, notifications: value.notifications_enabled, quiet: value.quiet_hours))) ?? Data()
@@ -151,6 +151,7 @@ import CryptoKit
                 }
                 next.ai_provider = value.ai_provider; next.api_base = value.api_base.trimmingCharacters(in: .whitespacesAndNewlines)
                 next.api_model = value.api_model.trimmingCharacters(in: .whitespacesAndNewlines); next.harness_path = value.harness_path; next.codex_path = value.codex_path
+                next.chat_enter_to_send = value.chat_enter_to_send
             case .general:
                 guard await AppLanguage.shared.prepareSettingsLanguage(value.ui_language ?? AppLanguage.shared.code) else { return }
                 guard validClock(value.quiet_hours.start), validClock(value.quiet_hours.end) else { throw MailCredentials.Failure("请输入有效的时间（HH:mm）。") }

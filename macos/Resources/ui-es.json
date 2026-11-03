@@ -747,6 +747,7 @@
     "已加入历史邮件处理队列。": "Añadidos a la cola de procesamiento de correos anteriores.",
     "仅记录新发生的调用。接口未返回用量时标为未知；订阅和本地工具的账单无法推算。": "Solo se registran las llamadas nuevas. Si el proveedor no informa el uso, se indica como desconocido; no se pueden calcular las facturas de suscripciones o herramientas locales.",
     "币种": "Moneda",
+    "按 Enter 发送，按 Shift+Enter 换行": "Pulsa Enter para enviar; Shift+Enter para una nueva línea",
     "输入／百万 Token": "Entrada / millón de tokens",
     "输出／百万 Token": "Salida / millón de tokens",
     "保存单价": "Guardar tarifas",

@@ -40,6 +40,13 @@ sealed partial class MainWindow
             control.FontFamily = MailTypography.Font;
         retryReport.Click += async (_, _) => await RetrySelectedReport();
         sendQuestion.Click += async (_, _) => await SendQuestion();
+        question.KeyDown += async (_, e) => {
+            if (!chatEnterToSendSetting.IsOn || e.Key != Windows.System.VirtualKey.Enter) return;
+            if (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
+                .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down)) return;
+            e.Handled = true;
+            if (sendQuestion.IsEnabled) await SendQuestion();
+        };
         attachQuestion.Click += async (_, _) => await Guard(AddQuestionFiles);
         clearQuestionFiles.Click += (_, _) => {
             if (conversationPath == null) return;

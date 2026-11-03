@@ -720,6 +720,7 @@
     "每百万输入 Token 价格": "Precio por millón de tokens de entrada",
     "每百万输出 Token 价格": "Precio por millón de tokens de salida",
     "币种": "Moneda",
+    "按 Enter 发送，按 Shift+Enter 换行": "Pulsa Enter para enviar; Shift+Enter para una nueva línea",
     "调用次数：": "Solicitudes: ",
     "输入 Token：": "Tokens de entrada: ",
     "输出 Token：": "Tokens de salida: ",

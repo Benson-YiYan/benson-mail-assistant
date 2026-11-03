@@ -58,6 +58,12 @@ class SettingsPageTests(unittest.TestCase):
         from benson_mail.assistant_tools import _rates
         self.assertEqual(_rates(self.root)['model'],'new-model');self.assertEqual(_rates(self.root)['input_per_million'],2)
         self.assertEqual(json.loads(self.controller.path.read_text())['api_model'],'new-model')
+    def test_chat_enter_shortcut_is_saved_with_ai_page_and_defaults_off(self):
+        data={'ai_provider':'codex','chat_enter_to_send':True,'rates':{'input_per_million':0}}
+        self.controller.command('save_settings_page',{'page':'ai','values':data})
+        self.assertTrue(json.loads(self.controller.path.read_text())['chat_enter_to_send'])
+        with self.assertRaises(ValueError):
+            self.controller.command('save_settings_page',{'page':'ai','values':{**data,'chat_enter_to_send':'yes'}})
     def test_persist_failure_restores_overwritten_secret_config_and_rates(self):
         path=self.controller.key_path('https://example.invalid/v1');path.parent.mkdir();path.write_bytes(b'OLD_ENCRYPTED_KEY')
         rates=self.root/'usage-rates.json';rates.write_text('{"rates":{}}');rates_before=rates.read_bytes()

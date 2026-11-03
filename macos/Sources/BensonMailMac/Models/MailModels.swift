@@ -102,7 +102,8 @@ struct MailSettings: Codable {
     var mail_policy = SenderPolicyRule()
     var notifications_enabled = true
     var quiet_hours = QuietHours()
-    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, codex_path, harness_path, mailbox, mailboxes, mail_policy, notifications_enabled, quiet_hours }
+    var chat_enter_to_send = false
+    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, codex_path, harness_path, mailbox, mailboxes, mail_policy, notifications_enabled, quiet_hours, chat_enter_to_send }
     init() {}
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -120,6 +121,7 @@ struct MailSettings: Codable {
         mail_policy = try values.decodeIfPresent(SenderPolicyRule.self, forKey: .mail_policy) ?? SenderPolicyRule()
         notifications_enabled = try values.decodeIfPresent(Bool.self, forKey: .notifications_enabled) ?? true
         quiet_hours = try values.decodeIfPresent(QuietHours.self, forKey: .quiet_hours) ?? QuietHours()
+        chat_enter_to_send = try values.decodeIfPresent(Bool.self, forKey: .chat_enter_to_send) ?? false
     }
 }
 

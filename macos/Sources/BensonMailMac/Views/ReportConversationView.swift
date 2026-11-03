@@ -1,10 +1,74 @@
 import AppKit
 import SwiftUI
 
+private struct ChatComposer: NSViewRepresentable {
+    @Binding var text: String
+    let enabled: Bool
+    let enterToSend: Bool
+    let send: () -> Void
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSScrollView()
+        scroll.hasVerticalScroller = true
+        scroll.drawsBackground = false
+        let editor = ChatComposerTextView()
+        editor.delegate = context.coordinator
+        editor.font = .systemFont(ofSize: NSFont.systemFontSize)
+        editor.isRichText = false
+        editor.isAutomaticQuoteSubstitutionEnabled = false
+        editor.textContainerInset = NSSize(width: 5, height: 5)
+        editor.enterToSend = enterToSend
+        editor.send = send
+        scroll.documentView = editor
+        return scroll
+    }
+
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard let editor = scroll.documentView as? ChatComposerTextView else { return }
+        editor.enterToSend = enterToSend
+        editor.send = send
+        editor.isEditable = enabled
+        editor.isSelectable = true
+        if editor.string != text {
+            editor.string = text
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: ChatComposer
+        init(_ parent: ChatComposer) { self.parent = parent }
+        func textDidChange(_ notification: Notification) {
+            guard let editor = notification.object as? NSTextView else { return }
+            parent.text = editor.string
+        }
+    }
+}
+
+private final class ChatComposerTextView: NSTextView {
+    var enterToSend = false
+    var send: (() -> Void)?
+
+    override func keyDown(with event: NSEvent) {
+        let isEnter = event.keyCode == 36 || event.keyCode == 76
+        if enterToSend, isEnter {
+            if event.modifierFlags.contains(.shift) {
+                super.keyDown(with: event)
+            } else {
+                send?()
+            }
+            return
+        }
+        super.keyDown(with: event)
+    }
+}
+
 struct ReportConversationView: View {
     @ObservedObject private var language = AppLanguage.shared
     @ObservedObject var conversation: ReportConversationStore
     let path: String
+    let enterToSend: Bool
     private var state: ReportConversationState { conversation.state(path) }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -58,8 +122,19 @@ struct ReportConversationView: View {
                     }
                 }.disabled(state.busy)
             }
-            TextField(T("输入有关这封邮件的问题…"), text: Binding(get: { state.draft }, set: { conversation.draft($0, for: path) }), axis: .vertical)
-                .lineLimit(2...4).textFieldStyle(.roundedBorder).disabled(state.busy).accessibilityIdentifier("mail-chat-question")
+            ChatComposer(text: Binding(get: { state.draft }, set: { conversation.draft($0, for: path) }),
+                         enabled: !state.busy, enterToSend: enterToSend) {
+                Task { await conversation.send(path) }
+            }
+                .frame(minHeight: 42, maxHeight: 90)
+                .overlay(alignment: .topLeading) {
+                    if state.draft.isEmpty {
+                        Text(T("输入有关这封邮件的问题…")).foregroundStyle(.secondary)
+                            .padding(.horizontal, 10).padding(.vertical, 9).allowsHitTesting(false)
+                    }
+                }
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color(nsColor: .separatorColor)))
+                .accessibilityIdentifier("mail-chat-question")
             HStack {
                 Button(T("添加附件"), systemImage: "paperclip") { conversation.chooseFiles(for: path) }.disabled(state.busy)
                 if state.busy { ProgressView().controlSize(.small); Text(T(state.operation)).font(.caption).foregroundStyle(.secondary) }
