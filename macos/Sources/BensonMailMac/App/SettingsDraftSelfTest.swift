@@ -47,9 +47,10 @@ import SwiftUI
         draft.reload(); store.workspacePage = .ai
         draft.value.api_base = "https://example.com/other"; draft.value.api_model = "fixture-2"
         draft.apiKey = "synthetic-api-key"; draft.inputRate = "1.2"; draft.outputRate = "3.4"; draft.currency = "CNY"
+        draft.value.chat_enter_to_send = true
         try require(draft.dirty(.ai) && !draft.dirty(.general), "AI fields contaminated general dirty state")
         await draft.save(.ai)
-        try require(saveCount == 2 && !draft.dirty(.ai), "AI settings and rates did not share one commit")
+        try require(saveCount == 2 && !draft.dirty(.ai) && store.settings.chat_enter_to_send, "AI settings, chat shortcut and rates did not share one commit")
         let rates = try Data(contentsOf: ratesURL)
         try require(String(decoding: rates, as: UTF8.self).contains("fixture-2"), "AI rates did not bind to selected model")
         // Failed config persistence rolls rates back and preserves edits for retry.
