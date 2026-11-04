@@ -2,102 +2,102 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611031804",
-      "sha256": "f7214277b937a5b49087eade824992bfd4216236e73907ffbcaf100da5a35d5a",
-      "size": 24558126,
+      "version": "202611041956",
+      "sha256": "37512449d74a2ebb9e834ae385448572cac956d7c958db2fc75aaa362e2ff397",
+      "size": 24557386,
       "notes": {
-        "zh": "AI 服务新增“按 Enter 发送，按 Shift+Enter 换行”选项；可关闭以保留原有输入行为。Mac 与 Windows 同步支持。",
-        "en": "Added an AI Service option to send with Enter and insert a new line with Shift+Enter. Turn it off to keep the previous input behavior. Available on Mac and Windows.",
-        "es": "Se añadió en Servicio de IA la opción de enviar con Enter e insertar una nueva línea con Shift+Enter. Desactívala para conservar el comportamiento anterior. Disponible en Mac y Windows."
+        "zh": "历史邮件补总结新增邮件列表、发件人搜索和逐封勾选；修复 Mac 邮件提问输入框。",
+        "en": "Historical mail backfill now lists messages with sender-only search and per-message selection. Fixed Mac email chat input.",
+        "es": "El resumen de correos anteriores ahora muestra una lista con búsqueda solo por remitente y selección individual. Se corrigió la entrada del chat en Mac."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261103/BensonMail-Windows-x64-Setup-202611031804.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Windows-x64-Setup-202611041956.exe"
       ],
-      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611031804.exe"
+      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611041956.exe"
     },
     "macos-arm64": {
-      "version": "202611031806",
-      "sha256": "6d9818d6c84a0aa58b72b8a164885d4a22de4b01ab365e8dd89a54b6690140e9",
-      "size": 24665633,
+      "version": "202611041954",
+      "sha256": "cb6ffc82357efa81bf27e891fc7d20d424186eb05deebc699cbe0397ab98ab89",
+      "size": 24655662,
       "notes": {
-        "zh": "AI 服务新增“按 Enter 发送，按 Shift+Enter 换行”选项；可关闭以保留原有输入行为。Mac 与 Windows 同步支持。",
-        "en": "Added an AI Service option to send with Enter and insert a new line with Shift+Enter. Turn it off to keep the previous input behavior. Available on Mac and Windows.",
-        "es": "Se añadió en Servicio de IA la opción de enviar con Enter e insertar una nueva línea con Shift+Enter. Desactívala para conservar el comportamiento anterior. Disponible en Mac y Windows."
+        "zh": "历史邮件补总结新增邮件列表、发件人搜索和逐封勾选；修复 Mac 邮件提问输入框。",
+        "en": "Historical mail backfill now lists messages with sender-only search and per-message selection. Fixed Mac email chat input.",
+        "es": "El resumen de correos anteriores ahora muestra una lista con búsqueda solo por remitente y selección individual. Se corrigió la entrada del chat en Mac."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261103/BensonMail-Mac-AppleSilicon-202611031806.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Mac-AppleSilicon-202611041954.dmg"
       ],
-      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611031806.dmg"
+      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611041954.dmg"
     },
     "macos-x86_64": {
-      "version": "202611031807",
-      "sha256": "ad03a95c7202d64b434d2b0ac863dbdece1287cba2b44727aac13e342efaf595",
-      "size": 18679163,
+      "version": "202611041954",
+      "sha256": "430def78699eef0d879950edb0c0a903b4ab529f4d094e39273930cacd735ae4",
+      "size": 18724114,
       "notes": {
-        "zh": "AI 服务新增“按 Enter 发送，按 Shift+Enter 换行”选项；可关闭以保留原有输入行为。Mac 与 Windows 同步支持。",
-        "en": "Added an AI Service option to send with Enter and insert a new line with Shift+Enter. Turn it off to keep the previous input behavior. Available on Mac and Windows.",
-        "es": "Se añadió en Servicio de IA la opción de enviar con Enter e insertar una nueva línea con Shift+Enter. Desactívala para conservar el comportamiento anterior. Disponible en Mac y Windows."
+        "zh": "历史邮件补总结新增邮件列表、发件人搜索和逐封勾选；修复 Mac 邮件提问输入框。",
+        "en": "Historical mail backfill now lists messages with sender-only search and per-message selection. Fixed Mac email chat input.",
+        "es": "El resumen de correos anteriores ahora muestra una lista con búsqueda solo por remitente y selección individual. Se corrigió la entrada del chat en Mac."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261103/BensonMail-Mac-Intel-202611031807.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Mac-Intel-202611041954.dmg"
       ],
-      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611031807.dmg"
+      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611041954.dmg"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202611031808",
+      "version": "202611041955",
       "sha256": "081bd096d3f48e543635c2c3a0ed69d468542a826d4a1873056984fec3baad54",
       "size": 41656,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261103/BensonMail-Language-windows-zh-202611031808.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Language-windows-zh-202611041955.json"
       ],
-      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611031808.json"
+      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611041955.json"
     },
     "windows-en": {
-      "version": "202611031808",
-      "sha256": "a4da67b1e484cf5206cdef9c592426a35efbf8334d1478cb68eef1e2cef1c2cc",
-      "size": 123976,
+      "version": "202611041955",
+      "sha256": "fb3814012434d7da0e63b2ffb5c9c1e89f8644b51cf0eacecc31e954f6a4c77b",
+      "size": 124109,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261103/BensonMail-Language-windows-en-202611031808.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Language-windows-en-202611041955.json"
       ],
-      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611031808.json"
+      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611041955.json"
     },
     "windows-es": {
-      "version": "202611031808",
-      "sha256": "d238bbb4068ffead28d94c8e329992e8331ad47bcd4b9d1c8858397f35281b6d",
-      "size": 134205,
+      "version": "202611041955",
+      "sha256": "5c08918b1944ed562a249c00b4ca1bc492a473a1ab0fd9436d7b49d452f3e24a",
+      "size": 134356,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261103/BensonMail-Language-windows-es-202611031808.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Language-windows-es-202611041955.json"
       ],
-      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611031808.json"
+      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611041955.json"
     },
     "macos-zh": {
-      "version": "202611031808",
+      "version": "202611041955",
       "sha256": "189fa9267008351b215330caf0925af4807349eb27c698322db2ace7d5081fe7",
       "size": 41814,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261103/BensonMail-Language-macos-zh-202611031808.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Language-macos-zh-202611041955.json"
       ],
-      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611031808.json"
+      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611041955.json"
     },
     "macos-en": {
-      "version": "202611031808",
-      "sha256": "e89e824de127e5e937a5d5b712872900cf09545f92c85a800bf0a4bb104c38d2",
-      "size": 124565,
+      "version": "202611041955",
+      "sha256": "b0433c6d6aae1fc6bba3ab22fc45275b73b36a3e158dcf96ac6790bff05d579f",
+      "size": 124571,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261103/BensonMail-Language-macos-en-202611031808.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Language-macos-en-202611041955.json"
       ],
-      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611031808.json"
+      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611041955.json"
     },
     "macos-es": {
-      "version": "202611031808",
-      "sha256": "c392f60c0b8caac5f3e4e3f28767afc162799ccb2a22b0ff8360a7a5d811bb37",
-      "size": 135165,
+      "version": "202611041955",
+      "sha256": "dcaf0654448755a3e5df4bc71a15ac33f18862fdca08e88b7621f3a71de767b9",
+      "size": 135169,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261103/BensonMail-Language-macos-es-202611031808.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Language-macos-es-202611041955.json"
       ],
-      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611031808.json"
+      "url": "https://merit-eval-differ-radius.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611041955.json"
     }
   }
 }
