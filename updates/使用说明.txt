@@ -11,7 +11,7 @@
 这不是有长期在线保证的商业更新服务。
 
 二、位置
-交付源码：文稿/CodexMade/邮件小秘书更新服务器
+交付源码：文稿/CodexMade/MailAssistant/tools/update-server
 实际运行源码及目录：~/Library/Application Support/BensonMailUpdates/
 专属隧道运行时：~/Library/Application Support/BensonMailUpdates/runtime/cloudflared
 登录启动项：~/Library/LaunchAgents/com.benson.mail-update-server.plist
@@ -24,7 +24,7 @@
 旧地址返回与新地址一致的 JSON，旧客户端可直接读取，不依赖 HTTP 跳转。
 
 三、发布新版（面向维护者）
-1. 把三个最终安装包放在文稿/CodexMade 的第一层，不要用符号链接。
+1. 把三个最终安装包放在文稿/CodexMade/MailAssistant/release-assets，不要用符号链接。
 2. 建立一个 JSON 文件。平台名称必须为下列三项，file 是准确文件名，
    version 为实际构建的 12 位年月日时分，notes 可为文字或 {"zh":"...","en":"...","es":"..."}。
    {
