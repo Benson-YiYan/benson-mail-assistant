@@ -266,6 +266,14 @@ struct AssistantUtilitySettings: View {
     }
 }
 
+private struct HistoryBackfillCandidate: Identifiable {
+    let uid: Int
+    let subject: String
+    let sender: String
+    let receivedAt: String
+    var id: Int { uid }
+}
+
 struct HistoryBackfillView: View {
     @ObservedObject var store: MailStore
     @ObservedObject private var language = AppLanguage.shared
@@ -274,9 +282,26 @@ struct HistoryBackfillView: View {
     @ToolState private var to = Date()
     @ToolState private var mailbox = ""
     @ToolState private var snapshot: [String: Any] = [:]
+    @ToolState private var senderSearch = ""
+    @ToolState private var selectedUIDs: Set<Int> = []
     @ToolState private var confirm = false
     @ObservedObject private var tools: AssistantTools
     init(store: MailStore) { self.store = store; self.tools = store.assistantTools }
+    private var candidates: [HistoryBackfillCandidate] {
+        (snapshot["candidates"] as? [[String: Any]] ?? []).compactMap { value in
+            guard let uid = value["uid"] as? Int else { return nil }
+            return HistoryBackfillCandidate(
+                uid: uid,
+                subject: value["subject"] as? String ?? "",
+                sender: value["sender"] as? String ?? "",
+                receivedAt: value["received_at"] as? String ?? value["date"] as? String ?? ""
+            )
+        }
+    }
+    private var visibleCandidates: [HistoryBackfillCandidate] {
+        guard !senderSearch.isEmpty else { return candidates }
+        return candidates.filter { $0.sender.localizedCaseInsensitiveContains(senderSearch) }
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack { Text(T("历史邮件补总结")).font(.title2.bold()); Spacer(); Button(T("关闭")) { dismiss() } }
@@ -293,26 +318,76 @@ struct HistoryBackfillView: View {
                 Button(T("查询待处理数量")) {
                     Task {
                         snapshot = await tools.perform("history_preview", ["mailbox_id": mailbox, "from": store.dayString(from), "to": store.dayString(to)]) ?? [:]
+                        let previewUIDs = Set(candidates.map(\.uid))
+                        selectedUIDs = previewUIDs
+                        senderSearch = ""
                     }
                 }.disabled(tools.busy || mailbox.isEmpty || from > to)
-                if let count = snapshot["count"] as? Int { Text(T("待处理邮件") + ": \(count)") }
+                if snapshot["count"] is Int {
+                    Text(T("待处理邮件") + ": \(selectedUIDs.count) / \(candidates.count)")
+                }
+            }
+            if !candidates.isEmpty {
+                TextField(T("仅搜索发件人"), text: $senderSearch)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(tools.busy)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 4) {
+                        ForEach(visibleCandidates) { candidate in
+                            let uid = candidate.uid
+                            Toggle(isOn: Binding(
+                                get: { selectedUIDs.contains(uid) },
+                                set: { isSelected in
+                                    if isSelected { selectedUIDs.insert(uid) }
+                                    else { selectedUIDs.remove(uid) }
+                                }
+                            )) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(candidate.subject.isEmpty ? T("无标题") : candidate.subject)
+                                        .lineLimit(2)
+                                    HStack(spacing: 8) {
+                                        Text(candidate.sender.isEmpty ? T("未知发件人") : candidate.sender)
+                                        Text(candidate.receivedAt)
+                                    }
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                }
+                            }
+                            .toggleStyle(.checkbox)
+                            .disabled(tools.busy || uid < 0)
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+                .frame(maxHeight: 270)
             }
             ToolStatus(tools: tools)
-            Button(T("确认补总结")) { confirm = true }.disabled(tools.busy || (snapshot["count"] as? Int ?? 0) == 0)
+            Button(T("确认补总结")) { confirm = true }.disabled(tools.busy || selectedUIDs.isEmpty)
             Spacer()
-        }.padding(24).frame(width: 650, height: 380)
-            .onChange(of: from) { _, _ in snapshot = [:] }.onChange(of: to) { _, _ in snapshot = [:] }.onChange(of: mailbox) { _, _ in snapshot = [:] }
+        }.padding(24).frame(width: 720, height: 640)
+            .onChange(of: from) { _, _ in invalidatePreview() }
+            .onChange(of: to) { _, _ in invalidatePreview() }
+            .onChange(of: mailbox) { _, _ in invalidatePreview() }
             .confirmationDialog(T("将调用 AI 处理查询到的历史邮件，可能产生费用。"), isPresented: $confirm, titleVisibility: .visible) {
                 Button(T("确认补总结")) {
                     Task {
-                        if let result = await tools.perform("history_start", ["preview_id": snapshot["preview_id"] ?? snapshot["token"] ?? ""]) {
+                        if let result = await tools.perform("history_start", [
+                            "preview_id": snapshot["preview_id"] ?? snapshot["token"] ?? "",
+                            "selected_uids": selectedUIDs.sorted()
+                        ]) {
                             tools.notice = result["message"] as? String ?? T("已加入历史邮件处理队列。")
-                            snapshot = [:]; store.checkNow()
+                            invalidatePreview(); store.checkNow()
                         }
                     }
                 }
                 Button(T("取消"), role: .cancel) {}
             }
+    }
+    private func invalidatePreview() {
+        snapshot = [:]
+        selectedUIDs = []
+        senderSearch = ""
     }
 }
 

@@ -9,13 +9,14 @@ Windows x64, Python 3.12, .NET 8 SDK and Inno Setup supporting the Windows 11 wi
 ## Test and build
 
 ```powershell
-python -m pip install -r requirements.txt
-python -m pip install "trustme>=1.2,<2" "pywinauto>=0.6.9,<0.7" "tzdata>=2025"
-python -m unittest discover -s tests -v
-./build.ps1
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-test.txt
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+.\build.ps1
 ```
 
-Some Windows platform tests are skipped on other operating systems. The build produces the versioned Setup EXE in `dist`, using the actual build time in Asia/Shanghai.
+Keep test dependencies in the project-local `.venv`; do not install them into system Python. Some Windows platform tests are skipped on other operating systems. The build produces the versioned Setup EXE in `dist`, using the actual build time in Asia/Shanghai.
 
 The Chinese, English and Spanish READMEs and guides must stay consistent with the UI. Language packs are data-only JSON assets, generated from reviewed catalogs and guides:
 

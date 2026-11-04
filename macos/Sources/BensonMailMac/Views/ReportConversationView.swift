@@ -8,29 +8,49 @@ private struct ChatComposer: NSViewRepresentable {
     let send: () -> Void
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scroll = NSScrollView()
+        let scroll = ChatComposerScrollView()
         scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
         scroll.drawsBackground = false
         let editor = ChatComposerTextView()
+        editor.frame = NSRect(x: 0, y: 0, width: 1, height: 42)
         editor.delegate = context.coordinator
         editor.font = .systemFont(ofSize: NSFont.systemFontSize)
         editor.isRichText = false
+        editor.isEditable = enabled
+        editor.isSelectable = true
+        editor.isVerticallyResizable = true
+        editor.isHorizontallyResizable = false
+        editor.minSize = .zero
+        editor.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        editor.autoresizingMask = [.width]
+        editor.drawsBackground = false
         editor.isAutomaticQuoteSubstitutionEnabled = false
         editor.textContainerInset = NSSize(width: 5, height: 5)
         editor.enterToSend = enterToSend
         editor.send = send
+        editor.setAccessibilityIdentifier("mail-chat-question-editor")
+        editor.textContainer?.widthTracksTextView = true
+        editor.textContainer?.containerSize = NSSize(width: 1, height: CGFloat.greatestFiniteMagnitude)
         scroll.documentView = editor
         return scroll
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let editor = scroll.documentView as? ChatComposerTextView else { return }
+        // A representable's coordinator outlives individual SwiftUI value updates.
+        // Refresh its bindings before NSTextView reports edits, otherwise an old
+        // draft binding can be written back and make the composer appear inert.
+        context.coordinator.parent = self
         editor.enterToSend = enterToSend
         editor.send = send
         editor.isEditable = enabled
         editor.isSelectable = true
+        editor.textContainer?.containerSize = NSSize(width: scroll.contentSize.width, height: .greatestFiniteMagnitude)
         if editor.string != text {
+            let selection = editor.selectedRange()
             editor.string = text
+            editor.setSelectedRange(NSRange(location: min(selection.location, (text as NSString).length), length: 0))
         }
     }
 
@@ -42,6 +62,26 @@ private struct ChatComposer: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let editor = notification.object as? NSTextView else { return }
             parent.text = editor.string
+        }
+    }
+}
+
+/// NSTextView does not automatically inherit the SwiftUI frame when used as an
+/// NSScrollView document view. Keep a real, clickable document frame in sync
+/// with the representable's viewport after SwiftUI lays it out.
+private final class ChatComposerScrollView: NSScrollView {
+    override func layout() {
+        super.layout()
+        guard let editor = documentView as? ChatComposerTextView else { return }
+        let viewport = contentSize
+        let width = max(1, viewport.width)
+        editor.textContainer?.containerSize = NSSize(width: width, height: CGFloat.greatestFiniteMagnitude)
+        guard let container = editor.textContainer, let manager = editor.layoutManager else { return }
+        manager.ensureLayout(for: container)
+        let usedHeight = manager.usedRect(for: container).height + editor.textContainerInset.height * 2
+        let height = max(1, max(viewport.height, usedHeight))
+        if abs(editor.frame.width - width) > 0.5 || abs(editor.frame.height - height) > 0.5 {
+            editor.setFrameSize(NSSize(width: width, height: height))
         }
     }
 }
@@ -133,7 +173,11 @@ struct ReportConversationView: View {
                             .padding(.horizontal, 10).padding(.vertical, 9).allowsHitTesting(false)
                     }
                 }
-                .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color(nsColor: .separatorColor)))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(Color(nsColor: .separatorColor))
+                        .allowsHitTesting(false)
+                }
                 .accessibilityIdentifier("mail-chat-question")
             HStack {
                 Button(T("添加附件"), systemImage: "paperclip") { conversation.chooseFiles(for: path) }.disabled(state.busy)

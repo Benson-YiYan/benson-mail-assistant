@@ -89,7 +89,7 @@ class RuntimeTests(unittest.TestCase):
         from unittest.mock import Mock
         self.daemon.SETTINGS.write_text('{"enabled": false}')
         reader = Mock()
-        self.run_loop(4, reader)
+        self.run_loop(20, reader)
         reader.assert_not_called()
         self.assertEqual(json.loads(self.daemon.STATUS.read_text())['phase'], 'paused')
     def test_custom_interval_applies_live(self):

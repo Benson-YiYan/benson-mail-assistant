@@ -138,6 +138,27 @@ enum AppSelfTest {
             while (webView(in: integratedRoot)?.navigationDelegate as? NativeMarkdownView.Coordinator)?.finished != true && Date() < reportDeadline {
                 try await Task.sleep(nanoseconds: 50_000_000)
             }
+            let composerDeadline = Date().addingTimeInterval(8)
+            while (!store.reportConversation.state(first.id).loaded || store.reportConversation.state(first.id).busy) && Date() < composerDeadline {
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            func view(identifier: String, in parent: NSView) -> NSView? {
+                if parent.accessibilityIdentifier() == identifier { return parent }
+                for child in parent.subviews {
+                    if let match = view(identifier: identifier, in: child) { return match }
+                }
+                return nil
+            }
+            guard let composer = view(identifier: "mail-chat-question-editor", in: integratedRoot) as? NSTextView,
+                  composer.isEditable, reportWindow.makeFirstResponder(composer) else {
+                throw Failure("mail chat composer is missing, not editable, or cannot receive keyboard focus")
+            }
+            composer.insertText("Composer typing fixture", replacementRange: NSRange(location: 0, length: 0))
+            guard store.reportConversation.state(first.id).draft == "Composer typing fixture" else {
+                throw Failure("typing in the native mail chat composer did not update the active report draft")
+            }
+            store.reportConversation.draft("", for: first.id)
+            checks.append("mail chat composer accepts keyboard focus and typed text updates the active report draft")
             guard let integratedWeb = webView(in: integratedRoot),
                   let integratedCoordinator = integratedWeb.navigationDelegate as? NativeMarkdownView.Coordinator,
                   integratedCoordinator.finished else { throw Failure("report/chat split never finished Markdown navigation") }

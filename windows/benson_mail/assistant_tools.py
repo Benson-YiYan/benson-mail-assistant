@@ -1,6 +1,9 @@
 """Explicit user tools. No mail sending, background AI work, or configuration export."""
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from email import policy
+from email.parser import BytesParser
+from email.utils import parsedate_to_datetime
 from email.utils import parseaddr
 import hashlib
 import json
@@ -415,8 +418,58 @@ def history_preview(root, request, controller=None):
                         pieces = str(notice).split(':')
                         if len(pieces) == 4 and pieces[1] == validity and pieces[2].isdigit() and pieces[3] == 'complete': done.add(int(pieces[2]))
     todo = [uid for uid in uids if uid not in done]
+    candidates = []
+    if todo:
+        # Fetch only selected header fields plus IMAP's server receipt timestamp.
+        # Never download message bodies during preview.
+        header_client_id, header_client = _mailbox(root, config, identifier, controller)
+        try:
+            if header_client_id != identifier:
+                raise ValueError('Mailbox identity changed; preview again.')
+            header_validity = header_client.response('UIDVALIDITY')[1][0].decode('ascii')
+            if header_validity != validity:
+                raise ValueError('Mailbox identity changed; preview again.')
+            status, rows = header_client.uid('fetch', ','.join(map(str, todo)),
+                                             '(UID BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)] INTERNALDATE)')
+            if status != 'OK':
+                raise RuntimeError('The mailbox could not read message headers for preview.')
+            headers_by_uid = {}
+            for row in rows or []:
+                if not isinstance(row, tuple) or len(row) < 2 or not isinstance(row[0], bytes) or not isinstance(row[1], bytes):
+                    continue
+                match = re.search(rb'\bUID\s+(\d+)\b', row[0], re.I)
+                if not match:
+                    continue
+                uid = int(match.group(1))
+                if uid not in todo:
+                    continue
+                message = BytesParser(policy=policy.default).parsebytes(row[1], headersonly=True)
+                subject = str(message.get('Subject', '') or '').strip()
+                sender = str(message.get('From', '') or '').strip()
+                date_value = str(message.get('Date', '') or '').strip()
+                received = ''
+                internal = re.search(rb'\bINTERNALDATE\s+"([^"]+)"', row[0], re.I)
+                stamp = internal.group(1).decode('ascii', 'replace') if internal else date_value
+                try:
+                    parsed = parsedate_to_datetime(stamp)
+                    if parsed:
+                        received = parsed.isoformat()
+                except (TypeError, ValueError, OverflowError):
+                    received = stamp[:80]
+                headers_by_uid[uid] = {
+                    'uid': uid,
+                    'subject': subject[:500] or '(no subject)',
+                    'sender': sender[:500] or '(unknown sender)',
+                    'received_at': received,
+                }
+            candidates = [headers_by_uid.get(uid, {
+                'uid': uid, 'subject': '(no subject)', 'sender': '(unknown sender)', 'received_at': ''
+            }) for uid in todo]
+        finally:
+            try: header_client.logout()
+            except Exception: pass
     token = uuid.uuid4().hex
-    preview = {'preview_id': token, 'mailbox_id': identifier, 'uidvalidity': validity, 'uids': todo, 'start': str(start), 'end': str(end), 'count': len(todo), 'already_summarized': len(uids)-len(todo), 'legacy_deduplication': 'Content-identical legacy reports are checked again before AI is called.', 'created_at': datetime.now(timezone.utc).isoformat()}
+    preview = {'preview_id': token, 'mailbox_id': identifier, 'uidvalidity': validity, 'uids': todo, 'candidates': candidates, 'messages': candidates, 'start': str(start), 'end': str(end), 'count': len(todo), 'already_summarized': len(uids)-len(todo), 'legacy_deduplication': 'Content-identical legacy reports are checked again before AI is called.', 'created_at': datetime.now(timezone.utc).isoformat()}
     chat._atomic(Path(root) / 'history_previews' / (token + '.json'), json.dumps(preview))
     return {k:v for k,v in preview.items() if k not in ('uids','uidvalidity')}
 
@@ -426,6 +479,14 @@ def history_start(root, request, controller=None):
     path = Path(root) / 'history_previews' / (token + '.json')
     preview = json.loads(path.read_text())
     if datetime.now(timezone.utc) - datetime.fromisoformat(preview['created_at']) > timedelta(hours=1): raise ValueError('History preview expired; preview again before confirming.')
+    requested = request.get('selected_uids', preview['uids'])
+    if not isinstance(requested, list) or any(type(uid) is not int for uid in requested):
+        raise ValueError('Invalid selected mail list; preview again.')
+    selected = sorted(set(requested))
+    if not selected:
+        raise ValueError('Select at least one message to summarize.')
+    if not set(selected).issubset(set(preview['uids'])):
+        raise ValueError('Selected mail is not part of this preview; preview again.')
     identifier, client = _mailbox(root, _chat()._config(root), preview['mailbox_id'], controller)
     try:
         validity = client.response('UIDVALIDITY')[1][0].decode('ascii')
@@ -437,10 +498,10 @@ def history_start(root, request, controller=None):
     with _chat()._locked(target):
         value = json.loads(target.read_text()) if target.exists() else {'uidvalidity': validity, 'uids': []}
         if value['uidvalidity'] != validity: raise ValueError('A different mailbox generation is already queued; review the mailbox state.')
-        value['uids'] = sorted(set(value['uids']) | set(preview['uids']))
+        value['uids'] = sorted(set(value['uids']) | set(selected))
         _chat()._atomic(target, json.dumps(value))
     path.unlink(missing_ok=True)
-    return {'queued': len(preview['uids']), 'count': len(value['uids']), 'mailbox_id': identifier}
+    return {'queued': len(selected), 'count': len(value['uids']), 'mailbox_id': identifier}
 
 _SOURCE_INDEX = {}
 

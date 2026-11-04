@@ -314,6 +314,15 @@ class AssistantToolTests(unittest.TestCase):
         return client
     def test_history_preview_count_has_no_ai_or_body_fetch_then_queue_is_confirmed(self):
         client=self.mailbox()
+        client.uid.side_effect=[
+            ('OK',[b'7 8 9']),
+            ('OK',[
+                (b'7 (UID 7 INTERNALDATE "01-Oct-2026 10:00:00 +0000" BODY[HEADER.FIELDS (SUBJECT FROM DATE)] {45}',
+                 b'Subject: First historical message\r\nFrom: Sender <sender@example.invalid>\r\nDate: Thu, 01 Oct 2026 10:00:00 +0000\r\n\r\n'),
+                (b'9 (UID 9 INTERNALDATE "03-Oct-2026 10:00:00 +0000" BODY[HEADER.FIELDS (SUBJECT FROM DATE)] {42}',
+                 b'Subject: Second historical message\r\nFrom: Other <other@example.invalid>\r\n\r\n'),
+            ]),
+        ]
         profile={'account':'owner@example.invalid','host':'imap.example.invalid'}
         identifier='fixture'
         if WINDOWS:
@@ -323,14 +332,37 @@ class AssistantToolTests(unittest.TestCase):
         with patch.object(tools,'_mailbox',return_value=(identifier,client)),patch.object(chat,'_complete') as complete:
             preview=tools.history_preview(self.root,{'from':'2026-10-01','to':'2026-10-10'})
             self.assertEqual(preview['count'],2);self.assertEqual(preview['already_summarized'],1)
+            self.assertEqual([m['subject'] for m in preview['messages']],['First historical message','Second historical message'])
+            self.assertEqual(preview['messages'][0]['sender'],'Sender <sender@example.invalid>')
+            self.assertIn('2026-10-01',preview['messages'][0]['received_at'])
             self.assertFalse((self.root/'history_queue'/f'{identifier}.json').exists())
-            result=tools.history_start(self.root,{'preview_id':preview['preview_id']})
+            result=tools.history_start(self.root,{'preview_id':preview['preview_id'],'selected_uids':[7]})
             complete.assert_not_called()
-            self.assertEqual(result['queued'],2)
-        self.assertTrue(all(call.args[0]=='search' for call in client.uid.call_args_list))
+            self.assertEqual(result['queued'],1)
+        self.assertEqual([call.args[0] for call in client.uid.call_args_list],['search','fetch'])
         saved=[]
         tools.consume_history(self.root,identifier,'12',lambda uids:saved.extend(uids))
-        self.assertEqual(saved,[7,9]);self.assertFalse((self.root/'history_queue'/f'{identifier}.json').exists())
+        self.assertEqual(saved,[7]);self.assertFalse((self.root/'history_queue'/f'{identifier}.json').exists())
+    def test_history_queue_rejects_empty_selection(self):
+        client=self.mailbox()
+        profile={'account':'owner@example.invalid','host':'imap.example.invalid'}
+        identifier='fixture'
+        if WINDOWS:
+            from mailbox_config import mailbox_id
+            identifier=mailbox_id(profile)
+        else:
+            from mailbox_config import mailbox_id
+            identifier=mailbox_id(profile)
+        with patch.object(tools,'_mailbox',return_value=(identifier,client)):
+            preview_path=self.root/'history_previews';preview_path.mkdir()
+            token='a'*32
+            (preview_path/(token+'.json')).write_text(json.dumps({
+                'preview_id':token,'mailbox_id':identifier,'uidvalidity':'12','uids':[7],
+                'created_at':tools.datetime.now(tools.timezone.utc).isoformat()
+            }))
+            with self.assertRaisesRegex(ValueError,'Select at least one'):
+                tools.history_start(self.root,{'preview_id':token,'selected_uids':[]})
+        self.assertFalse((self.root/'history_queue').exists())
     def test_legacy_history_dedup_compares_contents_never_just_filename(self):
         original=dict(self.mail, received='2026-10-01T10:00:00+08:00')
         original.pop('uid',None);original.pop('uidvalidity',None);original.pop('mailbox_key',None)

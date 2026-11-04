@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -131,28 +132,79 @@ sealed partial class MainWindow
         var end = new CalendarDatePicker { Header = L.T("结束日期"), Date = DateTimeOffset.Now, MinWidth = 0, Width = 200 };
         var message = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         JsonElement snapshot = default;
+        var senderSearch = new TextBox { PlaceholderText = L.T("仅搜索发件人"), Visibility = Visibility.Collapsed };
+        var candidatesPanel = new StackPanel { Spacing = 3 };
+        var candidatesScroll = new ScrollViewer { MaxHeight = 300, Content = candidatesPanel, Visibility = Visibility.Collapsed };
+        var selectedUids = new System.Collections.Generic.HashSet<long>();
+        var candidateRows = new System.Collections.Generic.List<(long Uid, string Sender, CheckBox Check)>();
         var previewButton = new Button { Content = L.T("查看待处理数量") };
         var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("补总结历史邮件"),
             PrimaryButtonText = L.T("确认加入总结队列"), IsPrimaryButtonEnabled = false, CloseButtonText = L.T("取消") };
-        void Invalidate() { snapshot = default; dialog.IsPrimaryButtonEnabled = false; message.Text = ""; }
+        void RefreshCandidateSelection()
+        {
+            var query = senderSearch.Text.Trim();
+            foreach (var row in candidateRows)
+                row.Check.Visibility = query.Length == 0 || row.Sender.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                    ? Visibility.Visible : Visibility.Collapsed;
+            var selectedCount = candidateRows.Count(row => selectedUids.Contains(row.Uid));
+            message.Text = L.T("待总结：") + selectedCount + " / " + candidateRows.Count + "\n" +
+                L.T("已总结：") + JsonText(snapshot, "already_summarized", "0") +
+                "\n" + L.T("确认后会消耗所选 AI 的额度；暂停监听时只加入队列，开始监听后处理。");
+            dialog.IsPrimaryButtonEnabled = selectedCount > 0;
+        }
+        void Invalidate()
+        {
+            snapshot = default; selectedUids.Clear(); candidateRows.Clear(); candidatesPanel.Children.Clear();
+            dialog.IsPrimaryButtonEnabled = false; message.Text = "";
+            senderSearch.Visibility = candidatesScroll.Visibility = Visibility.Collapsed;
+        }
         start.DateChanged += (_, _) => Invalidate(); end.DateChanged += (_, _) => Invalidate();
+        senderSearch.TextChanged += (_, _) => { if (snapshot.ValueKind == JsonValueKind.Object) RefreshCandidateSelection(); };
         previewButton.Click += async (_, _) => {
             dialog.IsPrimaryButtonEnabled = false; previewButton.IsEnabled = false;
+            snapshot = default; selectedUids.Clear(); candidateRows.Clear(); candidatesPanel.Children.Clear();
+            senderSearch.Visibility = candidatesScroll.Visibility = Visibility.Collapsed;
             try {
                 if (!start.Date.HasValue || !end.Date.HasValue || start.Date.Value.Date > end.Date.Value.Date)
                     throw new InvalidOperationException(L.T("请选择有效的起始和结束日期。"));
                 message.Text = L.T("正在读取邮件数量，不会调用 AI…");
                 snapshot = await Assistant("history_preview", new { start = start.Date.Value.ToString("yyyy-MM-dd"),
                     end = end.Date.Value.ToString("yyyy-MM-dd"), mailbox_id = SelectedMailboxDraftId });
-                message.Text = L.T("待总结：") + JsonText(snapshot, "count", "0") + "\n" + L.T("已总结：") + JsonText(snapshot, "already_summarized", "0") +
-                    "\n" + L.T("确认后会消耗所选 AI 的额度；暂停监听时只加入队列，开始监听后处理。");
-                dialog.IsPrimaryButtonEnabled = snapshot.TryGetProperty("count", out var count) && count.GetInt32() > 0;
+                if ((snapshot.TryGetProperty("messages", out var items) || snapshot.TryGetProperty("candidates", out items)) &&
+                    items.ValueKind == JsonValueKind.Array) {
+                    foreach (var item in items.EnumerateArray()) {
+                        if (!item.TryGetProperty("uid", out var uidValue) || !uidValue.TryGetInt64(out var uid)) continue;
+                        var sender = JsonText(item, "sender", L.T("未知发件人"));
+                        var subject = JsonText(item, "subject", L.T("无标题"));
+                        var received = JsonText(item, "received_at", "");
+                        var check = new CheckBox { IsChecked = true, Content = Stack(
+                            new TextBlock { Text = subject, TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold },
+                            new TextBlock { Text = sender + (string.IsNullOrWhiteSpace(received) ? "" : " · " + received),
+                                TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .75 }), Margin = new Thickness(0, 2, 0, 2) };
+                        selectedUids.Add(uid);
+                        candidateRows.Add((uid, sender, check));
+                        candidatesPanel.Children.Add(check);
+                        check.Checked += (_, _) => { selectedUids.Add(uid); RefreshCandidateSelection(); };
+                        check.Unchecked += (_, _) => { selectedUids.Remove(uid); RefreshCandidateSelection(); };
+                    }
+                }
+                var hasCandidates = candidateRows.Count > 0;
+                senderSearch.Visibility = candidatesScroll.Visibility = hasCandidates ? Visibility.Visible : Visibility.Collapsed;
+                if (hasCandidates) RefreshCandidateSelection();
+                else {
+                    message.Text = L.T("待处理邮件列表为空，请重新查询日期范围。") + "\n" +
+                        L.T("已总结：") + JsonText(snapshot, "already_summarized", "0");
+                    dialog.IsPrimaryButtonEnabled = false;
+                }
             } catch (Exception error) { message.Text = L.T(error.Message); }
             finally { previewButton.IsEnabled = true; }
         };
-        dialog.Content = Stack(Note(L.T("针对当前选中的邮箱。日期按邮箱服务器的收件日期筛选。")), Row(start, end), previewButton, message);
+        dialog.Content = Stack(Note(L.T("针对当前选中的邮箱。日期按邮箱服务器的收件日期筛选。")),
+            Row(start, end), previewButton, senderSearch, candidatesScroll, message);
         if (await dialog.ShowAsync() == ContentDialogResult.Primary && snapshot.ValueKind == JsonValueKind.Object) {
-            var result = await Assistant("history_queue", new { preview_id = JsonText(snapshot, "preview_id") });
+            var chosen = candidateRows.Where(row => selectedUids.Contains(row.Uid)).Select(row => row.Uid).ToArray();
+            if (chosen.Length == 0) return;
+            var result = await Assistant("history_queue", new { preview_id = JsonText(snapshot, "preview_id"), selected_uids = chosen });
             detail.Text = L.T("已加入总结队列：") + JsonText(result, "count", "0");
         }
     }
