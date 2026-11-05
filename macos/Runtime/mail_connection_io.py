@@ -29,7 +29,10 @@ def load(home=None):
     result = subprocess.run(command + ['-w'], capture_output=True, text=True, timeout=20)
     if result.returncode or not result.stdout.strip():
         raise ValueError('无法读取该邮箱的钥匙串凭据，请在设置中重新保存。')
+    from mail_policy import validate_policy
+    mail_policy = validate_policy(settings.get('mail_policy', {}))
     return {**connection, 'read_all_mail': bool(mailbox.get('read_all_mail', False)) if mailbox else False,
+            'spam_folders': mail_policy['spam_folders'],
             'ui_language': settings.get('ui_language', 'zh')}, result.stdout.rstrip('\n')
 
 def test():

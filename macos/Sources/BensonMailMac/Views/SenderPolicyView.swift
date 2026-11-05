@@ -3,14 +3,20 @@ import SwiftUI
 
 private typealias PolicyState<Value> = SwiftUI.State<Value>
 
+private enum SenderPolicySheet: String, Identifiable {
+    case senders, spamFolder
+    var id: String { rawValue }
+}
+
 struct SenderPolicyView: View {
     @ObservedObject private var language = AppLanguage.shared
     @ObservedObject var store: MailStore
     var staged: SettingsDraft?
     @StateObject private var policy: SenderPolicyStore
-    @PolicyState private var adding = false
+    @PolicyState private var activeSheet: SenderPolicySheet?
     @PolicyState private var expanded = false
     @PolicyState private var selected: Set<String> = []
+    @PolicyState private var selectedSpamFolders: Set<String> = []
     init(store: MailStore, policy: SenderPolicyStore? = nil, expanded: Bool = false, staged: SettingsDraft? = nil) {
         self.staged = staged
         self.store = store
@@ -53,14 +59,46 @@ struct SenderPolicyView: View {
                 }.frame(maxHeight: 150)
             }
             HStack {
-                Button(T("添加邮箱地址"), systemImage: "plus") { policy.error = ""; adding = true }.accessibilityIdentifier("mail-policy-add")
+                Button(T("添加邮箱地址"), systemImage: "plus") { policy.error = ""; activeSheet = .senders }.accessibilityIdentifier("mail-policy-add")
                 Spacer()
                 if staged == nil { Button(T("保存屏蔽规则")) { Task { await policy.save() } }
                     .buttonStyle(.borderedProminent).disabled(!policy.dirty).accessibilityIdentifier("mail-policy-save") }
             }
             Toggle(T("不总结垃圾邮件（部分邮箱可能不支持）"), isOn: Binding(get: { policy.draft.skip_spam }, set: { value in policy.editDraft { $0.skip_spam = value } })).accessibilityIdentifier("mail-policy-skip-spam")
-            Text(T("仅依据邮箱服务商的垃圾邮件标记；不会凭主题或正文猜测。"))
+            Text(T("仅依据邮箱服务商的垃圾邮件标记或下方文件夹名称；不会凭主题或正文猜测。"))
                 .font(.caption).foregroundStyle(.secondary)
+            Text(T("垃圾邮件文件夹")).font(.headline)
+            if policy.draft.spam_folders.isEmpty {
+                Text(T("还没有添加垃圾邮件文件夹。")).font(.callout).foregroundStyle(.secondary)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 7) {
+                        ForEach(policy.draft.spam_folders, id: \.self) { folder in
+                            HStack {
+                                Toggle(T("选择文件夹"), isOn: Binding(get: { selectedSpamFolders.contains(folder) }, set: {
+                                    if $0 { selectedSpamFolders.insert(folder) } else { selectedSpamFolders.remove(folder) }
+                                })).labelsHidden().accessibilityLabel(T("选择文件夹") + " " + folder)
+                                Text(folder).textSelection(.enabled)
+                                Spacer()
+                            }
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(maxHeight: 150)
+            }
+            Text(T("开启上方选项后，按完整文件夹名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，请移除以避免误判。"))
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Button(T("添加邮箱文件夹"), systemImage: "plus") { policy.error = ""; activeSheet = .spamFolder }
+                    .accessibilityIdentifier("mail-policy-spam-folder-add")
+                Button(T("批量删除")) {
+                    policy.removeSpamFolders(selectedSpamFolders); selectedSpamFolders.removeAll()
+                }.disabled(selectedSpamFolders.isEmpty)
+                    .accessibilityIdentifier("mail-policy-spam-folder-remove")
+                Spacer()
+                Button(T("恢复默认")) { policy.restoreSpamFolders(); selectedSpamFolders.removeAll() }
+                    .disabled(policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders)
+                    .accessibilityIdentifier("mail-policy-spam-folder-reset")
+            }
             if staged == nil && policy.dirty { Text(T("有未保存的屏蔽规则")).font(.caption).foregroundStyle(.orange) }
             Divider()
             DisclosureGroup(isExpanded: $expanded) {
@@ -107,7 +145,12 @@ struct SenderPolicyView: View {
             if !policy.notice.isEmpty { Text(T(policy.notice)).font(.caption).foregroundStyle(.secondary) }
             if !policy.error.isEmpty { Text(T(policy.error)).font(.callout).foregroundStyle(.red).textSelection(.enabled) }
         }.disabled(policy.busy)
-        .sheet(isPresented: $adding) { SenderAddressPicker(policy: policy, candidates: senders) }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .senders: SenderAddressPicker(policy: policy, candidates: senders)
+            case .spamFolder: SpamFolderPicker(policy: policy)
+            }
+        }
         .task {
             if let staged {
                 let token = staged.generation
@@ -131,6 +174,7 @@ struct SenderPolicyView: View {
         }
         .onChange(of: store.status.last_check) { _, _ in Task { await policy.refresh() } }
         .onChange(of: policy.records.map(\.id)) { _, ids in selected.formIntersection(ids) }
+        .onChange(of: policy.draft.spam_folders) { _, folders in selectedSpamFolders.formIntersection(folders) }
     }
     private func reason(_ record: SkippedMailRecord) -> String {
         if record.state == "queued" { return T("已加入一次性总结队列") }
@@ -144,6 +188,31 @@ struct SenderPolicyView: View {
     }
     private func summarize(_ ids: [String]) { Task { await policy.summarizeRecords(ids); selected.subtract(ids) } }
     private func remove(_ ids: [String]) { Task { await policy.removeRecords(ids); selected.subtract(ids) } }
+}
+
+private struct SpamFolderPicker: View {
+    @ObservedObject var policy: SenderPolicyStore
+    @Environment(\.dismiss) private var dismiss
+    @PolicyState private var folder = ""
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(T("添加邮箱文件夹")).font(.title2.bold())
+            TextField(T("邮箱文件夹名称"), text: $folder)
+                .accessibilityIdentifier("mail-policy-spam-folder")
+            Text(T("按完整名称匹配；规则对所有已添加的邮箱生效。"))
+                .font(.caption).foregroundStyle(.secondary)
+            if !policy.error.isEmpty { Text(T(policy.error)).foregroundStyle(.red).font(.caption) }
+            HStack {
+                Button(T("取消")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Spacer()
+                Button(T("添加")) {
+                    if policy.addSpamFolder(folder) { dismiss() }
+                }.buttonStyle(.borderedProminent)
+                    .disabled(folder.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }.padding(22).frame(width: 460).textFieldStyle(.roundedBorder)
+    }
 }
 
 struct SenderAddressPicker: View {

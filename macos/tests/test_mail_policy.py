@@ -10,6 +10,7 @@ from unittest.mock import patch
 RUNTIME = Path(__file__).resolve().parents[1] / 'Runtime'
 sys.path.insert(0, str(RUNTIME))
 from mail_policy import policy_status, policy_save, policy_summarize_records, intercept, queued_records, spam_metadata
+from runtime_i18n import text as runtime_text
 from mailbox_config import mailbox_id
 
 class MacPolicyTests(unittest.TestCase):
@@ -108,6 +109,26 @@ class MacPolicyTests(unittest.TestCase):
         self.assertFalse(spam_metadata({},'FLAGS ($NotJunk)')['is_spam'])
         self.assertFalse(spam_metadata({'Subject':'spam'})['is_spam'])
         self.assertTrue(spam_metadata({},folder='Junk Email')['is_spam'])
+        self.assertTrue(spam_metadata({},folder='Custom Spam',spam_folders=['Custom Spam'])['is_spam'])
+        self.assertTrue(spam_metadata({},folder='custom spam',spam_folders=['Custom Spam'])['is_spam'])
+        self.assertFalse(spam_metadata({},folder='Custom Spam Archive',spam_folders=['Custom Spam'])['is_spam'])
+        self.assertFalse(spam_metadata({},folder='Ordinary',spam_folders=[])['is_spam'])
+    def test_spam_folder_list_validation_and_legacy_defaults(self):
+        defaults=['Spam','Junk','Junk Email','Junk E-mail','[Gmail]/Spam','垃圾邮件','垃圾箱']
+        legacy=self.root/'blocked_mail'; legacy.mkdir()
+        (legacy/'state.json').write_text(json.dumps({'policy': {'mode':'blacklist','addresses':[],'skip_spam':True},
+                                                     'records':{}}))
+        legacy_policy=policy_status(self.root)['policy']
+        self.assertEqual(legacy_policy['spam_folders'],defaults)
+        self.assertTrue(legacy_policy['skip_spam'])
+        saved=policy_save(self.root,{'mode':'blacklist','addresses':[],'skip_spam':True,
+                                     'spam_folders':['Custom Spam',' custom spam ','垃圾箱']})
+        self.assertEqual(saved['policy']['spam_folders'],['Custom Spam','垃圾箱'])
+        with self.assertRaises(ValueError):
+            policy_save(self.root,{'mode':'blacklist','addresses':[],'skip_spam':True,'spam_folders':['']})
+        self.assertEqual(policy_status(self.root)['policy']['spam_folders'],['Custom Spam','垃圾箱'])
+        self.assertEqual(runtime_text('垃圾邮件文件夹列表无效。','en'),'The spam folder list is invalid.')
+        self.assertEqual(runtime_text('垃圾邮件文件夹列表无效。','es'),'La lista de carpetas de correo no deseado no es válida.')
     def test_all_folder_profiles_keep_independent_progress_ids_and_discover_dynamically(self):
         connection={'account':'demo@example.invalid','host':'imap.example.invalid','port':993,'security':'ssl',
                     'username':'','mail_folder':'INBOX','mail_auth':'password','read_all_mail':True}

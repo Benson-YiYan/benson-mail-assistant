@@ -709,7 +709,8 @@ def history_preview(root, request, controller=None):
                 }
                 if apply_mail_policy:
                     from mail_policy import spam_metadata
-                    policy_by_uid[uid] = {**spam_metadata(message, flags, selected_folder), 'sender': sender}
+                    policy_by_uid[uid] = {**spam_metadata(message, flags, selected_folder,
+                                                           active_policy.get('spam_folders')), 'sender': sender}
             fallback = {'subject': '(no subject)', 'sender': '(unknown sender)', 'received_at': ''}
             from mail_policy import block_reason
             for uid in todo:

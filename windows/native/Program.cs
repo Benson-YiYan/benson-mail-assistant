@@ -774,7 +774,7 @@ sealed partial class MainWindow : Window
                     Title = L.T("是否现在安装并重启？"),
                     Content = L.T("更新已下载并通过校验。安装时将退出应用，完成后重新打开。"),
                     PrimaryButtonText = L.T("安装并重启"), CloseButtonText = L.T("稍后"),
-                    DefaultButton = ContentDialogButton.Close };
+                    DefaultButton = ContentDialogButton.Primary };
                 return await confirmation.ShowAsync() == ContentDialogResult.Primary;
             };
             activeDownload.Changed += () => {

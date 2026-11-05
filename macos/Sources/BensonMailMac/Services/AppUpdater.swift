@@ -172,8 +172,8 @@ struct MailUpdate: Equatable {
         alert.informativeText = T("更新已下载并通过校验。安装时将退出应用，完成后重新打开。")
         alert.addButton(withTitle: T("安装并重启"))
         alert.addButton(withTitle: T("稍后"))
-        alert.buttons.first?.keyEquivalent = ""
-        alert.buttons.last?.keyEquivalent = "\r"
+        alert.buttons.first?.keyEquivalent = "\r"
+        alert.buttons.last?.keyEquivalent = ""
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertFirstButtonReturn { install() }
     }

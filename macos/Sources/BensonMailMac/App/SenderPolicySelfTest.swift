@@ -41,6 +41,21 @@ enum SenderPolicySelfTest {
             throw Failure("local policy status did not load")
         }
         policy.draft.mode = "whitelist"; policy.draft.skip_spam = true
+        guard policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders,
+              policy.addSpamFolder("Custom Junk"),
+              policy.draft.spam_folders.last == "Custom Junk" else {
+            throw Failure("spam folder defaults or add operation failed")
+        }
+        policy.removeSpamFolders(["Custom Junk"])
+        guard policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders else {
+            throw Failure("bulk spam folder removal failed")
+        }
+        guard policy.addSpamFolder("Custom Junk") else { throw Failure("custom spam folder could not be re-added") }
+        policy.restoreSpamFolders()
+        guard policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders else {
+            throw Failure("restore spam folder defaults failed")
+        }
+        guard policy.addSpamFolder("Custom Junk") else { throw Failure("custom spam folder could not be added after reset") }
         guard policy.addAddresses(["Example <USER@Example.Invalid>", "user@example.invalid", "Other@Example.Invalid"]),
               policy.draft.addresses == ["user@example.invalid", "other@example.invalid"] else { throw Failure("sender addresses were not normalized and deduplicated") }
         let draft = policy.draft
@@ -51,7 +66,7 @@ enum SenderPolicySelfTest {
         policy.policyDidSave = { _, save in persisted.append(save) }
         await policy.save()
         guard backend.policy == draft, policy.saved == draft, !policy.dirty, persisted.last == true else { throw Failure("saving mail rules lost mode, addresses, spam option or persistence callback") }
-        checks.append("policy status and save contract; case-insensitive exact addresses deduplicated; invalid input and refresh preserve unsaved draft; save requests configuration persistence")
+        checks.append("policy status and save contract; spam folder defaults, add, bulk remove and restore; case-insensitive exact addresses deduplicated; invalid input and refresh preserve unsaved draft; save requests configuration persistence")
         await policy.summarizeRecords(["blocked-one"])
         guard backend.calls.last?.action == "summarize_records", backend.calls.last?.ids == ["blocked-one"],
               policy.records.first(where: { $0.id == "blocked-one" })?.state == "queued",
@@ -102,6 +117,8 @@ enum SenderPolicySelfTest {
             defer { try? originalPack.write(to: pack, options: .atomic) }
             AppLanguage.shared.select(code)
             guard T("黑名单") == expected, T("不总结垃圾邮件（部分邮箱可能不支持）") != "不总结垃圾邮件（部分邮箱可能不支持）",
+                  T("恢复默认") != "恢复默认",
+                  T("开启上方选项后，按完整文件夹名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，请移除以避免误判。") != "开启上方选项后，按完整文件夹名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，请移除以避免误判。",
                   T("仅删除本地跳过记录，不会删除邮箱中的邮件。总结一次不会把发件人移出名单。") != "仅删除本地跳过记录，不会删除邮箱中的邮件。总结一次不会把发件人移出名单。",
                   !T("请输入完整的邮箱地址：bad-address").contains("请输入完整"),
                   !T("AI 接口DNS 解析失败，请检查域名和 DNS 设置。\n具体原因：gaierror: synthetic failure").contains("DNS 解析失败") else {
@@ -119,7 +136,7 @@ enum SenderPolicySelfTest {
         defer { picker.orderOut(nil) }
         try await Task.sleep(nanoseconds: 200_000_000)
         try AppSelfTest.capture(picker, to: output.appendingPathComponent("sender-policy-add-bulk.png"))
-        checks.append("actual macOS policy card and bulk sender picker mounted with local fixture; Chinese, English and Spanish captures; old language packs missing new keys still localize policy controls, spam limitation, no-delete text and AI network diagnostics without downloads")
+        checks.append("actual macOS policy card and bulk sender picker mounted with local fixture; Chinese, English and Spanish captures; old language packs missing new keys still localize spam-folder controls and false-positive warning, policy controls, no-delete text and AI network diagnostics without downloads")
         return checks
     }
     private struct Failure: LocalizedError {

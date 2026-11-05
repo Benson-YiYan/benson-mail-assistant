@@ -37,6 +37,7 @@ class BridgeTests(unittest.TestCase):
         with self.assertRaises(ValueError): fresh.command('report_view', {'report_tree': 'yes'})
 
     def test_sender_policy_bridge_persists_global_settings_and_known_senders(self):
+        from benson_mail.mail_policy import DEFAULT_SPAM_FOLDERS
         service = Mock()
         service.config = {}
         self.controller.service = service
@@ -47,7 +48,8 @@ class BridgeTests(unittest.TestCase):
         write_metadata(self.root,report,{'sender': 'Known Sender <known@example.invalid>'})
         self.controller.config['output_dir'] = str(day.parent)
         result = self.controller.command('policy_save', {'mode': 'whitelist', 'addresses': ['Benson <allowed@example.invalid>'], 'skip_spam': True})
-        expected = {'mode': 'whitelist', 'addresses': ['allowed@example.invalid'], 'skip_spam': True}
+        expected = {'mode': 'whitelist', 'addresses': ['allowed@example.invalid'], 'skip_spam': True,
+                    'spam_folders': DEFAULT_SPAM_FOLDERS}
         self.assertEqual(result['policy'], expected)
         self.assertEqual(self.controller.config['mail_policy'], expected)
         self.assertEqual(service.config['mail_policy'], expected)

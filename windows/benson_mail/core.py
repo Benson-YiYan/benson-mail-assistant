@@ -396,10 +396,9 @@ class Service:
                                           mailbox_account=normalize(self.config)['account'])
                     if job.get('historical'): job['message']['historical'] = True
                     from .mail_policy import spam_metadata
-                    detected = spam_metadata({}, getattr(box, 'last_flags', ''), self.config.get('mail_folder', 'INBOX'))
-                    if re.search(r'\\Junk\b', str(self.config.get('_imap_folder_flags', '')), re.I):
-                        detected['is_spam'] = True
-                        detected['spam_evidence'].append('IMAP folder')
+                    detected = spam_metadata({}, getattr(box, 'last_flags', ''), self.config.get('mail_folder', 'INBOX'),
+                                             self.config.get('mail_policy', {}).get('spam_folders'),
+                                             self.config.get('_imap_folder_flags', ''))
                     if detected['is_spam']: job['message'].update(detected)
                     self.persist()
                 from .assistant_tools import existing_history_report

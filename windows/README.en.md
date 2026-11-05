@@ -80,9 +80,9 @@ These actions call your configured AI and may incur charges. Supplementary files
 
 Under **Email and checks → Block emails**, choose a blacklist or whitelist. Blacklisted senders are skipped; a whitelist summarizes only listed senders. An empty whitelist skips all new emails. Rules apply to every configured mailbox and match complete sender addresses without case sensitivity. Add, select in bulk, or remove addresses.
 
-“Do not summarize spam (some providers may not support this)” uses explicit server flags, spam headers or junk folders. It does not guess from the subject or call AI to classify spam. Only the configured mail folder is checked; providers that expose no spam indicators cannot be recognized. The option is off by default.
+“Do not summarize spam (some providers may not support this)” uses explicit server flags, spam headers or the configured spam-folder names. Defaults are `Spam`, `Junk`, `Junk Email`, `Junk E-mail`, `[Gmail]/Spam`, `垃圾邮件` and `垃圾箱`. It never guesses from the subject or calls AI to classify spam. Add names, select and bulk-delete them, or restore defaults. Names match in full, case-insensitively, across all added accounts; an ordinary folder with the same name will also be skipped, so remove that entry to avoid a false positive. Only folders actually read by the app are checked. Providers that expose no spam indicators cannot be recognized. The option is off by default.
 
-Skipped emails are grouped by sender in the local records. Summarize one or several with the current language and AI settings. This is a one-time override and does not change the rules; failures keep the records. Delete record removes only the local record, never the original email. Rules apply to newly checked messages and do not remove existing reports.
+All skipped emails, including those skipped by spam rules, stay in the same local Skipped mail list and are grouped by sender. Summarize one or several with the current language and AI settings. This is a one-time override and does not change the rules; failures keep the records. Delete record removes only the local record, never the original email. Rules apply to newly checked messages and do not remove existing reports.
 
 Drag the divider between the report and the email conversation to resize both areas.
 

@@ -13,7 +13,9 @@ import shutil
 import tempfile
 import threading
 
-DEFAULT = {'mode': 'blacklist', 'addresses': [], 'skip_spam': False}
+DEFAULT_SPAM_FOLDERS = ['Spam', 'Junk', 'Junk Email', 'Junk E-mail', '[Gmail]/Spam', '垃圾邮件', '垃圾箱']
+DEFAULT = {'mode': 'blacklist', 'addresses': [], 'skip_spam': False,
+           'spam_folders': DEFAULT_SPAM_FOLDERS}
 _THREAD_LOCK = threading.RLock()
 
 def sender_address(value):
@@ -33,7 +35,22 @@ def validate_policy(value):
         if address not in addresses: addresses.append(address)
     skip = value.get('skip_spam', False)
     if not isinstance(skip, bool): raise ValueError(_t('垃圾邮件选项无效。'))
-    return {'mode': mode, 'addresses': addresses, 'skip_spam': skip}
+    raw_folders = value.get('spam_folders', DEFAULT_SPAM_FOLDERS)
+    if not isinstance(raw_folders, list) or len(raw_folders) > 500:
+        raise ValueError(_t('垃圾邮件文件夹列表无效。'))
+    spam_folders = []
+    seen_folders = set()
+    for item in raw_folders:
+        if not isinstance(item, str):
+            raise ValueError(_t('垃圾邮件文件夹列表无效。'))
+        folder = item.strip()
+        if not folder or len(folder) > 255 or any(ord(char) < 32 or ord(char) == 127 for char in folder):
+            raise ValueError(_t('垃圾邮件文件夹列表无效。'))
+        folded = folder.casefold()
+        if folded not in seen_folders:
+            spam_folders.append(folder)
+            seen_folders.add(folded)
+    return {'mode': mode, 'addresses': addresses, 'skip_spam': skip, 'spam_folders': spam_folders}
 
 @contextmanager
 def _store(root):
@@ -109,7 +126,7 @@ def policy_summarize_records(root, ids):
                 record['state'] = 'queued'; record.pop('last_error', None)
     return policy_status(root)
 
-def spam_metadata(message, flags='', folder=''):
+def spam_metadata(message, flags='', folder='', spam_folders=None, folder_flags=''):
     """Only explicit provider metadata; never guesses from subject or body text."""
     headers = message if hasattr(message, 'get') else {}
     reasons = []
@@ -117,7 +134,9 @@ def spam_metadata(message, flags='', folder=''):
         if re.match(r'^\s*(yes|true|spam|junk)(?:\b|;)', str(headers.get(header, '')), re.I): reasons.append(header)
     if re.search(r'(?:^|[\s(])(?:\\?Junk|\$Junk|\\Spam)(?:$|[\s)])', str(flags), re.I): reasons.append('IMAP flag')
     if re.search(r'\\Spam\b', str(flags), re.I): reasons.append('Gmail spam label')
-    if str(folder).casefold() in {'spam', 'junk', 'junk email', 'junk e-mail', '[gmail]/spam', '垃圾邮件', '垃圾箱'}: reasons.append('junk folder')
+    configured_folders = DEFAULT_SPAM_FOLDERS if spam_folders is None else spam_folders
+    if any(str(folder).casefold() == str(name).casefold() for name in configured_folders): reasons.append('junk folder')
+    if re.search(r'(?:^|\s)\\Junk(?:\s|$)', str(folder_flags), re.I): reasons.append('junk folder flag')
     return {'is_spam': bool(reasons), 'spam_evidence': reasons}
 
 def block_reason(policy, message, bypass_sender_rules=False):

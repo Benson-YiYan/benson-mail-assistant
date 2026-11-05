@@ -6,6 +6,7 @@ from email.message import EmailMessage
 from datetime import datetime, timezone
 from benson_mail.mail_policy import (policy_status, policy_save, policy_remove_records,
     policy_summarize_records, intercept, queued_records, spam_metadata, block_reason)
+from benson_mail.runtime_i18n import text as runtime_text
 from benson_mail.core import Service
 
 class Box:
@@ -75,6 +76,26 @@ class PolicyTests(unittest.TestCase):
         self.assertFalse(spam_metadata({},flags='FLAGS (\\Seen $NotJunk)')['is_spam'])
         policy=policy_save(self.root,self.config(addresses=[],skip_spam=True))['policy']
         self.assertEqual(block_reason(policy,{'is_spam':True}),'spam')
+    def test_custom_spam_folder_names_are_exact_and_case_insensitive(self):
+        self.assertTrue(spam_metadata({},folder='Custom Spam',spam_folders=['Custom Spam'])['is_spam'])
+        self.assertTrue(spam_metadata({},folder='custom spam',spam_folders=['Custom Spam'])['is_spam'])
+        self.assertFalse(spam_metadata({},folder='Custom Spam Archive',spam_folders=['Custom Spam'])['is_spam'])
+        self.assertFalse(spam_metadata({},folder='Ordinary',spam_folders=[])['is_spam'])
+    def test_spam_folder_list_validation_legacy_defaults_and_restore_value(self):
+        defaults=['Spam','Junk','Junk Email','Junk E-mail','[Gmail]/Spam','垃圾邮件','垃圾箱']
+        legacy=self.root/'blocked_mail'; legacy.mkdir()
+        (legacy/'state.json').write_text(json.dumps({'policy': {'mode':'blacklist','addresses':[],'skip_spam':True},
+                                                     'records':{}}))
+        legacy_policy=policy_status(self.root)['policy']
+        self.assertEqual(legacy_policy['spam_folders'],defaults)
+        self.assertTrue(legacy_policy['skip_spam'])
+        saved=policy_save(self.root,self.config(skip_spam=True,spam_folders=['Custom Spam',' custom spam ','垃圾箱']))
+        self.assertEqual(saved['policy']['spam_folders'],['Custom Spam','垃圾箱'])
+        with self.assertRaises(ValueError):
+            policy_save(self.root,self.config(spam_folders=['']))
+        self.assertEqual(policy_save(self.root,self.config(spam_folders=defaults))['policy']['spam_folders'],defaults)
+        self.assertEqual(runtime_text('垃圾邮件文件夹列表无效。','en'),'The spam folder list is invalid.')
+        self.assertEqual(runtime_text('垃圾邮件文件夹列表无效。','es'),'La lista de carpetas de correo no deseado no es válida.')
     def test_manual_failed_export_uses_cached_ai(self):
         from unittest.mock import patch
         box=Box(); calls=[]

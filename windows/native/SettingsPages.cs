@@ -34,7 +34,9 @@ sealed partial class MainWindow
         if (page == "mail") return new() {
             ["mailboxes"] = MailboxDraftValues(), ["selected_mailbox_id"] = SelectedMailboxDraftId,
             ["seconds"] = interval.Text,
-            ["mail_policy"] = new { mode = senderPolicyMode.SelectedIndex == 1 ? "whitelist" : "blacklist", addresses = senderPolicyAddressValues.ToArray(), skip_spam = senderPolicySpam.IsOn }
+            ["mail_policy"] = new { mode = senderPolicyMode.SelectedIndex == 1 ? "whitelist" : "blacklist",
+                addresses = senderPolicyAddressValues.ToArray(), skip_spam = senderPolicySpam.IsOn,
+                spam_folders = senderPolicySpamFolderValues.ToArray() }
         };
         if (page == "ai") return new() {
             ["ai_provider"] = provider.SelectedIndex == 1 ? "codex" : provider.SelectedIndex == 2 ? "deepseek_harness" : "api",

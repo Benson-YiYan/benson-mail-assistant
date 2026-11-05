@@ -2,9 +2,34 @@ import Foundation
 import SwiftUI
 
 struct SenderPolicyRule: Codable, Equatable {
+    static let defaultSpamFolders = ["Spam", "Junk", "Junk Email", "Junk E-mail", "[Gmail]/Spam", "垃圾邮件", "垃圾箱"]
     var mode = "blacklist"
     var addresses: [String] = []
     var skip_spam = false
+    var spam_folders = Self.defaultSpamFolders
+
+    enum CodingKeys: String, CodingKey { case mode, addresses, skip_spam, spam_folders }
+    init(mode: String = "blacklist", addresses: [String] = [], skip_spam: Bool = false,
+         spam_folders: [String] = Self.defaultSpamFolders) {
+        self.mode = mode
+        self.addresses = addresses
+        self.skip_spam = skip_spam
+        self.spam_folders = spam_folders
+    }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        mode = try values.decodeIfPresent(String.self, forKey: .mode) ?? "blacklist"
+        addresses = try values.decodeIfPresent([String].self, forKey: .addresses) ?? []
+        skip_spam = try values.decodeIfPresent(Bool.self, forKey: .skip_spam) ?? false
+        spam_folders = try values.decodeIfPresent([String].self, forKey: .spam_folders) ?? Self.defaultSpamFolders
+    }
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(mode, forKey: .mode)
+        try values.encode(addresses, forKey: .addresses)
+        try values.encode(skip_spam, forKey: .skip_spam)
+        try values.encode(spam_folders, forKey: .spam_folders)
+    }
 }
 
 struct SkippedMailRecord: Decodable, Identifiable {
@@ -92,6 +117,27 @@ final class SenderPolicyStore: ObservableObject {
     func removeAddress(_ address: String) {
         guard !busy else { return }
         draft.addresses.removeAll { $0 == address }; notice = ""; draftDidEdit?(draft)
+    }
+    @discardableResult func addSpamFolder(_ raw: String) -> Bool {
+        guard !busy else { return false }
+        let folder = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !folder.isEmpty, folder.count <= 255,
+              !folder.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
+            error = "垃圾邮件文件夹名称无效。"; return false
+        }
+        if !draft.spam_folders.contains(where: { $0.caseInsensitiveCompare(folder) == .orderedSame }) {
+            draft.spam_folders.append(folder)
+        }
+        error = ""; notice = ""; draftDidEdit?(draft)
+        return true
+    }
+    func removeSpamFolders(_ folders: Set<String>) {
+        guard !busy, !folders.isEmpty else { return }
+        draft.spam_folders.removeAll { folders.contains($0) }; error = ""; notice = ""; draftDidEdit?(draft)
+    }
+    func restoreSpamFolders() {
+        guard !busy else { return }
+        draft.spam_folders = SenderPolicyRule.defaultSpamFolders; error = ""; notice = ""; draftDidEdit?(draft)
     }
     func refresh() async { await perform(SenderPolicyRequest(action: "status"), savesDraft: false) }
     func save() async { await perform(SenderPolicyRequest(action: "save", policy: draft), savesDraft: true) }
