@@ -740,7 +740,7 @@
     "费用与用量记录": "Costs and usage",
     "导出诊断包": "Export diagnostics",
     "诊断包包含版本与脱敏运行状态，不包含密钥、邮件正文和附件。": "The diagnostic package includes the version and sanitized runtime metadata, without keys, email bodies or attachments.",
-    "先查询数量，确认后才调用 AI。已完成的邮件会跳过；历史补总结不应用发件人规则和垃圾邮件设置。": "Preview the count before confirming AI processing. Completed messages are skipped; sender and spam rules do not apply to selected historical mail.",
+    "先查询数量，确认后才调用 AI。已完成的邮件会跳过；历史补总结不应用发件人规则和垃圾邮件设置。": "Preview the count before confirming AI processing. Completed messages are skipped.",
     "请选择邮箱": "Choose a mailbox",
     "查询待处理数量": "Preview pending count",
     "待处理邮件": "Pending messages",
@@ -851,7 +851,11 @@
     "是否现在安装并重启？": "Install and restart now?",
     "更新已下载并通过校验。安装时将退出应用，完成后重新打开。": "The update has been downloaded and verified. The app will close for installation and reopen when finished.",
     "安装并重启": "Install and restart",
-    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Download complete and SHA256 verified. Confirm to close the app and open the installer."
+    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Download complete and SHA256 verified. Confirm to close the app and open the installer.",
+    "应用邮件屏蔽规则": "Apply mail blocking rules",
+    "规则包括发件人黑名单／白名单和“不总结垃圾邮件”；关闭后本次补总结包含所有未总结邮件。": "Includes sender blocklist/allowlist and the Do not summarize spam setting. Turn it off to include all unsummarized mail in this backfill.",
+    "按邮件屏蔽规则跳过：": "Skipped by mail rules: ",
+    "按邮件标题或发件人搜索": "Search by subject or sender"
   },
   "templates": [
     {

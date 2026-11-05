@@ -193,8 +193,31 @@ enum AssistantToolsSelfTest {
         store.settings.notifications_enabled = true; store.settings.quiet_hours.enabled = false
         guard store.notificationsAllowed else { throw AppSelfTest.Failure("notification resume did not restore native presentation") }
         checks.append("native notification toggle is independent of monitoring; local quiet-hour overnight/start/end/all-day semantics match backend")
-        let preview = await tools.perform("history_preview", ["from": "2026-10-01", "to": "2026-10-20"])
+        let searchSubject = HistoryBackfillCandidate(uid: 1, subject: "Budget review", sender: "alice@example.invalid", receivedAt: "")
+        let searchSender = HistoryBackfillCandidate(uid: 2, subject: "Quarterly update", sender: "budget@example.invalid", receivedAt: "")
+        let searchMiss = HistoryBackfillCandidate(uid: 3, subject: "Quarterly update", sender: "alice@example.invalid", receivedAt: "")
+        guard searchSubject.matches("budget"), searchSender.matches("BUDGET"), !searchMiss.matches("budget"),
+              HistoryBackfillOptions().applyMailPolicy else {
+            throw AppSelfTest.Failure("history search must match subject and sender, and policy must default on")
+        }
+        let defaultPolicyRequest = HistoryBackfillOptions.previewRequest(
+            mailbox: "fixture-mailbox", from: "2026-10-01", to: "2026-10-20",
+            applyMailPolicy: HistoryBackfillOptions().applyMailPolicy
+        )
+        let bypassPolicyRequest = HistoryBackfillOptions.previewRequest(
+            mailbox: "fixture-mailbox", from: "2026-10-01", to: "2026-10-20", applyMailPolicy: false
+        )
+        guard defaultPolicyRequest["apply_mail_policy"] as? Bool == true,
+              bypassPolicyRequest["apply_mail_policy"] as? Bool == false else {
+            throw AppSelfTest.Failure("history preview did not preserve the policy toggle")
+        }
+        checks.append("history search matches subject-only and sender-only terms, rejects misses; policy defaults on and both toggle values are sent")
+        let preview = await tools.perform("history_preview", HistoryBackfillOptions.previewRequest(
+            mailbox: "", from: "2026-10-01", to: "2026-10-20",
+            applyMailPolicy: HistoryBackfillOptions().applyMailPolicy
+        ))
         guard preview?["count"] as? Int == 7, backend.requests.count == 1,
+              backend.requests.first?["apply_mail_policy"] as? Bool == true,
               backend.requests.allSatisfy({ $0["action"] as? String == "history_preview" }) else {
             throw AppSelfTest.Failure("historical preview invoked processing before confirmation")
         }

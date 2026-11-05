@@ -26,6 +26,8 @@ if len(sys.argv) > 1 and sys.argv[1] == 'ack':
     ids = set(sys.argv[2:])
     state['pending'] = [u for u in state['pending'] if str(u) not in ids]
     state['historical_pending'] = [u for u in state.get('historical_pending', []) if str(u) not in ids]
+    state['historical_apply_policy'] = {str(uid): value for uid, value in state.get('historical_apply_policy', {}).items()
+                                        if str(uid) not in ids}
     save(state)
     print(json.dumps({'acknowledged': list(ids)}))
     sys.exit(0)
@@ -60,9 +62,12 @@ try:
         state['next_uid'] = max(state['next_uid'], next_uid)
         save(state)
         from assistant_tools import consume_history, _root
-        def queue_history(uids):
+        def queue_history(uids, policies):
             state['pending'] = sorted(set(state['pending']) | (set(uids) & available))
             state['historical_pending'] = sorted(set(state.get('historical_pending', [])) | (set(uids) & available))
+            policy_by_uid = state.setdefault('historical_apply_policy', {})
+            for uid in set(uids) & available:
+                policy_by_uid[str(uid)] = bool(policies.get(str(uid), False))
             save(state)
         consume_history(_root(), identity, validity, queue_history)
         messages = []
@@ -108,6 +113,7 @@ try:
             metadata = spam_metadata(msg, fetched[0].decode('utf-8', errors='replace'), connection.get('mail_folder', 'INBOX'))
             messages.append({**metadata, 'uidvalidity': validity, 'uid': uid, 'mailbox_key': identity, 'mailbox_account': connection['account'],
                 'read_all_mail': bool(connection.get('read_all_mail')), 'historical': uid in set(state.get('historical_pending', [])),
+                'apply_mail_policy': bool(state.get('historical_apply_policy', {}).get(str(uid), False)),
                 'message_id': str(msg.get('Message-ID', '') or '').strip()[:1000],
                 'from': str(msg.get('From', '')), 'subject': str(msg.get('Subject', '')), 'date': str(msg.get('Date', '')),
                 'received_at': received_at, 'reply_to': str(msg.get('Reply-To', '')), 'bodies': bodies, 'attachments': attachments})

@@ -241,8 +241,69 @@ class AssistantToolTests(unittest.TestCase):
             self.assertEqual(result['queued'],1)
         self.assertEqual([call.args[0] for call in client.uid.call_args_list],['search','fetch'])
         saved=[]
-        tools.consume_history(self.root,identifier,'12',lambda uids:saved.extend(uids))
+        applied={}
+        tools.consume_history(self.root,identifier,'12',lambda uids, policies:(saved.extend(uids),applied.update(policies)))
         self.assertEqual(saved,[7]);self.assertFalse((self.root/'history_queue'/f'{identifier}.json').exists())
+        self.assertEqual(applied, {'7':True})
+
+    def test_history_queue_roundtrips_apply_policy_for_each_uid(self):
+        profile={'account':'owner@example.invalid','host':'imap.example.invalid'}
+        from benson_mail.mailbox_config import mailbox_id
+        identifier=mailbox_id(profile)
+        for apply_policy in (True, False):
+            client=self.mailbox()
+            client.uid.side_effect=[
+                ('OK',[b'7']),
+                ('OK',[(b'7 (UID 7 INTERNALDATE "01-Oct-2026 10:00:00 +0000" BODY[HEADER.FIELDS (SUBJECT FROM DATE X-SPAM-FLAG X-SPAM-STATUS X-JUNK-STATUS)] {40}',
+                        b'Subject: Queue policy\r\nFrom: Sender <sender@example.invalid>\r\n\r\n')]),
+            ]
+            with patch.object(tools,'_mailbox',return_value=(identifier,client)):
+                preview=tools.history_preview(self.root,{'from':'2026-10-01','to':'2026-10-10','apply_mail_policy':apply_policy})
+                tools.history_start(self.root,{'preview_id':preview['preview_id'],'selected_uids':[7]})
+            queue=self.root/'history_queue'/f'{identifier}.json'
+            self.assertEqual(json.loads(queue.read_text())['apply_mail_policy_by_uid'], {'7':apply_policy})
+            received=[]
+            tools.consume_history(self.root,identifier,'12',lambda uids, policies:received.append((uids,policies)))
+            self.assertEqual(received, [([7], {'7':apply_policy})])
+    def test_history_preview_applies_sender_rules_by_default_but_can_bypass(self):
+        from benson_mail.mail_policy import policy_save
+        client=self.mailbox()
+        rows=[(b'9 (UID 9 FLAGS () INTERNALDATE "03-Oct-2026 10:00:00 +0000" BODY[HEADER.FIELDS (SUBJECT FROM DATE X-SPAM-FLAG X-SPAM-STATUS X-JUNK-STATUS)] {58}',
+               b'Subject: Blocked subject\r\nFrom: Other <other@example.invalid>\r\n\r\n')]
+        client.uid.side_effect=lambda command,*args: ('OK',[b'9']) if command == 'search' else ('OK',rows)
+        with patch.object(tools,'_mailbox',return_value=('fixture',client)):
+            for mode, addresses in [('blacklist',['other@example.invalid']),('whitelist',['sender@example.invalid'])]:
+                policy_save(self.root, {'mode':mode,'addresses':addresses,'skip_spam':False})
+                filtered=tools.history_preview(self.root,{'from':'2026-10-01','to':'2026-10-10'})
+                self.assertTrue(filtered['apply_mail_policy'])
+                self.assertEqual(filtered['count'],0)
+                self.assertEqual(filtered['policy_skipped'],1)
+            filtered=tools.history_preview(self.root,{'from':'2026-10-01','to':'2026-10-10'})
+            # The legacy/default choice is on; explicit false retains the old bypass behavior.
+            bypassed=tools.history_preview(self.root,{'from':'2026-10-01','to':'2026-10-10','apply_mail_policy':False})
+            self.assertFalse(bypassed['apply_mail_policy'])
+            self.assertEqual(bypassed['policy_skipped'],0)
+            self.assertEqual([item['uid'] for item in bypassed['messages']],[9])
+        fetches=[call.args[2] for call in client.uid.call_args_list if call.args[0] == 'fetch']
+        self.assertTrue(all('BODY.PEEK[HEADER.FIELDS' in query for query in fetches))
+
+    def test_history_preview_applies_explicit_spam_flags(self):
+        from benson_mail.mail_policy import policy_save
+        policy_save(self.root, {'mode':'blacklist','addresses':[],'skip_spam':True})
+        client=self.mailbox()
+        client.uid.side_effect=[
+            ('OK',[b'9']),
+            ('OK',[(b'9 (UID 9 FLAGS (\\Seen \\Junk) INTERNALDATE "03-Oct-2026 10:00:00 +0000" BODY[HEADER.FIELDS (SUBJECT FROM DATE X-SPAM-FLAG X-SPAM-STATUS X-JUNK-STATUS)] {76}',
+                    b'Subject: Spam subject\r\nFrom: Sender <sender@example.invalid>\r\nX-Spam-Flag: YES\r\n\r\n')]),
+        ]
+        with patch.object(tools,'_mailbox',return_value=('fixture',client)):
+            preview=tools.history_preview(self.root,{'from':'2026-10-01','to':'2026-10-10'})
+        self.assertEqual(preview['count'],0)
+        self.assertEqual(preview['policy_skipped'],1)
+        fetch_args=client.uid.call_args_list[1].args[2]
+        self.assertIn('FLAGS',fetch_args)
+        self.assertIn('BODY.PEEK[HEADER.FIELDS',fetch_args)
+        self.assertNotIn('BODY.PEEK[]',fetch_args)
     def test_history_queue_rejects_empty_selection(self):
         client=self.mailbox()
         profile={'account':'owner@example.invalid','host':'imap.example.invalid'}

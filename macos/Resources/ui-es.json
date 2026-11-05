@@ -740,7 +740,7 @@
     "费用与用量记录": "Costos y uso",
     "导出诊断包": "Exportar diagnóstico",
     "诊断包包含版本与脱敏运行状态，不包含密钥、邮件正文和附件。": "El diagnóstico incluye la versión y datos de ejecución sin información sensible; no incluye claves, cuerpos de correo ni adjuntos.",
-    "先查询数量，确认后才调用 AI。已完成的邮件会跳过；历史补总结不应用发件人规则和垃圾邮件设置。": "Consulta primero la cantidad y confirma antes de usar la IA. Se omiten los correos ya procesados; las reglas de remitentes y spam no se aplican a los correos históricos seleccionados.",
+    "先查询数量，确认后才调用 AI。已完成的邮件会跳过；历史补总结不应用发件人规则和垃圾邮件设置。": "Consulta primero la cantidad y confirma antes de usar la IA. Se omiten los correos ya procesados.",
     "请选择邮箱": "Selecciona un buzón",
     "查询待处理数量": "Consultar cantidad pendiente",
     "待处理邮件": "Correos pendientes",
@@ -851,7 +851,11 @@
     "是否现在安装并重启？": "¿Instalar y reiniciar ahora?",
     "更新已下载并通过校验。安装时将退出应用，完成后重新打开。": "La actualización se ha descargado y verificado. La aplicación se cerrará para instalar y se abrirá al terminar.",
     "安装并重启": "Instalar y reiniciar",
-    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Descarga completa y SHA256 verificado. Confirma para cerrar la aplicación y abrir el instalador."
+    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Descarga completa y SHA256 verificado. Confirma para cerrar la aplicación y abrir el instalador.",
+    "应用邮件屏蔽规则": "Aplicar las reglas de correo",
+    "规则包括发件人黑名单／白名单和“不总结垃圾邮件”；关闭后本次补总结包含所有未总结邮件。": "Incluye las listas de bloqueo y permitidos y el ajuste No resumir correo no deseado. Desactívalo para incluir todos los correos aún sin resumir.",
+    "按邮件屏蔽规则跳过：": "Omitidos por las reglas de correo: ",
+    "按邮件标题或发件人搜索": "Buscar por asunto o remitente"
   },
   "templates": [
     {

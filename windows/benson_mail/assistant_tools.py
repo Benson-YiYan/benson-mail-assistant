@@ -377,6 +377,9 @@ def _mailbox(root, config, identifier='', controller=None):
 
 def history_preview(root, request, controller=None):
     chat = _chat(); config = chat._config(root)
+    apply_mail_policy = request.get('apply_mail_policy', True)
+    if not isinstance(apply_mail_policy, bool):
+        raise ValueError('Invalid mail policy option.')
     try:
         start = datetime.strptime(request.get('from') or request.get('start', ''), '%Y-%m-%d').date()
         end = datetime.strptime(request.get('to') or request.get('end', ''), '%Y-%m-%d').date()
@@ -419,6 +422,15 @@ def history_preview(root, request, controller=None):
                         if len(pieces) == 4 and pieces[1] == validity and pieces[2].isdigit() and pieces[3] == 'complete': done.add(int(pieces[2]))
     todo = [uid for uid in uids if uid not in done]
     candidates = []
+    policy_skipped = 0
+    if apply_mail_policy:
+        from .mail_policy import policy_status
+        active_policy = policy_status(root)['policy']
+        from .mailbox_config import mailbox_id
+        profiles = config.get('mailboxes') or [config]
+        selected_profile = next((profile for profile in profiles if mailbox_id(profile) == identifier), {})
+        selected_connection = selected_profile.get('connection', selected_profile)
+        selected_folder = str(selected_connection.get('mail_folder') or 'INBOX')
     if todo:
         # Fetch only selected header fields plus IMAP's server receipt timestamp.
         # Never download message bodies during preview.
@@ -430,10 +442,11 @@ def history_preview(root, request, controller=None):
             if header_validity != validity:
                 raise ValueError('Mailbox identity changed; preview again.')
             status, rows = header_client.uid('fetch', ','.join(map(str, todo)),
-                                             '(UID BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)] INTERNALDATE)')
+                                             '(UID FLAGS BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE X-SPAM-FLAG X-SPAM-STATUS X-JUNK-STATUS)] INTERNALDATE)')
             if status != 'OK':
                 raise RuntimeError('The mailbox could not read message headers for preview.')
             headers_by_uid = {}
+            policy_by_uid = {}
             for row in rows or []:
                 if not isinstance(row, tuple) or len(row) < 2 or not isinstance(row[0], bytes) or not isinstance(row[1], bytes):
                     continue
@@ -447,6 +460,8 @@ def history_preview(root, request, controller=None):
                 subject = str(message.get('Subject', '') or '').strip()
                 sender = str(message.get('From', '') or '').strip()
                 date_value = str(message.get('Date', '') or '').strip()
+                flags_match = re.search(rb'\bFLAGS\s+(\([^)]*\))', row[0], re.I)
+                flags = flags_match.group(1).decode('ascii', 'replace') if flags_match else ''
                 received = ''
                 internal = re.search(rb'\bINTERNALDATE\s+"([^"]+)"', row[0], re.I)
                 stamp = internal.group(1).decode('ascii', 'replace') if internal else date_value
@@ -456,20 +471,30 @@ def history_preview(root, request, controller=None):
                         received = parsed.isoformat()
                 except (TypeError, ValueError, OverflowError):
                     received = stamp[:80]
-                headers_by_uid[uid] = {
+                candidate = {
                     'uid': uid,
                     'subject': subject[:500] or '(no subject)',
                     'sender': sender[:500] or '(unknown sender)',
                     'received_at': received,
                 }
-            candidates = [headers_by_uid.get(uid, {
-                'uid': uid, 'subject': '(no subject)', 'sender': '(unknown sender)', 'received_at': ''
-            }) for uid in todo]
+                headers_by_uid[uid] = candidate
+                if apply_mail_policy:
+                    from .mail_policy import spam_metadata
+                    policy_by_uid[uid] = {**spam_metadata(message, flags, selected_folder), 'sender': sender}
+            fallback = {'subject': '(no subject)', 'sender': '(unknown sender)', 'received_at': ''}
+            from .mail_policy import block_reason
+            for uid in todo:
+                candidate = {'uid': uid, **headers_by_uid.get(uid, fallback)}
+                if apply_mail_policy and block_reason(active_policy, policy_by_uid.get(uid, {'sender': ''})):
+                    policy_skipped += 1
+                    continue
+                candidates.append(candidate)
         finally:
             try: header_client.logout()
             except Exception: pass
     token = uuid.uuid4().hex
-    preview = {'preview_id': token, 'mailbox_id': identifier, 'uidvalidity': validity, 'uids': todo, 'candidates': candidates, 'messages': candidates, 'start': str(start), 'end': str(end), 'count': len(todo), 'already_summarized': len(uids)-len(todo), 'legacy_deduplication': 'Content-identical legacy reports are checked again before AI is called.', 'created_at': datetime.now(timezone.utc).isoformat()}
+    eligible_uids = [candidate['uid'] for candidate in candidates]
+    preview = {'preview_id': token, 'mailbox_id': identifier, 'uidvalidity': validity, 'uids': eligible_uids, 'candidates': candidates, 'messages': candidates, 'start': str(start), 'end': str(end), 'count': len(eligible_uids), 'already_summarized': len(uids)-len(todo), 'policy_skipped': policy_skipped, 'apply_mail_policy': apply_mail_policy, 'legacy_deduplication': 'Content-identical legacy reports are checked again before AI is called.', 'created_at': datetime.now(timezone.utc).isoformat()}
     chat._atomic(Path(root) / 'history_previews' / (token + '.json'), json.dumps(preview))
     return {k:v for k,v in preview.items() if k not in ('uids','uidvalidity')}
 
@@ -495,9 +520,13 @@ def history_start(root, request, controller=None):
         try: client.logout()
         except Exception: pass
     target = Path(root) / 'history_queue' / (identifier + '.json')
+    apply_mail_policy = preview.get('apply_mail_policy', False)
     with _chat()._locked(target):
-        value = json.loads(target.read_text()) if target.exists() else {'uidvalidity': validity, 'uids': []}
+        value = json.loads(target.read_text()) if target.exists() else {'uidvalidity': validity, 'uids': [], 'apply_mail_policy_by_uid': {}}
         if value['uidvalidity'] != validity: raise ValueError('A different mailbox generation is already queued; review the mailbox state.')
+        policies = value.setdefault('apply_mail_policy_by_uid', {})
+        if not isinstance(policies, dict): raise ValueError('Historical queue metadata is invalid; review the mailbox state.')
+        for uid in selected: policies[str(uid)] = bool(apply_mail_policy)
         value['uids'] = sorted(set(value['uids']) | set(selected))
         _chat()._atomic(target, json.dumps(value))
     path.unlink(missing_ok=True)
@@ -602,7 +631,9 @@ def consume_history(root, identifier, validity, persist):
         value = json.loads(path.read_text())
         if value['uidvalidity'] != str(validity): raise ValueError('Historical mail belongs to a different mailbox generation; re-preview the date range.')
         uids = value['uids']
-        persist(uids)
+        policies = value.get('apply_mail_policy_by_uid', {})
+        if not isinstance(policies, dict): policies = {}
+        persist(uids, {str(uid): bool(policies.get(str(uid), False)) for uid in uids})
         path.unlink()
         return uids
 

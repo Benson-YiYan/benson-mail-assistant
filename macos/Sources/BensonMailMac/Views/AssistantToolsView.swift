@@ -266,12 +266,24 @@ struct AssistantUtilitySettings: View {
     }
 }
 
-private struct HistoryBackfillCandidate: Identifiable {
+struct HistoryBackfillCandidate: Identifiable {
     let uid: Int
     let subject: String
     let sender: String
     let receivedAt: String
     var id: Int { uid }
+    func matches(_ query: String) -> Bool {
+        query.isEmpty ||
+            subject.localizedCaseInsensitiveContains(query) ||
+            sender.localizedCaseInsensitiveContains(query)
+    }
+}
+
+struct HistoryBackfillOptions {
+    var applyMailPolicy = true
+    static func previewRequest(mailbox: String, from: String, to: String, applyMailPolicy: Bool) -> [String: Any] {
+        ["mailbox_id": mailbox, "from": from, "to": to, "apply_mail_policy": applyMailPolicy]
+    }
 }
 
 struct HistoryBackfillView: View {
@@ -282,9 +294,10 @@ struct HistoryBackfillView: View {
     @ToolState private var to = Date()
     @ToolState private var mailbox = ""
     @ToolState private var snapshot: [String: Any] = [:]
-    @ToolState private var senderSearch = ""
+    @ToolState private var candidateSearch = ""
     @ToolState private var selectedUIDs: Set<Int> = []
     @ToolState private var confirm = false
+    @ToolState private var options = HistoryBackfillOptions()
     @ObservedObject private var tools: AssistantTools
     init(store: MailStore) { self.store = store; self.tools = store.assistantTools }
     private var candidates: [HistoryBackfillCandidate] {
@@ -299,17 +312,23 @@ struct HistoryBackfillView: View {
         }
     }
     private var visibleCandidates: [HistoryBackfillCandidate] {
-        guard !senderSearch.isEmpty else { return candidates }
-        return candidates.filter { $0.sender.localizedCaseInsensitiveContains(senderSearch) }
+        guard !candidateSearch.isEmpty else { return candidates }
+        return candidates.filter { $0.matches(candidateSearch) }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack { Text(T("历史邮件补总结")).font(.title2.bold()); Spacer(); Button(T("关闭")) { dismiss() } }
-            Text(T("先查询数量，确认后才调用 AI。已完成的邮件会跳过；历史补总结不应用发件人规则和垃圾邮件设置。")).font(.callout).foregroundStyle(.secondary)
+            Text(T("先查询数量，确认后才调用 AI。已完成的邮件会跳过。")).font(.callout).foregroundStyle(.secondary)
             Picker(T("邮箱"), selection: $mailbox) {
                 Text(T("请选择邮箱")).tag("")
                 ForEach(store.mailboxProfiles) { profile in Text(profile.connection.account).tag(profile.id) }
             }.disabled(tools.busy)
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(T("应用邮件屏蔽规则"), isOn: $options.applyMailPolicy)
+                    .disabled(tools.busy)
+                Text(T("规则包括发件人黑名单／白名单和“不总结垃圾邮件”；关闭后本次补总结包含所有未总结邮件。"))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             HStack {
                 DatePicker(T("开始日期"), selection: $from, displayedComponents: .date)
                 DatePicker(T("结束日期"), selection: $to, displayedComponents: .date)
@@ -317,18 +336,25 @@ struct HistoryBackfillView: View {
             HStack {
                 Button(T("查询待处理数量")) {
                     Task {
-                        snapshot = await tools.perform("history_preview", ["mailbox_id": mailbox, "from": store.dayString(from), "to": store.dayString(to)]) ?? [:]
+                        snapshot = await tools.perform("history_preview", HistoryBackfillOptions.previewRequest(
+                            mailbox: mailbox, from: store.dayString(from), to: store.dayString(to),
+                            applyMailPolicy: options.applyMailPolicy
+                        )) ?? [:]
                         let previewUIDs = Set(candidates.map(\.uid))
                         selectedUIDs = previewUIDs
-                        senderSearch = ""
+                        candidateSearch = ""
                     }
                 }.disabled(tools.busy || mailbox.isEmpty || from > to)
                 if snapshot["count"] is Int {
                     Text(T("待处理邮件") + ": \(selectedUIDs.count) / \(candidates.count)")
                 }
             }
+            if snapshot["count"] is Int && options.applyMailPolicy {
+                Text(T("按邮件屏蔽规则跳过：") + String(snapshot["policy_skipped"] as? Int ?? 0))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if !candidates.isEmpty {
-                TextField(T("仅搜索发件人"), text: $senderSearch)
+                TextField(T("按邮件标题或发件人搜索"), text: $candidateSearch)
                     .textFieldStyle(.roundedBorder)
                     .disabled(tools.busy)
                 ScrollView {
@@ -369,6 +395,7 @@ struct HistoryBackfillView: View {
             .onChange(of: from) { _, _ in invalidatePreview() }
             .onChange(of: to) { _, _ in invalidatePreview() }
             .onChange(of: mailbox) { _, _ in invalidatePreview() }
+            .onChange(of: options.applyMailPolicy) { _, _ in invalidatePreview() }
             .confirmationDialog(T("将调用 AI 处理查询到的历史邮件，可能产生费用。"), isPresented: $confirm, titleVisibility: .visible) {
                 Button(T("确认补总结")) {
                     Task {
@@ -387,7 +414,7 @@ struct HistoryBackfillView: View {
     private func invalidatePreview() {
         snapshot = [:]
         selectedUIDs = []
-        senderSearch = ""
+        candidateSearch = ""
     }
 }
 

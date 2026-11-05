@@ -25,6 +25,17 @@ sealed partial class MainWindow
         foreach (var property in payload.EnumerateObject()) data[property.Name] = property.Value;
         return bridge.Call("assistant_features", data);
     }
+    static bool HistoryCandidateMatches(string query, string sender, string subject)
+    {
+        query = query.Trim();
+        return query.Length == 0 ||
+            sender.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+            subject.Contains(query, StringComparison.CurrentCultureIgnoreCase);
+    }
+    static CheckBox HistoryPolicyControl() =>
+        new() { Content = L.T("应用邮件屏蔽规则"), IsChecked = true };
+    static object HistoryPreviewRequest(string start, string end, string mailboxId, bool applyMailPolicy) =>
+        new { start, end, mailbox_id = mailboxId, apply_mail_policy = applyMailPolicy };
     static string JsonText(JsonElement item, string key, string fallback = "") =>
         item.TryGetProperty(key, out var value) && value.ValueKind != JsonValueKind.Null ? value.ValueKind == JsonValueKind.String ? value.GetString() ?? fallback : value.ToString() : fallback;
     void LoadNotificationPreferences(JsonElement config)
@@ -59,7 +70,7 @@ sealed partial class MainWindow
     Border NotificationSettingsCard() => Card(Stack(Heading(L.T("系统通知与免打扰")), notificationsSetting, quietEnabled,
         Row(quietStart, quietEnd), Note(L.T("使用电脑本地时间，可跨午夜。开始和结束相同表示全天免打扰；邮件仍会检查并保存报告，静默通知不会补发。"))));
     Border HistoryBackfillCard() => Card(Stack(Heading(L.T("历史邮件补总结")),
-        Note(L.T("按日期补总结已有邮件；先查看数量，确认后才加入队列。会跳过已总结邮件，并忽略发件人黑名单／白名单规则，同时忽略“不总结垃圾邮件”设置。")),
+        Note(L.T("按日期补总结已有邮件；先查看数量，确认后才加入队列。会跳过已总结邮件。")),
         Action(L.T("补总结历史邮件"), BackfillHistory)));
     Border DiagnosticsCard() => Card(Stack(Heading(L.T("诊断包")),
         Action(L.T("导出诊断包"), ExportDiagnostics),
@@ -70,6 +81,20 @@ sealed partial class MainWindow
 
     void AssistantToolsSelfTest(Action<bool, string> check)
     {
+        var subjectOnly = HistoryCandidateMatches("budget", "alice@example.invalid", "Budget review");
+        var senderOnly = HistoryCandidateMatches("BUDGET", "budget@example.invalid", "Quarterly update");
+        var noMatch = HistoryCandidateMatches("budget", "alice@example.invalid", "Quarterly update");
+        var defaultPolicy = HistoryPolicyControl();
+        using var defaultPolicyRequest = JsonDocument.Parse(JsonSerializer.Serialize(
+            HistoryPreviewRequest("2026-10-01", "2026-10-31", "fixture", defaultPolicy.IsChecked ?? false)));
+        using var disabledPolicyRequest = JsonDocument.Parse(JsonSerializer.Serialize(
+            HistoryPreviewRequest("2026-10-01", "2026-10-31", "fixture", false)));
+        check(subjectOnly && senderOnly && !noMatch,
+            "Historical search matches subject-only and sender-only terms and rejects non-matches");
+        check(defaultPolicy.IsChecked == true &&
+            defaultPolicyRequest.RootElement.GetProperty("apply_mail_policy").GetBoolean() &&
+            !disabledPolicyRequest.RootElement.GetProperty("apply_mail_policy").GetBoolean(),
+            "Historical preview policy defaults on and sends both enabled and disabled states");
         using (var usage = JsonDocument.Parse("{\"input_tokens\":3067,\"output_tokens\":627,\"estimated_cost\":null}")) {
             check(UsageNumber(usage.RootElement, "input_tokens") == "3,067" && UsageNumber(usage.RootElement, "output_tokens") == "627",
                 "Usage displays separately labelled input and output counts with thousands separators");
@@ -135,6 +160,11 @@ sealed partial class MainWindow
         var message = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         JsonElement snapshot = default;
         var senderSearch = new TextBox { PlaceholderText = L.T("搜索邮件标题或发件人"), Visibility = Visibility.Collapsed };
+        var applyMailPolicy = HistoryPolicyControl();
+        var policyNote = new TextBlock {
+            Text = L.T("规则包括发件人黑名单／白名单和“不总结垃圾邮件”；关闭后本次补总结包含所有未总结邮件。"),
+            TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .75
+        };
         var candidatesPanel = new StackPanel { Spacing = 3 };
         var candidatesScroll = new ScrollViewer { MaxHeight = 300, Content = candidatesPanel, Visibility = Visibility.Collapsed };
         var selectedUids = new System.Collections.Generic.HashSet<long>();
@@ -146,13 +176,14 @@ sealed partial class MainWindow
         {
             var query = senderSearch.Text.Trim();
             foreach (var row in candidateRows)
-                row.Check.Visibility = query.Length == 0 ||
-                    row.Sender.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
-                    row.Subject.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                row.Check.Visibility = HistoryCandidateMatches(query, row.Sender, row.Subject)
                     ? Visibility.Visible : Visibility.Collapsed;
             var selectedCount = candidateRows.Count(row => selectedUids.Contains(row.Uid));
             message.Text = L.T("待总结：") + selectedCount + " / " + candidateRows.Count + "\n" +
                 L.T("已总结：") + JsonText(snapshot, "already_summarized", "0") +
+                ((applyMailPolicy.IsChecked ?? false)
+                    ? "\n" + L.T("按邮件屏蔽规则跳过：") + JsonText(snapshot, "policy_skipped", "0")
+                    : "") +
                 "\n" + L.T("确认后会消耗所选 AI 的额度；暂停监听时只加入队列，开始监听后处理。");
             dialog.IsPrimaryButtonEnabled = selectedCount > 0;
         }
@@ -163,6 +194,7 @@ sealed partial class MainWindow
             senderSearch.Visibility = candidatesScroll.Visibility = Visibility.Collapsed;
         }
         start.DateChanged += (_, _) => Invalidate(); end.DateChanged += (_, _) => Invalidate();
+        applyMailPolicy.Toggled += (_, _) => Invalidate();
         senderSearch.TextChanged += (_, _) => { if (snapshot.ValueKind == JsonValueKind.Object) RefreshCandidateSelection(); };
         previewButton.Click += async (_, _) => {
             dialog.IsPrimaryButtonEnabled = false; previewButton.IsEnabled = false;
@@ -172,8 +204,9 @@ sealed partial class MainWindow
                 if (!start.Date.HasValue || !end.Date.HasValue || start.Date.Value.Date > end.Date.Value.Date)
                     throw new InvalidOperationException(L.T("请选择有效的起始和结束日期。"));
                 message.Text = L.T("正在读取邮件数量，不会调用 AI…");
-                snapshot = await Assistant("history_preview", new { start = start.Date.Value.ToString("yyyy-MM-dd"),
-                    end = end.Date.Value.ToString("yyyy-MM-dd"), mailbox_id = SelectedMailboxDraftId });
+                snapshot = await Assistant("history_preview", HistoryPreviewRequest(
+                    start.Date.Value.ToString("yyyy-MM-dd"), end.Date.Value.ToString("yyyy-MM-dd"),
+                    SelectedMailboxDraftId, applyMailPolicy.IsChecked ?? false));
                 if ((snapshot.TryGetProperty("messages", out var items) || snapshot.TryGetProperty("candidates", out items)) &&
                     items.ValueKind == JsonValueKind.Array) {
                     foreach (var item in items.EnumerateArray()) {
@@ -197,14 +230,17 @@ sealed partial class MainWindow
                 if (hasCandidates) RefreshCandidateSelection();
                 else {
                     message.Text = L.T("待处理邮件列表为空，请重新查询日期范围。") + "\n" +
-                        L.T("已总结：") + JsonText(snapshot, "already_summarized", "0");
+                        L.T("已总结：") + JsonText(snapshot, "already_summarized", "0") +
+                        ((applyMailPolicy.IsChecked ?? false)
+                            ? "\n" + L.T("按邮件屏蔽规则跳过：") + JsonText(snapshot, "policy_skipped", "0")
+                            : "");
                     dialog.IsPrimaryButtonEnabled = false;
                 }
             } catch (Exception error) { message.Text = L.T(error.Message); }
             finally { previewButton.IsEnabled = true; }
         };
         dialog.Content = Stack(Note(L.T("针对当前选中的邮箱。日期按邮箱服务器的收件日期筛选。")),
-            Row(start, end), previewButton, senderSearch, candidatesScroll, message);
+            Row(start, end), applyMailPolicy, policyNote, previewButton, senderSearch, candidatesScroll, message);
         if (await dialog.ShowAsync() == ContentDialogResult.Primary && snapshot.ValueKind == JsonValueKind.Object) {
             var chosen = candidateRows.Where(row => selectedUids.Contains(row.Uid)).Select(row => row.Uid).ToArray();
             if (chosen.Length == 0) return;

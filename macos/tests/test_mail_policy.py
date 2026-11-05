@@ -64,6 +64,15 @@ class MacPolicyTests(unittest.TestCase):
         self.assertEqual(policy_status(self.root)['count'],0)
         # analyze is mocked here; production analyze owns the reader ack.
         self.assertEqual(len(self.acks),0)
+    def test_historical_worker_applies_policy_when_requested(self):
+        self.block()
+        historical = dict(self.message, historical=True, apply_mail_policy=True)
+        self.pending.write_text(json.dumps([historical]))
+        with patch.object(self.daemon,'run_reader',self.reader), patch.object(self.daemon,'analyze') as analyze:
+            self.assertEqual(self.daemon.check_profiles()[0],[])
+            analyze.assert_not_called()
+        self.assertEqual(len(self.acks),1)
+        self.assertEqual(policy_status(self.root)['count'],1)
     def test_queue_uses_cached_mail_and_no_ack_for_manual_original(self):
         self.block(); intercept(self.root,self.message,'account-a','7',2)
         record=policy_status(self.root)['records'][0]; policy_summarize_records(self.root,[record['id']])

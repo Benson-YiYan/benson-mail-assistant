@@ -701,7 +701,7 @@
     "保存通知设置": "Save notification settings",
     "历史邮件补总结": "Summarize historical email",
     "诊断包": "Diagnostics",
-    "按日期补总结已有邮件；先查看数量，确认后才加入队列。会跳过已总结邮件，并忽略发件人黑名单／白名单规则，同时忽略“不总结垃圾邮件”设置。": "Summarize existing mail by date. Preview the count before confirming the queue. Already summarized mail is skipped. Sender blocklist, allowlist, and Do not summarize spam rules are ignored.",
+    "按日期补总结已有邮件；先查看数量，确认后才加入队列。会跳过已总结邮件，并忽略发件人黑名单／白名单规则，同时忽略“不总结垃圾邮件”设置。": "Summarize existing mail by date. Preview the count before confirming the queue. Already summarized mail is skipped.",
     "补总结历史邮件": "Summarize past emails",
     "导出诊断包": "Export diagnostics",
     "诊断包仅包含脱敏的运行信息，不包含密钥、邮件正文或附件。": "The diagnostic archive contains only sanitized runtime information, without keys, email bodies or attachments.",
@@ -712,12 +712,11 @@
     "打开文件夹": "Open folder",
     "查看待处理数量": "Preview pending count",
     "搜索邮件标题或发件人": "Search email subjects or senders",
-    "待总结：": "Selected for summary: ",
+    "待总结：": "Pending summaries: ",
     "待处理邮件列表为空，请重新查询日期范围。": "No pending messages were found. Preview the date range again.",
     "确认加入总结队列": "Confirm summary queue",
     "请选择有效的起始和结束日期。": "Choose valid start and end dates.",
     "正在读取邮件数量，不会调用 AI…": "Reading the email count without calling AI…",
-    "待总结：": "Pending summaries: ",
     "已总结：": "Already summarized: ",
     "确认后会消耗所选 AI 的额度；暂停监听时只加入队列，开始监听后处理。": "Processing will use your selected AI quota. While monitoring is paused, mail stays queued until monitoring starts.",
     "针对当前选中的邮箱。日期按邮箱服务器的收件日期筛选。": "Applies to the selected mailbox. Dates are filtered using the mail server's received dates.",
@@ -844,7 +843,11 @@
     "是否现在安装并重启？": "Install and restart now?",
     "更新已下载并通过校验。安装时将退出应用，完成后重新打开。": "The update has been downloaded and verified. The app will close for installation and reopen when finished.",
     "安装并重启": "Install and restart",
-    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Download complete and SHA256 verified. Confirm to close the app and open the installer."
+    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Download complete and SHA256 verified. Confirm to close the app and open the installer.",
+    "应用邮件屏蔽规则": "Apply mail blocking rules",
+    "规则包括发件人黑名单／白名单和“不总结垃圾邮件”；关闭后本次补总结包含所有未总结邮件。": "Includes sender blocklist/allowlist and the Do not summarize spam setting. Turn it off to include all unsummarized mail in this backfill.",
+    "按邮件屏蔽规则跳过：": "Skipped by mail rules: ",
+    "按邮件标题或发件人搜索": "Search by subject or sender"
   },
   "templates": [
     {

@@ -701,7 +701,7 @@
     "保存通知设置": "Guardar ajustes de notificaciones",
     "历史邮件补总结": "Resumir correos históricos",
     "诊断包": "Diagnóstico",
-    "按日期补总结已有邮件；先查看数量，确认后才加入队列。会跳过已总结邮件，并忽略发件人黑名单／白名单规则，同时忽略“不总结垃圾邮件”设置。": "Resume correos anteriores por fecha. Consulta la cantidad antes de confirmar la cola. Se omiten los correos ya resumidos. Se ignoran las listas de bloqueo, permitidos y correo no deseado.",
+    "按日期补总结已有邮件；先查看数量，确认后才加入队列。会跳过已总结邮件，并忽略发件人黑名单／白名单规则，同时忽略“不总结垃圾邮件”设置。": "Resume correos anteriores por fecha. Consulta la cantidad antes de confirmar la cola. Se omiten los correos ya resumidos.",
     "补总结历史邮件": "Resumir correos anteriores",
     "导出诊断包": "Exportar diagnóstico",
     "诊断包仅包含脱敏的运行信息，不包含密钥、邮件正文或附件。": "El archivo de diagnóstico solo contiene información técnica anonimizada, sin claves, cuerpos de correo ni archivos adjuntos.",
@@ -712,12 +712,11 @@
     "打开文件夹": "Abrir carpeta",
     "查看待处理数量": "Ver cantidad pendiente",
     "搜索邮件标题或发件人": "Buscar por asunto o remitente",
-    "待总结：": "Seleccionados para resumir: ",
+    "待总结：": "Resúmenes pendientes: ",
     "待处理邮件列表为空，请重新查询日期范围。": "No se encontraron mensajes pendientes. Vuelve a consultar el intervalo de fechas.",
     "确认加入总结队列": "Confirmar cola de resúmenes",
     "请选择有效的起始和结束日期。": "Selecciona fechas de inicio y fin válidas.",
     "正在读取邮件数量，不会调用 AI…": "Consultando la cantidad de correos sin llamar a la IA…",
-    "待总结：": "Resúmenes pendientes: ",
     "已总结：": "Ya resumidos: ",
     "确认后会消耗所选 AI 的额度；暂停监听时只加入队列，开始监听后处理。": "El procesamiento consumirá la cuota de la IA seleccionada. Si la supervisión está pausada, el correo queda en cola hasta que se active.",
     "针对当前选中的邮箱。日期按邮箱服务器的收件日期筛选。": "Se aplica al buzón seleccionado. Las fechas se filtran según la fecha de recepción del servidor.",
@@ -844,7 +843,11 @@
     "是否现在安装并重启？": "¿Instalar y reiniciar ahora?",
     "更新已下载并通过校验。安装时将退出应用，完成后重新打开。": "La actualización se ha descargado y verificado. La aplicación se cerrará para instalar y se abrirá al terminar.",
     "安装并重启": "Instalar y reiniciar",
-    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Descarga completa y SHA256 verificado. Confirma para cerrar la aplicación y abrir el instalador."
+    "下载完成，SHA256 校验通过。确认后将退出当前程序并打开安装程序。": "Descarga completa y SHA256 verificado. Confirma para cerrar la aplicación y abrir el instalador.",
+    "应用邮件屏蔽规则": "Aplicar las reglas de correo",
+    "规则包括发件人黑名单／白名单和“不总结垃圾邮件”；关闭后本次补总结包含所有未总结邮件。": "Incluye las listas de bloqueo y permitidos y el ajuste No resumir correo no deseado. Desactívalo para incluir todos los correos aún sin resumir.",
+    "按邮件屏蔽规则跳过：": "Omitidos por las reglas de correo: ",
+    "按邮件标题或发件人搜索": "Buscar por asunto o remitente"
   },
   "templates": [
     {

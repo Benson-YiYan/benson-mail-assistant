@@ -374,7 +374,7 @@ def check_profiles():
                         break
                     from mail_policy import intercept
                     if intercept(BASE, message, message.get('mailbox_key', ACTIVE_ID), message.get('uidvalidity', ''),
-                                 message['uid'], bypass_sender_rules=bool(message.get('historical'))):
+                                 message['uid'], bypass_sender_rules=bool(message.get('historical')) and not bool(message.get('apply_mail_policy', False))):
                         run_reader('ack', str(message['uid']))
                         continue
                     if duplicate_all_folder_message(message):

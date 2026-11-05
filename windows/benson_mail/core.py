@@ -374,10 +374,12 @@ class Service:
                 self.callback({'status':'运行中','detail':_t('已记录当前邮件位置，等待新来信')}); return
             from .assistant_tools import consume_history
             from .mailbox_config import mailbox_id
-            def queue_history(uids):
+            def queue_history(uids, policies):
                 for uid in uids:
                     if uid in available_uids:
-                        self.state['pending'].setdefault(str(uid), {})['historical'] = True
+                        job = self.state['pending'].setdefault(str(uid), {})
+                        job['historical'] = True
+                        job['apply_mail_policy'] = bool(policies.get(str(uid), False))
                 self.persist()
             available_uids = set(uids)
             consume_history(self.root.parent, mailbox_id(self.config), validity, queue_history)
@@ -417,7 +419,7 @@ class Service:
                         seen.add(message_id)
                 from .mail_policy import intercept
                 if intercept(self.root.parent, job['message'], self.identity, validity, key,
-                             bypass_sender_rules=bool(job.get('historical'))):
+                             bypass_sender_rules=bool(job.get('historical')) and not bool(job.get('apply_mail_policy', False))):
                     del pending[key]; self.persist()
                     self.callback({'policy_changed': True})
                     continue

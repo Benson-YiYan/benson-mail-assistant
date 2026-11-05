@@ -21,7 +21,7 @@ from urllib.parse import quote, unquote, urlsplit
 
 HOME = Path.home()
 APP = HOME / "Library/Application Support/BensonMailUpdates"
-DOWNLOADS = HOME / "Documents/CodexMade"
+DOWNLOADS = HOME / "Documents/CodexMade/MailAssistant/release-assets"
 TUNNEL = APP / "runtime/cloudflared"
 REPOSITORY = "Benson-YiYan/benson-mail-assistant"
 COMPATIBILITY_REPOSITORY = "Benson-YiYan/benson-mail-updates"

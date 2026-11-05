@@ -11,6 +11,12 @@ import server
 
 
 class ReleaseServerTests(unittest.TestCase):
+    def test_release_files_live_in_the_mail_assistant_project(self):
+        self.assertEqual(
+            server.DOWNLOADS,
+            server.HOME / "Documents/CodexMade/MailAssistant/release-assets",
+        )
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.directory = Path(self.temporary.name)

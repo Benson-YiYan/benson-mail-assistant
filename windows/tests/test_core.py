@@ -38,6 +38,19 @@ class CoreTests(unittest.TestCase):
         def fail(*args): raise RuntimeError('fake')
         with self.assertRaises(RuntimeError): self.service(fail).check_once()
         self.service().check_once(); self.assertEqual(len(self.calls),1)
+    def test_historical_job_policy_flag_controls_worker_intercept(self):
+        from benson_mail.mail_policy import policy_save, policy_status
+        policy_save(self.root, {'mode':'blacklist','addresses':['demo@example.com'],'skip_spam':False})
+        self.mb.messages[2] = mail('Historical')
+        state_path = self.root/'state'/f'{state_identity(self.config)}.json'
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        for apply_policy, expected_calls, expected_blocked in ((True,0,1),(False,1,1)):
+            state_path.write_text(json.dumps({'validity':'1','high':2,'pending':{
+                '2': {'historical':True,'apply_mail_policy':apply_policy}
+            }}))
+            self.service().check_once()
+            self.assertEqual(len(self.calls), expected_calls)
+            self.assertEqual(policy_status(self.root)['count'], expected_blocked)
     def test_cache_export_retry(self):
         s=self.service(); s.check_once(); self.mb.messages[2]=mail()
         import unittest.mock as mock
