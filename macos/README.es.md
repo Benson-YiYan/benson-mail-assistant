@@ -27,7 +27,7 @@ El primer inicio elige chino para un sistema chino, español para uno español e
 ## Navegación e informes
 
 - **Informes de correo:** selecciona a la izquierda y lee a la derecha; copia el Markdown original, abre el archivo, busca y filtra por fechas, remitente y adjuntos.
-- **Correo y comprobaciones:** gestiona cuentas, prueba conexiones, ajusta intervalo y controla la supervisión. Pausa y espera al fin de la tarea antes de cambiar conexiones.
+- **Buzón y comprobaciones:** gestiona cuentas, prueba conexiones, ajusta intervalo y controla la supervisión. Pausa y espera al fin de la tarea antes de cambiar conexiones.
 - **Servicio de IA:** elige, configura y prueba la IA.
 - **Configuración general:** idioma, carpeta, inicio de sesión, actualizaciones y desinstalación.
 - **Ayuda:** guía de uso, autorización del correo, actualizaciones y Acerca de.
