@@ -40,19 +40,62 @@ enum SenderPolicySelfTest {
         guard policy.loaded, policy.records.count == 2, policy.records.map(\.sender).contains("blocked@example.invalid") else {
             throw Failure("local policy status did not load")
         }
+        guard policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders,
+              policy.draft.spam_folder_options == SenderPolicyRule.defaultSpamFolders else {
+            throw Failure("built-in spam-folder names were not enabled by default")
+        }
+        let legacyRule = Data(#"{"mode":"blacklist","addresses":[],"skip_spam":true,"spam_folders":["Legacy Custom"]}"#.utf8)
+        let migratedRule = try JSONDecoder().decode(SenderPolicyRule.self, from: legacyRule)
+        guard migratedRule.spam_folder_options == ["Legacy Custom"],
+              migratedRule.spam_folders == ["Legacy Custom"] else {
+            throw Failure("legacy mail settings did not migrate folder names and enabled state")
+        }
+        let optionsOnly = try JSONDecoder().decode(SenderPolicyRule.self,
+            from: Data(#"{"spam_folder_options":["Options Only"]}"#.utf8))
+        guard optionsOnly.spam_folder_options == ["Options Only"],
+              optionsOnly.spam_folders == ["Options Only"] else {
+            throw Failure("folder-options-only settings did not default listed names to enabled")
+        }
+        policy.setSpamFolderEnabled("Spam", enabled: false)
+        guard policy.dirty, !policy.draft.spam_folders.contains("Spam"),
+              policy.draft.spam_folder_options.contains("Spam") else {
+            throw Failure("unchecking a spam folder did not stage an enabled-state change")
+        }
+        await policy.refresh()
+        guard policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders.filter({ $0 != "Spam" }),
+              policy.dirty else {
+            throw Failure("refresh discarded an unsaved spam-folder enabled state")
+        }
+        await policy.save()
+        guard !policy.dirty, backend.policy.spam_folder_options == SenderPolicyRule.defaultSpamFolders,
+              !backend.policy.spam_folders.contains("Spam") else {
+            throw Failure("saving an unchecked spam folder did not persist its enabled state separately")
+        }
+        policy.setSpamFolderEnabled("Spam", enabled: true)
+        await policy.save()
         policy.draft.mode = "whitelist"; policy.draft.skip_spam = true
         guard policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders,
+              policy.draft.spam_folder_options == SenderPolicyRule.defaultSpamFolders,
               policy.addSpamFolder("Custom Junk"),
-              policy.draft.spam_folders.last == "Custom Junk" else {
+              policy.draft.spam_folders.last == "Custom Junk",
+              policy.draft.spam_folder_options.last == "Custom Junk" else {
             throw Failure("spam folder defaults or add operation failed")
         }
         policy.removeSpamFolders(["Custom Junk"])
-        guard policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders else {
+        guard policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders,
+              policy.draft.spam_folder_options == SenderPolicyRule.defaultSpamFolders else {
             throw Failure("bulk spam folder removal failed")
         }
         guard policy.addSpamFolder("Custom Junk") else { throw Failure("custom spam folder could not be re-added") }
+        policy.removeSpamFolder("Custom Junk")
+        guard !policy.draft.spam_folder_options.contains("Custom Junk"),
+              !policy.draft.spam_folders.contains("Custom Junk") else {
+            throw Failure("single-folder remove left the spam folder enabled or listed")
+        }
+        guard policy.addSpamFolder("Custom Junk") else { throw Failure("custom spam folder could not be re-added after single removal") }
         policy.restoreSpamFolders()
-        guard policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders else {
+        guard policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders,
+              policy.draft.spam_folder_options == SenderPolicyRule.defaultSpamFolders else {
             throw Failure("restore spam folder defaults failed")
         }
         guard policy.addSpamFolder("Custom Junk") else { throw Failure("custom spam folder could not be added after reset") }
@@ -60,13 +103,15 @@ enum SenderPolicySelfTest {
               policy.draft.addresses == ["user@example.invalid", "other@example.invalid"] else { throw Failure("sender addresses were not normalized and deduplicated") }
         let draft = policy.draft
         guard !policy.addAddresses(["not-an-address"]), policy.draft == draft, !policy.error.isEmpty else { throw Failure("invalid address altered the rule draft") }
+        let persistedBeforeRefresh = backend.policy
         await policy.refresh()
-        guard policy.draft == draft, policy.dirty, backend.calls.allSatisfy({ $0.action == "status" }) else { throw Failure("refresh discarded an unsaved draft or wrote rules") }
+        guard policy.draft == draft, policy.dirty, backend.policy == persistedBeforeRefresh,
+              backend.calls.last?.action == "status" else { throw Failure("refresh discarded an unsaved draft or wrote rules") }
         var persisted: [Bool] = []
         policy.policyDidSave = { _, save in persisted.append(save) }
         await policy.save()
         guard backend.policy == draft, policy.saved == draft, !policy.dirty, persisted.last == true else { throw Failure("saving mail rules lost mode, addresses, spam option or persistence callback") }
-        checks.append("policy status and save contract; spam folder defaults, add, bulk remove and restore; case-insensitive exact addresses deduplicated; invalid input and refresh preserve unsaved draft; save requests configuration persistence")
+        checks.append("policy status and save contract; spam folders default checked, enabled states stage and persist independently from removable names, refresh preserves dirty state, add/bulk remove/restore; case-insensitive exact addresses deduplicated; invalid input and refresh preserve unsaved draft")
         await policy.summarizeRecords(["blocked-one"])
         guard backend.calls.last?.action == "summarize_records", backend.calls.last?.ids == ["blocked-one"],
               policy.records.first(where: { $0.id == "blocked-one" })?.state == "queued",
@@ -97,10 +142,21 @@ enum SenderPolicySelfTest {
         let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 900, height: 920),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Sender policy fixture"
-        window.contentView = NSHostingView(rootView: ScrollView { SenderPolicyView(store: store, policy: policy, expanded: true).padding(20) })
+        store.settings.mail_policy = policy.draft
+        let staged = SettingsDraft(store: store)
+        store.settings = originalSettings
+        window.contentView = NSHostingView(rootView: ScrollView { SenderPolicyView(store: store, policy: policy, expanded: true, staged: staged).padding(20) })
         window.makeKeyAndOrderFront(nil)
         defer { window.orderOut(nil) }
         try await Task.sleep(nanoseconds: 250_000_000)
+        policy.setSpamFolderEnabled("Junk", enabled: false)
+        guard staged.dirty(.mailbox), !staged.value.mail_policy.spam_folders.contains("Junk") else {
+            throw Failure("mounted spam-folder toggle did not mark the mailbox settings draft dirty")
+        }
+        policy.setSpamFolderEnabled("Junk", enabled: true)
+        guard !staged.dirty(.mailbox) else {
+            throw Failure("restoring a spam-folder toggle to its saved value left the mailbox page dirty")
+        }
         try AppSelfTest.capture(window, to: output.appendingPathComponent("sender-policy-chinese.png"))
         for (code, expected) in [("en", "Blocklist"), ("es", "Lista de bloqueo")] {
             // Simulate an existing downloaded pack that predates all new policy labels.
@@ -118,7 +174,10 @@ enum SenderPolicySelfTest {
             AppLanguage.shared.select(code)
             guard T("黑名单") == expected, T("不总结垃圾邮件（部分邮箱可能不支持）") != "不总结垃圾邮件（部分邮箱可能不支持）",
                   T("恢复默认") != "恢复默认",
-                  T("开启上方选项后，按完整文件夹名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，请移除以避免误判。") != "开启上方选项后，按完整文件夹名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，请移除以避免误判。",
+                  T("批量删除邮箱文件夹") != "批量删除邮箱文件夹",
+                  T("删除所选文件夹") != "删除所选文件夹",
+                  T("勾选的文件夹按完整名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，可移除该名称避免误判。") != "勾选的文件夹按完整名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，可移除该名称避免误判。",
+                  T("勾选的文件夹按完整名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，可移除该名称避免误判。") != "勾选的文件夹按完整名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，可移除该名称避免误判。",
                   T("仅删除本地跳过记录，不会删除邮箱中的邮件。总结一次不会把发件人移出名单。") != "仅删除本地跳过记录，不会删除邮箱中的邮件。总结一次不会把发件人移出名单。",
                   !T("请输入完整的邮箱地址：bad-address").contains("请输入完整"),
                   !T("AI 接口DNS 解析失败，请检查域名和 DNS 设置。\n具体原因：gaierror: synthetic failure").contains("DNS 解析失败") else {

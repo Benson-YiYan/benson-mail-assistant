@@ -49,7 +49,7 @@ class BridgeTests(unittest.TestCase):
         self.controller.config['output_dir'] = str(day.parent)
         result = self.controller.command('policy_save', {'mode': 'whitelist', 'addresses': ['Benson <allowed@example.invalid>'], 'skip_spam': True})
         expected = {'mode': 'whitelist', 'addresses': ['allowed@example.invalid'], 'skip_spam': True,
-                    'spam_folders': DEFAULT_SPAM_FOLDERS}
+                    'spam_folders': DEFAULT_SPAM_FOLDERS, 'spam_folder_options': DEFAULT_SPAM_FOLDERS}
         self.assertEqual(result['policy'], expected)
         self.assertEqual(self.controller.config['mail_policy'], expected)
         self.assertEqual(service.config['mail_policy'], expected)

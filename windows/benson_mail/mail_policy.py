@@ -15,7 +15,8 @@ import threading
 
 DEFAULT_SPAM_FOLDERS = ['Spam', 'Junk', 'Junk Email', 'Junk E-mail', '[Gmail]/Spam', '垃圾邮件', '垃圾箱']
 DEFAULT = {'mode': 'blacklist', 'addresses': [], 'skip_spam': False,
-           'spam_folders': DEFAULT_SPAM_FOLDERS}
+           'spam_folders': DEFAULT_SPAM_FOLDERS,
+           'spam_folder_options': DEFAULT_SPAM_FOLDERS}
 _THREAD_LOCK = threading.RLock()
 
 def sender_address(value):
@@ -35,22 +36,30 @@ def validate_policy(value):
         if address not in addresses: addresses.append(address)
     skip = value.get('skip_spam', False)
     if not isinstance(skip, bool): raise ValueError(_t('垃圾邮件选项无效。'))
-    raw_folders = value.get('spam_folders', DEFAULT_SPAM_FOLDERS)
-    if not isinstance(raw_folders, list) or len(raw_folders) > 500:
+    raw_folders = value.get('spam_folders', value.get('spam_folder_options', DEFAULT_SPAM_FOLDERS))
+    raw_options = value.get('spam_folder_options', raw_folders)
+    if not isinstance(raw_folders, list) or len(raw_folders) > 500 or not isinstance(raw_options, list) or len(raw_options) > 500:
         raise ValueError(_t('垃圾邮件文件夹列表无效。'))
-    spam_folders = []
-    seen_folders = set()
-    for item in raw_folders:
-        if not isinstance(item, str):
-            raise ValueError(_t('垃圾邮件文件夹列表无效。'))
-        folder = item.strip()
-        if not folder or len(folder) > 255 or any(ord(char) < 32 or ord(char) == 127 for char in folder):
-            raise ValueError(_t('垃圾邮件文件夹列表无效。'))
-        folded = folder.casefold()
-        if folded not in seen_folders:
-            spam_folders.append(folder)
-            seen_folders.add(folded)
-    return {'mode': mode, 'addresses': addresses, 'skip_spam': skip, 'spam_folders': spam_folders}
+    def normalize_folders(items):
+        folders = []
+        seen = set()
+        for item in items:
+            if not isinstance(item, str):
+                raise ValueError(_t('垃圾邮件文件夹列表无效。'))
+            folder = item.strip()
+            if not folder or len(folder) > 255 or any(ord(char) < 32 or ord(char) == 127 for char in folder):
+                raise ValueError(_t('垃圾邮件文件夹列表无效。'))
+            folded = folder.casefold()
+            if folded not in seen:
+                folders.append(folder)
+                seen.add(folded)
+        return folders
+    spam_folder_options = normalize_folders(raw_options)
+    requested_enabled = normalize_folders(raw_folders)
+    enabled = {folder.casefold() for folder in requested_enabled}
+    spam_folders = [folder for folder in spam_folder_options if folder.casefold() in enabled]
+    return {'mode': mode, 'addresses': addresses, 'skip_spam': skip,
+            'spam_folders': spam_folders, 'spam_folder_options': spam_folder_options}
 
 @contextmanager
 def _store(root):

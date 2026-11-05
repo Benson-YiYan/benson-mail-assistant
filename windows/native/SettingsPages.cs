@@ -36,7 +36,8 @@ sealed partial class MainWindow
             ["seconds"] = interval.Text,
             ["mail_policy"] = new { mode = senderPolicyMode.SelectedIndex == 1 ? "whitelist" : "blacklist",
                 addresses = senderPolicyAddressValues.ToArray(), skip_spam = senderPolicySpam.IsOn,
-                spam_folders = senderPolicySpamFolderValues.ToArray() }
+                spam_folders = senderPolicySpamFolderValues.Where(senderPolicySpamFolderEnabled.Contains).ToArray(),
+                spam_folder_options = senderPolicySpamFolderValues.ToArray() }
         };
         if (page == "ai") return new() {
             ["ai_provider"] = provider.SelectedIndex == 1 ? "codex" : provider.SelectedIndex == 2 ? "deepseek_harness" : "api",
@@ -162,6 +163,21 @@ sealed partial class MainWindow
     async Task SettingsPagesSelfTest(Action<bool, string> check)
     {
         await LoadPageDraft("mail");
+        check(senderPolicySpamFolderValues.SequenceEqual(DefaultSpamFolders) &&
+              senderPolicySpamFolderEnabled.SetEquals(DefaultSpamFolders),
+            "Built-in spam-folder names are displayed and enabled by default");
+        var spamRow = senderPolicySpamFolders.Children.Count > 0 ? senderPolicySpamFolders.Children[0] as StackPanel : null;
+        var spamToggle = spamRow != null && spamRow.Children.Count > 0 ? spamRow.Children[0] as CheckBox : null;
+        if (spamToggle != null) {
+            spamToggle.IsChecked = false;
+            check(SettingsDirty("mail") && pageDirtyLabels["mail"].Visibility == Visibility.Visible &&
+                  !senderPolicySpamFolderEnabled.Contains("Spam"),
+                "Unchecking a spam-folder name marks the mail settings page dirty");
+            spamToggle.IsChecked = true;
+            check(!SettingsDirty("mail") && pageDirtyLabels["mail"].Visibility == Visibility.Collapsed &&
+                  senderPolicySpamFolderEnabled.Contains("Spam"),
+                "Restoring the spam-folder checkbox clears the unsaved state");
+        } else check(false, "Spam-folder checkbox is mounted beside the per-row Remove button");
         if (mailboxDrafts.Count == 0) await AddMailboxDraft();
         var before = await bridge.Call("config");
         var configPath = System.IO.Path.Combine(fixture!, "config.json");
@@ -188,12 +204,17 @@ sealed partial class MainWindow
         settingsLeaveFixture = dialog => { promptSeen = dialog.Title?.ToString() == L.T("你有未保存的设置，确定要离开吗？"); return Task.FromResult(ContentDialogResult.None); };
         try { check(!await ConfirmLeaveSettings("mail") && promptSeen && SettingsDirty("mail"), "Cancelling the unsaved-settings prompt preserves all staged edits"); }
         finally { settingsLeaveFixture = null; }
+        senderPolicySpamFolderEnabled.Remove("Spam");
+        RenderSenderPolicySpamFolders(); RefreshSettingsDirty();
         await SaveSettingsPage("mail");
         var saved = await bridge.Call("config");
         check(saved.GetProperty("account").GetString() == "staged-six@example.invalid" && saved.GetProperty("username").GetString() == "staged-login" &&
             saved.GetProperty("mail_folder").GetString() == "Archive" && saved.GetProperty("interval").GetInt32() == 77 &&
-            saved.GetProperty("mail_policy").GetProperty("skip_spam").GetBoolean() && !SettingsDirty("mail"),
-            "The single page Save commits connection, credential, interval and policy together and clears dirty state");
+            saved.GetProperty("mail_policy").GetProperty("skip_spam").GetBoolean() &&
+            !saved.GetProperty("mail_policy").GetProperty("spam_folders").EnumerateArray().Any(item => item.GetString() == "Spam") &&
+            saved.GetProperty("mail_policy").GetProperty("spam_folder_options").EnumerateArray().Any(item => item.GetString() == "Spam") &&
+            !SettingsDirty("mail"),
+            "The single page Save commits connection, credential, interval and enabled spam-folder state together and clears dirty state");
         await Task.Delay(150);
         check(!SettingsDirty("mail") && pageDirtyLabels["mail"].Visibility == Visibility.Collapsed,
             "Queued native field-change events keep the freshly saved mailbox page clean");

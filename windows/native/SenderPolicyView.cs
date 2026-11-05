@@ -22,6 +22,7 @@ sealed partial class MainWindow
     readonly HashSet<string> senderPolicyAddressSelection = new(StringComparer.OrdinalIgnoreCase);
     readonly HashSet<string> senderPolicyRecordSelection = new(StringComparer.Ordinal);
     readonly HashSet<string> senderPolicySpamFolderSelection = new(StringComparer.OrdinalIgnoreCase);
+    readonly HashSet<string> senderPolicySpamFolderEnabled = new(StringComparer.OrdinalIgnoreCase);
     readonly List<string> senderPolicyAddressValues = new();
     readonly List<string> senderPolicySpamFolderValues = new();
     static readonly string[] DefaultSpamFolders = { "Spam", "Junk", "Junk Email", "Junk E-mail", "[Gmail]/Spam", "垃圾邮件", "垃圾箱" };
@@ -110,9 +111,18 @@ sealed partial class MainWindow
         if (policy.TryGetProperty("addresses", out var addresses) && addresses.ValueKind == JsonValueKind.Array)
             senderPolicyAddressValues.AddRange(addresses.EnumerateArray().Select(item => item.GetString() ?? "").Where(item => item.Length > 0));
         senderPolicySpamFolderValues.Clear();
-        if (policy.TryGetProperty("spam_folders", out var spamFolders) && spamFolders.ValueKind == JsonValueKind.Array)
-            senderPolicySpamFolderValues.AddRange(spamFolders.EnumerateArray().Select(item => item.GetString() ?? "").Where(item => item.Length > 0));
-        else senderPolicySpamFolderValues.AddRange(DefaultSpamFolders);
+        senderPolicySpamFolderEnabled.Clear();
+        var hasActiveSpamFolders = policy.TryGetProperty("spam_folders", out var spamFolders) && spamFolders.ValueKind == JsonValueKind.Array;
+        var activeSpamFolders = hasActiveSpamFolders
+            ? spamFolders.EnumerateArray().Select(item => item.GetString() ?? "").Where(item => item.Length > 0).ToArray()
+            : Array.Empty<string>();
+        senderPolicySpamFolderEnabled.UnionWith(activeSpamFolders);
+        if (policy.TryGetProperty("spam_folder_options", out var spamFolderOptions) && spamFolderOptions.ValueKind == JsonValueKind.Array)
+            senderPolicySpamFolderValues.AddRange(spamFolderOptions.EnumerateArray().Select(item => item.GetString() ?? "").Where(item => item.Length > 0));
+        else {
+            senderPolicySpamFolderValues.AddRange(hasActiveSpamFolders ? activeSpamFolders : DefaultSpamFolders);
+            if (!hasActiveSpamFolders) senderPolicySpamFolderEnabled.UnionWith(DefaultSpamFolders);
+        }
         senderPolicyLoaded = true;
         RenderSenderPolicyAddresses(); RenderSenderPolicySpamFolders(); RefreshSenderPolicyLanguage();
     }
@@ -141,11 +151,13 @@ sealed partial class MainWindow
     {
         senderPolicySpamFolders.Children.Clear();
         senderPolicySpamFolderSelection.IntersectWith(senderPolicySpamFolderValues);
+        senderPolicySpamFolderEnabled.IntersectWith(senderPolicySpamFolderValues);
         foreach (var folder in senderPolicySpamFolderValues) {
-            var item = new CheckBox { Content = folder, IsChecked = senderPolicySpamFolderSelection.Contains(folder), FontFamily = MailTypography.Font };
-            item.Checked += (_, _) => senderPolicySpamFolderSelection.Add(folder);
-            item.Unchecked += (_, _) => senderPolicySpamFolderSelection.Remove(folder);
-            senderPolicySpamFolders.Children.Add(item);
+            var enabled = new CheckBox { Content = folder, IsChecked = senderPolicySpamFolderEnabled.Contains(folder), FontFamily = MailTypography.Font };
+            enabled.Checked += (_, _) => { senderPolicySpamFolderEnabled.Add(folder); RefreshSettingsDirty(); };
+            enabled.Unchecked += (_, _) => { senderPolicySpamFolderEnabled.Remove(folder); RefreshSettingsDirty(); };
+            senderPolicySpamFolders.Children.Add(Row(enabled,
+                Action(L.T("移除"), () => RunSenderPolicy(() => RemoveSenderPolicySpamFolder(folder)))));
         }
         if (senderPolicySpamFolderValues.Count == 0) senderPolicySpamFolders.Children.Add(Note(L.T("还没有添加垃圾邮件文件夹。")));
     }
@@ -159,21 +171,46 @@ sealed partial class MainWindow
         var folder = input.Text.Trim();
         if (folder.Length == 0 || folder.Length > 255 || folder.Any(char.IsControl))
             throw new InvalidOperationException(L.T("垃圾邮件文件夹名称无效。"));
-        if (!senderPolicySpamFolderValues.Contains(folder, StringComparer.OrdinalIgnoreCase))
+        if (!senderPolicySpamFolderValues.Contains(folder, StringComparer.OrdinalIgnoreCase)) {
             senderPolicySpamFolderValues.Add(folder);
+            senderPolicySpamFolderEnabled.Add(folder);
+        }
         await SaveSenderPolicy();
     }
 
-    Task RemoveSenderPolicySpamFolders()
+    async Task RemoveSenderPolicySpamFolder(string folder)
     {
-        senderPolicySpamFolderValues.RemoveAll(folder => senderPolicySpamFolderSelection.Contains(folder));
+        senderPolicySpamFolderValues.RemoveAll(item => string.Equals(item, folder, StringComparison.OrdinalIgnoreCase));
+        senderPolicySpamFolderEnabled.Remove(folder);
+        senderPolicySpamFolderSelection.Remove(folder);
+        await SaveSenderPolicy();
+    }
+
+    async Task RemoveSenderPolicySpamFolders()
+    {
+        if (senderPolicySpamFolderValues.Count == 0) return;
+        var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var choices = new StackPanel { Spacing = 4 };
+        foreach (var folder in senderPolicySpamFolderValues) {
+            var item = new CheckBox { Content = folder, FontFamily = MailTypography.Font };
+            item.Checked += (_, _) => selected.Add(folder);
+            item.Unchecked += (_, _) => selected.Remove(folder);
+            choices.Children.Add(item);
+        }
+        var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("批量删除邮箱文件夹"),
+            Content = new ScrollViewer { Content = choices, MaxHeight = 360, MinWidth = 340 },
+            PrimaryButtonText = L.T("删除所选文件夹"), CloseButtonText = L.T("取消"), DefaultButton = ContentDialogButton.Close };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary || selected.Count == 0) return;
+        senderPolicySpamFolderValues.RemoveAll(folder => selected.Contains(folder));
+        senderPolicySpamFolderEnabled.ExceptWith(selected);
         senderPolicySpamFolderSelection.Clear();
-        return SaveSenderPolicy();
+        await SaveSenderPolicy();
     }
 
     Task RestoreSenderPolicySpamFolders()
     {
         senderPolicySpamFolderValues.Clear(); senderPolicySpamFolderValues.AddRange(DefaultSpamFolders);
+        senderPolicySpamFolderEnabled.Clear(); senderPolicySpamFolderEnabled.UnionWith(DefaultSpamFolders);
         senderPolicySpamFolderSelection.Clear();
         return SaveSenderPolicy();
     }
@@ -290,10 +327,12 @@ sealed partial class MainWindow
             senderPolicySpam.IsOn = true;
             senderPolicyAddressValues.Add("allowed@example.invalid");
             senderPolicySpamFolderValues.Add("Custom Junk");
+            senderPolicySpamFolderEnabled.Add("Custom Junk");
             await RestoreSenderPolicySpamFolders();
             check(senderPolicySpamFolderValues.SequenceEqual(DefaultSpamFolders),
                 "Native spam-folder reset restores the built-in defaults without saving the page");
             senderPolicySpamFolderValues.Add("Custom Junk");
+            senderPolicySpamFolderEnabled.Add("Custom Junk");
             var beforeDraft = (await bridge.Call("config")).GetRawText();
             await SaveSenderPolicy();
             check((await bridge.Call("config")).GetRawText() == beforeDraft, "Sender policy controls stage locally until the single mailbox-page Save");
@@ -302,7 +341,8 @@ sealed partial class MainWindow
             check(saved.GetProperty("mail_policy").GetProperty("mode").GetString() == "whitelist" &&
                 saved.GetProperty("mail_policy").GetProperty("skip_spam").GetBoolean() &&
                 saved.GetProperty("mail_policy").GetProperty("addresses")[0].GetString() == "allowed@example.invalid" &&
-                saved.GetProperty("mail_policy").GetProperty("spam_folders").EnumerateArray().Any(item => item.GetString() == "Custom Junk"),
+                saved.GetProperty("mail_policy").GetProperty("spam_folders").EnumerateArray().Any(item => item.GetString() == "Custom Junk") &&
+                saved.GetProperty("mail_policy").GetProperty("spam_folder_options").EnumerateArray().Any(item => item.GetString() == "Custom Junk"),
                 "Native sender controls persist one global allowlist, spam option and custom junk-folder list through the bridge");
             check(senderPolicyExplanation.Text == L.T("白名单：只有名单中的发件人会自动总结。空白名单会跳过所有发件人。"),
                 "Allowlist UI explains that an empty allowlist skips every sender");
@@ -331,6 +371,7 @@ sealed partial class MainWindow
             await bridge.Call("policy_save", originalPolicy);
             senderPolicyRecordSelection.Clear();
             senderPolicySpamFolderSelection.Clear();
+            senderPolicySpamFolderEnabled.Clear();
             await LoadPageDraft("mail");
         }
     }

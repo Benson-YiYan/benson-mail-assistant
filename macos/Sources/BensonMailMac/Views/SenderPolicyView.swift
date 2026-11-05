@@ -4,7 +4,7 @@ import SwiftUI
 private typealias PolicyState<Value> = SwiftUI.State<Value>
 
 private enum SenderPolicySheet: String, Identifiable {
-    case senders, spamFolder
+    case senders, spamFolder, removeSpamFolders
     var id: String { rawValue }
 }
 
@@ -68,35 +68,37 @@ struct SenderPolicyView: View {
             Text(T("仅依据邮箱服务商的垃圾邮件标记或下方文件夹名称；不会凭主题或正文猜测。"))
                 .font(.caption).foregroundStyle(.secondary)
             Text(T("垃圾邮件文件夹")).font(.headline)
-            if policy.draft.spam_folders.isEmpty {
+            if policy.draft.spam_folder_options.isEmpty {
                 Text(T("还没有添加垃圾邮件文件夹。")).font(.callout).foregroundStyle(.secondary)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 7) {
-                        ForEach(policy.draft.spam_folders, id: \.self) { folder in
+                        ForEach(policy.draft.spam_folder_options, id: \.self) { folder in
                             HStack {
-                                Toggle(T("选择文件夹"), isOn: Binding(get: { selectedSpamFolders.contains(folder) }, set: {
-                                    if $0 { selectedSpamFolders.insert(folder) } else { selectedSpamFolders.remove(folder) }
-                                })).labelsHidden().accessibilityLabel(T("选择文件夹") + " " + folder)
-                                Text(folder).textSelection(.enabled)
+                                Toggle(folder, isOn: Binding(get: { policy.draft.spam_folders.contains(folder) }, set: {
+                                    policy.setSpamFolderEnabled(folder, enabled: $0)
+                                })).accessibilityIdentifier("mail-policy-spam-folder-enabled-" + folder)
                                 Spacer()
+                                Button(T("移除"), systemImage: "minus.circle") { policy.removeSpamFolder(folder) }
+                                    .accessibilityLabel(T("移除") + " " + folder)
                             }
                         }
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.frame(maxHeight: 150)
             }
-            Text(T("开启上方选项后，按完整文件夹名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，请移除以避免误判。"))
+            Text(T("勾选的文件夹按完整名称、不区分大小写匹配；规则对所有已添加邮箱生效。普通文件夹同名也会被跳过，可移除该名称避免误判。"))
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button(T("添加邮箱文件夹"), systemImage: "plus") { policy.error = ""; activeSheet = .spamFolder }
                     .accessibilityIdentifier("mail-policy-spam-folder-add")
                 Button(T("批量删除")) {
-                    policy.removeSpamFolders(selectedSpamFolders); selectedSpamFolders.removeAll()
-                }.disabled(selectedSpamFolders.isEmpty)
+                    selectedSpamFolders.removeAll(); activeSheet = .removeSpamFolders
+                }.disabled(policy.draft.spam_folder_options.isEmpty)
                     .accessibilityIdentifier("mail-policy-spam-folder-remove")
                 Spacer()
                 Button(T("恢复默认")) { policy.restoreSpamFolders(); selectedSpamFolders.removeAll() }
-                    .disabled(policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders)
+                    .disabled(policy.draft.spam_folder_options == SenderPolicyRule.defaultSpamFolders &&
+                              policy.draft.spam_folders == SenderPolicyRule.defaultSpamFolders)
                     .accessibilityIdentifier("mail-policy-spam-folder-reset")
             }
             if staged == nil && policy.dirty { Text(T("有未保存的屏蔽规则")).font(.caption).foregroundStyle(.orange) }
@@ -149,6 +151,7 @@ struct SenderPolicyView: View {
             switch sheet {
             case .senders: SenderAddressPicker(policy: policy, candidates: senders)
             case .spamFolder: SpamFolderPicker(policy: policy)
+            case .removeSpamFolders: SpamFolderRemovalPicker(policy: policy, selected: $selectedSpamFolders)
             }
         }
         .task {
@@ -174,7 +177,7 @@ struct SenderPolicyView: View {
         }
         .onChange(of: store.status.last_check) { _, _ in Task { await policy.refresh() } }
         .onChange(of: policy.records.map(\.id)) { _, ids in selected.formIntersection(ids) }
-        .onChange(of: policy.draft.spam_folders) { _, folders in selectedSpamFolders.formIntersection(folders) }
+        .onChange(of: policy.draft.spam_folder_options) { _, folders in selectedSpamFolders.formIntersection(folders) }
     }
     private func reason(_ record: SkippedMailRecord) -> String {
         if record.state == "queued" { return T("已加入一次性总结队列") }
@@ -188,6 +191,36 @@ struct SenderPolicyView: View {
     }
     private func summarize(_ ids: [String]) { Task { await policy.summarizeRecords(ids); selected.subtract(ids) } }
     private func remove(_ ids: [String]) { Task { await policy.removeRecords(ids); selected.subtract(ids) } }
+}
+
+private struct SpamFolderRemovalPicker: View {
+    @ObservedObject var policy: SenderPolicyStore
+    @Binding var selected: Set<String>
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(T("批量删除")).font(.title2.bold())
+            Text(T("选择要从垃圾邮件文件夹名单中移除的项目。"))
+                .font(.caption).foregroundStyle(.secondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(policy.draft.spam_folder_options, id: \.self) { folder in
+                        Toggle(folder, isOn: Binding(get: { selected.contains(folder) }, set: {
+                            if $0 { selected.insert(folder) } else { selected.remove(folder) }
+                        }))
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(minHeight: 130, maxHeight: 300)
+            HStack {
+                Button(T("取消")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Spacer()
+                Button(T("删除所选文件夹"), role: .destructive) {
+                    policy.removeSpamFolders(selected); selected.removeAll(); dismiss()
+                }.disabled(selected.isEmpty)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }.padding(22).frame(width: 460).textFieldStyle(.roundedBorder)
+    }
 }
 
 private struct SpamFolderPicker: View {
