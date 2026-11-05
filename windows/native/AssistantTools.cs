@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -31,6 +32,15 @@ sealed partial class MainWindow
         return query.Length == 0 ||
             sender.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
             subject.Contains(query, StringComparison.CurrentCultureIgnoreCase);
+    }
+    static void SetHistoryCandidateSelection(IEnumerable<(long Uid, string Sender, string Subject)> candidates,
+        System.Collections.Generic.HashSet<long> selectedUids, string query, bool selected)
+    {
+        foreach (var candidate in candidates) {
+            if (!HistoryCandidateMatches(query, candidate.Sender, candidate.Subject)) continue;
+            if (selected) selectedUids.Add(candidate.Uid);
+            else selectedUids.Remove(candidate.Uid);
+        }
     }
     static CheckBox HistoryPolicyControl() =>
         new() { Content = L.T("应用邮件屏蔽规则"), IsChecked = true };
@@ -85,6 +95,21 @@ sealed partial class MainWindow
         var senderOnly = HistoryCandidateMatches("BUDGET", "budget@example.invalid", "Quarterly update");
         var noMatch = HistoryCandidateMatches("budget", "alice@example.invalid", "Quarterly update");
         var defaultPolicy = HistoryPolicyControl();
+        var bulkCandidates = new[] {
+            (1L, "alice@example.invalid", "Budget review"),
+            (2L, "bob@example.invalid", "Quarterly update"),
+            (3L, "budget@example.invalid", "Other update")
+        };
+        var bulkSelection = new System.Collections.Generic.HashSet<long> { 2L };
+        SetHistoryCandidateSelection(bulkCandidates, bulkSelection, "", true);
+        var selectAllCandidates = bulkSelection.SetEquals(new long[] { 1, 2, 3 });
+        SetHistoryCandidateSelection(bulkCandidates, bulkSelection, "", false);
+        var selectNoneCandidates = bulkSelection.Count == 0;
+        bulkSelection.Add(2L);
+        SetHistoryCandidateSelection(bulkCandidates, bulkSelection, "budget", true);
+        var currentSearchSelected = bulkSelection.SetEquals(new long[] { 1, 2, 3 });
+        check(selectAllCandidates && selectNoneCandidates && currentSearchSelected,
+            "History select all/none covers every candidate; current-search select adds matches and keeps hidden selections");
         using var defaultPolicyRequest = JsonDocument.Parse(JsonSerializer.Serialize(
             HistoryPreviewRequest("2026-10-01", "2026-10-31", "fixture", defaultPolicy.IsChecked ?? false)));
         using var disabledPolicyRequest = JsonDocument.Parse(JsonSerializer.Serialize(
@@ -160,6 +185,11 @@ sealed partial class MainWindow
         var message = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         JsonElement snapshot = default;
         var senderSearch = new TextBox { PlaceholderText = L.T("搜索邮件标题或发件人"), Visibility = Visibility.Collapsed };
+        var selectAllCandidates = new Button { Content = L.T("全选"), Visibility = Visibility.Collapsed };
+        var selectNoCandidates = new Button { Content = L.T("全不选"), Visibility = Visibility.Collapsed };
+        var selectCurrentSearchCandidates = new Button { Content = L.T("全选当前搜索结果"), Visibility = Visibility.Collapsed };
+        var candidateActions = Row(selectAllCandidates, selectNoCandidates, selectCurrentSearchCandidates);
+        candidateActions.Visibility = Visibility.Collapsed;
         var applyMailPolicy = HistoryPolicyControl();
         var policyNote = new TextBlock {
             Text = L.T("规则包括发件人黑名单／白名单和“不总结垃圾邮件”；关闭后本次补总结包含所有未总结邮件。"),
@@ -179,6 +209,10 @@ sealed partial class MainWindow
                 row.Check.Visibility = HistoryCandidateMatches(query, row.Sender, row.Subject)
                     ? Visibility.Visible : Visibility.Collapsed;
             var selectedCount = candidateRows.Count(row => selectedUids.Contains(row.Uid));
+            var visibleRows = candidateRows.Where(row => row.Check.Visibility == Visibility.Visible).ToArray();
+            selectAllCandidates.IsEnabled = candidateRows.Any(row => !selectedUids.Contains(row.Uid));
+            selectNoCandidates.IsEnabled = selectedCount > 0;
+            selectCurrentSearchCandidates.IsEnabled = visibleRows.Any(row => !selectedUids.Contains(row.Uid));
             message.Text = L.T("待总结：") + selectedCount + " / " + candidateRows.Count + "\n" +
                 L.T("已总结：") + JsonText(snapshot, "already_summarized", "0") +
                 ((applyMailPolicy.IsChecked ?? false)
@@ -192,15 +226,34 @@ sealed partial class MainWindow
             snapshot = default; selectedUids.Clear(); candidateRows.Clear(); candidatesPanel.Children.Clear();
             dialog.IsPrimaryButtonEnabled = false; message.Text = "";
             senderSearch.Visibility = candidatesScroll.Visibility = Visibility.Collapsed;
+            candidateActions.Visibility = Visibility.Collapsed;
         }
         start.DateChanged += (_, _) => Invalidate(); end.DateChanged += (_, _) => Invalidate();
         applyMailPolicy.Checked += (_, _) => Invalidate();
         applyMailPolicy.Unchecked += (_, _) => Invalidate();
         senderSearch.TextChanged += (_, _) => { if (snapshot.ValueKind == JsonValueKind.Object) RefreshCandidateSelection(); };
+        selectAllCandidates.Click += (_, _) => {
+            SetHistoryCandidateSelection(candidateRows.Select(row => (row.Uid, row.Sender, row.Subject)),
+                selectedUids, "", true);
+            foreach (var row in candidateRows) row.Check.IsChecked = selectedUids.Contains(row.Uid);
+            RefreshCandidateSelection();
+        };
+        selectNoCandidates.Click += (_, _) => {
+            SetHistoryCandidateSelection(candidateRows.Select(row => (row.Uid, row.Sender, row.Subject)),
+                selectedUids, "", false);
+            foreach (var row in candidateRows) row.Check.IsChecked = selectedUids.Contains(row.Uid);
+            RefreshCandidateSelection();
+        };
+        selectCurrentSearchCandidates.Click += (_, _) => {
+            SetHistoryCandidateSelection(candidateRows.Select(row => (row.Uid, row.Sender, row.Subject)),
+                selectedUids, senderSearch.Text, true);
+            foreach (var row in candidateRows) row.Check.IsChecked = selectedUids.Contains(row.Uid);
+            RefreshCandidateSelection();
+        };
         previewButton.Click += async (_, _) => {
             dialog.IsPrimaryButtonEnabled = false; previewButton.IsEnabled = false;
             snapshot = default; selectedUids.Clear(); candidateRows.Clear(); candidatesPanel.Children.Clear();
-            senderSearch.Visibility = candidatesScroll.Visibility = Visibility.Collapsed;
+            senderSearch.Visibility = candidatesScroll.Visibility = candidateActions.Visibility = Visibility.Collapsed;
             try {
                 if (!start.Date.HasValue || !end.Date.HasValue || start.Date.Value.Date > end.Date.Value.Date)
                     throw new InvalidOperationException(L.T("请选择有效的起始和结束日期。"));
@@ -227,7 +280,7 @@ sealed partial class MainWindow
                     }
                 }
                 var hasCandidates = candidateRows.Count > 0;
-                senderSearch.Visibility = candidatesScroll.Visibility = hasCandidates ? Visibility.Visible : Visibility.Collapsed;
+                senderSearch.Visibility = candidatesScroll.Visibility = candidateActions.Visibility = hasCandidates ? Visibility.Visible : Visibility.Collapsed;
                 if (hasCandidates) RefreshCandidateSelection();
                 else {
                     message.Text = L.T("待处理邮件列表为空，请重新查询日期范围。") + "\n" +
@@ -241,7 +294,7 @@ sealed partial class MainWindow
             finally { previewButton.IsEnabled = true; }
         };
         dialog.Content = Stack(Note(L.T("针对当前选中的邮箱。日期按邮箱服务器的收件日期筛选。")),
-            Row(start, end), applyMailPolicy, policyNote, previewButton, senderSearch, candidatesScroll, message);
+            Row(start, end), applyMailPolicy, policyNote, previewButton, senderSearch, candidateActions, candidatesScroll, message);
         if (await dialog.ShowAsync() == ContentDialogResult.Primary && snapshot.ValueKind == JsonValueKind.Object) {
             var chosen = candidateRows.Where(row => selectedUids.Contains(row.Uid)).Select(row => row.Uid).ToArray();
             if (chosen.Length == 0) return;

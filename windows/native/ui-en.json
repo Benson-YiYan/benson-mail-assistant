@@ -661,6 +661,8 @@
     "刷新屏蔽记录": "Refresh skipped records",
     "已跳过的邮件": "Skipped emails",
     "这里只保存本地跳过记录；删除记录不会删除邮箱服务器上的邮件。": "Only local skip records are stored here. Deleting a record does not delete the email from the mail server.",
+    "全选": "Select all",
+    "全不选": "Select none",
     "全选记录": "Select all records",
     "取消选择": "Clear selection",
     "总结选中邮件": "Summarize selected emails",
@@ -859,6 +861,7 @@
     "应用邮件屏蔽规则": "Apply mail blocking rules",
     "规则包括发件人黑名单／白名单和“不总结垃圾邮件”；关闭后本次补总结包含所有未总结邮件。": "Includes sender blocklist/allowlist and the Do not summarize spam setting. Turn it off to include all unsummarized mail in this backfill.",
     "按邮件屏蔽规则跳过：": "Skipped by mail rules: ",
+    "全选当前搜索结果": "Select all current search results",
     "按邮件标题或发件人搜索": "Search by subject or sender"
   },
   "templates": [

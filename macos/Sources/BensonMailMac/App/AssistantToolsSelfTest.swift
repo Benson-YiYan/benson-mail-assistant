@@ -147,7 +147,7 @@ enum AssistantToolsSelfTest {
         report.mailboxAccount = "owner@example.invalid"
         let savedTools = store.assistantTools, savedSettings = store.settings
         let language = AppLanguage.shared, savedLanguage = language.code
-        let featureLabels = ["回复", "原文", "报告溯源", "费用与用量记录", "历史邮件补总结", "补总结历史邮件", "请先保存设置，再使用历史邮件补总结。", "启用免打扰时间"]
+        let featureLabels = ["回复", "原文", "报告溯源", "费用与用量记录", "历史邮件补总结", "补总结历史邮件", "全选", "全不选", "全选当前搜索结果", "请先保存设置，再使用历史邮件补总结。", "启用免打扰时间"]
         var catalogBackups: [URL: Data] = [:]
         for code in ["en", "es"] {
             let path = store.base.appendingPathComponent("languages/" + code + ".json")
@@ -200,6 +200,16 @@ enum AssistantToolsSelfTest {
               HistoryBackfillOptions().applyMailPolicy else {
             throw AppSelfTest.Failure("history search must match subject and sender, and policy must default on")
         }
+        let allSearchResultsSelected = HistoryBackfillSelection.applying([searchSender.uid], to: [searchSubject], selected: true)
+        let allSearchResultsCleared = HistoryBackfillSelection.applying(allSearchResultsSelected, to: [searchSubject], selected: false)
+        let allCandidatesSelected = HistoryBackfillSelection.applying([], to: [searchSubject, searchSender, searchMiss], selected: true)
+        let allCandidatesCleared = HistoryBackfillSelection.applying(allCandidatesSelected, to: [searchSubject, searchSender, searchMiss], selected: false)
+        guard allSearchResultsSelected == Set([searchSubject.uid, searchSender.uid]),
+              allSearchResultsCleared == Set([searchSender.uid]),
+              allCandidatesSelected == Set([searchSubject.uid, searchSender.uid, searchMiss.uid]),
+              allCandidatesCleared.isEmpty else {
+            throw AppSelfTest.Failure("history global select/none and current-search select must update the intended candidates")
+        }
         let defaultPolicyRequest = HistoryBackfillOptions.previewRequest(
             mailbox: "fixture-mailbox", from: "2026-10-01", to: "2026-10-20",
             applyMailPolicy: HistoryBackfillOptions().applyMailPolicy
@@ -212,6 +222,7 @@ enum AssistantToolsSelfTest {
             throw AppSelfTest.Failure("history preview did not preserve the policy toggle")
         }
         checks.append("history search matches subject-only and sender-only terms, rejects misses; policy defaults on and both toggle values are sent")
+        checks.append("history select all/none covers every candidate; select current search results preserves selections outside the filter")
         let preview = await tools.perform("history_preview", HistoryBackfillOptions.previewRequest(
             mailbox: "", from: "2026-10-01", to: "2026-10-20",
             applyMailPolicy: HistoryBackfillOptions().applyMailPolicy

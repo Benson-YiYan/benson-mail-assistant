@@ -274,6 +274,17 @@ struct HistoryBackfillCandidate: Identifiable {
     }
 }
 
+enum HistoryBackfillSelection {
+    static func applying(_ selectedUIDs: Set<Int>, to visibleCandidates: [HistoryBackfillCandidate],
+                         selected: Bool) -> Set<Int> {
+        var result = selectedUIDs
+        let visibleUIDs = Set(visibleCandidates.map(\.uid))
+        if selected { result.formUnion(visibleUIDs) }
+        else { result.subtract(visibleUIDs) }
+        return result
+    }
+}
+
 struct HistoryBackfillOptions {
     var applyMailPolicy = true
     static func previewRequest(mailbox: String, from: String, to: String, applyMailPolicy: Bool) -> [String: Any] {
@@ -352,6 +363,24 @@ struct HistoryBackfillView: View {
                 TextField(T("按邮件标题或发件人搜索"), text: $candidateSearch)
                     .textFieldStyle(.roundedBorder)
                     .disabled(tools.busy)
+                HStack {
+                    Button(T("全选")) {
+                        selectedUIDs = Set(candidates.map(\.uid))
+                    }
+                    .disabled(tools.busy || candidates.allSatisfy { selectedUIDs.contains($0.uid) })
+                    .accessibilityIdentifier("history-select-all")
+                    Button(T("全不选")) {
+                        selectedUIDs = []
+                    }
+                    .disabled(tools.busy || selectedUIDs.isEmpty)
+                    .accessibilityIdentifier("history-select-none")
+                    Button(T("全选当前搜索结果")) {
+                        selectedUIDs = HistoryBackfillSelection.applying(selectedUIDs, to: visibleCandidates, selected: true)
+                    }
+                    .disabled(tools.busy || visibleCandidates.allSatisfy { selectedUIDs.contains($0.uid) })
+                    .accessibilityIdentifier("history-select-current-search")
+                    Spacer()
+                }
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 4) {
                         ForEach(visibleCandidates) { candidate in

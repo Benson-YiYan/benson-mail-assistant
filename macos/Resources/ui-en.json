@@ -699,6 +699,7 @@
     "有未保存的屏蔽规则": "Mail rules have unsaved changes",
     "仅删除本地跳过记录，不会删除邮箱中的邮件。总结一次不会把发件人移出名单。": "Deleting removes only the local skipped record, never mailbox messages. A one-time summary keeps the sender rule.",
     "全选": "Select all",
+    "全不选": "Select none",
     "取消选择": "Clear selection",
     "批量操作": "Batch actions",
     "总结所选邮件一次": "Summarize selected mail once",
@@ -868,6 +869,7 @@
     "应用邮件屏蔽规则": "Apply mail blocking rules",
     "规则包括发件人黑名单／白名单和“不总结垃圾邮件”；关闭后本次补总结包含所有未总结邮件。": "Includes sender blocklist/allowlist and the Do not summarize spam setting. Turn it off to include all unsummarized mail in this backfill.",
     "按邮件屏蔽规则跳过：": "Skipped by mail rules: ",
+    "全选当前搜索结果": "Select all current search results",
     "按邮件标题或发件人搜索": "Search by subject or sender"
   },
   "templates": [

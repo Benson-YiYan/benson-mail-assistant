@@ -699,6 +699,7 @@
     "有未保存的屏蔽规则": "Hay cambios sin guardar en las reglas",
     "仅删除本地跳过记录，不会删除邮箱中的邮件。总结一次不会把发件人移出名单。": "Eliminar solo borra el registro local, nunca el mensaje del buzón. Resumir una vez mantiene la regla del remitente.",
     "全选": "Seleccionar todo",
+    "全不选": "No seleccionar ninguno",
     "取消选择": "Borrar selección",
     "批量操作": "Acciones en lote",
     "总结所选邮件一次": "Resumir los mensajes seleccionados una vez",
@@ -868,6 +869,7 @@
     "应用邮件屏蔽规则": "Aplicar las reglas de correo",
     "规则包括发件人黑名单／白名单和“不总结垃圾邮件”；关闭后本次补总结包含所有未总结邮件。": "Incluye las listas de bloqueo y permitidos y el ajuste No resumir correo no deseado. Desactívalo para incluir todos los correos aún sin resumir.",
     "按邮件屏蔽规则跳过：": "Omitidos por las reglas de correo: ",
+    "全选当前搜索结果": "Seleccionar todos los resultados de búsqueda actuales",
     "按邮件标题或发件人搜索": "Buscar por asunto o remitente"
   },
   "templates": [
