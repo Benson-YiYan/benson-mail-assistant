@@ -246,7 +246,7 @@ enum AssistantToolsSelfTest {
                 let fallback = AssistantToolsLocalization.translate(label, language: code) ??
                     SenderPolicyLocalization.translate(label, language: code) ?? label
                 guard T(label) == fallback else {
-                    throw AppSelfTest.Failure("current feature label lost to an older language catalog")
+                    throw AppSelfTest.Failure("current feature label lost to an older language catalog: \(code) / \(label) / got \(T(label)) / expected \(fallback)")
                 }
             }
             let views: [(String, AnyView, NSSize, String)] = [
