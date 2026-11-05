@@ -243,7 +243,9 @@ enum AssistantToolsSelfTest {
         for code in ["zh", "en", "es"] {
             language.select(code)
             for label in featureLabels {
-                guard T(label) == (AssistantToolsLocalization.translate(label, language: code) ?? label) else {
+                let fallback = AssistantToolsLocalization.translate(label, language: code) ??
+                    SenderPolicyLocalization.translate(label, language: code) ?? label
+                guard T(label) == fallback else {
                     throw AppSelfTest.Failure("current feature label lost to an older language catalog")
                 }
             }
