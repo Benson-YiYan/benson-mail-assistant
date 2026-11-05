@@ -145,10 +145,16 @@ import SwiftUI
             return node.accessibilityAttributeValue(.enabled) as? Bool ?? false
         }
         try await Task.sleep(nanoseconds: 650_000_000)
+        guard let historyButton = find(host, "mail-history-backfill"), isEnabled(historyButton) else {
+            throw AppSelfTest.Failure("historical backfill action is missing or disabled on the clean mailbox settings page")
+        }
         draft.interval = "30"
         try await Task.sleep(nanoseconds: 180_000_000)
         guard draft.dirty(.mailbox), let save = find(host, "settings-page-save-" + WorkspacePage.mailbox.id), isEnabled(save) else {
             throw AppSelfTest.Failure("mounted settings Save is not enabled after interval edit")
+        }
+        guard let dirtyHistoryButton = find(host, "mail-history-backfill"), !isEnabled(dirtyHistoryButton) else {
+            throw AppSelfTest.Failure("historical backfill action remained available with unsaved mailbox settings")
         }
         let selector = NSSelectorFromString("accessibilityPerformPress")
         if save.responds(to: selector) {
@@ -170,10 +176,21 @@ import SwiftUI
         guard writes == 1, store.settings.interval_seconds == 30, draft.message == "已保存",
               draft.value.mail_policy.addresses == ["notifications@example.invalid"], draft.value.mail_policy.skip_spam,
               find(host, "settings-page-dirty") == nil,
+              let savedHistoryButton = find(host, "mail-history-backfill"), isEnabled(savedHistoryButton),
               let test = find(host, "settings-test-mailbox"), isEnabled(test) else {
             throw AppSelfTest.Failure("mounted saved footer/test state invalid: writes=\(writes), dirty=\(draft.dirty(.mailbox)), message=\(draft.message)")
         }
         try AppSelfTest.capture(window, to: output.appendingPathComponent("settings-mounted-after-save.png"))
+        store.workspacePage = .ai
+        try await Task.sleep(nanoseconds: 250_000_000)
+        guard find(host, "ai-usage-records") != nil else {
+            throw AppSelfTest.Failure("usage records are missing from the AI settings page")
+        }
+        store.workspacePage = .general
+        try await Task.sleep(nanoseconds: 250_000_000)
+        guard find(host, "ai-usage-records") == nil else {
+            throw AppSelfTest.Failure("usage records still appear under General settings")
+        }
     }
 
 }

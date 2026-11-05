@@ -48,6 +48,8 @@ enum AssistantToolsLocalization {
         "每百万输入 Token 单价": ["Input price per million tokens", "Precio por millón de tokens de entrada"],
         "每百万输出 Token 单价": ["Output price per million tokens", "Precio por millón de tokens de salida"],
         "查看用量记录": ["View usage records", "Ver registros de uso"],
+        "补总结历史邮件": ["Summarize older mail", "Resumir correos anteriores"],
+        "请先保存设置，再使用历史邮件补总结。": ["Save your settings before summarizing older mail.", "Guarda los ajustes antes de resumir correos anteriores."],
         "这些是估算费用使用的单价，不是用量限额。": ["These rates estimate costs; they are not usage limits.", "Estas tarifas se usan para estimar costos; no son límites de uso."],
         "有未保存的设置": ["Unsaved settings", "Hay ajustes sin guardar"],
         "你有未保存的设置，确定要离开吗？": ["You have unsaved settings. Are you sure you want to leave?", "Tienes ajustes sin guardar. ¿Seguro que quieres salir?"],

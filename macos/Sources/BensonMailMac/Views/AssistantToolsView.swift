@@ -238,14 +238,10 @@ struct QuietHoursControl: View {
 struct AssistantUtilitySettings: View {
     @ObservedObject var store: MailStore
     @ObservedObject private var language = AppLanguage.shared
-    @ToolState private var showHistory = false
-    @ToolState private var showUsage = false
     @ObservedObject private var tools: AssistantTools
     init(store: MailStore) { self.store = store; self.tools = store.assistantTools }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button(T("历史邮件补总结"), systemImage: "clock.arrow.circlepath") { showHistory = true }
-            Button(T("费用与用量记录"), systemImage: "chart.bar") { showUsage = true }
             Button(T("导出诊断包"), systemImage: "archivebox") {
                 let panel = NSSavePanel()
                 panel.nameFieldStringValue = "EmailAssistant-Diagnostics-\(Int(Date().timeIntervalSince1970)).zip"
@@ -261,8 +257,7 @@ struct AssistantUtilitySettings: View {
             }.disabled(store.assistantTools.busy)
             Text(T("诊断包包含版本与脱敏运行状态，不包含密钥、邮件正文和附件。")).font(.caption).foregroundStyle(.secondary)
             ToolStatus(tools: store.assistantTools).font(.caption)
-        }.sheet(isPresented: $showHistory) { HistoryBackfillView(store: store) }
-            .sheet(isPresented: $showUsage) { UsageSettingsView(store: store) }
+        }
     }
 }
 

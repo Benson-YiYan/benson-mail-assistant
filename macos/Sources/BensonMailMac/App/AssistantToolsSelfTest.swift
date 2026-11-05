@@ -147,7 +147,7 @@ enum AssistantToolsSelfTest {
         report.mailboxAccount = "owner@example.invalid"
         let savedTools = store.assistantTools, savedSettings = store.settings
         let language = AppLanguage.shared, savedLanguage = language.code
-        let featureLabels = ["回复", "原文", "报告溯源", "费用与用量记录", "历史邮件补总结", "启用免打扰时间"]
+        let featureLabels = ["回复", "原文", "报告溯源", "费用与用量记录", "历史邮件补总结", "补总结历史邮件", "请先保存设置，再使用历史邮件补总结。", "启用免打扰时间"]
         var catalogBackups: [URL: Data] = [:]
         for code in ["en", "es"] {
             let path = store.base.appendingPathComponent("languages/" + code + ".json")

@@ -111,7 +111,7 @@ Estas acciones utilizan la IA configurada y pueden generar costes. Los archivos 
 
 ## Reglas de remitentes y correo no deseado
 
-En Buzones y comprobación → Bloquear correos, elige una lista negra o una lista blanca. Se omiten los remitentes de la lista negra; la lista blanca solo permite resumir los remitentes incluidos. Una lista blanca vacía omite todos los correos nuevos. Las reglas se aplican a todos los buzones y comparan direcciones completas sin distinguir mayúsculas. Puedes añadir, seleccionar en lote o quitar direcciones.
+En **Correo y comprobaciones** → Bloquear correos, elige una lista negra o una lista blanca. Se omiten los remitentes de la lista negra; la lista blanca solo permite resumir los remitentes incluidos. Una lista blanca vacía omite todos los correos nuevos. Las reglas se aplican a todos los buzones y comparan direcciones completas sin distinguir mayúsculas. Puedes añadir, seleccionar en lote o quitar direcciones.
 
 «No resumir correo no deseado (algunos proveedores pueden no admitirlo)» utiliza marcas explícitas del servidor, cabeceras o carpetas de correo no deseado. No adivina por el asunto ni llama a la IA para clasificarlo. Solo se comprueba la carpeta configurada; sin indicadores del proveedor no se puede identificar. La opción está desactivada por defecto.
 
@@ -123,7 +123,7 @@ Arrastra el divisor entre el informe y la conversación del correo para ajustar 
 
 - **Borradores de respuesta:** elige tono, idioma e instrucciones, edita destinatario, asunto y cuerpo y guarda localmente o copia. La aplicación nunca envía el borrador automáticamente.
 - **Lectura mejorada de adjuntos:** las imágenes y los PDF escaneados usan primero OCR nativo local; el texto extraído se envía a la IA seleccionada. Hay límites de idioma del sistema, tamaño y calidad; se informa del contenido ilegible y no se garantiza el reconocimiento.
-- **Correos históricos:** selecciona buzón y fechas y consulta la lista. Busca por asunto o remitente y desmarca mensajes individuales. **Aplicar las reglas de correo** está activado de forma predeterminada e incluye las listas de bloqueo y permitidos y la regla No resumir correo no deseado; la vista previa indica cuántos mensajes se omiten. Desactívalo para incluir todos los correos aún sin resumir en esta ejecución, sin cambiar las reglas guardadas. Al confirmar, se añaden a la cola y puede haber costes de IA.
+- **Correos históricos:** en Mac, abre **Buzón y comprobaciones → Resumir correos anteriores**; en Windows, abre la tarjeta en **Correo y comprobaciones**. Selecciona el buzón y las fechas y consulta la lista. Busca por asunto o remitente y desmarca mensajes individuales. **Aplicar las reglas de correo** está activado de forma predeterminada e incluye las listas de bloqueo y permitidos y la regla No resumir correo no deseado; la vista previa indica cuántos mensajes se omiten. Desactívalo para incluir todos los correos aún sin resumir en esta ejecución, sin cambiar las reglas guardadas. Al confirmar, se añaden a la cola y puede haber costes de IA.
 - **Fuentes y preguntas continuas:** consulta el correo original guardado, el texto extraído y sus limitaciones. Las preguntas usan el correo original y sus adjuntos legibles como evidencia; los informes generados y las respuestas anteriores no sustituyen los originales. Se avisa si faltan fuentes de correos antiguos.
 - **Notificaciones y horario silencioso:** pausa las notificaciones del sistema independientemente de la supervisión. Durante el horario silencioso, incluso de noche, se siguen comprobando correos y guardando informes.
 - **Diagnóstico:** exporta manualmente información operativa sin datos sensibles para resolver problemas; no incluye claves, cuerpos, adjuntos ni conversaciones.
@@ -144,7 +144,7 @@ Pasos de acceso a todas las funciones y ajustes:
 
 ## Origen de los costes y saldos de cuenta
 
-Abre los registros de uso desde la configuración de IA para ver los tokens de entrada/salida, los costes informados por el proveedor, las estimaciones locales y las llamadas cubiertas por cada origen. El coste del proveedor tiene prioridad por llamada; esa llamada no se incluye en la estimación local. Si falta el coste, se estima con los precios guardados y el uso de tokens; sin datos suficientes se muestra Desconocido. Las monedas se mantienen separadas y no se inventan ni recalculan importes históricos.
+Abre **Servicio de IA → Ver registros de uso** para consultar tokens de entrada/salida, costos informados por el proveedor, estimaciones locales y llamadas cubiertas por cada origen. El costo del proveedor tiene prioridad por llamada; esa llamada no se incluye en la estimación local. Si falta, se estima con los precios guardados y el uso de tokens; sin datos suficientes se muestra Desconocido. Las monedas se mantienen separadas y no se inventan ni recalculan importes históricos.
 
 El `usage.cost` oficial de OpenRouter se registra en USD. Una API compatible debe devolver explícitamente `usage.cost` con `cost_currency`, o un objeto cost con `amount` y `currency`. Los demás proveedores siguen usando estimaciones. El importe informado no sustituye a la factura final.
 

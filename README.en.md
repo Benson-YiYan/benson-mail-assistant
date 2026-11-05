@@ -114,7 +114,7 @@ These actions call your configured AI and may incur charges. Supplementary files
 
 ## Sender rules and spam
 
-Under Mailboxes and checking → Block emails, choose a blacklist or whitelist. Blacklisted senders are skipped; a whitelist summarizes only listed senders. An empty whitelist skips all new emails. Rules apply to every configured mailbox and match complete sender addresses without case sensitivity. Add, select in bulk, or remove addresses.
+Under **Mailbox & checks** (Mac) or **Email and checks** (Windows) → Block emails, choose a blacklist or whitelist. Blacklisted senders are skipped; a whitelist summarizes only listed senders. An empty whitelist skips all new emails. Rules apply to every configured mailbox and match complete sender addresses without case sensitivity. Add, select in bulk, or remove addresses.
 
 “Do not summarize spam (some providers may not support this)” uses explicit server flags, spam headers or junk folders. It does not guess from the subject or call AI to classify spam. Only the configured mail folder is checked; providers that expose no spam indicators cannot be recognized. The option is off by default.
 
@@ -126,7 +126,7 @@ Drag the divider between the report and the email conversation to resize both ar
 
 - **Reply drafts:** choose tone, language and instructions, then edit the recipient, subject and body before saving locally or copying. The app never sends the draft automatically.
 - **Enhanced attachment reading:** images and scanned PDFs first use native local OCR; extracted text then goes to the selected AI. System language support, file limits and recognition quality apply. Unreadable content is reported, and recognition is not guaranteed.
-- **Older-mail processing:** select a mailbox and date range, then preview the message list. Search by subject or sender and uncheck individual messages. **Apply mail blocking rules** is on by default and includes sender blocklist/allowlist plus Do not summarize spam; the preview shows how many messages are skipped. Turn it off to include all unsummarized mail in this run without changing saved rules. Confirming queues processing and may incur AI charges.
+- **Older-mail processing:** on Mac, open **Mailbox & checks → Summarize older mail**; on Windows, open its card under **Email and checks**. Select a mailbox and date range, then preview the message list. Search by subject or sender and uncheck individual messages. **Apply mail blocking rules** is on by default and includes sender blocklist/allowlist plus Do not summarize spam; the preview shows how many messages are skipped. Turn it off to include all unsummarized mail in this run without changing saved rules. Confirming queues processing and may incur AI charges.
 - **Sources and continuous questions:** inspect saved original mail, attachment extraction and reading limitations. Questions use the original message and readable original attachments as factual evidence; generated reports and earlier AI replies do not replace originals. Missing sources for older mail are reported.
 - **Notifications and quiet hours:** system notifications can be paused independently of monitoring. Quiet hours, including overnight periods, keep checking mail and saving reports.
 - **Diagnostics:** manually export sanitized operational information for troubleshooting, excluding keys, message bodies, attachments and chat contents.
@@ -147,7 +147,7 @@ Step-by-step entry points for every feature and setting:
 
 ## Cost sources and account balances
 
-Open the usage records from AI settings to view input/output tokens, upstream-reported costs, local estimates and the number of calls covered by each source. Upstream costs take precedence per call; those calls are excluded from local estimates. Missing costs are estimated from saved rates and token usage, or shown as Unknown when the required data is absent. Currencies are kept separate; historical records are not guessed or repriced.
+Open **AI Service → View usage records** to see input/output tokens, upstream-reported costs, local estimates and the number of calls covered by each source. Upstream costs take precedence per call; those calls are excluded from local estimates. Missing costs are estimated from saved rates and token usage, or shown as Unknown when the required data is absent. Currencies are kept separate; historical records are not guessed or repriced.
 
 Official OpenRouter `usage.cost` is recorded in USD. Compatible APIs must explicitly return `usage.cost` with `cost_currency`, or a cost object containing `amount` and `currency`. Other providers continue to use estimates. An upstream-reported amount is not a substitute for the final bill.
 

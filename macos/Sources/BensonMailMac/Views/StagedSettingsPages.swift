@@ -5,6 +5,7 @@ private typealias StagedState<Value> = SwiftUI.State<Value>
 
 struct StagedSettingsPage: View {
     @StagedState private var showUsage = false
+    @StagedState private var showHistory = false
     @ObservedObject var store: MailStore
     @ObservedObject var draft: SettingsDraft
     @ObservedObject private var language = AppLanguage.shared
@@ -66,6 +67,16 @@ struct StagedSettingsPage: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Button(T("打开运行记录")) { NSWorkspace.shared.open(store.base.appendingPathComponent("daemon.log")) }
             }
+            WorkspaceCard("历史邮件补总结") {
+                Button(T("补总结历史邮件")) { showHistory = true }
+                    .disabled(draft.dirty(.mailbox) || draft.saving)
+                    .accessibilityIdentifier("mail-history-backfill")
+                    .sheet(isPresented: $showHistory) { HistoryBackfillView(store: store) }
+                if draft.dirty(.mailbox) {
+                    Text(T("请先保存设置，再使用历史邮件补总结。"))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
         }
     }
     private var ai: some View {
@@ -123,6 +134,7 @@ struct StagedSettingsPage: View {
                 Text(T("每百万输出 Token 单价")); TextField("0", text: $draft.outputRate).frame(width: 90)
             }
             Button(T("查看用量记录")) { showUsage = true }
+                .accessibilityIdentifier("ai-usage-records")
             Text(T("这些是估算费用使用的单价，不是用量限额。"))
                 .font(.caption).foregroundStyle(.secondary)
             Text(T("单价随本页设置统一保存，应用于当前基础地址和模型。"))
