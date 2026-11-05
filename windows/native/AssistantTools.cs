@@ -194,7 +194,8 @@ sealed partial class MainWindow
             senderSearch.Visibility = candidatesScroll.Visibility = Visibility.Collapsed;
         }
         start.DateChanged += (_, _) => Invalidate(); end.DateChanged += (_, _) => Invalidate();
-        applyMailPolicy.Toggled += (_, _) => Invalidate();
+        applyMailPolicy.Checked += (_, _) => Invalidate();
+        applyMailPolicy.Unchecked += (_, _) => Invalidate();
         senderSearch.TextChanged += (_, _) => { if (snapshot.ValueKind == JsonValueKind.Object) RefreshCandidateSelection(); };
         previewButton.Click += async (_, _) => {
             dialog.IsPrimaryButtonEnabled = false; previewButton.IsEnabled = false;
