@@ -53,7 +53,7 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(result['policy'], expected)
         self.assertEqual(self.controller.config['mail_policy'], expected)
         self.assertEqual(service.config['mail_policy'], expected)
-        self.assertEqual(json.loads(self.controller.path.read_text())['mail_policy'], expected)
+        self.assertEqual(json.loads(self.controller.path.read_text(encoding='utf-8'))['mail_policy'], expected)
         self.assertIn('known@example.invalid', result['senders'])
         fresh = Controller(self.root, lambda event: None)
         self.assertEqual(fresh.command('policy_status', {})['policy'], expected)
