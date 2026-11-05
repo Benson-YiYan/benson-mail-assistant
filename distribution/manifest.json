@@ -2,102 +2,102 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611052215",
-      "sha256": "7149f6f81a219e8faa5e9dde049863a3098bf2121f9e00596eeddf13e00fcbb5",
-      "size": 24566733,
+      "version": "202611060748",
+      "sha256": "f505f99492f68908cb1b4439e9631f21bbe9344fbd1dccf187d4f4a1c698c6ef",
+      "size": 24576170,
       "notes": {
-        "zh": "“历史邮件补总结”新增“全选当前搜索结果”。全选与全不选仍作用于全部候选邮件，搜索结果外的勾选保持不变。",
-        "en": "Historical mail backfill adds “Select all current search results.” Select all/none still apply to all candidates, and selections outside the current search stay unchanged.",
-        "es": "El resumen histórico añade «Seleccionar todos los resultados de búsqueda actuales». Seleccionar todo o nada sigue afectando a todos los mensajes, y se conservan las selecciones fuera de la búsqueda."
+        "zh": "修复“垃圾邮件文件夹”列表勾选状态无法保存、切换页面后丢失的问题。默认名称全部启用；每项可移除，也可批量删除、添加或恢复默认。",
+        "en": "Fixed spam-folder checkboxes not saving or losing their state after leaving settings. All default names are enabled; names can be removed individually, deleted in bulk, added, or restored.",
+        "es": "Se corrigió el problema por el que las casillas de carpetas de spam no se guardaban o perdían su estado al salir de ajustes. Todos los nombres predeterminados están activados; se pueden quitar individualmente, eliminar en lote, agregar o restaurar."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Windows-x64-Setup-202611052215.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Windows-x64-Setup-202611060748.exe"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611052215.exe"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611060748.exe"
     },
     "macos-arm64": {
-      "version": "202611052224",
-      "sha256": "b71f60fd6624d8c18f89c4e7c508f2fc3ac323b2d506352feaee0213b823a20e",
-      "size": 24739929,
+      "version": "202611060743",
+      "sha256": "165901d720052ed50ad7de208b41876fa3584e6c710adf1062f44c962904c9bd",
+      "size": 24758844,
       "notes": {
-        "zh": "“历史邮件补总结”新增“全选当前搜索结果”。全选与全不选仍作用于全部候选邮件，搜索结果外的勾选保持不变。",
-        "en": "Historical mail backfill adds “Select all current search results.” Select all/none still apply to all candidates, and selections outside the current search stay unchanged.",
-        "es": "El resumen histórico añade «Seleccionar todos los resultados de búsqueda actuales». Seleccionar todo o nada sigue afectando a todos los mensajes, y se conservan las selecciones fuera de la búsqueda."
+        "zh": "修复“垃圾邮件文件夹”列表勾选状态无法保存、切换页面后丢失的问题。默认名称全部启用；每项可移除，也可批量删除、添加或恢复默认。",
+        "en": "Fixed spam-folder checkboxes not saving or losing their state after leaving settings. All default names are enabled; names can be removed individually, deleted in bulk, added, or restored.",
+        "es": "Se corrigió el problema por el que las casillas de carpetas de spam no se guardaban o perdían su estado al salir de ajustes. Todos los nombres predeterminados están activados; se pueden quitar individualmente, eliminar en lote, agregar o restaurar."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Mac-AppleSilicon-202611052224.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Mac-AppleSilicon-202611060743.dmg"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611052224.dmg"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611060743.dmg"
     },
     "macos-x86_64": {
-      "version": "202611052227",
-      "sha256": "fc129c9e2280f0f5975e3106b7c558f11330cd4293240743ac2051ce3719ebb6",
-      "size": 18767177,
+      "version": "202611060748",
+      "sha256": "36a1c5f948921ab4cc0ad2e94991be498f73075d8f365ecfc3a80b22d14f43fd",
+      "size": 18800016,
       "notes": {
-        "zh": "“历史邮件补总结”新增“全选当前搜索结果”。全选与全不选仍作用于全部候选邮件，搜索结果外的勾选保持不变。",
-        "en": "Historical mail backfill adds “Select all current search results.” Select all/none still apply to all candidates, and selections outside the current search stay unchanged.",
-        "es": "El resumen histórico añade «Seleccionar todos los resultados de búsqueda actuales». Seleccionar todo o nada sigue afectando a todos los mensajes, y se conservan las selecciones fuera de la búsqueda."
+        "zh": "修复“垃圾邮件文件夹”列表勾选状态无法保存、切换页面后丢失的问题。默认名称全部启用；每项可移除，也可批量删除、添加或恢复默认。",
+        "en": "Fixed spam-folder checkboxes not saving or losing their state after leaving settings. All default names are enabled; names can be removed individually, deleted in bulk, added, or restored.",
+        "es": "Se corrigió el problema por el que las casillas de carpetas de spam no se guardaban o perdían su estado al salir de ajustes. Todos los nombres predeterminados están activados; se pueden quitar individualmente, eliminar en lote, agregar o restaurar."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Mac-Intel-202611052227.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Mac-Intel-202611060748.dmg"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611052227.dmg"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611060748.dmg"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202611052230",
-      "sha256": "30ff4f385afc374954d82a9d3a8948e0d0f87d32951a1793a676f4c208c0cddc",
-      "size": 42718,
+      "version": "202611060748",
+      "sha256": "430569924eff5e108fa6cf7c4502695ba8a75a8bf0267550e1fb8987b99d01a9",
+      "size": 42829,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-windows-zh-202611052230.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-windows-zh-202611060748.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611052230.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611060748.json"
     },
     "windows-en": {
-      "version": "202611052230",
-      "sha256": "8b19b875ecfdb9896b627aa4dab07193f5b856f1c478107ccce4d7d2c445b624",
-      "size": 127490,
+      "version": "202611060748",
+      "sha256": "c5a5ac761767fc2d6c9bc062dc9322fbb0173465cc036b588fc4a69ca9b29b22",
+      "size": 127778,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-windows-en-202611052230.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-windows-en-202611060748.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611052230.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611060748.json"
     },
     "windows-es": {
-      "version": "202611052230",
-      "sha256": "9a84e0eaf30e1068dc9bc06ddfac3a6119a534456bbda2cdde309a8c99d519f8",
-      "size": 138602,
+      "version": "202611060748",
+      "sha256": "076f4bbbc624e156e6b3a08acf64c0b1ca385294f5ca4ab24a13bb97b57af6e5",
+      "size": 138954,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-windows-es-202611052230.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-windows-es-202611060748.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611052230.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611060748.json"
     },
     "macos-zh": {
-      "version": "202611052230",
-      "sha256": "5d39fd23d241b86b53b1fb82116646015048eef9d863148444835423cd0a1896",
-      "size": 43139,
+      "version": "202611060748",
+      "sha256": "191015fdbfd115a0dd17ddec7f8481f681429e06a80a57cbb3a8973689c3df1e",
+      "size": 43250,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-macos-zh-202611052230.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-macos-zh-202611060748.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611052230.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611060748.json"
     },
     "macos-en": {
-      "version": "202611052230",
-      "sha256": "13eeb02411b80f1e6bb5af8a0f0de67119cd1ee7f565cd1d53471f38614cc902",
-      "size": 128034,
+      "version": "202611060748",
+      "sha256": "23b91f423eb0ad3d12e6afb9d31780fb4c4e11d98e776a5ddbe723eb041505cf",
+      "size": 128322,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-macos-en-202611052230.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-macos-en-202611060748.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611052230.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611060748.json"
     },
     "macos-es": {
-      "version": "202611052230",
-      "sha256": "f2f12a99734cae776ac95453c0aa4969b067376024e3764651a18906841b903b",
-      "size": 139344,
+      "version": "202611060748",
+      "sha256": "c28c13a4219e059d35f85d09e7e5a8fb6b71b724c0d48339c229958b52dc8943",
+      "size": 139696,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-macos-es-202611052230.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-macos-es-202611060748.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611052230.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611060748.json"
     }
   }
 }
