@@ -383,6 +383,39 @@ def require_ok(result, operation):
     return data
 
 
+def decode_folder_name(value):
+    """Decode a server's IMAP modified UTF-7 mailbox name."""
+    def replace(match):
+        payload = match.group(1).replace(',', '/')
+        try:
+            payload += '=' * ((4 - len(payload) % 4) % 4)
+            return base64.b64decode(payload).decode('utf-16-be')
+        except (ValueError, UnicodeError):
+            return match.group(0)
+    return re.sub(r'&([A-Za-z0-9+,]+)-', replace, value).replace('&-', '&')
+
+
+def selectable_folders(client):
+    """Return unique selectable folder names from an authenticated IMAP LIST."""
+    rows = require_ok(client.list(), 'LIST')
+    folders = []
+    for row in rows or []:
+        if isinstance(row, tuple):
+            row = row[0] if row else b''
+        if not isinstance(row, bytes):
+            continue
+        match = re.match(rb'^\(([^)]*)\)\s+(?:"(?:\\.|[^"])*"|NIL)\s+(.+?)\s*$', row)
+        if not match or re.search(rb'(?i)(?:^|\s)\\Noselect(?:\s|$)', match.group(1)):
+            continue
+        token = match.group(2)
+        if token.startswith(b'"') and token.endswith(b'"'):
+            token = re.sub(rb'\\(["\\])', rb'\1', token[1:-1])
+        name = decode_folder_name(token.decode('ascii', 'replace'))
+        if name and name not in folders:
+            folders.append(name)
+    return folders
+
+
 def connect(config, secret, context=None):
     value = normalize(config)
     context = context or ssl.create_default_context()

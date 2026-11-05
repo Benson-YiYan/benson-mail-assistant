@@ -9,14 +9,18 @@ import sys
 import time
 import uuid
 from mail_prompt import analysis_prompt
+from mail_prompt import clean_internal_source_tags
 from runtime_paths import data_home, child_command, codex_executable
-from mailbox_config import mailbox_id, normalize, MailConnectionError
+from mailbox_config import mailbox_id, normalize, MailConnectionError, connect, selectable_folders, mail_error
+_FOLDER_CACHE = {}
+_MESSAGE_ID_CACHE = {}
 os.umask(0o077)
 BASE = data_home()
 DATA = BASE / 'mail_watch'
 CONTROL = DATA
 ACTIVE_HOME = BASE
 ACTIVE_ID = None
+ACTIVE_CONNECTION = None
 READER = BASE / 'mail_watch.py'
 EXPORTER = BASE / 'mail_export.py'
 CODEX = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex'
@@ -68,12 +72,23 @@ def unavailable_report(language=None):
 
 
 def enabled():
+    global ACTIVE_CONNECTION
     value = settings()
     if not value.get('enabled', True):
         return False
     if ACTIVE_ID is not None and value.get('mailboxes') is not None:
-        return any(mailbox_id(p['connection']) == ACTIVE_ID and p.get('enabled', True)
-                   for p in value['mailboxes'])
+        for profile in value['mailboxes']:
+            if not profile.get('enabled', True):
+                continue
+            connection = profile['connection']
+            if mailbox_id(connection) == ACTIVE_ID:
+                return True
+            if connection.get('read_all_mail') and ACTIVE_CONNECTION:
+                configured = normalize(connection)
+                active = normalize(ACTIVE_CONNECTION)
+                if all(configured[key] == active[key] for key in configured if key != 'mail_folder'):
+                    return True
+        return False
     return True
 
 def check_interval():
@@ -88,6 +103,57 @@ def publish(phase, **extra):
 
 def log(message):
     print(datetime.datetime.now().astimezone().isoformat(), message, flush=True)
+
+
+def _message_id_key(message):
+    import re
+    value = str(message.get('message_id') or '').strip()
+    if not re.fullmatch(r'<[^<>\s]{1,990}>', value):
+        return None
+    account = str(message.get('mailbox_account') or '').strip().casefold()
+    return (account, value[1:-1].casefold()) if account else None
+
+
+def duplicate_all_folder_message(message):
+    """Suppress duplicate folder copies only when a valid Message-ID matches."""
+    if not message.get('read_all_mail'):
+        return False
+    key = _message_id_key(message)
+    if not key:
+        return False
+    value = settings()
+    output = pathlib.Path(value.get('output_dir') or pathlib.Path.home() / 'Documents' / '邮件').expanduser()
+    cache_key = str(output.resolve())
+    cached = _MESSAGE_ID_CACHE.get(cache_key)
+    now = time.monotonic()
+    if cached is None or now - cached[0] > 60:
+        from report_layout import report_files
+        from report_metadata import read_metadata
+        identifiers = set()
+        for report in report_files(output):
+            try:
+                existing = read_metadata(BASE, report)
+                existing_key = _message_id_key(existing)
+                if existing_key:
+                    identifiers.add(existing_key)
+            except (OSError, ValueError, TypeError):
+                continue
+        cached = (now, identifiers)
+        _MESSAGE_ID_CACHE[cache_key] = cached
+    return key in cached[1]
+
+
+def remember_all_folder_message(message):
+    if not message.get('read_all_mail'):
+        return
+    key = _message_id_key(message)
+    if not key:
+        return
+    value = settings()
+    output = pathlib.Path(value.get('output_dir') or pathlib.Path.home() / 'Documents' / '邮件').expanduser()
+    cache_key = str(output.resolve())
+    cached = _MESSAGE_ID_CACHE.setdefault(cache_key, (time.monotonic(), set()))
+    cached[1].add(key)
 
 def notify(message, title, report=None):
     from notification_policy import notifications_allowed, read_preferences
@@ -172,12 +238,14 @@ def analyze(message):
                 failed = result.returncode != 0
             if failed or not temp.exists() or not temp.read_text(encoding='utf-8').strip():
                 raise RuntimeError('AI analysis failed for UID ' + uid + '; message retained')
+            atomic(temp, clean_internal_source_tags(temp.read_text(encoding='utf-8')))
             if settings().get('ai_provider', 'codex') == 'codex':
                 from assistant_tools import record_usage
                 try: record_usage('codex', '', root=BASE)
                 except Exception: pass
             temp.replace(answer)
     target = export_report(folder)
+    remember_all_folder_message(message)
     if not message.get('_policy_record_id'):
         run_reader('ack', uid)
     notify(runtime_text('六项报告已保存：\n', 'Six-section report saved:\n', 'Informe de seis secciones guardado:\n') + target, runtime_text('✅ 新邮件 Markdown 已完成', '✅ New email Markdown report ready', '✅ Informe Markdown del correo listo'), report=target)
@@ -200,13 +268,13 @@ def mailbox_profiles(value):
 
 
 def activate_profile(profile, value):
-    global DATA, ACTIVE_HOME, ACTIVE_ID
+    global DATA, ACTIVE_HOME, ACTIVE_ID, ACTIVE_CONNECTION
     if profile is None:
-        DATA, ACTIVE_HOME, ACTIVE_ID = CONTROL, BASE, None
+        DATA, ACTIVE_HOME, ACTIVE_ID, ACTIVE_CONNECTION = CONTROL, BASE, None, None
         return
     connection = profile['connection']
     identifier = mailbox_id(normalize(connection))
-    ACTIVE_ID = identifier
+    ACTIVE_ID, ACTIVE_CONNECTION = identifier, connection
     ACTIVE_HOME = BASE / 'mailboxes' / identifier
     DATA = ACTIVE_HOME / 'mail_watch'
     DATA.mkdir(parents=True, exist_ok=True)
@@ -231,17 +299,55 @@ def activate_profile(profile, value):
     atomic(ACTIVE_HOME / 'settings.json', json.dumps({**value, 'mailbox': connection}, ensure_ascii=False))
 
 
+def scan_profiles(profiles, value):
+    """Expand all-folder accounts into per-folder profiles with isolated state identities."""
+    now = time.monotonic()
+    expanded = []
+    for profile in profiles:
+        connection = profile['connection'] if profile else {}
+        if not connection.get('read_all_mail'):
+            expanded.append((profile, None))
+            continue
+        key = mailbox_id(connection)
+        cached = _FOLDER_CACHE.get(key)
+        if cached and now - cached[0] < 900:
+            folders = cached[1]
+        else:
+            try:
+                activate_profile(profile, value)
+                from mail_connection_io import load
+                selected, secret = load(ACTIVE_HOME)
+                client = connect(selected, secret)
+                try:
+                    folders = selectable_folders(client)
+                finally:
+                    try: client.logout()
+                    except Exception: pass
+                if not folders:
+                    folders = [connection.get('mail_folder') or 'INBOX']
+                _FOLDER_CACHE[key] = (now, folders)
+            except Exception as error:
+                expanded.append((profile, error))
+                continue
+        for folder in folders:
+            expanded.append(({**profile, 'connection': {**connection, 'mail_folder': folder}}, None))
+    return expanded
+
+
 def check_profiles():
     """Each account failure is isolated; all enabled accounts are checked in a cycle."""
     global DATA, ACTIVE_HOME, ACTIVE_ID
     value = settings()
     profiles = mailbox_profiles(value)
+    scan = scan_profiles(profiles, value)
     failures = []
     pending = []
-    for profile in profiles:
+    for profile, discovery_error in scan:
         if not settings().get('enabled', True):
             break
         try:
+            if discovery_error:
+                raise discovery_error
             activate_profile(profile, value)
             if not enabled():
                 continue
@@ -267,7 +373,11 @@ def check_profiles():
                     if not enabled():
                         break
                     from mail_policy import intercept
-                    if intercept(BASE, message, message.get('mailbox_key', ACTIVE_ID), message.get('uidvalidity', ''), message['uid']):
+                    if intercept(BASE, message, message.get('mailbox_key', ACTIVE_ID), message.get('uidvalidity', ''),
+                                 message['uid'], bypass_sender_rules=bool(message.get('historical'))):
+                        run_reader('ack', str(message['uid']))
+                        continue
+                    if duplicate_all_folder_message(message):
                         run_reader('ack', str(message['uid']))
                         continue
                     analyze(message)

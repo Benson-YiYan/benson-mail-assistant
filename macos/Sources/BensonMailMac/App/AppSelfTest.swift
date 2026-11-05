@@ -305,6 +305,7 @@ enum AppSelfTest {
             connection.account = "demo@example.invalid"; connection.host = "imap.example.invalid"
             connection.port = 1993; connection.security = "starttls"; connection.username = "login-user"
             connection.mail_folder = "Archive"; connection.mail_auth = "oauth2"; connection.mail_provider = "custom"
+            guard !connection.read_all_mail else { throw Failure("all-folder reading must default off") }
             connection = try connection.validated()
             guard connection.identity == "7c0447c91e4fa209f9a4a9cd5f4227df6a6a6b486906f780e32039e5f44f67f1" else {
                 throw Failure("Swift and Python mailbox identities differ")
@@ -312,8 +313,14 @@ enum AppSelfTest {
             let legacyMailbox = try JSONSerialization.jsonObject(with: JSONEncoder().encode(connection)) as! [String: Any]
             let withoutProxy = legacyMailbox.filter { !$0.key.hasPrefix("proxy_") }
             let migrated = try JSONDecoder().decode(MailConnection.self, from: JSONSerialization.data(withJSONObject: withoutProxy))
-            guard migrated.proxy_mode == "direct", migrated.identity == connection.identity else {
+            guard migrated.proxy_mode == "direct", migrated.identity == connection.identity, !migrated.read_all_mail else {
                 throw Failure("legacy mailbox proxy migration changed identity or default routing")
+            }
+            var allFolders = connection
+            allFolders.read_all_mail = true
+            let roundtripAllFolders = try JSONDecoder().decode(MailConnection.self, from: JSONEncoder().encode(allFolders))
+            guard roundtripAllFolders.read_all_mail, roundtripAllFolders.identity == connection.identity else {
+                throw Failure("all-folder setting did not persist or changed mailbox progress identity")
             }
             for mode in ["direct", "system", "http", "socks5"] {
                 var proxied = connection

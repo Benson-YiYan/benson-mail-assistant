@@ -504,6 +504,51 @@ def history_start(root, request, controller=None):
     return {'queued': len(selected), 'count': len(value['uids']), 'mailbox_id': identifier}
 
 _SOURCE_INDEX = {}
+_MESSAGE_ID_INDEX = {}
+
+
+def _message_id_key(message):
+    identifier = str(message.get('message_id') or '').strip().strip('<>').casefold()
+    account = str(message.get('mailbox_account') or '').strip().casefold()
+    return (account, identifier) if account and identifier else None
+
+
+def _message_id_index(root, output, *, refresh=False):
+    import time
+    key = (str(Path(root).resolve()), str(output))
+    cached = _MESSAGE_ID_INDEX.get(key)
+    if refresh or cached is None or time.monotonic() - cached[0] > 30:
+        index = {}
+        for report in _report_files(output):
+            try:
+                original = read_metadata(root, report)
+                message_key = _message_id_key(original)
+                if message_key:
+                    index.setdefault(message_key, str(report))
+            except (OSError, ValueError, TypeError): continue
+        cached = (time.monotonic(), index)
+        _MESSAGE_ID_INDEX[key] = cached
+    return cached[1]
+
+
+def existing_message_id_report(root, message):
+    """Find an already reported copy of this exact RFC Message-ID for this account."""
+    message_key = _message_id_key(message)
+    if not message_key:
+        return None
+    config = _chat()._config(root)
+    output = Path(config.get('output_dir') or Path.home() / 'Documents' / '邮件').expanduser()
+    report = _message_id_index(root, output).get(message_key)
+    return report if report and Path(report).is_file() else None
+
+
+def remember_message_id_report(root, message, report):
+    message_key = _message_id_key(message)
+    if not message_key:
+        return
+    config = _chat()._config(root)
+    output = Path(config.get('output_dir') or Path.home() / 'Documents' / '邮件').expanduser()
+    _message_id_index(root, output).setdefault(message_key, str(report))
 
 
 def _fingerprint(message):

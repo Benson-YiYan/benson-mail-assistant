@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
-from benson_mail.mailbox_config import PRESETS, normalize, mailbox_id, state_identity, connect, folder_name
+from benson_mail.mailbox_config import PRESETS, normalize, mailbox_id, state_identity, connect, folder_name, parse_list_folders
 from benson_mail.bridge import Controller
 
 class MailConnectionTests(unittest.TestCase):
@@ -34,6 +34,17 @@ class MailConnectionTests(unittest.TestCase):
                              ('mail_folder', 'Archive'), ('mail_auth', 'oauth2')]:
             self.assertNotEqual(mailbox_id({**old, field: value}), base)
             self.assertNotEqual(state_identity({**old, field: value}), expected)
+    def test_all_folder_list_parser_skips_unselectable_and_decodes_names(self):
+        rows = [
+            b'(\\HasNoChildren) "/" "INBOX"',
+            b'(\\HasNoChildren \\Sent) "/" "Sent"',
+            b'(\\Noselect) "/" "Root"',
+            b'(\\HasNoChildren) "/" "&U,BTFw-"',
+            (b'(\\HasNoChildren) "/" {7}', b'Archive'),
+        ]
+        folders = parse_list_folders(rows)
+        self.assertEqual([item['name'] for item in folders], ['Archive', 'INBOX', 'Sent', '台北'])
+        self.assertIn('\\Sent', next(item['flags'] for item in folders if item['name'] == 'Sent'))
     def test_ssl_uses_custom_port_username_and_readonly_folder(self):
         client = Mock(capabilities=(b'IMAP4rev1',))
         client.login.return_value = ('OK', [])

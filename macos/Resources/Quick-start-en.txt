@@ -18,7 +18,7 @@ Save and test before resuming. “How do I get an authorization code?” opens p
 
 3. Advanced login, folders and proxies
 Leave the login name empty to use the complete email address. Fill it only when the provider explicitly requires another name; a stale login or nickname can cause authentication to fail even with a correct app password.
-The mail folder defaults to INBOX. Only that configured folder is checked, not every archive, junk folder or label. Use the provider’s exact folder name.
+The mail folder defaults to INBOX. When Read all mail folders is off, only the selected folder is checked. When on, the app traverses folders exposed by the server, such as Inbox, Sent and archives; the exact set depends on the provider's IMAP folders. The Mail folder setting remains the target when the switch is off. Use the provider’s exact folder name.
 Choose Password/app password or OAuth2 access token. Outlook/Microsoft 365 setup is more complex; the account guide includes full steps. “Get Microsoft OAuth2 token” is only for Microsoft accounts and requires your own registered application client ID. Renew expired access tokens manually; automatic sign-in and token refresh are not implemented. Organizational accounts may require administrator approval.
 Proxies: Direct, System, HTTP CONNECT or SOCKS5. Enable the system proxy in v2rayN or your proxy app first. Manual mode requires the actual host and port; 127.0.0.1 is common and 10808 is only an example. Explicit IMAP proxies do not require TUN. This setting affects only that mailbox’s tests and receiving, not AI API traffic. Proxy failure is reported, never silently bypassed with Direct. PAC and password-authenticated proxies are unsupported. Save, then test.
 
@@ -69,7 +69,7 @@ Expand blocked records to inspect messages grouped by sender. Summarize this ema
 
 12. Summarize older mail
 In General settings → Mail tools → Summarize older mail, choose the target mailbox.
-Choose dates, preview the pending count and confirm only after checking it. Preview uses no AI. Confirmation queues processing; monitoring must run to consume it and charges can apply. Completed messages are skipped using local indexes or available completion records; older versions lacking indexes cannot guarantee complete deduplication. Sender and spam rules still apply. Dates use the mailbox server’s received date. Previews expire in one hour; narrow ranges over 10000 messages. Original messages are not changed, marked read or deleted.
+Choose dates, preview the pending count and confirm only after checking it. Preview uses no AI. Confirmation queues processing; monitoring must run to consume it and charges can apply. Completed messages are skipped using local indexes or available completion records; older versions lacking indexes cannot guarantee complete deduplication. Historical backfill ignores sender blocklist/allowlist rules and the Do not summarize spam setting. Dates use the mailbox server’s received date. Previews expire in one hour; narrow ranges over 10000 messages. Original messages are not changed, marked read or deleted.
 
 13. Costs and usage
 Open AI Service → Cost rates. Currency and input/output prices per million tokens estimate costs; they are not usage or limits. Select View usage records for read-only call counts, tokens and costs, and Refresh to reload. Apply rates with the page’s single Save button. Records are also available in General settings → Mail tools.

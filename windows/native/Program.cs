@@ -243,6 +243,7 @@ sealed partial class MainWindow : Window
     readonly TextBlock mailLoginSummary = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Visibility = Visibility.Collapsed };
     readonly MailProxyControls mailProxy = new();
     readonly TextBox mailFolder = new() { Header = L.T("邮件文件夹"), Text = "INBOX" };
+    readonly ToggleSwitch readAllMail = new() { Header = L.T("读取所有邮件文件夹"), OnContent = L.T("开启"), OffContent = L.T("关闭") };
     readonly List<JsonElement> mailPresets = new();
     readonly ComboBox savedMailboxes = new() { Header = L.T("已添加的邮箱"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly List<JsonElement> mailboxProfiles = new();
@@ -557,7 +558,9 @@ sealed partial class MainWindow : Window
         aiSaveButton = Action(L.T("保存 AI 设置"), SaveAI);
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
         oauthTokenButton = OAuthTokenButton(mailAuth);
-        var advanced = Stack(mailUsername, mailLoginSummary, mailFolder, mailAuth, mailProxy.Panel); advanced.Visibility = Visibility.Collapsed;
+        var advanced = Stack(mailUsername, mailLoginSummary, mailFolder, readAllMail,
+            Note(L.T("关闭时只读取上方指定的文件夹；开启后动态读取此邮箱的所有可读取文件夹。仍遵守“不总结垃圾邮件”设置。")),
+            mailAuth, mailProxy.Panel); advanced.Visibility = Visibility.Collapsed;
         savedMailboxes.SelectionChanged += (_, _) => {
             if (changingLanguage || loadingMailboxes || loadingSettingsDrafts || savedMailboxes.SelectedIndex < 0) return;
             var selected = savedMailboxes.SelectedIndex; StoreMailboxDraft(); ShowMailboxDraft(selected);
@@ -567,7 +570,8 @@ sealed partial class MainWindow : Window
                 Row(Action(L.T("添加邮箱"), AddMailboxDraft), Action(L.T("启用／暂停此邮箱"), ToggleMailboxDraft), Action(L.T("移除此邮箱"), RemoveMailboxDraft)),
                 Note(L.T("邮箱的添加、移除、启用及连接修改会在保存本页后一起生效。编辑连接前请先暂停监听。")))),
             BuildSenderPolicy(),
-            HistoryAndDiagnosticsCard(),
+            HistoryBackfillCard(),
+            DiagnosticsCard(),
             Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
                 Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), oauthTokenButton),
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,

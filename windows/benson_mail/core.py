@@ -11,6 +11,7 @@ import subprocess
 import threading
 import time
 import zipfile
+import re
 from datetime import datetime, timezone, timedelta
 from email import policy
 from pathlib import Path
@@ -50,10 +51,14 @@ SPANISH_ANALYSIS_PROMPT = (
     "Puedes usar listas, tablas y negritas. No encierres todo el informe en un bloque de código ni generes HTML.\n")
 
 
-TRACEABILITY_PROMPT = '\nWithin the existing six sections, cite factual claims using [mail.body] or [attachment.N, page:P] (N is the attachment index starting at 1; P only when a [page:P] marker is present). Never fabricate page numbers or quotes. Distinguish explicit source facts, reasonable inferences and uncertainty in the selected report language. Source references identify material, not proof of correctness.'
+TRACEABILITY_PROMPT = '\nBase factual claims on the original email and attachments. Distinguish explicit facts, reasonable inferences and uncertainty. Do not expose internal source IDs, citation tags, or processing notes in the user-facing report.'
 ANALYSIS_PROMPT += TRACEABILITY_PROMPT
 ENGLISH_ANALYSIS_PROMPT += TRACEABILITY_PROMPT
 SPANISH_ANALYSIS_PROMPT += TRACEABILITY_PROMPT
+
+def clean_internal_source_tags(text):
+    """Keep source metadata internal; never render its implementation labels."""
+    return re.sub(r'\[(?:mail\.body|attachment\.\d+(?:,\s*page:\d+)?)\]', '', str(text)).strip()
 
 
 def analysis_prompt(language=None):
@@ -174,7 +179,7 @@ def extract_message(raw, received):
             bodies.append(data.decode(part.get_content_charset() or 'utf-8', errors='replace'))
         elif part.get_content_type()=='text/html' and not bodies:
             bodies.append(re.sub('<[^>]+>',' ',data.decode(part.get_content_charset() or 'utf-8',errors='replace')))
-    return {'subject':str(msg.get('Subject',_t('无标题'))), 'sender':str(msg.get('From',_t('未知发件人'))), 'body':limited('\n'.join(bodies),120000), 'received':received.astimezone(BEIJING).isoformat(), 'attachments':attachments, **spam_metadata(msg)}
+    return {'subject':str(msg.get('Subject',_t('无标题'))), 'sender':str(msg.get('From',_t('未知发件人'))), 'message_id':str(msg.get('Message-ID', '')).strip().strip('<>').casefold(), 'body':limited('\n'.join(bodies),120000), 'received':received.astimezone(BEIJING).isoformat(), 'attachments':attachments, **spam_metadata(msg)}
 
 @localized
 def export_report(directory, message, answer, uid, target=None, metadata_home=None):
@@ -273,7 +278,7 @@ class CodexAnalyzer:
                         except subprocess.TimeoutExpired: self.terminate(force=True); self.process.wait()
                         raise RuntimeError(_t('分析已停止或超时，邮件将在下次重试'))
                 if self.process.returncode: raise RuntimeError(_t('Codex 分析失败，请打开 Codex 检查登录后重试'))
-                output.seek(0); answer=output.read().decode('utf-8',errors='replace').strip()
+                output.seek(0); answer=clean_internal_source_tags(output.read().decode('utf-8',errors='replace'))
                 if not answer: raise RuntimeError(_t('Codex 没有返回报告'))
                 from .assistant_tools import record_usage
                 try: record_usage('codex', '', root=self.workdir.parent)
@@ -299,7 +304,7 @@ class APIAnalyzer:
             from .assistant_tools import record_usage
             try: record_usage('deepseek_harness', self.config.get('api_model', ''))
             except Exception: pass
-        return answer
+        return clean_internal_source_tags(answer)
 
 class Service:
     def __init__(self,config,secret,root,callback,mailbox=None,analyzer=None,api_key=''):
@@ -333,6 +338,22 @@ class Service:
             return self._check_once()
     @localized_method
     def _check_once(self):
+        if self.config.get('read_all_mail') and not self.config.get('_all_folders_child'):
+            from .mailbox_config import list_folders
+            folders = list_folders(self.config, self.secret)
+            if not folders:
+                raise RuntimeError(_t('IMAP 服务器没有返回可读取的邮件文件夹'))
+            seen_message_ids = set()
+            for folder in folders:
+                if self.cancel.is_set(): return
+                child_config = {**self.config, 'mail_folder': folder['name'], 'read_all_mail': False,
+                                '_all_folders_child': True, '_imap_folder_flags': folder['flags'],
+                                '_all_folders_seen_message_ids': seen_message_ids}
+                child = Service(child_config, self.secret, self.root, self.callback, analyzer=self.analyzer)
+                child.callback = self.callback
+                child.cancel = self.cancel
+                child._check_once()
+            return
         from .mail_policy import queued_records, update_record
         policy_root = self.root.parent
         for record in queued_records(policy_root, self.identity):
@@ -374,6 +395,9 @@ class Service:
                     if job.get('historical'): job['message']['historical'] = True
                     from .mail_policy import spam_metadata
                     detected = spam_metadata({}, getattr(box, 'last_flags', ''), self.config.get('mail_folder', 'INBOX'))
+                    if re.search(r'\\Junk\b', str(self.config.get('_imap_folder_flags', '')), re.I):
+                        detected['is_spam'] = True
+                        detected['spam_evidence'].append('IMAP folder')
                     if detected['is_spam']: job['message'].update(detected)
                     self.persist()
                 from .assistant_tools import existing_history_report
@@ -382,8 +406,18 @@ class Service:
                     del pending[key]; self.persist()
                     self.callback({'status':'运行中', 'report':previous, 'detail':_t('新邮件报告已保存')})
                     continue
+                if self.config.get('_all_folders_child'):
+                    from .assistant_tools import existing_message_id_report
+                    message_id = str(job['message'].get('message_id', '')).strip().casefold()
+                    seen = self.config.get('_all_folders_seen_message_ids')
+                    if message_id:
+                        if message_id in seen or existing_message_id_report(self.root.parent, job['message']):
+                            del pending[key]; self.persist()
+                            continue
+                        seen.add(message_id)
                 from .mail_policy import intercept
-                if intercept(self.root.parent, job['message'], self.identity, validity, key):
+                if intercept(self.root.parent, job['message'], self.identity, validity, key,
+                             bypass_sender_rules=bool(job.get('historical'))):
                     del pending[key]; self.persist()
                     self.callback({'policy_changed': True})
                     continue
@@ -419,6 +453,9 @@ class Service:
                 job['target']=str(export_report(self.config['output_dir'],job['message'],None,key,metadata_home=self.root.parent)); self._persist_job(job, manual)
             path=export_report(self.config['output_dir'],job['message'],job['answer'],key,target=job['target'])
             write_metadata(self.root.parent,path,job['message'])
+            if self.config.get('_all_folders_child'):
+                from .assistant_tools import remember_message_id_report
+                remember_message_id_report(self.root.parent, job['message'], path)
         completed=self.state.setdefault('completed_notifications',[])
         notice_id=f'{self.identity}:{validity}:{key}:complete'
         notify=notice_id not in completed

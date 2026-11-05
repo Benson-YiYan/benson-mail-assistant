@@ -120,7 +120,8 @@ def spam_metadata(message, flags='', folder=''):
     if str(folder).casefold() in {'spam', 'junk', 'junk email', 'junk e-mail', '[gmail]/spam', '垃圾邮件', '垃圾箱'}: reasons.append('junk folder')
     return {'is_spam': bool(reasons), 'spam_evidence': reasons}
 
-def block_reason(policy, message):
+def block_reason(policy, message, bypass_sender_rules=False):
+    if bypass_sender_rules: return None
     if policy['skip_spam'] and message.get('is_spam'): return 'spam'
     address = sender_address(message.get('sender') or message.get('from'))
     listed = address in policy['addresses']
@@ -128,10 +129,10 @@ def block_reason(policy, message):
     if policy['mode'] == 'whitelist' and not listed: return 'not_whitelisted'
     return None
 
-def intercept(root, message, mailbox_key, validity, uid):
+def intercept(root, message, mailbox_key, validity, uid, bypass_sender_rules=False):
     """Durably save a blocked original before caller acknowledges its local pending UID."""
     with _store(root) as state:
-        reason = block_reason(_policy(root, state), message)
+        reason = block_reason(_policy(root, state), message, bypass_sender_rules=bypass_sender_rules)
         if not reason: return False
         identifier = hashlib.sha256(f'{mailbox_key}\0{validity}\0{uid}'.encode()).hexdigest()
         if identifier not in state['records']:

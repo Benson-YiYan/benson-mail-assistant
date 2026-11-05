@@ -305,7 +305,7 @@ struct HistoryBackfillView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack { Text(T("历史邮件补总结")).font(.title2.bold()); Spacer(); Button(T("关闭")) { dismiss() } }
-            Text(T("先查询数量，确认后才调用 AI。已完成的邮件会跳过，屏蔽规则继续生效。")).font(.callout).foregroundStyle(.secondary)
+            Text(T("先查询数量，确认后才调用 AI。已完成的邮件会跳过；历史补总结不应用发件人规则和垃圾邮件设置。")).font(.callout).foregroundStyle(.secondary)
             Picker(T("邮箱"), selection: $mailbox) {
                 Text(T("请选择邮箱")).tag("")
                 ForEach(store.mailboxProfiles) { profile in Text(profile.connection.account).tag(profile.id) }

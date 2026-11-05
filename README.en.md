@@ -29,11 +29,11 @@ Windows and Mac packages in one release may have different version numbers. Veri
 2. **Choose AI.** Configure a Chat Completions-compatible API base URL, key and model, or use your installed and configured Codex / DeepSeek Harness. Harness is not bundled, and no free AI service is included. API mode does not require Codex.
 3. **Choose a report folder and start monitoring.** Checks default to 60 seconds and can be customized. Empty checks do not call AI.
 
-**A newly added mailbox's first check records a starting point; it does not analyze your entire old inbox.** After that, monitoring catches up on messages received while paused or powered off, provided they remain in the selected folder.
+**A newly added mailbox's first check records a starting point; it does not analyze your entire old inbox.** After that, monitoring catches up on messages received while paused or powered off, provided they remain in scope. Mailbox settings keep the selected folder and add an optional Read all mail folders switch for every selectable folder exposed by the provider.
 
 ## Features
 
-- Multiple mailboxes, provider presets and custom IMAP host, port and encryption.
+- Multiple mailboxes, provider presets and custom IMAP host, port and encryption; choose one folder per account or enable reading all selectable folders.
 - Six-section Markdown reports, with legacy TXT viewing support.
 - Reports organized by receiving mailbox, date and sender; optional Report tree browsing alongside the flat list.
 - Local search across message bodies, senders and attachment names; date, sender and attachment filters.
@@ -108,7 +108,7 @@ The legacy update address `benson-mail-updates/main/manifest.json` remains avail
 
 Select a report and choose Summarize again to regenerate all six sections in the current interface language. A failed attempt preserves the previous report. The saved email index provides the original message; older reports without that index show an explanation.
 
-Ask about this email supports follow-up questions and additional files selected with the file picker. Each email has its own saved conversation that can be reopened. Factual answers use the original email and readable original attachments. Conversation is included, but generated reports, previous answers and compressed summaries are not factual evidence. Long conversations compress earlier turns into a summary while keeping recent messages, with a compression indicator. Compression is not word-for-word preservation; the complete conversation remains locally saved. Quote and verify critical figures or wording.
+Ask about this email supports follow-up questions and additional files selected with the file picker. Each email has its own saved conversation that can be reopened. Factual answers use the original email and readable original attachments. Conversation is included, but generated reports, previous answers and compressed summaries are not factual evidence. Long conversations compress earlier turns into a summary while keeping recent messages, with a compression indicator. Compression is not word-for-word preservation; the complete conversation remains locally saved. Quote and verify critical figures or wording. Internal source labels are kept out of reports and chat answers.
 
 These actions call your configured AI and may incur charges. Supplementary files are read only for text extraction; unreadable or oversized files cause an explicit error. No emails are sent. Conversation history is stored in local application data. Uninstalling removes it even when mailbox and AI settings are retained; copy any conversations you need before uninstalling.
 
@@ -126,7 +126,7 @@ Drag the divider between the report and the email conversation to resize both ar
 
 - **Reply drafts:** choose tone, language and instructions, then edit the recipient, subject and body before saving locally or copying. The app never sends the draft automatically.
 - **Enhanced attachment reading:** images and scanned PDFs first use native local OCR; extracted text then goes to the selected AI. System language support, file limits and recognition quality apply. Unreadable content is reported, and recognition is not guaranteed.
-- **Older-mail processing:** select a mailbox and date range, preview the pending count, then confirm to queue. Processing may incur AI charges and still follows sender and spam rules.
+- **Older-mail processing:** select a mailbox and date range, preview the pending count, then confirm to queue. Processing may incur AI charges. User-selected historical backfill ignores blocklist, allowlist and Do not summarize spam rules. The Windows version lists each message's subject, sender and received time; search matches subjects or senders, and messages can be unchecked individually.
 - **Sources and continuous questions:** inspect saved original mail, attachment extraction and reading limitations. Questions use the original message and readable original attachments as factual evidence; generated reports and earlier AI replies do not replace originals. Missing sources for older mail are reported.
 - **Notifications and quiet hours:** system notifications can be paused independently of monitoring. Quiet hours, including overnight periods, keep checking mail and saving reports.
 - **Diagnostics:** manually export sanitized operational information for troubleshooting, excluding keys, message bodies, attachments and chat contents.

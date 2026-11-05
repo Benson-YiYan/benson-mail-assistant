@@ -71,7 +71,7 @@ enum AssistantToolsLocalization {
         "保存": ["Save", "Guardar"],
         "保存单价": ["Save rates", "Guardar tarifas"],
         "保存草稿": ["Save draft", "Guardar borrador"],
-        "先查询数量，确认后才调用 AI。已完成的邮件会跳过，屏蔽规则继续生效。": ["Preview the count before confirming AI processing. Completed messages are skipped and blocking rules still apply.", "Consulta primero la cantidad y confirma antes de usar la IA. Se omiten los correos ya procesados y se respetan las reglas de bloqueo."],
+        "先查询数量，确认后才调用 AI。已完成的邮件会跳过；历史补总结不应用发件人规则和垃圾邮件设置。": ["Preview the count before confirming AI processing. Completed messages are skipped; sender and spam rules do not apply to selected historical mail.", "Consulta primero la cantidad y confirma antes de usar la IA. Se omiten los correos ya procesados; las reglas de remitentes y spam no se aplican a los correos históricos seleccionados."],
         "历史邮件补总结": ["Summarize older mail", "Resumir correos anteriores"],
         "友好": ["Friendly", "Cordial"],
         "只控制系统通知，邮件监听和总结继续运行。": ["Controls system notifications only. Mail monitoring and summaries continue.", "Solo controla las notificaciones del sistema. La supervisión y los resúmenes continúan."],

@@ -29,6 +29,7 @@ sealed partial class MainWindow
         draft["host"] = mailHost.Text; draft["port"] = mailPort.Text; draft["security"] = mailSecurity.SelectedIndex == 1 ? "starttls" : "ssl";
         draft["proxy_mode"] = mailProxy.Value; draft["proxy_host"] = mailProxy.Host.Text; draft["proxy_port"] = mailProxy.Port.Text;
         draft["username"] = mailUsername.Text; draft["mail_folder"] = mailFolder.Text; draft["mail_auth"] = mailAuth.SelectedIndex == 1 ? "oauth2" : "password";
+        draft["read_all_mail"] = readAllMail.IsOn;
     }
     object MailboxDraftValues()
     {
@@ -54,6 +55,7 @@ sealed partial class MainWindow
             // explanation must already agree before this switch returns.
             RefreshMailLogin(account, mailUsername, mailLoginSummary);
             mailFolder.Text = Text("mail_folder", "INBOX"); mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
+            readAllMail.IsOn = Text("read_all_mail").Equals("true", StringComparison.OrdinalIgnoreCase);
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0; mailProxy.Load(connection);
             savedMailboxes.SelectedIndex = index;
         }
@@ -78,7 +80,8 @@ sealed partial class MainWindow
     {
         StoreMailboxDraft();
         mailboxDrafts.Add(new() { ["client_id"] = Guid.NewGuid().ToString("N"), ["account"] = "", ["host"] = "imap.163.com",
-            ["port"] = "993", ["security"] = "ssl", ["mail_folder"] = "INBOX", ["mail_provider"] = "163", ["mail_auth"] = "password", ["monitor_enabled"] = true });
+            ["port"] = "993", ["security"] = "ssl", ["mail_folder"] = "INBOX", ["mail_provider"] = "163", ["mail_auth"] = "password",
+            ["monitor_enabled"] = true, ["read_all_mail"] = false });
         mailboxDraftIndex = mailboxDrafts.Count - 1; RenderMailboxDraftNames(); ShowMailboxDraft(mailboxDraftIndex); return Task.CompletedTask;
     }
     Task ToggleMailboxDraft()

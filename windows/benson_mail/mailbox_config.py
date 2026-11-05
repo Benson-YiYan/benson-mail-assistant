@@ -275,6 +275,50 @@ def folder_name(value):
     flush()
     return '"' + ''.join(result).replace('\\', '\\\\').replace('"', '\\"') + '"'
 
+
+def _decode_modified_utf7(value):
+    def decode(match):
+        token = match.group(1)
+        if not token:
+            return '&'
+        raw = token.replace(',', '/')
+        raw += '=' * ((4 - len(raw) % 4) % 4)
+        try: return base64.b64decode(raw).decode('utf-16-be')
+        except (ValueError, UnicodeError): return match.group(0)
+    return re.sub(r'&([A-Za-z0-9+,]*)-', decode, value)
+
+
+def parse_list_folders(rows):
+    """Parse selectable folders from IMAP LIST responses without changing mailbox state."""
+    found = {}
+    pattern = re.compile(rb'^\((?P<flags>[^)]*)\)\s+(?P<delimiter>NIL|"(?:\\.|[^"])*")\s+(?P<name>"(?:\\.|[^"])*"|[^\s]+)$', re.I)
+    for item in rows or []:
+        raw = item
+        if isinstance(item, tuple) and item:
+            raw = item[0]
+            if len(item) > 1 and isinstance(item[1], bytes):
+                literal = re.search(rb'\{(\d+)\}$', raw)
+                if literal and int(literal.group(1)) == len(item[1]):
+                    raw = raw[:literal.start()] + b'"' + item[1] + b'"'
+        if not isinstance(raw, bytes):
+            continue
+        match = pattern.match(raw.strip())
+        if not match:
+            continue
+        flags = match.group('flags').decode('ascii', 'replace')
+        if re.search(r'\\Noselect\b', flags, re.I):
+            continue
+        token = match.group('name')
+        if token.startswith(b'"'):
+            try: name = json.loads(token.decode('ascii'))
+            except (UnicodeDecodeError, ValueError): continue
+        else:
+            name = token.decode('ascii', 'replace')
+        name = _decode_modified_utf7(name)
+        if name:
+            found[name] = flags
+    return [{'name': name, 'flags': flags} for name, flags in sorted(found.items(), key=lambda row: row[0].casefold())]
+
 class MailConnectionError(RuntimeError):
     """Sanitized connection diagnostic safe for the UI and background status."""
 
@@ -383,7 +427,7 @@ def require_ok(result, operation):
     return data
 
 
-def connect(config, secret, context=None):
+def connect(config, secret, context=None, select_folder=True):
     value = normalize(config)
     context = context or ssl.create_default_context()
     client = None
@@ -418,11 +462,25 @@ def connect(config, secret, context=None):
             stage = 'ID 客户端标识协商'
             imaplib.Commands.setdefault('ID', ('AUTH', 'SELECTED'))
             require_ok(client._simple_command('ID', '("name" "BensonMail" "version" "2.0" "vendor" "Benson")'), 'ID')
-        stage = 'SELECT 只读打开邮件文件夹'
-        require_ok(client.select(folder_name(value['mail_folder']), readonly=True), 'SELECT')
+        if select_folder:
+            stage = 'SELECT 只读打开邮件文件夹'
+            require_ok(client.select(folder_name(value['mail_folder']), readonly=True), 'SELECT')
         return client
     except Exception as error:
         if client is not None:
             try: client.logout()
             except Exception: pass
         raise mail_error(error, value, secret, stage, config.get('ui_language', 'zh')) from None
+
+
+def list_folders(config, secret):
+    """Discover selectable IMAP folders while retaining the configured folder setting."""
+    client = connect(config, secret, select_folder=False)
+    try:
+        status, rows = client.list()
+        if status != 'OK':
+            raise IMAP_ERROR(f'LIST: {status}')
+        return parse_list_folders(rows)
+    finally:
+        try: client.logout()
+        except Exception: pass

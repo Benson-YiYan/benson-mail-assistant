@@ -256,7 +256,12 @@ class AssistantToolTests(unittest.TestCase):
         supplied=json.dumps(messages)
         self.assertIn('Original invoice is 1500',supplied)
         self.assertNotIn('WRONG_GENERATED_REPORT',supplied)
-        self.assertEqual(result['answer'],'1500 [mail.body]')
+        self.assertEqual(result['answer'],'1500')
+    def test_chat_history_hides_legacy_internal_source_tags(self):
+        result=chat._view({'messages':[{'role':'assistant','content':'Fact [mail.body] [attachment.1, page:2]'}],
+                           'summary':'Earlier fact [mail.body]'})
+        self.assertEqual(result['messages'][0]['content'],'Fact')
+        self.assertEqual(result['summary'],'Earlier fact')
     def test_source_missing_original_requires_retrieval_not_report_fallback(self):
         self.report.with_suffix('.mail.json').unlink()
         result=tools.report_sources(self.root,str(self.report))
@@ -268,10 +273,12 @@ class AssistantToolTests(unittest.TestCase):
         sidecar=self.report.with_suffix('.mail.json');sidecar.write_text(json.dumps(self.mail));before=sidecar.read_bytes()
         with patch.object(chat,'_complete',return_value='New report [mail.body]') as complete:
             chat.report_retry(self.root,str(self.report))
+        self.assertNotIn('[mail.body]',self.report.read_text())
         self.assertEqual(sidecar.read_bytes(),before)
         prompt=complete.call_args.args[2]
         self.assertIn('contents were not read',json.dumps(prompt))
-        self.assertIn('Never fabricate',prompt[0]['content'])
+        self.assertIn('Do not expose internal source IDs',prompt[0]['content'])
+        self.assertNotIn('cite factual claims',prompt[0]['content'])
     def test_empty_diagnostic_destination_does_not_create_cwd_export(self):
         for destination in ('','   '):
             with self.assertRaises(ValueError): tools.diagnostics_export(self.root,destination)

@@ -28,7 +28,7 @@ Los paquetes de una misma publicación pueden tener números de versión distint
 2. **Elige la IA.** Configura URL base, clave y modelo de una API compatible con Chat Completions, o usa Codex / DeepSeek Harness ya instalados y configurados. Harness no se incluye ni se descarga. No se incluye un servicio de IA gratuito. El modo API no requiere Codex.
 3. **Elige la carpeta de informes e inicia la supervisión.** El intervalo predeterminado es de 60 segundos, ajustable entre 10 y 86400. Una comprobación sin novedades no llama a la IA.
 
-**La primera comprobación de un buzón nuevo registra el punto de partida; no analiza todo el correo antiguo.** Después, al reanudar, se comprueban los mensajes recibidos durante pausas o apagados si siguen en la carpeta elegida.
+**La primera comprobación de un buzón nuevo registra el punto de partida; no analiza todo el correo antiguo.** Después, al reanudar, se comprueban los mensajes recibidos durante pausas o apagados si siguen dentro del alcance. En los ajustes puedes mantener una carpeta concreta o activar Leer todas las carpetas de correo disponibles que expone el proveedor.
 
 ## Idiomas y paquetes
 
@@ -38,7 +38,7 @@ Si no está instalado el idioma elegido, aparece «No has descargado este idioma
 
 ## Funciones
 
-- Varias cuentas con preajustes y servidor, puerto, cifrado y proxy IMAP personalizables.
+- Varias cuentas con preajustes y servidor, puerto, cifrado y proxy IMAP personalizables; puedes elegir una carpeta o leer todas las carpetas disponibles.
 - Informes Markdown `.md` con vista previa; lectura de informes TXT antiguos.
 - Informes organizados por buzón receptor, fecha y remitente; vista opcional de árbol además de la lista plana.
 - Búsqueda local en cuerpo, remitente y nombres de adjuntos; filtros por fecha, remitente y presencia de adjuntos.
@@ -105,7 +105,7 @@ La dirección antigua `benson-mail-updates/main/manifest.json` sigue disponible.
 
 Selecciona un informe y elige Volver a resumir para generar las seis secciones en el idioma actual de la interfaz. Si falla, se conserva el informe anterior. Se utiliza el índice guardado del correo; los informes antiguos sin ese índice muestran una explicación.
 
-Preguntar sobre este correo permite preguntas de seguimiento y archivos adicionales mediante el selector. Cada correo conserva su propia conversación para continuar después. Los hechos se basan en el correo original y sus adjuntos legibles. Se incluye la conversación, pero los informes generados, respuestas anteriores y resúmenes comprimidos no son pruebas de hechos. Si crece demasiado, se resumen los turnos antiguos, se mantienen los recientes y se indica la compresión. El resumen no conserva cada palabra; el historial completo permanece guardado localmente. Cita y verifica cifras o frases importantes.
+Preguntar sobre este correo permite preguntas de seguimiento y archivos adicionales mediante el selector. Cada correo conserva su propia conversación para continuar después. Los hechos se basan en el correo original y sus adjuntos legibles. Se incluye la conversación, pero los informes generados, respuestas anteriores y resúmenes comprimidos no son pruebas de hechos. Si crece demasiado, se resumen los turnos antiguos, se mantienen los recientes y se indica la compresión. El resumen no conserva cada palabra; el historial completo permanece guardado localmente. Cita y verifica cifras o frases importantes. Las etiquetas internas de fuentes no se muestran en informes ni respuestas del chat.
 
 Estas acciones utilizan la IA configurada y pueden generar costes. Los archivos adicionales se leen solo para extraer texto; los archivos ilegibles o demasiado grandes producen un error explícito. No se envían correos. El historial se guarda en los datos locales de la aplicación. Se elimina al desinstalar, aunque conserves la configuración del correo y de IA; copia antes las conversaciones que necesites.
 
@@ -123,7 +123,7 @@ Arrastra el divisor entre el informe y la conversación del correo para ajustar 
 
 - **Borradores de respuesta:** elige tono, idioma e instrucciones, edita destinatario, asunto y cuerpo y guarda localmente o copia. La aplicación nunca envía el borrador automáticamente.
 - **Lectura mejorada de adjuntos:** las imágenes y los PDF escaneados usan primero OCR nativo local; el texto extraído se envía a la IA seleccionada. Hay límites de idioma del sistema, tamaño y calidad; se informa del contenido ilegible y no se garantiza el reconocimiento.
-- **Correos históricos:** selecciona buzón y fechas, consulta la cantidad pendiente y confirma para añadirlos a la cola. Puede generar costes de IA y respeta las reglas de remitentes y spam.
+- **Correos históricos:** selecciona buzón y fechas, consulta la cantidad pendiente y confirma para añadirlos a la cola. Puede generar costes de IA. La recuperación histórica seleccionada por el usuario ignora las listas negras, blancas y la regla de no resumir correo no deseado. La versión de Windows muestra el asunto, remitente y hora de recepción; permite buscar por asunto o remitente y desmarcar mensajes individualmente.
 - **Fuentes y preguntas continuas:** consulta el correo original guardado, el texto extraído y sus limitaciones. Las preguntas usan el correo original y sus adjuntos legibles como evidencia; los informes generados y las respuestas anteriores no sustituyen los originales. Se avisa si faltan fuentes de correos antiguos.
 - **Notificaciones y horario silencioso:** pausa las notificaciones del sistema independientemente de la supervisión. Durante el horario silencioso, incluso de noche, se siguen comprobando correos y guardando informes.
 - **Diagnóstico:** exporta manualmente información operativa sin datos sensibles para resolver problemas; no incluye claves, cuerpos, adjuntos ni conversaciones.

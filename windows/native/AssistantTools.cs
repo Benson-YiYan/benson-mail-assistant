@@ -58,9 +58,11 @@ sealed partial class MainWindow
     }
     Border NotificationSettingsCard() => Card(Stack(Heading(L.T("系统通知与免打扰")), notificationsSetting, quietEnabled,
         Row(quietStart, quietEnd), Note(L.T("使用电脑本地时间，可跨午夜。开始和结束相同表示全天免打扰；邮件仍会检查并保存报告，静默通知不会补发。"))));
-    Border HistoryAndDiagnosticsCard() => Card(Stack(Heading(L.T("历史邮件与诊断")),
-        Note(L.T("按日期补总结已有邮件；先查看数量，确认后才加入队列。会跳过已总结邮件，并遵守屏蔽及垃圾邮件设置。")),
-        Row(Action(L.T("补总结历史邮件"), BackfillHistory), Action(L.T("导出诊断包"), ExportDiagnostics)),
+    Border HistoryBackfillCard() => Card(Stack(Heading(L.T("历史邮件补总结")),
+        Note(L.T("按日期补总结已有邮件；先查看数量，确认后才加入队列。会跳过已总结邮件，并忽略发件人黑名单／白名单规则，同时忽略“不总结垃圾邮件”设置。")),
+        Action(L.T("补总结历史邮件"), BackfillHistory)));
+    Border DiagnosticsCard() => Card(Stack(Heading(L.T("诊断包")),
+        Action(L.T("导出诊断包"), ExportDiagnostics),
         Note(L.T("诊断包仅包含脱敏的运行信息，不包含密钥、邮件正文或附件。"))));
     Border UsageSettingsCard() => Card(Stack(Heading(L.T("费用单价")),
         Note(L.T("以下是计算预估费用的单价，不是 Token 用量或限额。实际调用次数、Token 用量和费用请点击“查看用量记录”。")),
@@ -132,11 +134,11 @@ sealed partial class MainWindow
         var end = new CalendarDatePicker { Header = L.T("结束日期"), Date = DateTimeOffset.Now, MinWidth = 0, Width = 200 };
         var message = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         JsonElement snapshot = default;
-        var senderSearch = new TextBox { PlaceholderText = L.T("仅搜索发件人"), Visibility = Visibility.Collapsed };
+        var senderSearch = new TextBox { PlaceholderText = L.T("搜索邮件标题或发件人"), Visibility = Visibility.Collapsed };
         var candidatesPanel = new StackPanel { Spacing = 3 };
         var candidatesScroll = new ScrollViewer { MaxHeight = 300, Content = candidatesPanel, Visibility = Visibility.Collapsed };
         var selectedUids = new System.Collections.Generic.HashSet<long>();
-        var candidateRows = new System.Collections.Generic.List<(long Uid, string Sender, CheckBox Check)>();
+        var candidateRows = new System.Collections.Generic.List<(long Uid, string Sender, string Subject, CheckBox Check)>();
         var previewButton = new Button { Content = L.T("查看待处理数量") };
         var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("补总结历史邮件"),
             PrimaryButtonText = L.T("确认加入总结队列"), IsPrimaryButtonEnabled = false, CloseButtonText = L.T("取消") };
@@ -144,7 +146,9 @@ sealed partial class MainWindow
         {
             var query = senderSearch.Text.Trim();
             foreach (var row in candidateRows)
-                row.Check.Visibility = query.Length == 0 || row.Sender.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                row.Check.Visibility = query.Length == 0 ||
+                    row.Sender.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+                    row.Subject.Contains(query, StringComparison.CurrentCultureIgnoreCase)
                     ? Visibility.Visible : Visibility.Collapsed;
             var selectedCount = candidateRows.Count(row => selectedUids.Contains(row.Uid));
             message.Text = L.T("待总结：") + selectedCount + " / " + candidateRows.Count + "\n" +
@@ -182,7 +186,7 @@ sealed partial class MainWindow
                             new TextBlock { Text = sender + (string.IsNullOrWhiteSpace(received) ? "" : " · " + received),
                                 TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .75 }), Margin = new Thickness(0, 2, 0, 2) };
                         selectedUids.Add(uid);
-                        candidateRows.Add((uid, sender, check));
+                        candidateRows.Add((uid, sender, subject, check));
                         candidatesPanel.Children.Add(check);
                         check.Checked += (_, _) => { selectedUids.Add(uid); RefreshCandidateSelection(); };
                         check.Unchecked += (_, _) => { selectedUids.Remove(uid); RefreshCandidateSelection(); };

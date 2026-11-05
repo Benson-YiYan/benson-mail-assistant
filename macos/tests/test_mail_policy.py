@@ -10,6 +10,7 @@ from unittest.mock import patch
 RUNTIME = Path(__file__).resolve().parents[1] / 'Runtime'
 sys.path.insert(0, str(RUNTIME))
 from mail_policy import policy_status, policy_save, policy_summarize_records, intercept, queued_records, spam_metadata
+from mailbox_config import mailbox_id
 
 class MacPolicyTests(unittest.TestCase):
     def setUp(self):
@@ -43,6 +44,26 @@ class MacPolicyTests(unittest.TestCase):
             self.assertEqual(self.daemon.check_profiles()[0],[])
             analyze.assert_not_called()
         self.assertEqual(len(self.acks),1); self.assertEqual(policy_status(self.root)['count'],1)
+    def test_historical_backfill_bypasses_all_sender_and_spam_rules(self):
+        self.block()
+        historical = dict(self.message, historical=True)
+        self.pending.write_text(json.dumps([historical]))
+        with patch.object(self.daemon,'run_reader',self.reader), patch.object(self.daemon,'analyze') as analyze:
+            self.assertEqual(self.daemon.check_profiles()[0],[])
+            analyze.assert_called_once()
+        self.assertEqual(policy_status(self.root)['count'],0)
+
+        policy_save(self.root,{'mode':'blacklist','addresses':['notifications@github.com'],'skip_spam':True})
+        spam = dict(historical, is_spam=True)
+        self.pending.write_text(json.dumps([spam]))
+        self.state.write_text(json.dumps({'pending':[2],'mailbox_key':'account-a','historical_pending':[2]}))
+        self.acks.clear()
+        with patch.object(self.daemon,'run_reader',self.reader), patch.object(self.daemon,'analyze') as analyze:
+            self.assertEqual(self.daemon.check_profiles()[0],[])
+            analyze.assert_called_once()
+        self.assertEqual(policy_status(self.root)['count'],0)
+        # analyze is mocked here; production analyze owns the reader ack.
+        self.assertEqual(len(self.acks),0)
     def test_queue_uses_cached_mail_and_no_ack_for_manual_original(self):
         self.block(); intercept(self.root,self.message,'account-a','7',2)
         record=policy_status(self.root)['records'][0]; policy_summarize_records(self.root,[record['id']])
@@ -78,3 +99,17 @@ class MacPolicyTests(unittest.TestCase):
         self.assertFalse(spam_metadata({},'FLAGS ($NotJunk)')['is_spam'])
         self.assertFalse(spam_metadata({'Subject':'spam'})['is_spam'])
         self.assertTrue(spam_metadata({},folder='Junk Email')['is_spam'])
+    def test_all_folder_profiles_keep_independent_progress_ids_and_discover_dynamically(self):
+        connection={'account':'demo@example.invalid','host':'imap.example.invalid','port':993,'security':'ssl',
+                    'username':'','mail_folder':'INBOX','mail_auth':'password','read_all_mail':True}
+        profile={'connection':connection,'enabled':True}
+        self.daemon._FOLDER_CACHE.clear()
+        client=type('Client',(),{'logout':lambda self:None})()
+        with patch.object(self.daemon,'activate_profile'), patch('mail_connection_io.load',return_value=(connection,'SYNTHETIC')), \
+             patch.object(self.daemon,'connect',return_value=client), patch.object(self.daemon,'selectable_folders',return_value=['INBOX','Sent']):
+            expanded=self.daemon.scan_profiles([profile],{})
+        self.assertEqual([item[0]['connection']['mail_folder'] for item in expanded],['INBOX','Sent'])
+        self.assertTrue(all(item[0]['connection']['read_all_mail'] for item in expanded))
+        ids=[mailbox_id(item[0]['connection']) for item in expanded]
+        self.assertEqual(len(set(ids)),2)
+        self.assertTrue(all(item[1] is None for item in expanded))

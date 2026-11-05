@@ -52,7 +52,7 @@ sealed partial class MainWindow
                 "Legacy Spanish language packs retain built-in sender policy labels");
             // Run the real language-change handler over the existing settings cards,
             // report/chat controls and tray. Dictionary coverage alone misses stale UI.
-            var chineseLabels = new[] { "管理邮箱", "邮箱连接", "检查频率", "选择您喜欢的 AI", "系统通知与免打扰", "历史邮件与诊断", "费用单价" };
+            var chineseLabels = new[] { "管理邮箱", "邮箱连接", "检查频率", "选择您喜欢的 AI", "系统通知与免打扰", "历史邮件补总结", "诊断包", "费用单价" };
             bool HasText(UIElement? element, string text)
             {
                 if (element == null || element == reports || element == savedMailboxes || element == chatMessages) return false;

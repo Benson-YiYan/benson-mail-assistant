@@ -56,7 +56,9 @@ with tempfile.TemporaryDirectory(prefix='BensonMail-UI-test-') as temporary:
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     (data / 'service.json').write_text(json.dumps({'phase': 'idle', 'last_check': now, 'heartbeat': now, 'pending': []}))
     subprocess.run(['/usr/bin/open', '-n', str(app), '--args', '--fixture', str(fixture), '--self-test', str(evidence), *test_options], check=True)
-    for _ in range(40):
+    # Intel builds run under Rosetta on Apple silicon during local release checks.
+    # The complete native UI suite can exceed 40 seconds there even when it succeeds.
+    for _ in range(120):
         result_file = evidence / 'result.json'
         if result_file.exists():
             result = json.loads(result_file.read_text())

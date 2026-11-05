@@ -17,7 +17,7 @@ Prueba el borrador del buzón seleccionado antes de guardarlo: usa en memoria la
 
 3. Usuario avanzado, carpeta y proxy
 Deja vacío el nombre de usuario para usar la dirección completa. Escríbelo solo si el proveedor exige otro; un usuario antiguo o apodo puede impedir el acceso incluso con la contraseña correcta.
-La carpeta predeterminada es INBOX. Solo se comprueba esa carpeta, no todos los archivos, etiquetas ni carpetas de spam. Usa el nombre exacto indicado por el proveedor.
+La carpeta predeterminada es INBOX. Con Leer todas las carpetas de correo desactivado, solo se comprueba la carpeta elegida. Activado, se recorren las carpetas disponibles expuestas por IMAP. La carpeta elegida se conserva y se usa de nuevo al desactivar la opción. Usa el nombre exacto del proveedor.
 Elige Contraseña/código de autorización o Token de acceso OAuth2. Outlook/Microsoft 365 es más complejo; la guía de cuentas incluye todos los pasos. Obtener token OAuth2 de Microsoft solo sirve para Microsoft y requiere el ID de cliente de tu propia aplicación registrada. Renueva manualmente los tokens caducados; no hay inicio de sesión ni renovación automáticos. Las cuentas organizativas pueden necesitar permiso del administrador.
 Proxy: conexión directa, proxy del sistema, HTTP CONNECT o SOCKS5. Activa primero el proxy del sistema en v2rayN u otro cliente. El modo manual necesita su dirección y puerto reales; 127.0.0.1 es habitual y 10808 solo un ejemplo. El proxy IMAP explícito no requiere TUN. Solo afecta a las pruebas y recepción de ese buzón, no al tráfico API de IA. Si falla, se informa; nunca se cambia silenciosamente a conexión directa. No admite PAC ni proxy con usuario/contraseña. Guarda y prueba.
 
@@ -67,7 +67,7 @@ Despliega los registros bloqueados agrupados por remitente. Resumir este correo 
 
 12. Resumir correos anteriores
 Selecciona primero el buzón en Buzones y comprobaciones; después Correos históricos y diagnóstico → Resumir correos anteriores.
-Elige las fechas, consulta la cantidad pendiente y confirma tras revisarla. La consulta no llama a la IA. Confirmar añade a la cola; debe estar activa la supervisión para procesarla y puede generar cargos. Se omiten correos completados mediante índices locales o registros disponibles; versiones antiguas sin índice no garantizan evitar todos los duplicados. Se respetan reglas de remitentes y spam. Las fechas son las de recepción del servidor. La consulta caduca en una hora; reduce intervalos que superen 10000 mensajes. No modifica, marca como leídos ni elimina originales.
+Elige las fechas, consulta la cantidad pendiente y confirma tras revisarla. La consulta no llama a la IA. Confirmar añade a la cola; debe estar activa la supervisión para procesarla y puede generar cargos. Se omiten correos completados mediante índices locales o registros disponibles; versiones antiguas sin índice no garantizan evitar todos los duplicados. La recuperación histórica ignora las listas de remitentes y el ajuste «No resumir correo no deseado». Las fechas son las de recepción del servidor. La consulta caduca en una hora; reduce intervalos que superen 10000 mensajes. No modifica, marca como leídos ni elimina originales.
 
 13. Costos y uso
 Abre Servicio de IA → Precios unitarios. Los precios por millón de tokens de entrada/salida y la moneda sirven para estimar costes, no indican uso ni límites. Pulsa Ver registros de uso para consultar solicitudes, tokens y costes de solo lectura; edita los precios en esa página y pulsa su único botón Guardar ajustes de IA.

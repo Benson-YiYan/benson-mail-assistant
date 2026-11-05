@@ -144,6 +144,9 @@ struct MailAccountView: View {
                             .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                     }
                     TextField(T("邮件文件夹"), text: $draft.mail_folder)
+                    Toggle(T("读取所有邮件文件夹"), isOn: $draft.read_all_mail)
+                    Text(T("开启后会监视 IMAP 中所有可读取的文件夹，并分别保存进度；关闭时只读取上方设置的文件夹。"))
+                        .font(.caption).foregroundStyle(.secondary)
                     Picker(T("登录方式"), selection: $draft.mail_auth) {
                         Text(T("密码／客户端授权码")).tag("password")
                         Text(T("OAuth2 访问令牌")).tag("oauth2")

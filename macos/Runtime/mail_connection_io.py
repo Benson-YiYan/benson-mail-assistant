@@ -1,12 +1,13 @@
 """Load only the selected mailbox credential from macOS Keychain."""
 import json
+from pathlib import Path
 import re
 import subprocess
 from runtime_paths import data_home
 from mailbox_config import normalize, connect, MailConnectionError, mail_error, redact_mail_error
 
-def load():
-    path = data_home() / 'settings.json'
+def load(home=None):
+    path = Path(home or data_home()) / 'settings.json'
     settings = json.loads(path.read_text()) if path.exists() else {}
     mailbox = settings.get('mailbox')
     if mailbox:
@@ -28,7 +29,8 @@ def load():
     result = subprocess.run(command + ['-w'], capture_output=True, text=True, timeout=20)
     if result.returncode or not result.stdout.strip():
         raise ValueError('无法读取该邮箱的钥匙串凭据，请在设置中重新保存。')
-    return {**connection, 'ui_language': settings.get('ui_language', 'zh')}, result.stdout.rstrip('\n')
+    return {**connection, 'read_all_mail': bool(mailbox.get('read_all_mail', False)) if mailbox else False,
+            'ui_language': settings.get('ui_language', 'zh')}, result.stdout.rstrip('\n')
 
 def test():
     value, secret = None, ''

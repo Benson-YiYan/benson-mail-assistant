@@ -37,7 +37,9 @@ with tempfile.TemporaryDirectory(prefix='BensonMail-update-fixture-') as tempora
  plan=json.loads(Path(result['plan']).read_text());stage=Path(plan['stage'])
  assert stage.is_dir() and plan['version']==info['CFBundleVersion'] and plan['arch']==arch
  assert plan['nonce'] and Path(result['helper']).is_file()
- relocated=subprocess.run([result['helper'],'--home',str(home),'--diagnose'],capture_output=True,text=True,check=True,timeout=30)
+ # A first x86_64 launch through Rosetta can spend about 30 seconds initializing
+ # the frozen runtime. Leave room for cold starts and loaded CI/release machines.
+ relocated=subprocess.run([result['helper'],'--home',str(home),'--diagnose'],capture_output=True,text=True,check=True,timeout=90)
  assert json.loads(relocated.stdout)['frozen'] is True
  assert architectures(stage/'Contents/MacOS/BensonMailMac')==architectures(app/'Contents/MacOS/BensonMailMac')
  assert not os.path.ismount(workspace/'mount')

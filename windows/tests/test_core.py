@@ -3,7 +3,10 @@ import unittest
 from pathlib import Path
 from datetime import datetime, timezone
 from email.message import EmailMessage
+import json
+from unittest.mock import Mock, patch
 from benson_mail.core import Service, export_report, extract_message
+from benson_mail.mailbox_config import state_identity
 
 class Mailbox:
     validity = '1'
@@ -12,8 +15,10 @@ class Mailbox:
     def fetch(self, uid): return self.messages[uid]
     def close(self): pass
 
-def mail(subject='测试'):
-    m = EmailMessage(); m['Subject'] = subject; m['From'] = 'demo@example.com'; m.set_content('请周五回复')
+def mail(subject='测试', message_id=None):
+    m = EmailMessage(); m['Subject'] = subject; m['From'] = 'demo@example.com'
+    if message_id: m['Message-ID'] = message_id
+    m.set_content('请周五回复')
     return m.as_bytes(), datetime(2026, 10, 14, 1, 2, tzinfo=timezone.utc)
 
 class CoreTests(unittest.TestCase):
@@ -56,6 +61,26 @@ class CoreTests(unittest.TestCase):
         self.service().check_once(); self.mb.validity='2'; self.mb.messages={10: mail()}; self.service().check_once(); self.assertEqual(self.calls,[])
     def test_account_independent(self):
         self.service().check_once(); self.config['account']='second@example.com'; self.mb.messages[2]=mail(); self.service().check_once(); self.assertEqual(self.calls,[])
+    def test_all_folder_mode_keeps_separate_state_and_deduplicates_message_id(self):
+        self.config['read_all_mail'] = True
+        (self.root/'config.json').write_text(json.dumps({'output_dir':str(self.root/'报告')}))
+        self.root.joinpath('state').mkdir()
+        folders=['INBOX','[Gmail]/All Mail']
+        boxes={}
+        for folder in folders:
+            profile={**self.config,'mail_folder':folder}
+            identity=state_identity(profile)
+            (self.root/'state'/f'{identity}.json').write_text(json.dumps({'validity':'1','high':0,'pending':{}}))
+            box=Mock(); box.snapshot.return_value=('1',[1])
+            box.fetch.return_value=mail('Same message','<same@example.invalid>')
+            boxes[folder]=box
+        with patch('benson_mail.mailbox_config.list_folders',return_value=[
+                {'name':folder,'flags':'\\HasNoChildren'} for folder in folders]), \
+             patch('benson_mail.core.IMAPMailbox',side_effect=lambda config,secret: boxes[config['mail_folder']]):
+            self.service().check_once()
+        self.assertEqual(len(self.calls),1)
+        self.assertEqual(len(list((self.root/'报告').rglob('*.md'))),1)
+        self.assertTrue(all(boxes[folder].fetch.called for folder in folders))
     def test_filename_collision_and_date(self):
         message=extract_message(*mail('CON:/标题?'))
         p=export_report(self.root,message,'answer',1); q=export_report(self.root,message,'different',2)

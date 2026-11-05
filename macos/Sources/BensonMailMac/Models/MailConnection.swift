@@ -31,6 +31,7 @@ struct MailConnection: Codable, Equatable {
     var port = 993
     var security = "ssl"
     var mail_folder = "INBOX"
+    var read_all_mail = false
     var mail_auth = "password"
     var secret_service = "Codex-Mail-163"
     var secret_account = ""
@@ -40,7 +41,7 @@ struct MailConnection: Codable, Equatable {
 
     init() {}
     enum CodingKeys: String, CodingKey {
-        case mail_provider, account, username, host, port, security, mail_folder, mail_auth
+        case mail_provider, account, username, host, port, security, mail_folder, read_all_mail, mail_auth
         case secret_service, secret_account, proxy_mode, proxy_host, proxy_port
     }
     init(from decoder: Decoder) throws {
@@ -52,6 +53,7 @@ struct MailConnection: Codable, Equatable {
         port = try values.decodeIfPresent(Int.self, forKey: .port) ?? 993
         security = try values.decodeIfPresent(String.self, forKey: .security) ?? "ssl"
         mail_folder = try values.decodeIfPresent(String.self, forKey: .mail_folder) ?? "INBOX"
+        read_all_mail = try values.decodeIfPresent(Bool.self, forKey: .read_all_mail) ?? false
         mail_auth = try values.decodeIfPresent(String.self, forKey: .mail_auth) ?? "password"
         secret_service = try values.decodeIfPresent(String.self, forKey: .secret_service) ?? "Codex-Mail-163"
         secret_account = try values.decodeIfPresent(String.self, forKey: .secret_account) ?? ""

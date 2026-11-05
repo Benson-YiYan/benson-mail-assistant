@@ -58,10 +58,12 @@ def _mailbox_list(controller,config,profiles,data,plan,fields):
         seen.add(identifier)
         enabled=draft.get('monitor_enabled',old.get('monitor_enabled',True))
         if not isinstance(enabled,bool):raise ValueError('Mailbox enabled must be a boolean.')
+        read_all_mail=draft.get('read_all_mail',old.get('read_all_mail',False))
+        if not isinstance(read_all_mail,bool):raise ValueError('read_all_mail must be a boolean.')
         secret=draft.get('secret','')
         if not isinstance(secret,str):raise ValueError('Invalid mailbox credential.')
         changed=not old or identifier!=original_id
-        item={**connection,'monitor_enabled':enabled}
+        item={**connection,'monitor_enabled':enabled,'read_all_mail':read_all_mail}
         if secret:
             binding='mailbox:'+identifier;relative='mail-secrets/'+identifier+'.bin'
             plan['secrets'].append((controller.root/relative,binding,secret))

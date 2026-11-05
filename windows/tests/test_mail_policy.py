@@ -59,6 +59,13 @@ class PolicyTests(unittest.TestCase):
             intercept(self.root,{'sender':'x@example.com'},mailbox,validity,2)
         self.assertEqual(policy_status(self.root)['count'],3)
         self.assertTrue(all(r['reason']=='not_whitelisted' for r in policy_status(self.root)['records']))
+    def test_historical_backfill_bypasses_sender_and_spam_rules(self):
+        policy_save(self.root,self.config(skip_spam=True))
+        ordinary={'sender':'notifications@github.com','subject':'selected historical mail'}
+        self.assertFalse(intercept(self.root,ordinary,'account','v1',1,bypass_sender_rules=True))
+        spam={**ordinary,'is_spam':True}
+        self.assertFalse(intercept(self.root,spam,'account','v1',2,bypass_sender_rules=True))
+        self.assertEqual(policy_status(self.root)['count'],0)
     def test_spam_uses_explicit_metadata_only(self):
         message=EmailMessage(); message['Subject']='SPAM junk buy now'
         self.assertFalse(spam_metadata(message)['is_spam'])

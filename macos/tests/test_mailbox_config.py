@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
-from mailbox_config import PRESETS, normalize, mailbox_id, state_identity, connect, folder_name
+from mailbox_config import PRESETS, normalize, mailbox_id, state_identity, connect, folder_name, selectable_folders
 
 class MailConnectionTests(unittest.TestCase):
     def config(self, **values):
@@ -48,6 +48,24 @@ class MailConnectionTests(unittest.TestCase):
         client.login.assert_called_once_with('login-user', 'SYNTHETIC')
         client.select.assert_called_once_with('"Archive"', readonly=True)
         client._simple_command.assert_not_called()
+    def test_list_folders_decodes_names_skips_noselect_and_includes_all_mail(self):
+        encoded = folder_name('所有邮件')[1:-1].encode('ascii')
+        client = Mock()
+        client.list.return_value = ('OK', [
+            b'(\\HasNoChildren) "/" "INBOX"',
+            b'(\\Noselect) "/" "Container"',
+            b'(\\HasNoChildren \\Sent) "/" "Sent"',
+            b'(\\All) "/" "All Mail"',
+            b'(\\HasNoChildren) "/" "' + encoded + b'"',
+        ])
+        self.assertEqual(selectable_folders(client), ['INBOX', 'Sent', 'All Mail', '所有邮件'])
+        client.list.return_value = ('OK', [
+            b'(\\HasNoChildren) "/" "INBOX"',
+            b'(\\Noselect) "/" "Container"',
+            b'(\\HasNoChildren \\Sent) "/" "Sent"',
+            b'(\\HasNoChildren) "/" "' + encoded + b'"',
+        ])
+        self.assertEqual(selectable_folders(client), ['INBOX', 'Sent', '所有邮件'])
     def test_starttls_precedes_login_and_failure_never_sends_credentials(self):
         events = []
         client = Mock(capabilities=())

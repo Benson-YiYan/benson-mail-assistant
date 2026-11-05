@@ -80,20 +80,22 @@ class SettingsPageTests(unittest.TestCase):
         registry.assert_not_called();self.assertEqual(self.controller.path.read_bytes(),self.before)
     def profiles(self):
         from benson_mail.mailbox_config import normalize,mailbox_id
-        profiles=[{**normalize({'account':account,'host':'imap.example.invalid'}),'monitor_enabled':True} for account in ('old@example.invalid','second@example.invalid')]
+        profiles=[{**normalize({'account':account,'host':'imap.example.invalid'}),'monitor_enabled':True,
+                   'read_all_mail':account=='old@example.invalid'} for account in ('old@example.invalid','second@example.invalid')]
         self.controller.config['mailboxes']=profiles
         self.controller.config.update(profiles[0]);self.controller.persist()
         return profiles,[mailbox_id(profile) for profile in profiles]
     def test_multimail_add_remove_disable_policy_and_interval_commit_once(self):
         profiles,ids=self.profiles()
-        drafts=[{'id':ids[0],'monitor_enabled':False},{'client_id':'NEW','account':'new@example.invalid','host':'imap.new.invalid','secret':'NEW_SECRET','monitor_enabled':True}]
+        drafts=[{'id':ids[0],'monitor_enabled':False,'read_all_mail':True},{'client_id':'NEW','account':'new@example.invalid','host':'imap.new.invalid','secret':'NEW_SECRET','monitor_enabled':True,'read_all_mail':False}]
         data={'mailboxes':drafts,'selected_mailbox_id':'NEW','seconds':180,'mail_policy':{'mode':'blacklist','addresses':['skip@example.invalid']}}
         with patch('benson_mail.settings_page.platform.save_secret',side_effect=lambda path,binding,secret:path.write_bytes(b'encrypted')),patch.object(self.controller,'persist',wraps=self.controller.persist) as persisted:
             result=self.controller.command('save_settings_page',{'page':'mail','values':data})
         self.assertEqual(persisted.call_count,1)
         value=json.loads(self.controller.path.read_text())
         self.assertEqual([profile['account'] for profile in value['mailboxes']],['old@example.invalid','new@example.invalid'])
-        self.assertFalse(value['mailboxes'][0]['monitor_enabled']);self.assertEqual(value['interval'],180)
+        self.assertFalse(value['mailboxes'][0]['monitor_enabled']);self.assertTrue(value['mailboxes'][0]['read_all_mail'])
+        self.assertFalse(value['mailboxes'][1]['read_all_mail']);self.assertEqual(value['interval'],180)
         self.assertEqual(value['account'],'new@example.invalid');self.assertEqual(value['mail_policy']['addresses'],['skip@example.invalid'])
         from benson_mail.mailbox_config import mailbox_id
         self.assertEqual(result['selected_mailbox_id'],mailbox_id(value))
