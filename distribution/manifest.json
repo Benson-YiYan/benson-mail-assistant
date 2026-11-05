@@ -2,46 +2,46 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611051716",
-      "sha256": "ddde0f19c90d1a0cf923a97fe9d82d7fc79a606454524677df42612647912d65",
-      "size": 24570999,
+      "version": "202611051832",
+      "sha256": "3461f799e717992281671f8ac80c2012f76d09ac9a873259012867ec93d089aa",
+      "size": 24564442,
       "notes": {
-        "zh": "历史邮件补总结支持标题和发件人搜索、逐封选择；默认应用发件人规则和垃圾邮件规则，可关闭以仅本次跳过规则。使用指南已更新。",
-        "en": "Historical backfill supports subject and sender search and per-message selection. Sender and spam rules apply by default, with a per-run option to bypass them. User guides updated.",
-        "es": "El resumen histórico permite buscar por asunto y remitente y seleccionar mensajes. Las reglas de remitentes y spam se aplican de forma predeterminada, con una opción para omitirlas solo en esta ejecución. Guías actualizadas."
+        "zh": "Mac 将历史邮件补总结移至“邮箱与检查”，费用与用量记录统一从“AI 服务”进入；更新中英西文指南。",
+        "en": "Moved Mac historical backfill to Mailbox & checks and costs/usage records to AI Service. Updated guides in Chinese, English and Spanish.",
+        "es": "Se movió el resumen histórico de Mac a Buzón y comprobaciones y los registros de costos/uso a Servicio de IA. Guías actualizadas en chino, inglés y español."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.1/BensonMail-Windows-x64-Setup-202611051716.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Windows-x64-Setup-202611051832.exe"
       ],
-      "url": "https://nominations-research-boss-pre.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611051716.exe"
+      "url": "https://nominations-research-boss-pre.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611051832.exe"
     },
     "macos-arm64": {
-      "version": "202611051641",
-      "sha256": "2f8d3aa6c58c6eaa71f0a20c5015fbfcca86641173bcafe33a4073e05c4ddea6",
-      "size": 24686765,
+      "version": "202611051837",
+      "sha256": "a62da6dcf1b35cb4005464e0cdf2c2ca8a86cb2250564adcb91c621bf487106f",
+      "size": 24689236,
       "notes": {
-        "zh": "历史邮件补总结支持标题和发件人搜索、逐封选择；默认应用发件人规则和垃圾邮件规则，可关闭以仅本次跳过规则。使用指南已更新。",
-        "en": "Historical backfill supports subject and sender search and per-message selection. Sender and spam rules apply by default, with a per-run option to bypass them. User guides updated.",
-        "es": "El resumen histórico permite buscar por asunto y remitente y seleccionar mensajes. Las reglas de remitentes y spam se aplican de forma predeterminada, con una opción para omitirlas solo en esta ejecución. Guías actualizadas."
+        "zh": "Mac 将历史邮件补总结移至“邮箱与检查”，费用与用量记录统一从“AI 服务”进入；更新中英西文指南。",
+        "en": "Moved Mac historical backfill to Mailbox & checks and costs/usage records to AI Service. Updated guides in Chinese, English and Spanish.",
+        "es": "Se movió el resumen histórico de Mac a Buzón y comprobaciones y los registros de costos/uso a Servicio de IA. Guías actualizadas en chino, inglés y español."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.1/BensonMail-Mac-AppleSilicon-202611051641.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Mac-AppleSilicon-202611051837.dmg"
       ],
-      "url": "https://nominations-research-boss-pre.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611051641.dmg"
+      "url": "https://nominations-research-boss-pre.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611051837.dmg"
     },
     "macos-x86_64": {
-      "version": "202611051642",
-      "sha256": "85807bbe522cd2f6094650cee9e4e23bf0a9aa52214cd38763bdc194f19de91d",
-      "size": 18746742,
+      "version": "202611051838",
+      "sha256": "fa3099a1d60249cb21ecb55342d1a9413527bb243cdff628b84e5bd3af7fbb8b",
+      "size": 18709928,
       "notes": {
-        "zh": "历史邮件补总结支持标题和发件人搜索、逐封选择；默认应用发件人规则和垃圾邮件规则，可关闭以仅本次跳过规则。使用指南已更新。",
-        "en": "Historical backfill supports subject and sender search and per-message selection. Sender and spam rules apply by default, with a per-run option to bypass them. User guides updated.",
-        "es": "El resumen histórico permite buscar por asunto y remitente y seleccionar mensajes. Las reglas de remitentes y spam se aplican de forma predeterminada, con una opción para omitirlas solo en esta ejecución. Guías actualizadas."
+        "zh": "Mac 将历史邮件补总结移至“邮箱与检查”，费用与用量记录统一从“AI 服务”进入；更新中英西文指南。",
+        "en": "Moved Mac historical backfill to Mailbox & checks and costs/usage records to AI Service. Updated guides in Chinese, English and Spanish.",
+        "es": "Se movió el resumen histórico de Mac a Buzón y comprobaciones y los registros de costos/uso a Servicio de IA. Guías actualizadas en chino, inglés y español."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.1/BensonMail-Mac-Intel-202611051642.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Mac-Intel-202611051838.dmg"
       ],
-      "url": "https://nominations-research-boss-pre.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611051642.dmg"
+      "url": "https://nominations-research-boss-pre.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611051838.dmg"
     }
   },
   "language_packs": {
