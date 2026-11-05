@@ -2,46 +2,46 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611041956",
-      "sha256": "37512449d74a2ebb9e834ae385448572cac956d7c958db2fc75aaa362e2ff397",
-      "size": 24557386,
+      "version": "202611051250",
+      "sha256": "7b47486223e5b71aed3e06470f03396c582d161996ceb94495a808dc1a7e37f2",
+      "size": 24569939,
       "notes": {
-        "zh": "历史邮件补总结新增邮件列表、发件人搜索和逐封勾选；修复 Mac 邮件提问输入框。",
-        "en": "Historical mail backfill now lists messages with sender-only search and per-message selection. Fixed Mac email chat input.",
-        "es": "El resumen de correos anteriores ahora muestra una lista con búsqueda solo por remitente y selección individual. Se corrigió la entrada del chat en Mac."
+        "zh": "可读取所有开放邮件文件夹；历史邮件补总结支持标题和发件人搜索及逐封选择，并忽略屏蔽规则；报告与问答隐藏内部来源标签。",
+        "en": "Read all selectable mail folders. Historical backfill supports subject and sender search, per-message selection, and ignores sender and spam rules. Internal source labels are hidden from reports and chat.",
+        "es": "Lectura de todas las carpetas disponibles. El resumen histórico permite buscar por asunto y remitente, seleccionar mensajes e ignora las reglas de remitentes y spam. Las etiquetas internas de fuentes quedan ocultas."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Windows-x64-Setup-202611041956.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105/BensonMail-Windows-x64-Setup-202611051250.exe"
       ],
-      "url": "https://lib-footwear-captain-predicted.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611041956.exe"
+      "url": "https://lib-footwear-captain-predicted.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611051250.exe"
     },
     "macos-arm64": {
-      "version": "202611041954",
-      "sha256": "cb6ffc82357efa81bf27e891fc7d20d424186eb05deebc699cbe0397ab98ab89",
-      "size": 24655662,
+      "version": "202611051208",
+      "sha256": "9495057387ad5e0d004d36e85522fbfaa12e4ac14434c1426b8e9cb94e7c7548",
+      "size": 24680344,
       "notes": {
-        "zh": "历史邮件补总结新增邮件列表、发件人搜索和逐封勾选；修复 Mac 邮件提问输入框。",
-        "en": "Historical mail backfill now lists messages with sender-only search and per-message selection. Fixed Mac email chat input.",
-        "es": "El resumen de correos anteriores ahora muestra una lista con búsqueda solo por remitente y selección individual. Se corrigió la entrada del chat en Mac."
+        "zh": "可读取所有开放邮件文件夹；历史邮件补总结忽略屏蔽规则；报告与问答隐藏内部来源标签。",
+        "en": "Read all selectable mail folders. Historical backfill ignores sender and spam rules. Internal source labels are hidden from reports and chat.",
+        "es": "Lectura de todas las carpetas disponibles. El resumen histórico ignora las reglas de remitentes y spam. Las etiquetas internas de fuentes quedan ocultas."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Mac-AppleSilicon-202611041954.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105/BensonMail-Mac-AppleSilicon-202611051208.dmg"
       ],
-      "url": "https://lib-footwear-captain-predicted.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611041954.dmg"
+      "url": "https://lib-footwear-captain-predicted.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611051208.dmg"
     },
     "macos-x86_64": {
-      "version": "202611041954",
-      "sha256": "430def78699eef0d879950edb0c0a903b4ab529f4d094e39273930cacd735ae4",
-      "size": 18724114,
+      "version": "202611051208",
+      "sha256": "5426179589f5aefc111ac1a4a1d92a1abdf84c010e93eb3b79390c282b3c372a",
+      "size": 18742382,
       "notes": {
-        "zh": "历史邮件补总结新增邮件列表、发件人搜索和逐封勾选；修复 Mac 邮件提问输入框。",
-        "en": "Historical mail backfill now lists messages with sender-only search and per-message selection. Fixed Mac email chat input.",
-        "es": "El resumen de correos anteriores ahora muestra una lista con búsqueda solo por remitente y selección individual. Se corrigió la entrada del chat en Mac."
+        "zh": "可读取所有开放邮件文件夹；历史邮件补总结忽略屏蔽规则；报告与问答隐藏内部来源标签。",
+        "en": "Read all selectable mail folders. Historical backfill ignores sender and spam rules. Internal source labels are hidden from reports and chat.",
+        "es": "Lectura de todas las carpetas disponibles. El resumen histórico ignora las reglas de remitentes y spam. Las etiquetas internas de fuentes quedan ocultas."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261104/BensonMail-Mac-Intel-202611041954.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105/BensonMail-Mac-Intel-202611051208.dmg"
       ],
-      "url": "https://lib-footwear-captain-predicted.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611041954.dmg"
+      "url": "https://lib-footwear-captain-predicted.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611051208.dmg"
     }
   },
   "language_packs": {
