@@ -2,102 +2,102 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611051832",
-      "sha256": "3461f799e717992281671f8ac80c2012f76d09ac9a873259012867ec93d089aa",
-      "size": 24564442,
+      "version": "202611052215",
+      "sha256": "7149f6f81a219e8faa5e9dde049863a3098bf2121f9e00596eeddf13e00fcbb5",
+      "size": 24566733,
       "notes": {
-        "zh": "Mac 将历史邮件补总结移至“邮箱与检查”，费用与用量记录统一从“AI 服务”进入；更新中英西文指南。",
-        "en": "Moved Mac historical backfill to Mailbox & checks and costs/usage records to AI Service. Updated guides in Chinese, English and Spanish.",
-        "es": "Se movió el resumen histórico de Mac a Buzón y comprobaciones y los registros de costos/uso a Servicio de IA. Guías actualizadas en chino, inglés y español."
+        "zh": "“历史邮件补总结”新增“全选当前搜索结果”。全选与全不选仍作用于全部候选邮件，搜索结果外的勾选保持不变。",
+        "en": "Historical mail backfill adds “Select all current search results.” Select all/none still apply to all candidates, and selections outside the current search stay unchanged.",
+        "es": "El resumen histórico añade «Seleccionar todos los resultados de búsqueda actuales». Seleccionar todo o nada sigue afectando a todos los mensajes, y se conservan las selecciones fuera de la búsqueda."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Windows-x64-Setup-202611051832.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Windows-x64-Setup-202611052215.exe"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611051832.exe"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611052215.exe"
     },
     "macos-arm64": {
-      "version": "202611051837",
-      "sha256": "a62da6dcf1b35cb4005464e0cdf2c2ca8a86cb2250564adcb91c621bf487106f",
-      "size": 24689236,
+      "version": "202611052224",
+      "sha256": "b71f60fd6624d8c18f89c4e7c508f2fc3ac323b2d506352feaee0213b823a20e",
+      "size": 24739929,
       "notes": {
-        "zh": "Mac 将历史邮件补总结移至“邮箱与检查”，费用与用量记录统一从“AI 服务”进入；更新中英西文指南。",
-        "en": "Moved Mac historical backfill to Mailbox & checks and costs/usage records to AI Service. Updated guides in Chinese, English and Spanish.",
-        "es": "Se movió el resumen histórico de Mac a Buzón y comprobaciones y los registros de costos/uso a Servicio de IA. Guías actualizadas en chino, inglés y español."
+        "zh": "“历史邮件补总结”新增“全选当前搜索结果”。全选与全不选仍作用于全部候选邮件，搜索结果外的勾选保持不变。",
+        "en": "Historical mail backfill adds “Select all current search results.” Select all/none still apply to all candidates, and selections outside the current search stay unchanged.",
+        "es": "El resumen histórico añade «Seleccionar todos los resultados de búsqueda actuales». Seleccionar todo o nada sigue afectando a todos los mensajes, y se conservan las selecciones fuera de la búsqueda."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Mac-AppleSilicon-202611051837.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Mac-AppleSilicon-202611052224.dmg"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611051837.dmg"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611052224.dmg"
     },
     "macos-x86_64": {
-      "version": "202611051838",
-      "sha256": "fa3099a1d60249cb21ecb55342d1a9413527bb243cdff628b84e5bd3af7fbb8b",
-      "size": 18709928,
+      "version": "202611052227",
+      "sha256": "fc129c9e2280f0f5975e3106b7c558f11330cd4293240743ac2051ce3719ebb6",
+      "size": 18767177,
       "notes": {
-        "zh": "Mac 将历史邮件补总结移至“邮箱与检查”，费用与用量记录统一从“AI 服务”进入；更新中英西文指南。",
-        "en": "Moved Mac historical backfill to Mailbox & checks and costs/usage records to AI Service. Updated guides in Chinese, English and Spanish.",
-        "es": "Se movió el resumen histórico de Mac a Buzón y comprobaciones y los registros de costos/uso a Servicio de IA. Guías actualizadas en chino, inglés y español."
+        "zh": "“历史邮件补总结”新增“全选当前搜索结果”。全选与全不选仍作用于全部候选邮件，搜索结果外的勾选保持不变。",
+        "en": "Historical mail backfill adds “Select all current search results.” Select all/none still apply to all candidates, and selections outside the current search stay unchanged.",
+        "es": "El resumen histórico añade «Seleccionar todos los resultados de búsqueda actuales». Seleccionar todo o nada sigue afectando a todos los mensajes, y se conservan las selecciones fuera de la búsqueda."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Mac-Intel-202611051838.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Mac-Intel-202611052227.dmg"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611051838.dmg"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611052227.dmg"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202611051836",
-      "sha256": "cd216f247ca1c16fec9e73f5f550ab2acb4856d9835e2a57b525b316cc3f2748",
-      "size": 42103,
+      "version": "202611052230",
+      "sha256": "30ff4f385afc374954d82a9d3a8948e0d0f87d32951a1793a676f4c208c0cddc",
+      "size": 42718,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Language-windows-zh-202611051836.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-windows-zh-202611052230.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611051836.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611052230.json"
     },
     "windows-en": {
-      "version": "202611051836",
-      "sha256": "9f4659fea68a524e168139afaccad6bff8a8cc005c42be678b01c78a693f4293",
-      "size": 125322,
+      "version": "202611052230",
+      "sha256": "8b19b875ecfdb9896b627aa4dab07193f5b856f1c478107ccce4d7d2c445b624",
+      "size": 127490,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Language-windows-en-202611051836.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-windows-en-202611052230.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611051836.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611052230.json"
     },
     "windows-es": {
-      "version": "202611051836",
-      "sha256": "b6a5e61e99b685ce3e86451af11bf365f99205557abb43a439633f8795cf4c6a",
-      "size": 135700,
+      "version": "202611052230",
+      "sha256": "9a84e0eaf30e1068dc9bc06ddfac3a6119a534456bbda2cdde309a8c99d519f8",
+      "size": 138602,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Language-windows-es-202611051836.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-windows-es-202611052230.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611051836.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611052230.json"
     },
     "macos-zh": {
-      "version": "202611051836",
-      "sha256": "241807982978985c82a8832d7d38f2916a31cb40fcba1cbb4f74eba12230d07a",
-      "size": 42282,
+      "version": "202611052230",
+      "sha256": "5d39fd23d241b86b53b1fb82116646015048eef9d863148444835423cd0a1896",
+      "size": 43139,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Language-macos-zh-202611051836.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-macos-zh-202611052230.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611051836.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611052230.json"
     },
     "macos-en": {
-      "version": "202611051836",
-      "sha256": "849a073a325803963c39f9e180a03199ad9bb25ddd9b19dbf449fa85676127c5",
-      "size": 125876,
+      "version": "202611052230",
+      "sha256": "13eeb02411b80f1e6bb5af8a0f0de67119cd1ee7f565cd1d53471f38614cc902",
+      "size": 128034,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Language-macos-en-202611051836.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-macos-en-202611052230.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611051836.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611052230.json"
     },
     "macos-es": {
-      "version": "202611051836",
-      "sha256": "bcd9840b7ef640c552a54fc087ca0d620a096b111fe4ff7f34154c1c4019b45b",
-      "size": 136691,
+      "version": "202611052230",
+      "sha256": "f2f12a99734cae776ac95453c0aa4969b067376024e3764651a18906841b903b",
+      "size": 139344,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.2/BensonMail-Language-macos-es-202611051836.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261105.3/BensonMail-Language-macos-es-202611052230.json"
       ],
-      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611051836.json"
+      "url": "https://reduced-ohio-regard-aluminum.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611052230.json"
     }
   }
 }
