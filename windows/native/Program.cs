@@ -266,9 +266,7 @@ sealed partial class MainWindow : Window
     readonly ComboBox attachment = new() { Header = L.T("附件"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ListView reports = new() { SelectionMode = ListViewSelectionMode.Single };
     readonly StackPanel reportFolderRows = new() { Spacing = 4 };
-    readonly ScrollViewer reportFolderScroll = new() {
-        Content = reportFolderRows, VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-    };
+    readonly ScrollViewer reportFolderScroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     readonly CheckBox reportTree = new() { Content = L.T("报告树"), VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock reportBreadcrumb = new() { TextWrapping = TextWrapping.NoWrap, FontSize = 12, Opacity = .7 };
     readonly TextBlock reportCurrentFolder = new() { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
@@ -676,6 +674,7 @@ sealed partial class MainWindow : Window
             RenderReportRows(); return Task.CompletedTask;
         });
         var reportBrowser = new Grid { RowSpacing = 6 };
+        reportFolderScroll.Content = reportFolderRows;
         reportBrowser.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         reportBrowser.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         reportPathScroll = new ScrollViewer { Content = reportBreadcrumb,
