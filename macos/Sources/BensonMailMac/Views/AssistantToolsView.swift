@@ -188,7 +188,9 @@ struct ReportSourcesView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(Array(references.enumerated()), id: \.offset) { _, source in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("[" + (source["id"] as? String ?? "") + "] " + ((source["label"] as? String) ?? (source["name"] as? String) ?? "")).font(.subheadline.bold())
+                            let sourceID = source["id"] as? String ?? ""
+                            let sourceLabel = (source["label"] as? String) ?? (source["name"] as? String) ?? ""
+                            Text("[\(sourceID)] \(sourceLabel)").font(.subheadline.bold())
                             if let text = source["text"] as? String ?? source["excerpt"] as? String { Text(text).textSelection(.enabled) }
                             if let status = source["status"] as? String { Text(T(status)).font(.caption).foregroundStyle(.secondary) }
                             if source["truncated"] as? Bool == true { Text(T("仅显示部分来源内容")).font(.caption).foregroundStyle(.orange) }

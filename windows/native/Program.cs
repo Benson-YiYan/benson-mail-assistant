@@ -685,19 +685,6 @@ sealed partial class MainWindow : Window
         reportBrowser.Children.Add(Stack(reportPathScroll, reportFolderHeader));
         Grid.SetRow(reports, 1); reportBrowser.Children.Add(reports);
         reading.Children.Add(Card(reportBrowser, 4));
-        reports.IsItemClickEnabled = true;
-        reports.ItemClick += (_, e) => {
-            // WinUI reports the Content of an explicitly supplied ListViewItem
-            // as ClickedItem. Resolve it back to the row holding our folder tag.
-            var clicked = reports.Items.OfType<ListViewItem>().FirstOrDefault(item =>
-                ReferenceEquals(item, e.ClickedItem) || ReferenceEquals(item.Content, e.ClickedItem));
-            if (clicked?.Tag is not ReportFolder folder) return;
-            // Finish the native click/selection event before replacing its items.
-            DispatcherQueue.TryEnqueue(() => {
-                if (exitRequested || reportTree.IsChecked != true || !reports.Items.Contains(clicked)) return;
-                reportTreePath.Add(folder.Name); RenderReportRows();
-            });
-        };
         RenderReportRows();
         var article = new Grid { RowSpacing = 12 };
         article.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -1188,12 +1175,25 @@ sealed partial class MainWindow : Window
                     ? grouped.OrderByDescending(group => group.Key, StringComparer.Ordinal)
                     : grouped.OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase);
                 foreach (var group in ordered) {
-                    reports.Items.Add(new ListViewItem {
-                        Tag = new ReportFolder(group.Key), HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                        Padding = new Thickness(12), CornerRadius = new CornerRadius(4),
+                    var folder = group.Key;
+                    var folderButton = new Button {
                         Content = Row(new SymbolIcon(Symbol.Folder) { Width = 20 },
-                            new TextBlock { FontFamily = MailTypography.Font, Text = ReportTreeLabel(reportTreePath.Count, group.Key), TextWrapping = TextWrapping.Wrap, MaxWidth = 200 },
-                            new TextBlock { Text = group.Count().ToString(), Opacity = .6 })
+                            new TextBlock { FontFamily = MailTypography.Font, Text = ReportTreeLabel(reportTreePath.Count, folder),
+                                TextWrapping = TextWrapping.Wrap, MaxWidth = 200 },
+                            new TextBlock { Text = group.Count().ToString(), Opacity = .6 }),
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                        HorizontalContentAlignment = HorizontalAlignment.Stretch
+                    };
+                    Secondary(folderButton);
+                    folderButton.Click += (_, _) => DispatcherQueue.TryEnqueue(
+                        Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => {
+                            if (exitRequested || reportTree.IsChecked != true) return;
+                            reportTreePath.Add(folder);
+                            RenderReportRows();
+                        });
+                    reports.Items.Add(new ListViewItem {
+                        Tag = new ReportFolder(folder), HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                        Padding = new Thickness(0), CornerRadius = new CornerRadius(4), Content = folderButton
                     });
                 }
                 return;

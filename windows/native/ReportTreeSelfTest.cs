@@ -57,10 +57,11 @@ sealed partial class MainWindow
             layout.UpdateLayout();
             var row = Row();
             check(row.Tag is ReportFolder, "Report tree pointer target is a folder at level " + level);
-            var contents = (StackPanel)row.Content;
+            var button = (Button)row.Content;
+            var contents = (StackPanel)button.Content;
             if (hit == "icon") await Click((FrameworkElement)contents.Children[0]);
             else if (hit == "text") await Click((FrameworkElement)contents.Children[1]);
-            else await Click(row, row.ActualWidth - 8);
+            else await Click(button, button.ActualWidth - 8);
             await Until(() => reportTreePath.Count == level + 1 && reports.Items.Count == 1,
                 "Real pointer click on folder " + hit + " enters report tree level " + level);
         }
