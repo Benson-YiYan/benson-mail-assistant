@@ -225,7 +225,8 @@ def analyze(message):
             message['date'] = datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S %z')
             atomic(folder / 'mail.json', json.dumps(message, ensure_ascii=False))
         else:
-            prompt = analysis_prompt(settings().get('ui_language'))
+            current_settings = settings()
+            prompt = analysis_prompt(current_settings.get('ui_language'), current_settings.get('summary_prompt'))
             temp = folder / 'answer.generated.txt'
             temp.unlink(missing_ok=True)
             if settings().get('ai_provider', 'codex') in ('api', 'deepseek_harness'):

@@ -224,6 +224,58 @@ class AssistantToolTests(unittest.TestCase):
         system=complete.call_args.args[2][0]['content']
         self.assertIn('Spanish',system);self.assertIn('Never send',system)
         self.assertEqual(self.report.read_bytes(),report_before);self.assertEqual(self.report.with_suffix('.mail.json').read_bytes(),metadata_before)
+    def test_multi_summary_joins_titles_in_selection_order_and_preserves_private_sources(self):
+        second = self.output / 'second.md'
+        second.write_text('Second report')
+        second_mail = {**self.mail, 'uid':'9', 'subject':'Second mail', 'mailbox_account':'second@example.invalid', 'body':'Second original body.'}
+        second.with_suffix('.mail.json').write_text(json.dumps(second_mail))
+        self.config['summary_prompt'] = 'Include the shared deadline.'
+        self.save_config()
+        with patch.object(chat, '_complete', return_value='Combined report') as complete:
+            result = tools.dispatch(self.root, {'action':'multi_summary','paths':[str(self.report),str(second)]})
+        target = Path(result['path'])
+        self.assertEqual(target.relative_to(self.output.resolve()).parts[:2], ('全部邮箱','多选总结'))
+        self.assertRegex(target.parent.name, r'^\d{4}-\d{2}-\d{2}$')
+        self.assertEqual(target.stem, 'Question,Second mail')
+        self.assertEqual(target.read_text(), 'Combined report\n')
+        messages = complete.call_args.args[2]
+        self.assertIn('Include the shared deadline.', messages[0]['content'])
+        supplied = json.loads(messages[1]['content'])['selected_emails']
+        self.assertEqual([item['subject'] for item in supplied], ['Question','Second mail'])
+        if WINDOWS:
+            from benson_mail.report_metadata import read_metadata
+        else:
+            from report_metadata import read_metadata
+        metadata = read_metadata(self.root, target)
+        self.assertTrue(metadata['multi_summary'])
+        self.assertEqual(metadata['subject'], target.stem)
+        self.assertEqual([source['mailbox_account'] for source in metadata['sources']],
+                         ['owner@example.invalid','second@example.invalid'])
+        self.assertEqual([source['original_mail']['body'] for source in metadata['sources']],
+                         ['Original body fact.','Second original body.'])
+    def test_multi_summary_filename_caps_joined_titles_at_64_characters(self):
+        self.assertEqual(
+            tools._multi_summary_filename(['1日的安排', '2日的安排', '午饭前买菜', '3日的安排']),
+            '1日的安排,2日的安排,午饭前买菜,3日的安排')
+        value = tools._multi_summary_filename(['A'*40, 'B'*40])
+        self.assertEqual(len(value),64)
+        self.assertTrue(value.endswith('-'))
+        self.assertIn(',', value)
+    def test_multi_summary_rejects_missing_original_before_calling_ai(self):
+        second = self.output / 'second.md'; second.write_text('Missing metadata report')
+        with patch.object(chat, '_complete') as complete:
+            with self.assertRaises(ValueError):
+                tools.dispatch(self.root, {'action':'multi_summary','paths':[str(self.report),str(second)]})
+        complete.assert_not_called()
+    def test_multi_summary_rejects_linked_output_folder_before_calling_ai(self):
+        second = self.output / 'second.md'; second.write_text('Second report')
+        second.with_suffix('.mail.json').write_text(json.dumps({**self.mail, 'uid':'9', 'subject':'Second'}))
+        outside = self.root / 'outside'; outside.mkdir()
+        (self.output / '全部邮箱').symlink_to(outside, target_is_directory=True)
+        with patch.object(chat, '_complete') as complete:
+            with self.assertRaisesRegex(ValueError, 'symbolic links or junctions'):
+                tools.dispatch(self.root, {'action':'multi_summary','paths':[str(self.report),str(second)]})
+        complete.assert_not_called()
     def test_edited_reply_draft_persists_but_cannot_write_arbitrary_files(self):
         with patch.object(chat,'_complete',return_value='Initial draft'):
             draft=tools.reply_draft(self.root,{'path':str(self.report)})

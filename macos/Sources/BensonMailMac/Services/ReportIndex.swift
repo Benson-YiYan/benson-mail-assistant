@@ -6,8 +6,9 @@ enum ReportIndex {
         let archives = data.deletingLastPathComponent().appendingPathComponent("mailbox-archives")
         let metadataDirectories = [data] + (((try? fm.contentsOfDirectory(at: archives, includingPropertiesForKeys: nil)) ?? [])
             .map { $0.appendingPathComponent("mail_watch") })
-        // Discover both the current account/day/From sender layout and legacy day/report
-        // files. Never follow directory symlinks outside the user-selected report root.
+        // Discover account/day/From sender reports, legacy day/report files, and
+        // virtual all-mailbox multi-summary reports. Never follow directory symlinks
+        // outside the user-selected report root.
         let keys: Set<URLResourceKey> = [.isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey]
         let root = directory.resolvingSymlinksInPath()
         let files = fm.enumerator(at: root, includingPropertiesForKeys: Array(keys),
@@ -21,9 +22,14 @@ enum ReportIndex {
                 // enumerator depth gives the true relative path without alias assumptions.
                 let relative = Array(file.pathComponents.suffix(files?.level ?? 0))
                 let dayIndex = relative.firstIndex { $0.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil }
-                guard let dayIndex, dayIndex == 0 || dayIndex == 1 else { continue }
-                guard (dayIndex == 0 && relative.count == 2) ||
-                      (dayIndex == 1 && relative.count == 4 && relative[2].hasPrefix("From ")) else { continue }
+                let isMultiSummary = relative.count == 4 &&
+                    relative[0] == "全部邮箱" && relative[1] == "多选总结" &&
+                    relative[2].range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil
+                let isRegularReport = dayIndex.map { index in
+                    (index == 0 && relative.count == 2) ||
+                    (index == 1 && relative.count == 4 && relative[2].hasPrefix("From "))
+                } ?? false
+                guard isMultiSummary || isRegularReport, let dayIndex else { continue }
                 let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
                 let previous = cached[file.path]
                 let text = previous?.modified == modified ? previous!.text : ((try? String(contentsOf: file, encoding: .utf8)) ?? "")
@@ -57,6 +63,7 @@ enum ReportIndex {
                     report.sender = String(relative[dayIndex + 1].dropFirst(5))
                 }
                 if belongsToReport, let bytes = try? Data(contentsOf: metadataURL), let metadata = (try? JSONSerialization.jsonObject(with: bytes)) as? [String: Any] {
+                    report.originalMessageAvailable = metadata["unavailable"] as? Bool != true
                     report.sender = metadata["from"] as? String ?? ""
                     report.mailboxAccount = metadata["mailbox_account"] as? String ?? report.mailboxAccount
                     report.subject = metadata["subject"] as? String ?? ""

@@ -115,7 +115,7 @@ def analyze_api(message, folder):
         from deepseek_harness_ai import complete as transport
     options = {'cli_path': config.get('harness_path', '')} if config.get('ai_provider') == 'deepseek_harness' else {}
     answer = transport(config.get('api_base', ''), config.get('api_model', ''), key,
-                    [{'role': 'system', 'content': analysis_prompt(config.get('ui_language'))},
+                    [{'role': 'system', 'content': analysis_prompt(config.get('ui_language'), config.get('summary_prompt'))},
                      {'role': 'user', 'content': json.dumps(content, ensure_ascii=False)}], language=config.get('ui_language', 'zh'), **options)
     if config.get('ai_provider') == 'deepseek_harness':
         from assistant_tools import record_usage

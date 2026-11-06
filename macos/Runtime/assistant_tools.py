@@ -25,11 +25,11 @@ from urllib.parse import urlsplit
 WINDOWS = bool(__package__)
 
 if WINDOWS:
-    from .report_layout import report_files as _report_files, migrate_reports
-    from .report_metadata import read_metadata
+    from .report_layout import account_for, report_files as _report_files, migrate_reports
+    from .report_metadata import metadata_path, read_metadata, remove_metadata, write_metadata
 else:
-    from report_layout import report_files as _report_files, migrate_reports
-    from report_metadata import read_metadata
+    from report_layout import account_for, report_files as _report_files, migrate_reports
+    from report_metadata import metadata_path, read_metadata, remove_metadata, write_metadata
 
 def _chat():
     if WINDOWS:
@@ -221,6 +221,133 @@ def report_sources(root, path):
             budget -= len(text[:limit])
         if budget <= 0: break
     return {'available': True, 'sources': sources, 'limitation': title('来源标记仅定位提供给 AI 的原始材料，不代表已独立核实结论；OCR 可能识别有误。', 'References locate supplied source material, not independent verification. OCR may contain errors.', 'Las referencias identifican el material original, no una verificación independiente. El OCR puede contener errores.')}
+
+
+def _multi_summary_filename(subjects):
+    joined = ','.join(subjects)
+    cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f\x7f]', '_', joined).strip(' .')
+    if not cleaned:
+        cleaned = '多选总结'
+    if cleaned.split('.')[0].upper() in (
+        {'CON', 'PRN', 'AUX', 'NUL'} |
+        {f'{prefix}{index}' for prefix in ('COM', 'LPT') for index in range(1, 10)}
+    ):
+        cleaned = '_' + cleaned
+    if len(cleaned) > 64:
+        cleaned = cleaned[:63].rstrip(' .') + '-'
+    return cleaned
+
+
+def _validate_multi_summary_parent(output, day):
+    output = Path(output).expanduser().resolve()
+    parent = output / '全部邮箱' / '多选总结' / day
+    current = output
+    for component in ('全部邮箱', '多选总结', day):
+        current = current / component
+        if current.is_symlink() or getattr(current, 'is_junction', lambda: False)():
+            raise ValueError('The multi-summary folder cannot contain symbolic links or junctions.')
+        if current.exists():
+            if not current.is_dir():
+                raise ValueError('The multi-summary folder path is not a directory.')
+            if not current.resolve().is_relative_to(output):
+                raise ValueError('The multi-summary folder is outside the report folder.')
+    return parent
+
+
+def multi_summary(root, request):
+    chat = _chat()
+    config = chat._config(root)
+    raw_paths = request.get('paths')
+    if not isinstance(raw_paths, list) or not 2 <= len(raw_paths) <= 100:
+        raise ValueError('Choose between 2 and 100 email reports to summarize.')
+
+    selected = []
+    seen = set()
+    subjects = []
+    output = Path(config.get('output_dir') or Path.home() / 'Documents' / '邮件').expanduser().resolve()
+    for raw_path in raw_paths:
+        report = chat._report(root, raw_path, config)
+        canonical = os.path.normcase(str(report))
+        if canonical in seen:
+            raise ValueError('The same email report was selected more than once.')
+        seen.add(canonical)
+        original = chat._mail_context(root, report, config, require_original=True)['original_mail']
+        subject = str(original.get('subject') or report.stem).strip()
+        if not subject:
+            subject = report.stem
+        subjects.append(subject)
+        selected.append({
+            'subject': subject,
+            'mailbox_account': str(original.get('mailbox_account') or original.get('account') or account_for(original, config)),
+            'original_mail': original,
+        })
+
+    if WINDOWS:
+        from .core import analysis_prompt
+    else:
+        from mail_prompt import analysis_prompt
+    system_prompt = analysis_prompt(chat._language(config), config.get('summary_prompt', ''))
+    user_content = json.dumps({'selected_emails': selected}, ensure_ascii=False)
+    if len(system_prompt) + len(user_content) > chat.MAX_CONTEXT:
+        raise ValueError('Selected emails and attachments exceed the 60000-character budget; no AI request was sent.')
+
+    now = datetime.now(timezone(timedelta(hours=8)))
+    day = now.strftime('%Y-%m-%d')
+    parent = _validate_multi_summary_parent(output, day)
+    directories = (output / '全部邮箱', output / '全部邮箱' / '多选总结', parent)
+    newly_created = [directory for directory in directories if not directory.exists()]
+    parent.mkdir(parents=True, exist_ok=True)
+    _validate_multi_summary_parent(output, day)
+    try:
+        answer = chat._complete(root, config, [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_content},
+        ])
+    except Exception:
+        for directory in reversed(newly_created):
+            try: directory.rmdir()
+            except OSError: pass
+        raise
+    rendered = answer.rstrip() + '\n'
+    _validate_multi_summary_parent(output, day)
+
+    private_sources = []
+    for report, item in zip((chat._report(root, p, config) for p in raw_paths), selected):
+        private_sources.append({
+            'report': str(report),
+            'mailbox_account': item['mailbox_account'],
+            'original_mail': item['original_mail'],
+        })
+    private_metadata = {
+        'subject': ','.join(subjects),
+        'sender': '多选总结',
+        'multi_summary': True,
+        'received_at': now.isoformat(),
+        'source_reports': [item['report'] for item in private_sources],
+        'sources': private_sources,
+    }
+    stem = _multi_summary_filename(subjects)
+    # The lock lives in app data, not among the user's visible Markdown reports.
+    with chat._locked(Path(root) / 'multi_summary' / 'create'):
+        counter = 1
+        target = parent / (stem + '.md')
+        while (target.exists() or target.is_symlink() or target.with_suffix('.mail.json').exists()
+               or metadata_path(root, target).exists()):
+            counter += 1
+            suffix = f'-{counter}'
+            target_stem = stem[:max(1, 64 - len(suffix))].rstrip(' .') + suffix
+            target = parent / (target_stem + '.md')
+        try:
+            # The report list reads this field as its visible title. Keep it
+            # aligned with the (possibly truncated or collision-suffixed) filename.
+            private_metadata['subject'] = target.stem
+            chat._atomic(target, rendered)
+            write_metadata(root, target, private_metadata)
+        except Exception:
+            target.unlink(missing_ok=True)
+            remove_metadata(root, target)
+            raise
+    return {'path': str(target), 'title': target.stem, 'text': rendered}
 
 
 def reply_draft(root, request):
@@ -481,7 +608,7 @@ def _reply_send_locked(root, request, controller, path, chat):
             'sent_at': sent_at, 'draft_status_saved': persisted}
 
 
-_DIAGNOSTIC_STAGES = {'mail_check', 'reply_draft', 'reply_send', 'usage_summary', 'usage_rates', 'diagnostics_export', 'history_preview', 'history_start', 'report_sources', 'chat_send', 'report_retry', 'test_mail', 'test_api', 'operation'}
+_DIAGNOSTIC_STAGES = {'mail_check', 'reply_draft', 'reply_send', 'usage_summary', 'usage_rates', 'diagnostics_export', 'history_preview', 'history_start', 'report_sources', 'multi_summary', 'chat_send', 'report_retry', 'test_mail', 'test_api', 'operation'}
 _DIAGNOSTIC_TYPES = {'Error', 'error', 'TimeoutError', 'ConnectionError', 'ConnectionResetError', 'ConnectionRefusedError', 'BrokenPipeError', 'SSLError', 'SSLCertVerificationError', 'gaierror', 'MailConnectionError', 'HTTPError', 'URLError', 'ValueError', 'RuntimeError', 'TypeError', 'OSError', 'PermissionError', 'FileNotFoundError', 'FileExistsError', 'JSONDecodeError', 'CancelledError', 'TimeoutExpired', 'UnicodeDecodeError', 'AttributeError'}
 _DIAGNOSTIC_CATEGORIES = {'timeout', 'authentication', 'tls', 'dns', 'rate_limit', 'other'}
 
@@ -825,6 +952,7 @@ def consume_history(root, identifier, validity, persist):
 def _dispatch(root, request, controller=None):
     action = request.get('action') or request.get('op')
     if action == 'reports_migrate': return migrate_reports(root, _chat()._config(root), windows=WINDOWS)
+    if action == 'multi_summary': return multi_summary(root, request)
     if action in ('reply_draft', 'draft_reply'): return reply_draft(root, request)
     if action in ('draft_save', 'reply_draft_save'): return draft_save(root, request)
     if action == 'reply_send': return reply_send(root, request, controller)
@@ -867,6 +995,11 @@ _ERROR_TEXT = {
     'Choose auto, zh, en or es.': ('请选择自动、中文、英文或西班牙语。', 'Elige automático, chino, inglés o español.'),
     'Reply instructions exceed 10000 characters.': ('回复要求不能超过10000字符。', 'Las instrucciones de respuesta no pueden superar los 10000 caracteres.'),
     'Original email and attachments exceed the context budget; no draft was requested.': ('原邮件及附件超过上下文预算，尚未调用 AI 生成草稿。', 'El correo original y los adjuntos superan el límite de contexto; no se solicitó un borrador a la IA.'),
+    'Choose between 2 and 100 email reports to summarize.': ('请选择2至100封已读取邮件进行总结。', 'Select between 2 and 100 read emails to summarize.'),
+    'The same email report was selected more than once.': ('同一封邮件报告不能重复选择。', 'The same email report cannot be selected more than once.'),
+    'Selected emails and attachments exceed the 60000-character budget; no AI request was sent.': ('所选邮件和附件超过60000字符限制，未调用 AI。', 'The selected emails and attachments exceed the 60000-character limit; no AI request was sent.'),
+    'The multi-summary folder cannot contain symbolic links or junctions.': ('多选总结目录不能包含符号链接或目录联接。', 'The multi-summary folder cannot contain symbolic links or junctions.'),
+    'The multi-summary folder is outside the report folder.': ('多选总结目录超出了报告文件夹范围。', 'The multi-summary folder is outside the report folder.'),
     'Choose a destination for the diagnostic package.': ('请选择诊断包的保存位置。', 'Elige dónde guardar el paquete de diagnóstico.'),
     'Mailbox not found.': ('找不到所选邮箱，请重新选择。', 'No se encuentra el buzón seleccionado. Vuelve a seleccionarlo.'),
     'Mailbox controller is required.': ('邮箱服务尚未就绪，请重新打开软件。', 'El servicio de correo no está listo. Vuelve a abrir la aplicación.'),

@@ -439,7 +439,7 @@ final class MailStore: ObservableObject {
         let updated = Report(url: url, modified: stamp, metadataModified: original.metadataModified,
             sender: original.sender, body: original.body, attachmentNames: original.attachmentNames,
             hasAttachments: original.hasAttachments, text: text, subject: original.subject, receivedAt: original.receivedAt,
-            mailboxAccount: original.mailboxAccount)
+            mailboxAccount: original.mailboxAccount, originalMessageAvailable: original.originalMessageAvailable)
         reports = reports.map { $0.id == originalPath ? updated : $0 }
         if selected?.id == originalPath { select(updated) }
     }

@@ -30,6 +30,14 @@ enum ReportTreeSelfTest {
                       metadata: ["uid": 101, "mailbox_account": "b@example.com", "from": "Sender <sender@example.com>", "subject": "Second"])
         _ = try write("a@example.com/2026-10-20/From older@example.com/older-10-00.md", metadata: nil)
         _ = try write("2026-10-19/legacy-09-00.txt", metadata: nil)
+        let multiSummary = try write("全部邮箱/多选总结/2026-10-22/First, Second.md",
+                                     metadata: ["uid": 101, "mailbox_account": "a@example.com",
+                                                "from": "Sender <sender@example.com>", "subject": "First, Second",
+                                                "bodies": [["text": "original searchable body"]]])
+        _ = try write("全部邮箱/多选总结/2026-10-21/Older, Summary.md",
+                      metadata: ["uid": 102, "mailbox_account": "b@example.com",
+                                 "from": "Sender <sender@example.com>", "subject": "Older, Summary",
+                                 "bodies": [["text": "another original searchable body"]]])
         _ = try write("unrelated.txt", metadata: nil)
         guard ((fm.enumerator(at: output, includingPropertiesForKeys: nil)?.allObjects as? [URL]) ?? [])
             .allSatisfy({ $0.pathExtension.lowercased() != "json" }) else {
@@ -40,19 +48,29 @@ enum ReportTreeSelfTest {
         try "# Excluded".write(to: external.appendingPathComponent("outside.md"), atomically: true, encoding: .utf8)
         try fm.createSymbolicLink(at: output.appendingPathComponent("a@example.com/2026-10-21/From outside"), withDestinationURL: external)
         let reports = ReportIndex.reports(in: output, data: data, cached: [:])
-        guard reports.count == 4, let indexed = reports.first(where: { $0.url.lastPathComponent == first.lastPathComponent }),
+        guard reports.count == 6, let indexed = reports.first(where: { $0.url.lastPathComponent == first.lastPathComponent }),
               indexed.title == "First", indexed.dateLabel == "2026-10-21", indexed.mailboxAccount == "a@example.com",
               indexed.senderAddress == "sender@example.com", indexed.hasAttachments == true,
+              indexed.originalMessageAvailable,
               indexed.receivedLabel.contains("11:53") else {
             throw Failure("recursive report discovery or nested date/metadata failed: " + reports.map {
                 "\($0.id):\($0.title):\($0.dateLabel):\($0.mailboxAccount):\($0.senderAddress):\(String(describing: $0.hasAttachments)):\($0.receivedLabel)"
             }.joined(separator: "\n"))
         }
-        guard ReportTree.folders(reports, in: []).count == 3,
+        guard ReportTree.folders(reports, in: []).count == 4,
               ReportTree.folders(reports, in: ["a@example.com"]).map(\.key) == ["2026-10-21", "2026-10-20"],
               ReportTree.folders(reports, in: ["a@example.com", "2026-10-21"]).map(\.key) == ["sender@example.com"],
               ReportTree.reports(reports, in: ["b@example.com", "2026-10-21", "sender@example.com"]).first?.title == "Second",
-              ReportTree.validPath(["a@example.com", "removed"], in: reports) == ["a@example.com"] else {
+              ReportTree.validPath(["a@example.com", "removed"], in: reports) == ["a@example.com"],
+              let virtual = reports.first(where: { $0.url.path == multiSummary.path }),
+              virtual.treeComponents == ["全部邮箱", "多选总结", "2026-10-22"],
+              virtual.mailboxAccount == "a@example.com",
+              virtual.originalMessageAvailable,
+              reports.first(where: { $0.title == "older" })?.originalMessageAvailable == false,
+              ReportTree.isMultiSummary(virtual),
+              ReportTree.folders(reports, in: ["全部邮箱"]).map(\.key) == ["多选总结"],
+              ReportTree.folders(reports, in: ["全部邮箱", "多选总结"]).map(\.key) == ["2026-10-22", "2026-10-21"],
+              ReportTree.reports(reports, in: ["全部邮箱", "多选总结", "2026-10-22"]).map(\.title) == ["First, Second"] else {
             throw Failure("report tree grouping, ordering, mailbox isolation or breadcrumb repair failed")
         }
         var filter = ReportFilter()
@@ -67,7 +85,7 @@ enum ReportTreeSelfTest {
         guard cached.map(\.id) == reports.map(\.id), cached.first(where: { $0.url.lastPathComponent == first.lastPathComponent })?.mailboxAccount == "a@example.com" else {
             throw Failure("report metadata cache lost account identity")
         }
-        return ["recursive report index supports account/date/sender and legacy TXT, reads internal original-message data without JSON beside reports, excludes symlinks and unrelated files",
-                "report tree isolates same-UID mailboxes, sorts dates, repairs breadcrumbs, preserves search/date/attachment metadata and cached account identity"]
+        return ["recursive report index supports account/date/sender, legacy TXT and virtual multi-summary paths, reads internal original-message data without JSON beside reports, excludes symlinks and unrelated files",
+                "report tree isolates same-UID mailboxes, sorts dates, exposes All mailboxes/multi-summary/date virtual groups, repairs breadcrumbs, preserves search/date/attachment metadata and cached account identity"]
     }
 }

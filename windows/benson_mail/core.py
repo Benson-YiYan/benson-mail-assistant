@@ -61,8 +61,14 @@ def clean_internal_source_tags(text):
     return re.sub(r'\[(?:mail\.body|attachment\.\d+(?:,\s*page:\d+)?)\]', '', str(text)).strip()
 
 
-def analysis_prompt(language=None):
-    return {'en': ENGLISH_ANALYSIS_PROMPT, 'es': SPANISH_ANALYSIS_PROMPT}.get(language, ANALYSIS_PROMPT)
+def analysis_prompt(language=None, custom_prompt=''):
+    prompt = {'en': ENGLISH_ANALYSIS_PROMPT, 'es': SPANISH_ANALYSIS_PROMPT}.get(language, ANALYSIS_PROMPT)
+    custom = str(custom_prompt or '').strip()
+    if custom:
+        label = {'en': 'Custom summary prompt:', 'es': 'Instrucción de resumen personalizada:',
+                 'zh': '用户自定义的总结提示词：'}.get(language, '用户自定义的总结提示词：')
+        prompt += '\n\n' + label + '\n' + custom
+    return prompt
 
 @localized
 def limited(text,limit=100000):
@@ -261,7 +267,7 @@ class CodexAnalyzer:
     def __init__(self,command,workdir,config=None): self.command=command; self.workdir=workdir; self.process=None; self.config=dict(config or {})
     @localized_method
     def __call__(self,message,stop):
-        prompt=analysis_prompt(self.config.get('ui_language'))+json.dumps(message,ensure_ascii=False)
+        prompt=analysis_prompt(self.config.get('ui_language'), self.config.get('summary_prompt'))+json.dumps(message,ensure_ascii=False)
         args=list(self.command)+['exec','--ephemeral','--sandbox','read-only','--skip-git-repo-check','--color','never','-']
         creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0)
         # Files avoid pipe deadlock and permit cancellation while Codex runs.
@@ -299,7 +305,7 @@ class APIAnalyzer:
             from .deepseek_harness_ai import complete as transport
         options = {'cli_path': self.config.get('harness_path', '')} if self.config.get('ai_provider') == 'deepseek_harness' else {}
         answer = transport(self.config.get('api_base',''),self.config.get('api_model',''),self.key,
-                        [{'role':'user','content':analysis_prompt(self.config.get('ui_language'))+json.dumps(message,ensure_ascii=False)}],stop,**options)
+                        [{'role':'user','content':analysis_prompt(self.config.get('ui_language'), self.config.get('summary_prompt'))+json.dumps(message,ensure_ascii=False)}],stop,**options)
         if self.config.get('ai_provider') == 'deepseek_harness':
             from .assistant_tools import record_usage
             try: record_usage('deepseek_harness', self.config.get('api_model', ''))

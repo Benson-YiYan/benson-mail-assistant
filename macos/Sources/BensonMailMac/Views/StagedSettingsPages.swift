@@ -142,6 +142,19 @@ struct StagedSettingsPage: View {
             Text(T("仅记录新发生的调用。接口未返回用量时标为未知；订阅和本地工具的账单无法推算。"))
                 .font(.caption).foregroundStyle(.secondary)
         }
+        WorkspaceCard("总结提示词") {
+            TextEditor(text: $draft.value.summary_prompt)
+                .font(.body)
+                .frame(minHeight: 130)
+                .accessibilityLabel(T("总结提示词"))
+            HStack {
+                Text(T("留空时使用内置默认提示词；自定义内容会补充到邮件安全要求和六项报告要求之后。保存本页后生效。"))
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button(T("恢复默认")) { draft.value.summary_prompt = "" }
+                    .accessibilityIdentifier("summary-prompt-reset")
+            }
+        }
         WorkspaceCard("对邮件提问") {
             Toggle(T("按 Enter 发送，按 Shift+Enter 换行"), isOn: $draft.value.chat_enter_to_send)
         }

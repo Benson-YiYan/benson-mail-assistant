@@ -40,5 +40,11 @@ def clean_internal_source_tags(text):
     return re.sub(r'\[(?:mail\.body|attachment\.\d+(?:,\s*page:\d+)?)\]', '', str(text)).strip()
 
 
-def analysis_prompt(language=None):
-    return {'en': ENGLISH_ANALYSIS_PROMPT, 'es': SPANISH_ANALYSIS_PROMPT}.get(language, ANALYSIS_PROMPT)
+def analysis_prompt(language=None, custom_prompt=''):
+    prompt = {'en': ENGLISH_ANALYSIS_PROMPT, 'es': SPANISH_ANALYSIS_PROMPT}.get(language, ANALYSIS_PROMPT)
+    custom = str(custom_prompt or '').strip()
+    if custom:
+        label = {'en': 'Custom summary prompt:', 'es': 'Instrucción de resumen personalizada:',
+                 'zh': '用户自定义的总结提示词：'}.get(language, '用户自定义的总结提示词：')
+        prompt += '\n\n' + label + '\n' + custom
+    return prompt

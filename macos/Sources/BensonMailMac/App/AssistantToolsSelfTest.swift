@@ -135,6 +135,8 @@ enum AssistantToolsSelfTest {
                         "rates": ["input_per_million": 2.5, "output_per_million": 10, "currency": "USD"]]
             case "history_preview": return ["preview_id": "synthetic-preview", "count": 7, "already_summarized": 2]
             case "history_start": return ["queued": 7, "count": 7]
+            case "multi_summary":
+                return ["count": (request["paths"] as? [String])?.count ?? 0, "message": "Synthetic summaries complete"]
             case "reply_draft": return ["draft": "Synthetic reply", "recipient": "fixture@example.invalid", "subject": "Re: Fixture", "sent": false]
             default: throw AppSelfTest.Failure("unexpected synthetic assistant tool")
             }
@@ -147,7 +149,14 @@ enum AssistantToolsSelfTest {
         report.mailboxAccount = "owner@example.invalid"
         let savedTools = store.assistantTools, savedSettings = store.settings
         let language = AppLanguage.shared, savedLanguage = language.code
-        let featureLabels = ["回复", "原文", "报告溯源", "费用与用量记录", "历史邮件补总结", "补总结历史邮件", "全选", "全不选", "全选当前搜索结果", "请先保存设置，再使用历史邮件补总结。", "启用免打扰时间"]
+        let featureLabels = ["回复", "原文", "报告溯源", "费用与用量记录", "历史邮件补总结", "多选总结",
+                             "选择已读取的邮件，可跨邮箱选择。确认后会一起发送给 AI 生成一份总结，可能产生费用。",
+                             "按标题、发件人或邮箱搜索", "已选择：", "清除选择", "至少选择两封邮件。",
+                             "最多选择100封邮件。", "缺少原邮件数据，不能选择此项。", "暂无可选择的已读取邮件", "没有符合搜索条件的邮件",
+                             "确认总结", "确认将选中的邮件发送给 AI 总结？",
+                             "这会调用 AI，根据所选邮件生成一份总结报告。", "已生成报告：", "多选总结已完成。",
+                             "补总结历史邮件", "全选", "全不选", "全选当前搜索结果",
+                             "请先保存设置，再使用历史邮件补总结。", "启用免打扰时间"]
         var catalogBackups: [URL: Data] = [:]
         for code in ["en", "es"] {
             let path = store.base.appendingPathComponent("languages/" + code + ".json")
@@ -223,6 +232,24 @@ enum AssistantToolsSelfTest {
         }
         checks.append("history search matches subject-only and sender-only terms, rejects misses; policy defaults on and both toggle values are sent")
         checks.append("history select all/none covers every candidate; select current search results preserves selections outside the filter")
+        let firstPath = "/fixture/account-a/2026-10-20/From a@example.invalid/first.md"
+        let secondPath = "/fixture/account-b/2026-10-19/From b@example.invalid/second.md"
+        var orderedSelection = MultiSummarySelection.toggled(firstPath, in: [])
+        orderedSelection = MultiSummarySelection.toggled(secondPath, in: orderedSelection)
+        orderedSelection = MultiSummarySelection.toggled(firstPath, in: orderedSelection)
+        orderedSelection = MultiSummarySelection.toggled(firstPath, in: orderedSelection)
+        let request = MultiSummarySelection.request(paths: orderedSelection)
+        guard orderedSelection == [secondPath, firstPath],
+              request["paths"] as? [String] == [secondPath, firstPath] else {
+            throw AppSelfTest.Failure("multi-summary selection did not retain cross-mailbox click order")
+        }
+        let summaryResult = await tools.perform("multi_summary", request)
+        guard summaryResult?["count"] as? Int == 2,
+              backend.requests.last?["action"] as? String == "multi_summary",
+              backend.requests.last?["paths"] as? [String] == [secondPath, firstPath] else {
+            throw AppSelfTest.Failure("multi-summary confirmation did not forward selected report paths in UI order")
+        }
+        checks.append("multi-summary selection spans mailbox report IDs and forwards them in user selection order")
         let preview = await tools.perform("history_preview", HistoryBackfillOptions.previewRequest(
             mailbox: "", from: "2026-10-01", to: "2026-10-20",
             applyMailPolicy: HistoryBackfillOptions().applyMailPolicy
@@ -255,6 +282,7 @@ enum AssistantToolsSelfTest {
                 ("sources", AnyView(ReportSourcesView(store: store, report: report)), NSSize(width: 900, height: 600), T("报告溯源")),
                 ("usage", AnyView(UsageSettingsView(store: store)), NSSize(width: 760, height: 580), T("费用与用量记录")),
                 ("history", AnyView(HistoryBackfillView(store: store)), NSSize(width: 700, height: 430), T("历史邮件补总结")),
+                ("multi-summary", AnyView(MultiSummaryView(store: store)), NSSize(width: 760, height: 640), T("多选总结")),
                 ("notifications", AnyView(VStack(alignment: .leading, spacing: 20) { QuietHoursControl(store: store); AssistantUtilitySettings(store: store) }.padding(24)), NSSize(width: 900, height: 450), T("启用免打扰时间"))
             ]
             for (name, view, size, title) in views {
@@ -278,7 +306,7 @@ enum AssistantToolsSelfTest {
                 if name == "original", !normalized(text).contains(normalized("Original email body fixture")) { throw AppSelfTest.Failure("original mail pane did not show the saved original message: " + text) }
             }
         }
-        checks.append("eighteen real-window captures: separate reply, original-mail and source panes, usage with unknown counters, history confirmation and quiet-hours tools render in Chinese, English and Spanish")
+        checks.append("twenty-one real-window captures: separate reply, original-mail and source panes, usage with unknown counters, history/multi-summary selection and quiet-hours tools render in Chinese, English and Spanish")
         checks.append("current native feature label fallback takes precedence over installed legacy language packs")
         return checks
     }

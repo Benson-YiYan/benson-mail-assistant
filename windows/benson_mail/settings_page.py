@@ -149,6 +149,10 @@ def _validate(controller, page, data):
         controller.paused()
         chat_enter_to_send=data.get('chat_enter_to_send',False)
         if not isinstance(chat_enter_to_send,bool): raise ValueError('Invalid chat Enter shortcut setting.')
+        summary_prompt=data.get('summary_prompt',config.get('summary_prompt',''))
+        if not isinstance(summary_prompt,str) or len(summary_prompt)>12000:
+            raise ValueError('总结提示词不能超过12000个字符。')
+        summary_prompt=summary_prompt.strip()
         provider = data.get('ai_provider')
         if provider not in ('api','codex','deepseek_harness'): raise ValueError('请选择分析方式。')
         base = data.get('api_base','').strip(); model = data.get('api_model','').strip()
@@ -171,7 +175,7 @@ def _validate(controller, page, data):
             if not platform.verify_codex(command):raise ValueError('未找到可用的 Codex 命令行程序，请选择 resources 下的 codex.exe。')
             config['codex_command']=command
         config.update(ai_provider=provider, api_base=base, api_model=model, harness_path=harness,
-            chat_enter_to_send=chat_enter_to_send)
+            chat_enter_to_send=chat_enter_to_send, summary_prompt=summary_prompt)
         if 'rates' in data:
             rate = validate_usage_rates(data['rates']);rate['model']=model
             plan['rates'] = (_rate_binding(model,base),rate)
@@ -253,6 +257,10 @@ def _commit(controller, page, data):
             if key in controller.config: service.config[key]=copy.deepcopy(controller.config[key])
         if hasattr(service.analyzer,'config') and 'ui_language' in controller.config:
             service.analyzer.config['ui_language']=controller.config['ui_language']
+        if page=='ai' and 'summary_prompt' in controller.config:
+            service.config['summary_prompt']=controller.config['summary_prompt']
+            if hasattr(service.analyzer,'config'):
+                service.analyzer.config['summary_prompt']=controller.config['summary_prompt']
         if page=='mail' and ('seconds' in data or 'interval' in data): service.set_interval(controller.config['interval'])
     result={'saved':True,'page':page}
     if 'selected_mailbox_id' in plan:result['selected_mailbox_id']=plan['selected_mailbox_id']

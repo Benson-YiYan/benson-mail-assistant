@@ -20,6 +20,11 @@ sealed partial class MainWindow
     readonly TextBox outputRate = new() { Header = L.T("每百万输出 Token 单价"), Text = "0" };
     readonly TextBox rateCurrency = new() { Header = L.T("币种"), Text = "USD", MaxLength = 3 };
     readonly ToggleSwitch chatEnterToSendSetting = new() { Header = L.T("按 Enter 发送，按 Shift+Enter 换行") };
+    readonly TextBox summaryPrompt = new() {
+        Header = L.T("总结提示词"), PlaceholderText = L.T("留空使用内置默认提示词"),
+        AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 120, MaxHeight = 220
+    };
+    Button summaryPromptReset = null!;
     readonly TextBox codexPath = new() { Header = L.T("Codex 启动器"), PlaceholderText = L.T("留空使用已保存的 Codex 启动器") };
     bool loadingSettingsDrafts;
     bool navigatingSettings;
@@ -43,6 +48,7 @@ sealed partial class MainWindow
             ["ai_provider"] = provider.SelectedIndex == 1 ? "codex" : provider.SelectedIndex == 2 ? "deepseek_harness" : "api",
             ["api_base"] = apiBase.Text, ["api_model"] = model.Text, ["key"] = apiKey.Password, ["harness_path"] = harnessPath.Text,
             ["codex_path"] = codexPath.Text,
+            ["summary_prompt"] = summaryPrompt.Text,
             ["rates"] = new { input_per_million = inputRate.Text, output_per_million = outputRate.Text, currency = rateCurrency.Text },
             ["chat_enter_to_send"] = chatEnterToSendSetting.IsOn
         };
@@ -78,7 +84,7 @@ sealed partial class MainWindow
         }
 
         foreach (var field in new[] { account, mailHost, mailPort, mailUsername, mailFolder, folder, interval, mailProxy.Host, mailProxy.Port,
-            apiBase, model, harnessPath, codexPath, inputRate, outputRate, rateCurrency, quietStart, quietEnd }) field.TextChanged += (_, _) => RefreshSettingsDirty();
+            apiBase, model, summaryPrompt, harnessPath, codexPath, inputRate, outputRate, rateCurrency, quietStart, quietEnd }) field.TextChanged += (_, _) => RefreshSettingsDirty();
         mailSecret.PasswordChanged += (_, _) => RefreshSettingsDirty(); apiKey.PasswordChanged += (_, _) => RefreshSettingsDirty();
         foreach (var combo in new[] { mailProvider, mailSecurity, mailAuth, mailProxy.Mode, provider, senderPolicyMode, languageChoice })
             combo.SelectionChanged += (_, _) => RefreshSettingsDirty();
@@ -96,6 +102,7 @@ sealed partial class MainWindow
             else if (page == "ai") {
                 provider.SelectedIndex = JsonText(config, "ai_provider") == "codex" ? 1 : JsonText(config, "ai_provider") == "deepseek_harness" ? 2 : 0;
                 apiBase.Text = JsonText(config, "api_base"); model.Text = JsonText(config, "api_model"); harnessPath.Text = JsonText(config, "harness_path");
+                summaryPrompt.Text = JsonText(config, "summary_prompt");
                 codexPath.Text = ""; apiKey.Password = "";
                 chatEnterToSendSetting.IsOn = config.TryGetProperty("chat_enter_to_send", out var enterToSend) && enterToSend.ValueKind == JsonValueKind.True;
                 var usage = await Assistant("usage");
@@ -162,6 +169,15 @@ sealed partial class MainWindow
     }
     async Task SettingsPagesSelfTest(Action<bool, string> check)
     {
+        await LoadPageDraft("ai");
+        summaryPrompt.Text = "仅根据原邮件明确的信息整理待办。";
+        RefreshSettingsDirty();
+        check(SettingsDirty("ai") && pageDirtyLabels["ai"].Visibility == Visibility.Visible &&
+              JsonSerializer.SerializeToElement(SettingsValues("ai")).GetProperty("summary_prompt").GetString() == "仅根据原邮件明确的信息整理待办。",
+            "AI prompt edits are included in the unsaved page draft");
+        await ResetSummaryPrompt();
+        check(!SettingsDirty("ai") && pageDirtyLabels["ai"].Visibility == Visibility.Collapsed,
+            "Restoring the default prompt clears the draft and unsaved marker");
         await LoadPageDraft("mail");
         check(senderPolicySpamFolderValues.SequenceEqual(DefaultSpamFolders) &&
               senderPolicySpamFolderEnabled.SetEquals(DefaultSpamFolders),
@@ -224,6 +240,11 @@ sealed partial class MainWindow
             "Mailbox list draft changes never invoke immediate select/add/remove/enable persistence");
         await LoadPageDraft("mail");
         foreach (var page in new[] { "mail", "ai", "general" }) check(pageDirtyLabels.ContainsKey(page), "One page-wide save/dirty footer is mounted for " + page);
+    }
+    Task ResetSummaryPrompt()
+    {
+        summaryPrompt.Text = "";
+        return Task.CompletedTask;
     }
     Task RemoveMailboxDraftForFixture()
     {

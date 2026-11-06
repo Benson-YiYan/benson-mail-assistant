@@ -1,0 +1,62 @@
+name: macOS build and verification
+on:
+  push:
+    branches: [main]
+    paths: ["macos/**", "script/build_language_packs.py", "script/test_language_catalogs.py", ".github/workflows/macos.yml"]
+  pull_request:
+    paths: ["macos/**", "script/build_language_packs.py", "script/test_language_catalogs.py", ".github/workflows/macos.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-26
+            architecture: arm64
+            environment: .package-venv
+            distribution: dist
+          - runner: macos-26-intel
+            architecture: x86_64
+            environment: .package-venv-intel
+            distribution: dist-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: macos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated packaging dependencies
+        run: |
+          python3 -m venv "${{ matrix.environment }}"
+          "${{ matrix.environment }}/bin/python" -m pip install --upgrade pip
+          "${{ matrix.environment }}/bin/python" -m pip install -r requirements-build.txt
+      - name: Validate language catalogs
+        run: python3 ../script/test_language_catalogs.py
+      - name: Backend tests
+        run: ./${{ matrix.environment }}/bin/python -m unittest discover -s tests -v
+      - name: Build application and worker
+        run: ./script/build_and_run.sh --build-only "${{ matrix.architecture }}"
+      - name: Packaged application UI self-test
+        run: python3 script/test_ui.py "evidence/ci-ui-${{ matrix.architecture }}" "${{ matrix.distribution }}/邮件小秘书.app"
+      - name: Package DMG
+        run: python3 script/package_release.py "${{ matrix.distribution }}" "${{ matrix.distribution }}/邮件小秘书.app"
+      - name: Upload verified disk image
+        uses: actions/upload-artifact@v4
+        with:
+          name: BensonMail-Mac-${{ matrix.architecture }}
+          path: macos/${{ matrix.distribution }}/BensonMail-Mac-*.dmg
+          if-no-files-found: error
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-test-evidence-${{ matrix.architecture }}
+          path: macos/evidence/ci-ui-${{ matrix.architecture }}/
+          if-no-files-found: warn

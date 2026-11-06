@@ -64,6 +64,22 @@ class SettingsPageTests(unittest.TestCase):
         self.assertTrue(json.loads(self.controller.path.read_text())['chat_enter_to_send'])
         with self.assertRaises(ValueError):
             self.controller.command('save_settings_page',{'page':'ai','values':{**data,'chat_enter_to_send':'yes'}})
+    def test_summary_prompt_is_saved_with_ai_page_and_applied_to_live_analyzer(self):
+        service=Mock();service.config={};service.analyzer.config={}
+        service.thread=None
+        self.controller.service=service
+        data={'ai_provider':'codex','summary_prompt':'  Include deadlines and owners.  '}
+        self.controller.command('save_settings_page',{'page':'ai','values':data})
+        self.assertEqual(json.loads(self.controller.path.read_text())['summary_prompt'],'Include deadlines and owners.')
+        self.assertEqual(service.config['summary_prompt'],'Include deadlines and owners.')
+        self.assertEqual(service.analyzer.config['summary_prompt'],'Include deadlines and owners.')
+    def test_invalid_summary_prompt_does_not_commit_ai_settings(self):
+        before=self.controller.path.read_bytes()
+        with self.assertRaises(ValueError):
+            self.controller.command('save_settings_page',{'page':'ai','values':{
+                'ai_provider':'codex','summary_prompt':'x'*12001
+            }})
+        self.assertEqual(self.controller.path.read_bytes(),before)
     def test_persist_failure_restores_overwritten_secret_config_and_rates(self):
         path=self.controller.key_path('https://example.invalid/v1');path.parent.mkdir();path.write_bytes(b'OLD_ENCRYPTED_KEY')
         rates=self.root/'usage-rates.json';rates.write_text('{"rates":{}}');rates_before=rates.read_bytes()

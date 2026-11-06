@@ -12,6 +12,18 @@ struct Report: Identifiable {
     var subject: String = ""
     var receivedAt: Date? = nil
     var mailboxAccount: String = ""
+    var originalMessageAvailable = false
+    /// Virtual all-mailbox reports carry their grouping in the output path.
+    /// Ordinary reports continue to use mailbox/date/sender metadata.
+    var treeComponents: [String] {
+        let date = url.deletingLastPathComponent()
+        let group = date.deletingLastPathComponent()
+        let mailbox = group.deletingLastPathComponent()
+        guard mailbox.lastPathComponent == "全部邮箱",
+              group.lastPathComponent == "多选总结",
+              date.lastPathComponent.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil else { return [] }
+        return ["全部邮箱", "多选总结", date.lastPathComponent]
+    }
     var senderAddress: String {
         let raw = sender.trimmingCharacters(in: .whitespacesAndNewlines)
         if let range = raw.range(of: #"[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+"#, options: [.regularExpression, .caseInsensitive]) {
@@ -103,7 +115,8 @@ struct MailSettings: Codable {
     var notifications_enabled = true
     var quiet_hours = QuietHours()
     var chat_enter_to_send = false
-    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, codex_path, harness_path, mailbox, mailboxes, mail_policy, notifications_enabled, quiet_hours, chat_enter_to_send }
+    var summary_prompt = ""
+    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, codex_path, harness_path, mailbox, mailboxes, mail_policy, notifications_enabled, quiet_hours, chat_enter_to_send, summary_prompt }
     init() {}
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -122,6 +135,7 @@ struct MailSettings: Codable {
         notifications_enabled = try values.decodeIfPresent(Bool.self, forKey: .notifications_enabled) ?? true
         quiet_hours = try values.decodeIfPresent(QuietHours.self, forKey: .quiet_hours) ?? QuietHours()
         chat_enter_to_send = try values.decodeIfPresent(Bool.self, forKey: .chat_enter_to_send) ?? false
+        summary_prompt = try values.decodeIfPresent(String.self, forKey: .summary_prompt) ?? ""
     }
 }
 

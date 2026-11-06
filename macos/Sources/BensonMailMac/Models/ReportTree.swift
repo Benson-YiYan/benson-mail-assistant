@@ -27,21 +27,35 @@ enum ReportTree {
         var id: String { key }
     }
     static func key(_ report: Report, level: Int) -> String {
+        if report.treeComponents.indices.contains(level) { return report.treeComponents[level] }
         switch level {
         case 0: return report.mailboxAccount
         case 1: return report.dateLabel
         default: return report.senderAddress
         }
     }
+    static func isMultiSummary(_ report: Report) -> Bool {
+        report.treeComponents.count == 3 &&
+            report.treeComponents[0] == "全部邮箱" &&
+            report.treeComponents[1] == "多选总结"
+    }
     static func reports(_ reports: [Report], in path: [String]) -> [Report] {
         reports.filter { report in path.enumerated().allSatisfy { key(report, level: $0.offset) == $0.element } }
+    }
+    private static func isDateKey(_ key: String) -> Bool {
+        let parts = key.split(separator: "-")
+        guard parts.count == 3, parts[0].count == 4, parts[1].count == 2, parts[2].count == 2,
+              let month = Int(parts[1]), let day = Int(parts[2]) else { return false }
+        return (1...12).contains(month) && (1...31).contains(day)
     }
     static func folders(_ reports: [Report], in path: [String]) -> [Folder] {
         guard path.count < 3 else { return [] }
         let grouped = Dictionary(grouping: self.reports(reports, in: path)) { key($0, level: path.count) }
-        return grouped.map { Folder(key: $0.key, count: $0.value.count) }.sorted {
-            path.count == 1 ? $0.key > $1.key : $0.key.localizedStandardCompare($1.key) == .orderedAscending
+        let folders = grouped.map { Folder(key: $0.key, count: $0.value.count) }
+        if !folders.isEmpty, folders.allSatisfy({ isDateKey($0.key) }) {
+            return folders.sorted { $0.key > $1.key }
         }
+        return folders.sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending }
     }
     static func validPath(_ path: [String], in reports: [Report]) -> [String] {
         var valid: [String] = []

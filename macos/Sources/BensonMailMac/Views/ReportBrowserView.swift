@@ -7,17 +7,24 @@ struct ReportBrowserView: View {
     @ObservedObject var store: MailStore
     @AppStorage("report-tree-enabled") private var treeEnabled = false
     @BrowserState private var path: [String] = []
+    @BrowserState private var showMultiSummary = false
 
     private var visible: [Report] { treeEnabled ? ReportTree.reports(store.filteredReports, in: path) : store.filteredReports }
-    private func folderLabel(_ key: String, level: Int) -> String {
+    private func folderLabel(_ key: String, level: Int, parent: [String] = []) -> String {
         if key.isEmpty { return T(level == 0 ? "未识别的邮箱" : "未识别的发件人") }
-        return level == 2 ? "From " + key : key
+        if level == 2 && !(parent.count >= 2 && parent[1] == "多选总结") {
+            return "From " + key
+        }
+        return key
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(T("邮件报告")).font(.headline)
                 Spacer()
+                Button(T("多选总结")) { showMultiSummary = true }
+                    .disabled(store.reports.allSatisfy { ReportTree.isMultiSummary($0) })
+                    .accessibilityIdentifier("multi-summary-open")
                 Toggle(T("报告树"), isOn: $treeEnabled).toggleStyle(.switch).controlSize(.small)
                     .accessibilityIdentifier("report-tree-toggle")
                     .help(T("按邮箱、日期、发件人逐层浏览；搜索和筛选仍然生效。"))
@@ -28,7 +35,7 @@ struct ReportBrowserView: View {
                         Button(T("全部邮箱")) { path = [] }.buttonStyle(.link)
                         ForEach(Array(path.enumerated()), id: \.offset) { item in
                             Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.secondary)
-                            Button(folderLabel(item.element, level: item.offset)) { path = Array(path.prefix(item.offset + 1)) }
+                            Button(folderLabel(item.element, level: item.offset, parent: Array(path.prefix(item.offset)))) { path = Array(path.prefix(item.offset + 1)) }
                                 .buttonStyle(.link)
                         }
                     }.lineLimit(1).fixedSize(horizontal: true, vertical: false).padding(.vertical, 4)
@@ -38,9 +45,9 @@ struct ReportBrowserView: View {
                         Image(systemName: "arrow.up").frame(width: 24, height: 24)
                     }.disabled(path.isEmpty).help(T("上一级")).accessibilityLabel(T("上一级"))
                         .accessibilityIdentifier("report-tree-up")
-                    Text(path.last.map { folderLabel($0, level: path.count - 1) } ?? T("全部邮箱"))
+                    Text(path.last.map { folderLabel($0, level: path.count - 1, parent: Array(path.dropLast())) } ?? T("全部邮箱"))
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                        .help(path.last.map { folderLabel($0, level: path.count - 1) } ?? T("全部邮箱"))
+                        .help(path.last.map { folderLabel($0, level: path.count - 1, parent: Array(path.dropLast())) } ?? T("全部邮箱"))
                     Spacer(minLength: 0)
                 }.padding(.horizontal, 14).padding(.bottom, 5)
             }
@@ -78,5 +85,6 @@ struct ReportBrowserView: View {
         }
         .onChange(of: treeEnabled) { _, _ in path = [] }
         .onChange(of: store.filteredReports.map(\.id)) { _, _ in path = ReportTree.validPath(path, in: store.filteredReports) }
+        .sheet(isPresented: $showMultiSummary) { MultiSummaryView(store: store) }
     }
 }

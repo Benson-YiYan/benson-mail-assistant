@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -204,6 +205,8 @@ public sealed class Report
     public string day { get; set; } = "";
     public string sender_email { get; set; } = "";
     public bool? attachments { get; set; }
+    public bool original_available { get; set; }
+    public bool is_multi_summary { get; set; }
     public Report(string path, string title, string sender, string time, bool? attachments)
     {
         this.path = path; this.title = title; this.sender = sender;
@@ -271,6 +274,10 @@ sealed partial class MainWindow : Window
     readonly List<Report> reportRows = new();
     readonly List<string> reportTreePath = new();
     sealed record ReportFolder(string Name);
+    const string MultiSummaryTreeKey = "\u001fmulti-summary";
+    const int MinimumMultiSummarySelection = 2;
+    const int MaximumMultiSummarySelection = 100;
+    Button multiSummaryButton = null!;
     readonly MarkdownReportView preview = new() { VerticalAlignment = VerticalAlignment.Stretch };
     readonly Button toggle = new() { Content = L.T("开始监听"), CornerRadius = new CornerRadius(4) };
     readonly Button check = new() { Content = L.T("立即检查"), CornerRadius = new CornerRadius(4) };
@@ -282,6 +289,7 @@ sealed partial class MainWindow : Window
     readonly string? fixture;
     readonly HashSet<string> notified = new();
     Button mailSaveButton = null!, aiSaveButton = null!;
+    TextBlock summaryPromptDescription = null!;
     Button filterButton = null!;
     Button updateButton = null!;
     Button updateFallbackButton = null!;
@@ -337,7 +345,7 @@ sealed partial class MainWindow : Window
         Program.Trace("Right controls");
         foreach (var text in new[] { pageTitle, reportCount, status, detail, migrationWarning })
             text.FontFamily = MailTypography.Font;
-        foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model, harnessPath,
+        foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model, summaryPrompt, harnessPath,
             apiKey, interval, search, sender, from, to, attachment, mailProvider, mailHost, mailPort,
             mailSecurity, mailAuth, mailUsername, mailFolder, mailProxy.Mode, mailProxy.Host, mailProxy.Port })
         {
@@ -378,6 +386,7 @@ sealed partial class MainWindow : Window
             return await completed.Task;
         });
         L.Apply(Content as UIElement, reports, savedMailboxes);
+        ApplyFeatureLabels();
         L.Apply(filters.Content as UIElement);
         layout.Loaded += async (_, _) => await Initialize();
     }
@@ -581,6 +590,10 @@ sealed partial class MainWindow : Window
         aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading(L.T("选择您喜欢的 AI")), provider, apiBase, model, apiKey, harnessPath,
             Row(Action(L.T("检测 Harness"), async () => { var found = await Call("harness_detect", new { path = harnessPath.Text }); harnessPath.Text = found.GetString() ?? ""; }), Action(L.T("浏览 Harness……"), PickHarness)),
             codexPath, Row(Action(L.T("查找 Codex"), async () => { var found = await Call("codex_detect", new { }); codexPath.Text = found.GetString() ?? ""; }), Action(L.T("浏览 Codex……"), PickCodex)),
+            summaryPrompt, Row(summaryPromptReset = Action(L.Bootstrap("恢复默认", "Restore default", "Restablecer valor predeterminado"), ResetSummaryPrompt)),
+            summaryPromptDescription = Note(L.Bootstrap("留空使用内置默认提示词；自定义内容会作为补充要求，并与六项报告格式一起发送给 AI。",
+                "Leave blank to use the built-in prompt. Custom text is added as extra instructions and sent with the six-section report format.",
+                "Déjalo en blanco para usar las instrucciones predeterminadas. El texto personalizado se agrega como requisito adicional junto con el formato de seis secciones.")),
             Note(L.T("来信及可读取的附件文字交给所选 AI，整理为六项报告。Harness 使用用户已安装的应用及其登录、模型配置，不捆绑或下载运行时。请先在 Harness 中配置；测试连接会发送少量文字。")))),
             Card(Stack(Heading(L.T("对邮件提问")), chatEnterToSendSetting)), UsageSettingsCard()),
             SettingsSaveBar("ai", aiSaveButton, Action(L.T("测试 AI 连接"), () => TestSavedSettings("ai")))));
@@ -624,6 +637,7 @@ sealed partial class MainWindow : Window
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         toolbar.Children.Add(search);
         filterButton = new Button { FontFamily = MailTypography.Font, Content = Row(new SymbolIcon(Symbol.Filter) { Width = 16 },
             new TextBlock { FontFamily = MailTypography.Font, Text = L.T("筛选") }),
@@ -631,11 +645,16 @@ sealed partial class MainWindow : Window
         Secondary(filterButton);
         Grid.SetColumn(filterButton, 1); toolbar.Children.Add(filterButton);
         var refreshButton = Action(L.T("刷新"), Refresh); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
-        Grid.SetColumn(reportTree, 3); toolbar.Children.Add(reportTree);
+        multiSummaryButton = Action(L.Bootstrap("多选总结", "Summarize selected", "Resumir selección"), MultiSummary);
+        Grid.SetColumn(multiSummaryButton, 3); toolbar.Children.Add(multiSummaryButton);
+        Grid.SetColumn(reportTree, 4); toolbar.Children.Add(reportTree);
         reportTree.Checked += async (_, _) => {
             var selected = SelectedReport;
             reportTreePath.Clear();
-            if (selected != null) reportTreePath.AddRange(new[] { ReportAccount(selected), selected.day, ReportSender(selected) });
+            if (selected != null) {
+                if (selected.is_multi_summary) reportTreePath.AddRange(new[] { MultiSummaryTreeKey, selected.day });
+                else reportTreePath.AddRange(new[] { ReportAccount(selected), selected.day, ReportSender(selected) });
+            }
             RenderReportRows(selected?.path);
             if (initialized) await Guard(async () => { await bridge.Call("report_view", new { report_tree = true }); });
         };
@@ -942,35 +961,208 @@ sealed partial class MainWindow : Window
         var picked = await picker.PickSingleFileAsync();
         if (picked != null && !exitRequested) codexPath.Text = picked.Path;
     }
-    async Task Refresh()
+    static Report ParseReport(JsonElement row)
+    {
+        var path = row.GetProperty("path").GetString()!;
+        var report = new Report(path, row.GetProperty("title").GetString()!,
+            row.GetProperty("sender").GetString()!, row.GetProperty("time").GetString()!,
+            row.GetProperty("attachments").ValueKind == JsonValueKind.Null ? null : row.GetProperty("attachments").GetBoolean()) {
+            account = row.TryGetProperty("account", out var reportAccount) ? reportAccount.GetString() ?? "" : "",
+            day = row.TryGetProperty("day", out var reportDay) ? reportDay.GetString() ?? "" : "",
+            sender_email = row.TryGetProperty("sender_email", out var reportSender) ? reportSender.GetString() ?? "" : "",
+            original_available = row.TryGetProperty("original_available", out var originalAvailable) &&
+                originalAvailable.ValueKind == JsonValueKind.True,
+            is_multi_summary = IsMultiSummaryPath(path)
+        };
+        return report;
+    }
+    static bool IsMultiSummaryPath(string path)
+    {
+        var parts = Path.GetFullPath(path).Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 4 && parts[^4] == "全部邮箱" && parts[^3] == "多选总结" &&
+               DateTime.TryParseExact(parts[^2], "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                   DateTimeStyles.None, out _);
+    }
+    ListViewItem MultiSummaryItem(Report report)
+    {
+        var accountLabel = report.account.Length > 0 ? report.account : L.Bootstrap("未知邮箱", "Unknown mailbox", "Buzón desconocido");
+        var details = string.Join(" · ", new[] { report.sender, accountLabel, report.time }
+            .Where(value => !string.IsNullOrWhiteSpace(value)));
+        var content = Stack(
+            new TextBlock { Text = report.title, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                TextWrapping = TextWrapping.Wrap, MaxWidth = 560 },
+            new TextBlock { Text = details, FontSize = 12, Opacity = .7,
+                TextWrapping = TextWrapping.Wrap, MaxWidth = 560 });
+        if (!report.original_available) content.Children.Add(new TextBlock {
+            Text = L.Bootstrap("缺少原邮件数据，不能选择", "Original email data is missing; this item cannot be selected.",
+                "Faltan los datos del correo original; no se puede seleccionar."),
+            FontSize = 12, Foreground = new SolidColorBrush(Microsoft.UI.Colors.DarkOrange),
+            TextWrapping = TextWrapping.Wrap, MaxWidth = 560
+        });
+        return new ListViewItem {
+            Tag = report, Content = content, Padding = new Thickness(10),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            IsEnabled = report.original_available
+        };
+    }
+    static bool IsValidMultiSummarySelection(int count) =>
+        count >= MinimumMultiSummarySelection && count <= MaximumMultiSummarySelection;
+    static bool CanSelectMultiSummaryItem(Report report, bool selected, int selectedCount) =>
+        report.original_available && (selected || selectedCount < MaximumMultiSummarySelection);
+    static void UpdateMultiSummaryItemStates(ListView list, IReadOnlyCollection<Report> selectedReports, int selectedCount)
+    {
+        var selectedPaths = new HashSet<string>(selectedReports.Select(report => report.path), StringComparer.OrdinalIgnoreCase);
+        foreach (var row in list.Items.OfType<ListViewItem>())
+            if (row.Tag is Report report)
+                row.IsEnabled = CanSelectMultiSummaryItem(report, selectedPaths.Contains(report.path), selectedCount);
+    }
+    static string MultiSummarySelectionStatusText(int selectedCount) =>
+        selectedCount >= MaximumMultiSummarySelection
+            ? L.Bootstrap($"已选满 {MaximumMultiSummarySelection} 封；取消勾选后可继续选择。",
+                $"Limit reached: {selectedCount} / {MaximumMultiSummarySelection}. Deselect an email to continue.",
+                $"Límite alcanzado: {selectedCount} / {MaximumMultiSummarySelection}. Desmarca un correo para continuar.")
+            : L.Bootstrap($"已选择 {selectedCount} / {MaximumMultiSummarySelection} 封",
+                $"{selectedCount} / {MaximumMultiSummarySelection} selected",
+                $"{selectedCount} / {MaximumMultiSummarySelection} seleccionados");
+    async Task MultiSummary()
+    {
+        if (exitRequested) return;
+        var result = await bridge.Call("reports", new {
+            query = "", sender = "", start = "", end = "", attachments = "全部"
+        });
+        var candidates = result.EnumerateArray().Select(ParseReport)
+            .Where(report => !report.is_multi_summary).ToList();
+        if (candidates.Count == 0) {
+            detail.Text = L.Bootstrap("没有可选择的已读取邮件报告。", "There are no read email reports to select.", "No hay informes de correo leídos para seleccionar.");
+            return;
+        }
+
+        var list = new ListView {
+            SelectionMode = ListViewSelectionMode.Multiple,
+            MaxHeight = 460,
+            MinWidth = 600,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch
+        };
+        var selectedInOrder = new List<Report>();
+        var count = new TextBlock {
+            Text = L.Bootstrap($"已选择 0 / {MaximumMultiSummarySelection} 封",
+                $"0 / {MaximumMultiSummarySelection} selected",
+                $"0 / {MaximumMultiSummarySelection} seleccionados"),
+            Opacity = .7
+        };
+        foreach (var report in candidates) {
+            list.Items.Add(MultiSummaryItem(report));
+        }
+        var dialog = new ContentDialog {
+            XamlRoot = layout.XamlRoot,
+            Title = L.Bootstrap("选择要多选总结的邮件", "Select emails to summarize", "Selecciona los correos para resumir"),
+            Content = Stack(
+                Note(L.Bootstrap("可跨已添加的邮箱选择。只会把所选邮件及其可读取的附件文字发送给当前 AI。",
+                    "You can select emails from different added accounts. Only selected messages and readable attachment text are sent to the current AI.",
+                    "Puedes seleccionar correos de distintas cuentas añadidas. Solo se enviarán a la IA actual los mensajes seleccionados y el texto legible de sus archivos adjuntos.")),
+                Note(L.Bootstrap("至少选择 2 封邮件。", "Select at least two emails.", "Selecciona al menos dos correos.")),
+                Note(L.Bootstrap("最多选择 100 封。达到上限后，取消勾选已选邮件即可继续选择。",
+                    "Select up to 100 emails. At the limit, deselect an email to choose another.",
+                    "Puedes seleccionar hasta 100 correos. Al llegar al límite, desmarca uno para elegir otro.")),
+                count, list),
+            PrimaryButtonText = L.Bootstrap("确认总结", "Summarize", "Confirmar resumen"),
+            CloseButtonText = L.Bootstrap("取消", "Cancel", "Cancelar"),
+            DefaultButton = ContentDialogButton.Primary,
+            IsPrimaryButtonEnabled = false
+        };
+        Report? ResolveReport(object? item)
+        {
+            if (item is Report report) return report;
+            if (item is ListViewItem row && row.Tag is Report tagged) return tagged;
+            return list.Items.OfType<ListViewItem>()
+                .FirstOrDefault(row => ReferenceEquals(row, item) || ReferenceEquals(row.Content, item))?.Tag as Report;
+        }
+        var rejectingOverflowSelection = false;
+        void UpdateSelectionPresentation()
+        {
+            var selectedCount = selectedInOrder.Count;
+            UpdateMultiSummaryItemStates(list, selectedInOrder, selectedCount);
+            count.Text = MultiSummarySelectionStatusText(selectedCount);
+            dialog.IsPrimaryButtonEnabled = IsValidMultiSummarySelection(selectedCount);
+        }
+        list.SelectionChanged += (_, change) => {
+            if (rejectingOverflowSelection) return;
+            foreach (var item in change.RemovedItems) {
+                var report = ResolveReport(item);
+                if (report != null) selectedInOrder.RemoveAll(value => value.path == report.path);
+            }
+            var rejected = new List<object>();
+            foreach (var item in change.AddedItems) {
+                var report = ResolveReport(item);
+                if (report == null || !report.original_available) {
+                    rejected.Add(item);
+                    continue;
+                }
+                if (selectedInOrder.Any(value => string.Equals(value.path, report.path, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                if (selectedInOrder.Count >= MaximumMultiSummarySelection) rejected.Add(item);
+                else selectedInOrder.Add(report);
+            }
+            if (rejected.Count > 0) {
+                rejectingOverflowSelection = true;
+                try { foreach (var item in rejected) list.SelectedItems.Remove(item); }
+                finally { rejectingOverflowSelection = false; }
+            }
+            UpdateSelectionPresentation();
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary ||
+            !IsValidMultiSummarySelection(selectedInOrder.Count)) return;
+
+        detail.Text = L.Bootstrap("正在总结所选邮件…", "Summarizing selected emails…", "Resumiendo los correos seleccionados…");
+        var response = await Assistant("multi_summary", new {
+            paths = selectedInOrder.Select(report => Path.GetFullPath(report.path)).ToArray()
+        });
+        var summaryPath = JsonText(response, "path");
+        if (summaryPath.Length == 0) throw new InvalidOperationException(L.Bootstrap(
+            "AI 已完成，但没有返回报告路径。", "AI finished but did not return a report path.", "La IA terminó, pero no devolvió la ruta del informe."));
+
+        // Reveal the new report even if the user had narrowed the report page with search or filters.
+        search.Text = sender.Text = "";
+        from.Date = to.Date = null;
+        attachment.SelectedIndex = 0;
+        await Refresh(summaryPath, revealTreeSelection: true);
+        detail.Text = L.Bootstrap("多选总结已完成。", "Multi-email summary is complete.", "El resumen de varios correos está listo.");
+    }
+    async Task Refresh(string? selectedOverride = null, bool revealTreeSelection = false)
     {
         if (exitRequested) return;
         searchTimer.Stop();
         var generation = ++reportGeneration;
-        var selected = SelectedReport?.path;
+        var selected = selectedOverride ?? SelectedReport?.path;
         var result = await bridge.Call("reports", new { query = search.Text, sender = sender.Text,
             start = from.Date?.ToString("yyyy-MM-dd") ?? "", end = to.Date?.ToString("yyyy-MM-dd") ?? "",
             attachments = attachment.SelectedIndex == 1 ? "有附件" : attachment.SelectedIndex == 2 ? "无附件" : "全部" });
         if (exitRequested || generation != reportGeneration) return;
         reportRows.Clear();
-        foreach (var row in result.EnumerateArray())
-        {
-            var report = new Report(row.GetProperty("path").GetString()!, row.GetProperty("title").GetString()!,
-                row.GetProperty("sender").GetString()!, row.GetProperty("time").GetString()!,
-                row.GetProperty("attachments").ValueKind == JsonValueKind.Null ? null : row.GetProperty("attachments").GetBoolean()) {
-                account = row.TryGetProperty("account", out var reportAccount) ? reportAccount.GetString() ?? "" : "",
-                day = row.TryGetProperty("day", out var reportDay) ? reportDay.GetString() ?? "" : "",
-                sender_email = row.TryGetProperty("sender_email", out var reportSender) ? reportSender.GetString() ?? "" : ""
-            };
-            reportRows.Add(report);
+        foreach (var row in result.EnumerateArray()) reportRows.Add(ParseReport(row));
+        if (revealTreeSelection && selected != null && reportTree.IsChecked == true) {
+            var selectedReport = reportRows.FirstOrDefault(report => string.Equals(report.path, selected, StringComparison.OrdinalIgnoreCase));
+            if (selectedReport?.is_multi_summary == true) {
+                reportTreePath.Clear();
+                reportTreePath.AddRange(new[] { MultiSummaryTreeKey, selectedReport.day });
+            }
         }
         RenderReportRows(selected);
         reportCount.Text = L.T($"{reportRows.Count} 封邮件");
     }
     string ReportAccount(Report report) => string.IsNullOrEmpty(report.account) ? "unknown-account" : report.account;
     string ReportSender(Report report) => "From " + (string.IsNullOrEmpty(report.sender_email) ? "unknown-sender" : report.sender_email);
-    string ReportTreeLabel(int level, string name) => level == 0 && name == "unknown-account" ? L.T("未知邮箱")
-        : level == 2 && name == "From unknown-sender" ? "From " + L.T("未知发件人") : name;
+    string ReportTreeLabel(int level, string name) =>
+        name == MultiSummaryTreeKey ? L.Bootstrap("多选总结", "Multi-summary", "Resumen múltiple") :
+        name == "unknown-account" ? L.T("未知邮箱") :
+        name == "From unknown-sender" ? "From " + L.T("未知发件人") : name;
+    IReadOnlyList<string> ReportTreeSegments(Report report)
+    {
+        if (report.is_multi_summary) return new[] { MultiSummaryTreeKey, report.day };
+        return new[] { ReportAccount(report), report.day, ReportSender(report) };
+    }
+    static bool IsReportDateFolder(string name) =>
+        DateOnly.TryParseExact(name, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
     bool relabelingReportRows;
     void RenderReportRows(string? selected = null)
     {
@@ -983,13 +1175,18 @@ sealed partial class MainWindow : Window
         reportBreadcrumb.Text = string.Join(" / ", new[] { L.T("全部邮箱") }.Concat(reportTreePath.Select((name, level) => ReportTreeLabel(level, name))));
         IEnumerable<Report> shown = reportRows;
         if (tree) {
-            if (reportTreePath.Count > 0) shown = shown.Where(report => ReportAccount(report) == reportTreePath[0]);
-            if (reportTreePath.Count > 1) shown = shown.Where(report => report.day == reportTreePath[1]);
-            if (reportTreePath.Count > 2) shown = shown.Where(report => ReportSender(report) == reportTreePath[2]);
-            if (reportTreePath.Count < 3) {
-                Func<Report, string> key = reportTreePath.Count == 0 ? ReportAccount : reportTreePath.Count == 1 ? report => report.day : ReportSender;
-                var grouped = shown.GroupBy(key).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase);
-                var ordered = reportTreePath.Count == 1 ? grouped.Reverse() : grouped;
+            for (var level = 0; level < reportTreePath.Count; level++)
+                shown = shown.Where(report => ReportTreeSegments(report).Count > level &&
+                    ReportTreeSegments(report)[level] == reportTreePath[level]);
+            var multiSummaryBranch = reportTreePath.Count > 0 && reportTreePath[0] == MultiSummaryTreeKey;
+            var folderDepth = multiSummaryBranch ? 2 : 3;
+            if (reportTreePath.Count < folderDepth) {
+                Func<Report, string> key = report => ReportTreeSegments(report)[reportTreePath.Count];
+                var grouped = shown.GroupBy(key).ToArray();
+                var dateFolders = grouped.Length > 0 && grouped.All(group => IsReportDateFolder(group.Key));
+                var ordered = dateFolders
+                    ? grouped.OrderByDescending(group => group.Key, StringComparer.Ordinal)
+                    : grouped.OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase);
                 foreach (var group in ordered) {
                     reports.Items.Add(new ListViewItem {
                         Tag = new ReportFolder(group.Key), HorizontalContentAlignment = HorizontalAlignment.Stretch,
@@ -1300,6 +1497,18 @@ sealed partial class MainWindow : Window
         } finally { languageChoice.IsEnabled = true; }
     }
 
+    void ApplyFeatureLabels()
+    {
+        summaryPrompt.Header = L.Bootstrap("总结提示词", "Summary prompt", "Instrucciones de resumen");
+        summaryPrompt.PlaceholderText = L.Bootstrap("留空使用内置默认提示词", "Leave blank to use the built-in prompt", "Déjalo en blanco para usar las instrucciones predeterminadas");
+        summaryPromptReset.Content = L.Bootstrap("恢复默认", "Restore default", "Restablecer valor predeterminado");
+        summaryPromptDescription.Text = L.Bootstrap(
+            "留空使用内置默认提示词；自定义内容会作为补充要求，并与六项报告格式一起发送给 AI。",
+            "Leave blank to use the built-in prompt. Custom text is added as extra instructions and sent with the six-section report format.",
+            "Déjalo en blanco para usar las instrucciones predeterminadas. El texto personalizado se agrega como requisito adicional junto con el formato de seis secciones.");
+        multiSummaryButton.Content = L.Bootstrap("多选总结", "Summarize selected", "Resumir selección");
+    }
+
     async Task ChangeLanguage(string code, bool persist = true)
     {
         try {
@@ -1315,6 +1524,7 @@ sealed partial class MainWindow : Window
         changingLanguage = true;
         try {
             L.Apply(Content as UIElement, reports, savedMailboxes, detail, chatMessages, questionFiles, conversationStatus, senderPolicyAddresses, senderPolicyRecords, senderPolicyStatus);
+            ApplyFeatureLabels();
             RenderMigrationWarning();
             savedMailboxes.Header = savedMailboxes.Header is string mailboxHeader ? L.T(mailboxHeader) : savedMailboxes.Header;
             if (!detailIsUserSubject) detail.Text = L.T(detail.Text);
@@ -1552,6 +1762,42 @@ sealed partial class MainWindow : Window
             Check(reports.Items.Count == 1, "Native WinUI 3 window receives synthetic reports through packaged worker");
             var report = (Report)((ListViewItem)reports.Items[0]).Tag;
             Check(report.title == "模拟合同检查" && report.time == "2026-10-17 09:15", "Subject and received time are separate");
+            var missingOriginal = new Report(report.path, report.title, report.sender, report.time, report.attachments);
+            var missingOriginalRow = MultiSummaryItem(missingOriginal);
+            Check(!missingOriginalRow.IsEnabled &&
+                ((StackPanel)missingOriginalRow.Content).Children.OfType<TextBlock>()
+                    .Any(label => label.Text == L.Bootstrap("缺少原邮件数据，不能选择",
+                        "Original email data is missing; this item cannot be selected.",
+                        "Faltan los datos del correo original; no se puede seleccionar.")),
+                "Multi-summary disables reports without saved original email data and explains why");
+            Check(!IsValidMultiSummarySelection(1) && IsValidMultiSummarySelection(2) &&
+                IsValidMultiSummarySelection(MaximumMultiSummarySelection) &&
+                !IsValidMultiSummarySelection(MaximumMultiSummarySelection + 1),
+                "Multi-summary accepts between two and 100 selected emails");
+            Check(!CanSelectMultiSummaryItem(report, false, MaximumMultiSummarySelection) &&
+                CanSelectMultiSummaryItem(report, true, MaximumMultiSummarySelection),
+                "Multi-summary disables new selections at 100 but keeps selected rows enabled for deselection");
+            Check(MultiSummarySelectionStatusText(MaximumMultiSummarySelection) ==
+                L.Bootstrap("已选满 100 封；取消勾选后可继续选择。",
+                    "Limit reached: 100 / 100. Deselect an email to continue.",
+                    "Límite alcanzado: 100 / 100. Desmarca un correo para continuar."),
+                "Multi-summary shows an explicit limit and deselection hint at 100");
+            var limitList = new ListView();
+            var selectedAtLimit = new Report("C:/fixture/selected.md", "已选邮件", "", "", null) { original_available = true };
+            var unselectedAtLimit = new Report("C:/fixture/unselected.md", "未选邮件", "", "", null) { original_available = true };
+            var unavailableAtLimit = new Report("C:/fixture/unavailable.md", "原文缺失", "", "", null);
+            var selectedAtLimitRow = new ListViewItem { Tag = selectedAtLimit };
+            var unselectedAtLimitRow = new ListViewItem { Tag = unselectedAtLimit };
+            var unavailableAtLimitRow = new ListViewItem { Tag = unavailableAtLimit };
+            limitList.Items.Add(selectedAtLimitRow);
+            limitList.Items.Add(unselectedAtLimitRow);
+            limitList.Items.Add(unavailableAtLimitRow);
+            UpdateMultiSummaryItemStates(limitList, new[] { selectedAtLimit }, MaximumMultiSummarySelection);
+            Check(selectedAtLimitRow.IsEnabled && !unselectedAtLimitRow.IsEnabled && !unavailableAtLimitRow.IsEnabled,
+                "At 100 selections, the UI leaves selected items removable and disables all unavailable/new items");
+            UpdateMultiSummaryItemStates(limitList, new[] { selectedAtLimit }, MaximumMultiSummarySelection - 1);
+            Check(unselectedAtLimitRow.IsEnabled && selectedAtLimitRow.IsEnabled,
+                "After deselecting one item, the UI enables another valid item");
             search.Text = "合同.pdf"; await ReportsReady(1);
             Check(reports.Items.Count == 1, "Attachment filename search");
             search.Text = "不存在"; await ReportsReady(0);
@@ -1571,6 +1817,31 @@ sealed partial class MainWindow : Window
             Check((await bridge.Call("report_view")).GetProperty("report_tree").GetBoolean(),
                 "Report tree preference persists independently of editable settings pages");
             await ReportTreePointerSelfTest(Check, report);
+            var syntheticMultiPath = Path.Combine(fixture!, "全部邮箱", "多选总结", "2026-11-06", "合同,邮件.md");
+            var multiTreeReport = new Report(syntheticMultiPath, "合同,邮件", "多封邮件", "2026-11-06", null) {
+                day = "2026-11-06", is_multi_summary = IsMultiSummaryPath(syntheticMultiPath)
+            };
+            var syntheticOlderMultiPath = Path.Combine(fixture!, "全部邮箱", "多选总结", "2026-11-05", "较早邮件.md");
+            var olderMultiTreeReport = new Report(syntheticOlderMultiPath, "较早邮件", "多封邮件", "2026-11-05", null) {
+                day = "2026-11-05", is_multi_summary = IsMultiSummaryPath(syntheticOlderMultiPath)
+            };
+            reportRows.AddRange(new[] { multiTreeReport, olderMultiTreeReport });
+            reportTreePath.Clear(); RenderReportRows();
+            Check(multiTreeReport.is_multi_summary &&
+                reports.Items.OfType<ListViewItem>().Any(item => item.Tag is ReportFolder folder && folder.Name == MultiSummaryTreeKey),
+                "Report tree exposes a dedicated virtual multi-summary folder under All mailboxes");
+            reportTreePath.Add(MultiSummaryTreeKey); RenderReportRows();
+            Check(reports.Items.OfType<ListViewItem>().Select(item => (item.Tag as ReportFolder)?.Name)
+                    .SequenceEqual(new[] { "2026-11-06", "2026-11-05" }),
+                "Multi-summary tree groups reports by date with newest first");
+            Check(IsReportDateFolder("2026-11-06") && !IsReportDateFolder("not-a-date"),
+                "Date folders are recognized using the strict ISO calendar format");
+            reportTreePath.Add("2026-11-06"); RenderReportRows();
+            Check(reports.Items.Count == 1 && reports.Items[0] is ListViewItem { Tag: Report multi } &&
+                multi.path == syntheticMultiPath,
+                "Multi-summary tree opens the report at its date level without a sender folder");
+            reportRows.Remove(multiTreeReport); reportRows.Remove(olderMultiTreeReport);
+            reportTreePath.Clear(); RenderReportRows(report.path);
             reportTree.IsChecked = false;
             Check(!(await bridge.Call("report_view")).GetProperty("report_tree").GetBoolean(),
                 "Flat report preference persists after disabling the tree");

@@ -1,0 +1,162 @@
+Asistente de correo electrónico: configuración del correo paso a paso
+Para Windows, Mac con chip de Apple y Mac con Intel. Traducción de la guía inglesa; fuentes revisadas el 17 de octubre de 2026.
+Los nombres de las páginas pueden cambiar. Sigue la página oficial actual y las reglas de tu administrador.
+
+1. Empieza aquí
+En el primer inicio, usa Conectar el correo. Después, abre Configuración > Correo en Mac o Correo y comprobaciones en Windows. Para otra cuenta, elige Añadir cuenta de correo.
+Introduce tu dirección completa. Escribe solo el nombre del servidor IMAP, sin https://, puerto ni ruta. Los preajustes siguientes usan el puerto 993 con SSL/TLS. Deja Nombre de usuario en blanco para usar la dirección completa, salvo que el proveedor indique otra cosa. La carpeta habitual es INBOX.
+No existe un «código IMAP» universal. El proveedor genera la contraseña de aplicación o código de autorización; no es un código de verificación por SMS. OAuth2 necesita un access_token, no un refresh_token, id_token ni código de autorización.
+Pega la credencial en Contraseña / contraseña de aplicación / token OAuth2, elige el método de Autenticación correcto, guarda y pulsa Probar conexión del correo. Pausa la supervisión antes de cambiar los datos de conexión.
+La credencial del correo es distinta de tu clave API de IA. Nunca publiques ninguna en un chat. También debes configurar la IA; sin mensajes nuevos no se llama a la IA.
+Si ya tienes software de IA, pídele ayuda para obtener el código de autorización.
+Usa esa ayuda en la web oficial del proveedor. No pegues credenciales ni tokens de acceso en un chat de IA y completa tú mismo la verificación de identidad.
+
+Idiomas e instalación
+El instalador de Windows detecta chino, inglés y español del sistema; otros idiomas usan inglés. Puedes elegir Descargar chino simplificado, Descargar inglés o Descargar español. La aplicación permite cambiar de idioma en Configuración general. Si falta el paquete elegido, pregunta: «No has descargado este idioma. ¿Quieres descargarlo ahora?». La descarga requiere conexión; el idioma actual se mantiene si la cancelas o falla. Los informes nuevos usan el idioma elegido sin cambiar los seis requisitos del análisis; los informes existentes no se traducen.
+En Mac descarga el DMG correspondiente a tu procesador, arrastra la aplicación a Aplicaciones y ábrela allí. No hace falta instalar Python. Se requiere macOS 14 o posterior. Consulta README.es.md para la instalación y la aprobación de seguridad de macOS.
+
+Conexiones mediante proxy (por ejemplo, Gmail desde China continental)
+1) Inicia tu aplicación de proxy, como v2rayN, y comprueba que el servidor elegido funciona. Que funcione el correo web no demuestra que IMAP utilice el proxy.
+2) Selecciona la cuenta en Configuración y, en Windows, despliega Opciones avanzadas de conexión y proxy; en Mac busca Proxy del buzón. Las cuentas existentes usan Directa por defecto.
+3) Prueba Proxy del sistema para leer la configuración real del sistema o del entorno. Si no está disponible, se muestra un error; nunca se cambia silenciosamente a conexión directa.
+4) También puedes elegir HTTP o SOCKS5 según tu aplicación de proxy. La dirección suele ser 127.0.0.1. Revisa el puerto local real de tu aplicación; no copies un ejemplo a ciegas. 10808 es solo un ejemplo común.
+5) Guarda la configuración, prueba la conexión del correo y reanuda la supervisión si funciona. Cada cuenta tiene su propio proxy. Un proxy explícito no requiere TUN.
+6) Esta función solo aplica el proxy a IMAP; no cambia la conexión de la API de IA. No se admiten scripts PAC ni proxies con usuario y contraseña. Un fallo del proxy muestra un error en lugar de usar una conexión directa.
+
+2. NetEase 163, 126 y Yeah
+Webs oficiales: https://mail.163.com/ , https://mail.126.com/ , https://www.yeah.net/ . Ayuda oficial: https://help.mail.163.com/ .
+1) Inicia sesión en la web oficial de tu proveedor.
+2) En Configuración, busca POP3/SMTP/IMAP o la configuración de clientes y activa IMAP. Activar solo POP3 no basta.
+3) Completa la verificación de seguridad y genera un código de autorización de cliente. Activar el servicio y añadir el código pueden estar en la misma página. Completa la verificación telefónica si se solicita. Si no aparece la opción, consulta la ayuda o el soporte de NetEase.
+4) Guarda el código de forma segura; puede mostrarse una sola vez. Si lo pierdes, revócalo y genera otro en la web oficial.
+5) Elige el preajuste correcto en Asistente de correo electrónico, introduce la dirección completa y el código y elige Contraseña / contraseña de aplicación. Servidores: 163 = imap.163.com; 126 = imap.126.com; Yeah = imap.yeah.net. Puerto 993, SSL/TLS.
+6) Guarda y prueba. Resuelve primero en el correo web las restricciones de seguridad y la activación de IMAP. La contraseña normal de la cuenta no sustituye un código de autorización requerido.
+
+3. QQ Mail y direcciones Foxmail pertenecientes a QQ Mail
+Correo web oficial: https://mail.qq.com/ . Ayuda de autorización: https://service.mail.qq.com/detail/0/75 .
+1) Inicia sesión en QQ Mail. Abre Configuración > Cuenta.
+2) Busca la sección POP3/IMAP/SMTP/Exchange/CardDAV/CalDAV y activa IMAP/SMTP.
+3) Completa la verificación y genera un código de autorización. Sigue la página actual si cambió la ubicación de la opción.
+4) Elige QQ / Foxmail. Introduce tu dirección QQ completa o una dirección @foxmail.com activada que pertenezca al buzón QQ. Usa imap.qq.com, 993, SSL/TLS, Contraseña / contraseña de aplicación y pega el código.
+5) Guarda y prueba. Foxmail también es un cliente de correo: una cuenta de empresa leída con Foxmail no usa necesariamente los servidores QQ. Elige su proveedor real u Otro correo.
+
+4. Tencent Exmail
+Inicio oficial: https://exmail.qq.com/ . Configuración oficial: https://hiflow.tencent.com/document/applications/tencent-exmail/ .
+1) Inicia sesión en el correo web de tu empresa. Confirma que permite IMAP y clientes de terceros; si no, contacta al administrador.
+2) Busca los requisitos de inicio de sesión de la organización en cuenta, seguridad o clientes. Si exige una contraseña exclusiva para clientes, verifica tu identidad y genera una. Los menús varían; no supongas que valen las instrucciones de QQ personal.
+3) Elige Correo empresarial Tencent. Introduce la dirección completa, imap.exmail.qq.com, 993, SSL/TLS y Contraseña / contraseña de aplicación. Usa la contraseña específica si se requiere; usa la normal solo si lo permite expresamente el administrador.
+4) Guarda y prueba. Las restricciones de IMAP, clientes de terceros o autenticación con contraseña requieren la intervención del administrador.
+
+5. Gmail
+Web oficial: https://mail.google.com/ . Seguridad: https://myaccount.google.com/security . Ayuda: https://support.google.com/accounts/answer/185833?hl=es .
+1) Inicia sesión en Google, abre Seguridad y activa Verificación en dos pasos.
+2) Abre https://myaccount.google.com/apppasswords , vuelve a iniciar sesión si se solicita y crea una contraseña de aplicación llamada Asistente de correo electrónico.
+3) Pega la contraseña de aplicación de 16 caracteres. Elige Gmail, dirección completa, imap.gmail.com, 993, SSL/TLS y Contraseña / contraseña de aplicación. Guarda y prueba. No uses tu contraseña habitual de Google.
+4) Las contraseñas de aplicación pueden no estar disponibles con verificación solo mediante llaves de seguridad, Protección Avanzada o cuentas administradas. La aplicación no incluye inicio de sesión web OAuth de Google. Consulta al administrador o usa una cuenta compatible si no puedes generar la contraseña; no desactives la protección de la cuenta.
+5) Cambiar la contraseña de Google revoca las contraseñas de aplicación; genera una nueva después.
+
+6. iCloud Mail
+Correo web: https://www.icloud.com/mail/ . Contraseñas: https://support.apple.com/102654 . Servidores: https://support.apple.com/102525 .
+1) Entra en https://account.apple.com/ . La cuenta de Apple debe tener activada la autenticación de doble factor.
+2) Abre Inicio de sesión y seguridad > Contraseñas específicas para apps. Elige generar una o pulsa el botón más, llámala Asistente de correo electrónico y verifica tu identidad.
+3) Elige iCloud. Introduce tu dirección real de iCloud y la contraseña generada. Usa imap.mail.me.com, 993, SSL/TLS y Contraseña / contraseña de aplicación.
+4) Apple indica que el usuario IMAP suele ser la parte anterior a @. Si falla la dirección completa, escribe esa parte en la opción avanzada Nombre de usuario y vuelve a probar. Para alias y dominios propios sigue las reglas de identidad válidas de Apple.
+5) Guarda y prueba. Restablecer la contraseña principal de Apple revoca todas las contraseñas específicas. Genera otra; no la sustituyas por la principal.
+
+7. Yahoo Mail
+Correo web: https://mail.yahoo.com/ . Contraseñas: https://help.yahoo.com/kb/SLN15241.html . IMAP: https://help.yahoo.com/kb/SLN4075.html .
+1) Inicia sesión y abre Seguridad de la cuenta > Generar y administrar contraseñas de aplicaciones.
+2) Sigue la página para nombrar Asistente de correo electrónico y generar/copiar su contraseña.
+3) Elige Yahoo. Introduce dirección completa, imap.mail.yahoo.com, 993, SSL/TLS, Contraseña / contraseña de aplicación y la contraseña generada. Guarda y prueba.
+4) Algunas cuentas pueden no poder generar contraseñas temporalmente. Sigue la ayuda oficial o contacta al soporte; no se garantiza su disponibilidad. Los códigos SMS no son contraseñas de aplicación.
+
+8. Outlook.com / Hotmail / Microsoft 365: instrucciones OAuth2 completas
+Añadir un buzón Outlook/Microsoft 365 es extremadamente complicado y se desaconseja encarecidamente. Si te gusta experimentar, aquí están los pasos completos:
+
+Webs oficiales:
+Correo personal: https://outlook.live.com/mail/
+Correo de trabajo o escuela: https://outlook.office.com/mail/
+Centro de administración Microsoft Entra: https://entra.microsoft.com/
+Registro de Azure: https://azure.microsoft.com/pricing/purchase-options/azure-account
+
+Antes de empezar: Asistente de correo electrónico requiere que registres tu propia aplicación y obtengas manualmente un access_token OAuth2. No incluye inicio de sesión web de Microsoft ni renovación automática. Los tokens caducan y tendrás que volver a iniciar sesión. Contraseña del buzón, contraseña de aplicación, ID de aplicación, ID de inquilino y token son valores diferentes. Un token Microsoft Graph / Graph Explorer no autentica IMAP.
+Si solo quieres consultar varios buzones, suele ser más fácil usar un cliente con inicio de sesión Microsoft. Asistente de correo electrónico no puede leer directamente las cuentas ni los mensajes de otro cliente. Para seguir usando sus análisis puedes activar el reenvío de Outlook a una dirección ya supervisada, conservar copia y enviar un mensaje de prueba. La organización puede bloquear el reenvío; comprueba los adjuntos. No reenvíes automáticamente el buzón receptor de vuelta a Outlook: produciría un bucle.
+
+A. Comprueba si tu buzón admite IMAP
+1) Inicia sesión en el navegador. En Outlook personal, abre Configuración > Correo > Reenvío e IMAP, permite el acceso de dispositivos y aplicaciones mediante IMAP y guarda. Busca IMAP si cambian los nombres.
+2) Para Microsoft 365 de trabajo/escuela, pide al administrador que confirme IMAP para ese buzón y que permita la aplicación, el consentimiento y el flujo de código de dispositivo siguiente. Obtener más tokens no elimina restricciones de políticas.
+
+B. Consigue acceso a un directorio donde registrar una aplicación
+3) Abre Microsoft Entra e inicia sesión con la cuenta que administrará la aplicación. Si tienes directorio de organización, usa el menú de cuenta > Cambiar directorio y elige uno accesible. La cuenta administradora puede ser distinta a la del buzón, pero la aplicación debe admitir el tipo de cuenta del buzón.
+4) Si una cuenta Outlook personal recibe AADSTS50020 indicando que no existe en Microsoft Services, no tiene acceso a ese directorio. ADIbizaUX / 74658136-14ec-4630-ad9b-26e160ff0fc6 es el ID de la aplicación del portal Microsoft; no lo introduzcas en Asistente de correo electrónico. Repetir inicios o cambiar cookies no concede permisos. Usa un directorio accesible o pide permisos al administrador.
+5) Si no tienes directorio, abre el registro de Azure indicado y comprueba si puedes crear una cuenta gratuita. Tener Outlook o iniciar sesión en Entra no significa que hayas completado el registro de Azure.
+   Orden: Cuenta gratuita / Empezar gratis > iniciar sesión con Microsoft > completar el formulario y verificar teléfono > verificar tarjeta en la página oficial > revisar condiciones actuales y enviar. Detente si solicita comprar, pasar a pago o aceptar condiciones inesperadas.
+   El registro estándar de Azure gratuito suele solicitar teléfono y tarjeta de crédito/débito válida para verificar la identidad; puede aparecer una autorización temporal. Nunca envíes datos de tarjeta ni códigos a una IA ni los introduzcas aquí. Cuenta gratuita y pago por uso son opciones distintas; lee las condiciones y no pases a un plan de pago solo por seguir esta guía.
+   Tras completar el primer registro de Azure, vuelve a Entra, inicia sesión y usa Cambiar directorio para elegir el creado durante el registro (a menudo Default Directory). Registra la aplicación allí; no necesitas otro inquilino. Las cuentas gratuitas/de prueba no pueden crear inquilinos Workforce adicionales en el centro Entra. Si no obtienes un directorio útil o se bloquea Nuevo registro, pide ayuda al administrador o usa el reenvío.
+6) Dentro del directorio, abre Entra ID (Identidad en algunas versiones) > Registros de aplicaciones. Si falta Nuevo registro, está desactivado o aparece un error de permisos, necesitas al administrador. El ID de inquilino de la portada no es el ID de aplicación.
+
+C. Registra la aplicación una vez y configura el acceso IMAP delegado
+7) Abre Registros de aplicaciones > Nuevo registro. Nombre: Asistente de correo electrónico. Elige Tipos de cuenta admitidos:
+   - Outlook / Hotmail personal: solo cuentas Microsoft personales, o una opción con directorios de organización y cuentas personales.
+   - Microsoft 365 de una organización: puede ser apropiado Solo cuentas de este directorio (un solo inquilino).
+   - Cuentas personales y distintas organizaciones: cualquier directorio organizativo y cuentas personales; puede seguir haciendo falta aprobación administrativa.
+   La herramienta usa código de dispositivo. Deja URI de redirección vacía y pulsa Registrar.
+8) En Información general de esta aplicación, copia Id. de aplicación (cliente), con formato xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx. Es el ID que pide la terminal. Para trabajo/escuela, anota también el Id. de directorio (inquilino) correspondiente. No copies el Id. de objeto ni el de otra aplicación.
+9) Abre Autenticación > Configuración avanzada (a veces Configuración / Configuración avanzada), activa Permitir flujos de cliente público y guarda. No necesita secreto de cliente ni certificado. No escribas contraseñas del buzón ni secretos en la terminal.
+10) Abre Permisos de API > Agregar un permiso > API que usa mi organización, busca Office 365 Exchange Online y selecciónalo. Elige Permisos delegados, abre IMAP, marca IMAP.AccessAsUser.All y agrega el permiso. No elijas Microsoft Graph Mail.Read, permisos de aplicación ni IMAP.AccessAsApp.
+    La herramienta solicita automáticamente https://outlook.office.com/IMAP.AccessAsUser.All offline_access. No necesitas editar scripts ni copiar órdenes PowerShell.
+11) Si requiere consentimiento administrativo, pide al administrador que lo revise y conceda. Si no puedes usar el botón, pide ayuda; las cuentas personales suelen consentir durante el inicio de sesión posterior. Si la organización bloquea la aplicación o el flujo de dispositivo, debe resolver esa política.
+
+D. Obtén un token de acceso con la herramienta incluida
+Qué hace: solicita inicio de sesión de Microsoft por código de dispositivo y muestra una URL oficial y un código de un solo uso. Tras autorizar en el navegador, copia access_token al portapapeles. No imprime el token completo, no guarda un archivo de tokens ni solicita la contraseña del buzón. Omite esta sección para 163, QQ u otros que no necesiten OAuth2 de Microsoft.
+12) En Asistente de correo electrónico elige Outlook / Microsoft 365 y Token de acceso OAuth2. Pulsa Obtener token OAuth2 junto a ¿Cómo obtengo un código de autorización?
+    Windows: abre Get-Outlook-Token.bat de la carpeta de instalación, que llama al PowerShell adyacente. Conserva ambos juntos; no hace falta copiar órdenes.
+    Mac: abre Get-Outlook-Token.command y la herramienta incluida. No necesitas instalar PowerShell.
+13) En Application (client) ID, pega el ID del paso 8 y pulsa Intro. No introduzcas correo, ID de inquilino, contraseña ni clave de IA.
+14) En Tenant:
+    - Outlook / Hotmail personal: pulsa Intro para usar consumers.
+    - Trabajo/escuela: introduce el Id. de directorio (inquilino) de la organización del buzón y confirma que la aplicación lo admite.
+15) Abre la URL oficial indicada (normalmente https://microsoft.com/devicelogin ). Introduce el código de un solo uso de esta ejecución; no es contraseña ni token. Inicia sesión con el buzón que quieres supervisar, revisa nombre de aplicación y permisos y acepta. No uses un código recibido de otra persona.
+16) Deja la terminal abierta hasta que confirme Access token copied. Si el código o la sesión caducan, ejecuta la herramienta de nuevo.
+
+E. Introduce el token y prueba
+17) Dirección de correo: la dirección completa del buzón autorizado.
+    Servidor IMAP: outlook.office365.com
+    Puerto: 993
+    Cifrado: SSL/TLS
+    Autenticación: Token de acceso OAuth2
+    Credencial: pega el access_token copiado.
+    Opciones avanzadas > Nombre de usuario: normalmente en blanco para usar la dirección; cámbialo solo si lo requiere el administrador.
+18) Guarda y pulsa Probar conexión del correo. Inicia la supervisión si funciona. La primera comprobación solo registra un punto de partida; los mensajes nuevos posteriores generan informes. Envía un correo nuevo de prueba para verificar el proceso completo.
+19) Después de guardar, copia texto normal para reemplazar el portapapeles. No pegues el token completo en chats, capturas ni guías.
+20) Los tokens caducan; su duración habitual predeterminada es de 60–90 minutos, aunque depende de Microsoft y las políticas de la organización. Aunque se solicita offline_access, la herramienta no guarda ni usa refresh tokens. Repite el inicio y actualiza la credencial cuando sea necesario. Esta conexión directa no es adecuada para quienes esperan funcionamiento desatendido prolongado.
+
+F. Solución de problemas: sigue el error en vez de repetir sin cambios
+- AADSTS50020 / Microsoft Services: revisa los pasos 3–6. No puedes añadirte al inquilino Microsoft Services de Microsoft. Elige un directorio accesible. Si ocurre durante la obtención del token, revisa tipos de cuenta e inquilino en pasos 7 y 14.
+- AADSTS50058 / Se requiere interacción: pulsa Volver a iniciar sesión y elige expresamente tu cuenta. Si persiste, revisa sesiones, cookies y extensiones bloqueadoras, o prueba un navegador con sesión funcional. Si desactivas temporalmente Impedir seguimiento entre sitios en Safari, vuelve a activarlo después. No arregla permisos AADSTS50020.
+- No encuentras el ID: abre Información general de tu aplicación registrada y copia Id. de aplicación (cliente). No uses Id. de inquilino, Id. de objeto ni el ID del portal que aparece en un error.
+- invalid_client / unauthorized_client: verifica ID de cliente, tipos de cuenta y Permitir flujos de cliente público guardado.
+- consent_required / Se requiere aprobación del administrador / access_denied: revisa permisos delegados y políticas con el administrador; no sustituyas el token por una contraseña normal.
+- Token obtenido pero falla IMAP: verifica que IMAP esté habilitado, el token corresponda al mismo buzón, no haya caducado y el ámbito sea Exchange Online IMAP, no Microsoft Graph. Las políticas pueden seguir bloqueándolo.
+
+Documentación oficial Microsoft (las interfaces y requisitos de registro pueden cambiar):
+Registro de aplicaciones: https://learn.microsoft.com/entra/identity-platform/quickstart-register-app
+Requisitos de creación de inquilinos: https://learn.microsoft.com/entra/fundamentals/create-new-tenant
+Cuenta Azure gratuita: https://azure.microsoft.com/free/free-account-faq/
+OAuth para IMAP: https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
+Código de dispositivo: https://learn.microsoft.com/entra/identity-platform/v2-oauth2-device-code
+Duración de tokens: https://learn.microsoft.com/entra/identity-platform/access-tokens
+Configuración IMAP Outlook: https://support.microsoft.com/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040
+
+9. Otro correo / IMAP personalizado: versión corta
+1) Abre el correo web oficial del proveedor e inicia sesión.
+2) Busca IMAP/clientes de terceros o la ayuda oficial y activa IMAP. Si no aparece, contacta al proveedor o administrador. No hay un menú ni botón universal.
+3) Obtén la contraseña de aplicación/código que exija. Si requiere OAuth2, pide al administrador un access_token válido para su IMAP. No hay inicio OAuth universal ni renovación automática.
+4) Regresa a Asistente de correo electrónico, elige Otro correo / IMAP personalizado e introduce dirección completa, servidor IMAP oficial, puerto, cifrado y credencial. Configura Nombre de usuario y Carpeta de correo avanzados si se requieren. No adivines servidores ni uses SMTP como IMAP.
+5) Guarda, prueba e inicia la supervisión si funciona. Si el proveedor especifica STARTTLS, úsalo con el puerto documentado. No se admiten proveedores solo POP3, autenticación no compatible o sin acceso de terceros.
+
+10. Solución rápida
+Servidor/puerto incorrecto: revisa la configuración oficial IMAP; no introduzcas una URL web.
+Error de autenticación: revisa cuenta, tipo de autenticación, contraseña revocada o token caducado.
+Bloqueo de empresa: contacta al administrador.
+Sin informes de mensajes antiguos: la primera comprobación registra los existentes; los informes empiezan con los nuevos posteriores.

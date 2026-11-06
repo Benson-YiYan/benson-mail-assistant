@@ -15,6 +15,10 @@ class LanguageTests(unittest.TestCase):
         self.assertIn('six numbered sections in English', ENGLISH_ANALYSIS_PROMPT)
         self.assertIn('English explanation', ENGLISH_ANALYSIS_PROMPT)
         self.assertIn("incoming message's language", ENGLISH_ANALYSIS_PROMPT)
+    def test_custom_summary_prompt_uses_selected_language_label(self):
+        self.assertIn('Custom summary prompt:\nInclude deadlines.', analysis_prompt('en', 'Include deadlines.'))
+        self.assertIn('Instrucción de resumen personalizada:\nIncluye plazos.', analysis_prompt('es', 'Incluye plazos.'))
+        self.assertIn('用户自定义的总结提示词：\n包含截止时间。', analysis_prompt('zh', '包含截止时间。'))
     def test_both_transports_select_english_without_translating_input(self):
         for provider in ('api', 'deepseek_harness'):
             target = 'benson_mail.ai_api.complete' if provider == 'api' else 'benson_mail.deepseek_harness_ai.complete'

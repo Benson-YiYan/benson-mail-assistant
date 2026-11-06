@@ -20,6 +20,10 @@ class ReportLanguageTests(unittest.TestCase):
         self.assertIn("incoming message's language", ENGLISH_ANALYSIS_PROMPT)
         self.assertIn('## 1. New email', ENGLISH_ANALYSIS_PROMPT)
         self.assertIn('## 1. 新邮件提醒', ANALYSIS_PROMPT)
+    def test_custom_summary_prompt_uses_selected_language_label(self):
+        self.assertIn('Custom summary prompt:\nInclude deadlines.', analysis_prompt('en', 'Include deadlines.'))
+        self.assertIn('Instrucción de resumen personalizada:\nIncluye plazos.', analysis_prompt('es', 'Incluye plazos.'))
+        self.assertIn('用户自定义的总结提示词：\n包含截止时间。', analysis_prompt('zh', '包含截止时间。'))
     def test_api_and_installed_harness_receive_selected_prompt(self):
         for provider in ('api', 'deepseek_harness'):
             target = 'ai_runner.complete' if provider == 'api' else 'deepseek_harness_ai.complete'

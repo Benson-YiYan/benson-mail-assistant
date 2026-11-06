@@ -17,6 +17,7 @@ class LocalReportTests(unittest.TestCase):
             entry=report_entry(path)
             self.assertEqual(entry['title'],'主题-12-34')
             self.assertEqual(entry['time'],'2026-10-15 09:02')
+            self.assertTrue(entry['original_available'])
             for query in ['zebra','demo@example.invalid','付款明细.xlsx']:
                 self.assertTrue(matches(entry,query,'Demo','2026-10-15','2026-10-15','有附件'))
             self.assertFalse(matches(entry,attachments='无附件'))
@@ -30,6 +31,7 @@ class LocalReportTests(unittest.TestCase):
             write_metadata(home,path,{'subject':'Original subject','sender':'sender@example.invalid','received':'2026-10-21T03:53:00+00:00','body':'Original searchable Zebra','attachments':[{'name':'invoice.pdf'}]})
             entry=report_entry(path,home)
             self.assertEqual(entry['title'],'Original subject')
+            self.assertTrue(entry['original_available'])
             self.assertTrue(matches(entry,'Zebra invoice.pdf'))
             self.assertFalse(list((root/'reports').rglob('*.json')))
             # A damaged private record must not fall back to stale exported originals.
@@ -37,6 +39,7 @@ class LocalReportTests(unittest.TestCase):
             metadata_path(home,path).write_text('{corrupt',encoding='utf-8')
             entry=report_entry(path,home)
             self.assertNotEqual(entry['title'],'Stale secret')
+            self.assertFalse(entry['original_available'])
             self.assertFalse(matches(entry,'stale-original'))
 
     def test_legacy_and_missing_metadata(self):
@@ -45,7 +48,10 @@ class LocalReportTests(unittest.TestCase):
             path.parent.mkdir(); path.write_text('正文',encoding='utf-8')
             entry=report_entry(path)
             self.assertEqual(entry['title'],'test'); self.assertEqual(entry['time'],'2026-10-14 19:02')
+            self.assertFalse(entry['original_available'])
             self.assertTrue(matches(entry,'正文')); self.assertFalse(matches(entry,attachments='无附件'))
+            path.with_suffix('.mail.json').write_text(json.dumps({'uid':'15','unavailable':True}),encoding='utf-8')
+            self.assertFalse(report_entry(path)['original_available'])
     def test_nested_metadata_and_date_fallback_discovery(self):
         with tempfile.TemporaryDirectory() as temporary:
             output=Path(temporary)/'reports'
@@ -59,6 +65,7 @@ class LocalReportTests(unittest.TestCase):
             self.assertEqual(rows[0]['account'],'account@example.invalid')
             self.assertEqual(rows[0]['sender_email'],'sender@example.invalid')
             self.assertEqual(rows[0]['time'],'2026-10-21 11:53')
+            self.assertFalse(rows[0]['original_available'])
     def test_markdown_and_legacy_collision_and_mixed_search(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary); output=root/'reports'; day=output/'2026-10-15'; day.mkdir(parents=True)

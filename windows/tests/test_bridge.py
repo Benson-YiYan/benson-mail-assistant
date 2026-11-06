@@ -186,6 +186,7 @@ class BridgeTests(unittest.TestCase):
         entries = self.controller.command('reports', {'query': '合同.pdf', 'attachments': '有附件'})
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0]['title'], '原始标题')
+        self.assertTrue(entries[0]['original_available'])
         self.assertEqual(entries[0]['time'], '2026-10-17 09:15')
         self.assertEqual(self.controller.command('reports', {'start': '2026-10-18'}), [])
         self.assertEqual(self.controller.command('read_report', {'path': str(report)}), '模拟六项报告')
