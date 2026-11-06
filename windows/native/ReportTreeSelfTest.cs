@@ -51,32 +51,32 @@ sealed partial class MainWindow
             while (!ready() && DateTime.UtcNow < deadline) await Task.Delay(25);
             check(ready(), label);
         }
-        ListViewItem Row() => (ListViewItem)reports.Items[0];
+        Button FolderButton() => (Button)reportFolderRows.Children[0];
         async Task Enter(int level, string hit)
         {
             layout.UpdateLayout();
-            var row = Row();
-            check(row.Tag is ReportFolder, "Report tree pointer target is a folder at level " + level);
-            var button = (Button)row.Content;
+            var button = FolderButton();
+            check(button.Tag is ReportFolder, "Report tree pointer target is a folder at level " + level);
             var contents = (StackPanel)button.Content;
             if (hit == "icon") await Click((FrameworkElement)contents.Children[0]);
             else if (hit == "text") await Click((FrameworkElement)contents.Children[1]);
             else await Click(button, button.ActualWidth - 8);
-            await Until(() => reportTreePath.Count == level + 1 && reports.Items.Count == 1,
+            await Until(() => reportTreePath.Count == level + 1 &&
+                (level < 2 ? reportFolderRows.Children.Count == 1 : reports.Items.Count == 1),
                 "Real pointer click on folder " + hit + " enters report tree level " + level);
         }
         async Task SelectLeaf()
         {
-            check(Row().Tag is Report leaf && leaf.path == expected.path,
+            check(reports.Items[0] is ListViewItem { Tag: Report leaf } && leaf.path == expected.path,
                 "Report tree leaf preserves original report selection and path");
-            await Click(Row());
+            await Click((ListViewItem)reports.Items[0]);
             await Until(() => SelectedReport?.path == expected.path &&
                 preview.Text.Contains("建议回复") && preview.Text.Contains("附件实际内容"),
                 "Real pointer click on report leaf loads the full report body");
         }
 
         reportTreePath.Clear(); RenderReportRows();
-        check(reports.Items.Count == 1 && Row().Tag is ReportFolder,
+        check(reportFolderRows.Children.Count == 1 && FolderButton().Tag is ReportFolder,
             "Report tree begins with mailbox folders");
         await Enter(0, "icon");
         await Enter(1, "text");
@@ -85,7 +85,7 @@ sealed partial class MainWindow
         for (var level = 2; level >= 0; level--) {
             await Click(reportTreeUp);
             var expectedLevel = level;
-            await Until(() => reportTreePath.Count == expectedLevel && reports.Items.Count == 1,
+            await Until(() => reportTreePath.Count == expectedLevel && reportFolderRows.Children.Count == 1,
                 "Real pointer click on Up returns to report tree level " + level);
         }
         await Enter(0, "blank row space");

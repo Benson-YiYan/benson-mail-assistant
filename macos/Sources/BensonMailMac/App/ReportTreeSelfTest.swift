@@ -57,21 +57,33 @@ enum ReportTreeSelfTest {
                 "\($0.id):\($0.title):\($0.dateLabel):\($0.mailboxAccount):\($0.senderAddress):\(String(describing: $0.hasAttachments)):\($0.receivedLabel)"
             }.joined(separator: "\n"))
         }
-        guard ReportTree.folders(reports, in: []).count == 4,
-              ReportTree.folders(reports, in: ["a@example.com"]).map(\.key) == ["2026-10-21", "2026-10-20"],
-              ReportTree.folders(reports, in: ["a@example.com", "2026-10-21"]).map(\.key) == ["sender@example.com"],
-              ReportTree.reports(reports, in: ["b@example.com", "2026-10-21", "sender@example.com"]).first?.title == "Second",
-              ReportTree.validPath(["a@example.com", "removed"], in: reports) == ["a@example.com"],
-              let virtual = reports.first(where: { $0.url.path == multiSummary.path }),
+        let rootFolders = ReportTree.folders(reports, in: []).map(\.key)
+        let accountDates = ReportTree.folders(reports, in: ["a@example.com"]).map(\.key)
+        let accountSenders = ReportTree.folders(reports, in: ["a@example.com", "2026-10-21"]).map(\.key)
+        let otherAccountReport = ReportTree.reports(reports, in: ["b@example.com", "2026-10-21", "sender@example.com"]).first?.title
+        let repairedPath = ReportTree.validPath(["a@example.com", "removed"], in: reports)
+        let virtual = reports.first(where: { $0.url.path == multiSummary.path })
+        let summaryRoot = ReportTree.folders(reports, in: ["全部邮箱"]).map(\.key)
+        let summaryDates = ReportTree.folders(reports, in: ["全部邮箱", "多选总结"]).map(\.key)
+        let summaryTitles = ReportTree.reports(reports, in: ["全部邮箱", "多选总结", "2026-10-22"]).map(\.title)
+        guard rootFolders.count == 4,
+              accountDates == ["2026-10-21", "2026-10-20"],
+              accountSenders == ["sender@example.com"],
+              otherAccountReport == "Second",
+              repairedPath == ["a@example.com"],
+              let virtual,
               virtual.treeComponents == ["全部邮箱", "多选总结", "2026-10-22"],
               virtual.mailboxAccount == "a@example.com",
               virtual.originalMessageAvailable,
               reports.first(where: { $0.title == "older" })?.originalMessageAvailable == false,
               ReportTree.isMultiSummary(virtual),
-              ReportTree.folders(reports, in: ["全部邮箱"]).map(\.key) == ["多选总结"],
-              ReportTree.folders(reports, in: ["全部邮箱", "多选总结"]).map(\.key) == ["2026-10-22", "2026-10-21"],
-              ReportTree.reports(reports, in: ["全部邮箱", "多选总结", "2026-10-22"]).map(\.title) == ["First, Second"] else {
-            throw Failure("report tree grouping, ordering, mailbox isolation or breadcrumb repair failed")
+              summaryRoot == ["多选总结"],
+              summaryDates == ["2026-10-22", "2026-10-21"],
+              summaryTitles == ["First, Second"] else {
+            throw Failure("report tree grouping, ordering, mailbox isolation or breadcrumb repair failed: " +
+                "root=\(rootFolders), accountDates=\(accountDates), senders=\(accountSenders), other=\(String(describing: otherAccountReport)), " +
+                "repaired=\(repairedPath), virtual=\(String(describing: virtual?.treeComponents)), account=\(String(describing: virtual?.mailboxAccount)), " +
+                "original=\(String(describing: virtual?.originalMessageAvailable)), summaryRoot=\(summaryRoot), dates=\(summaryDates), titles=\(summaryTitles)")
         }
         var filter = ReportFilter()
         filter.query = "invoice.pdf"

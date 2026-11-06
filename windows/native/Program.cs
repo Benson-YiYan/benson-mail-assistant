@@ -265,6 +265,10 @@ sealed partial class MainWindow : Window
     readonly CalendarDatePicker to = new() { Header = L.T("结束日期"), PlaceholderText = L.T("不限"), MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ComboBox attachment = new() { Header = L.T("附件"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly ListView reports = new() { SelectionMode = ListViewSelectionMode.Single };
+    readonly StackPanel reportFolderRows = new() { Spacing = 4 };
+    readonly ScrollViewer reportFolderScroll = new() {
+        Content = reportFolderRows, VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+    };
     readonly CheckBox reportTree = new() { Content = L.T("报告树"), VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock reportBreadcrumb = new() { TextWrapping = TextWrapping.NoWrap, FontSize = 12, Opacity = .7 };
     readonly TextBlock reportCurrentFolder = new() { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
@@ -684,6 +688,7 @@ sealed partial class MainWindow : Window
         Grid.SetColumn(reportCurrentFolder, 1); reportFolderHeader.Children.Add(reportCurrentFolder);
         reportBrowser.Children.Add(Stack(reportPathScroll, reportFolderHeader));
         Grid.SetRow(reports, 1); reportBrowser.Children.Add(reports);
+        Grid.SetRow(reportFolderScroll, 1); reportBrowser.Children.Add(reportFolderScroll);
         reading.Children.Add(Card(reportBrowser, 4));
         RenderReportRows();
         var article = new Grid { RowSpacing = 12 };
@@ -1153,8 +1158,14 @@ sealed partial class MainWindow : Window
     bool relabelingReportRows;
     void RenderReportRows(string? selected = null)
     {
-        reports.Items.Clear();
         var tree = reportTree.IsChecked == true;
+        var multiSummaryBranch = reportTreePath.Count > 0 && reportTreePath[0] == MultiSummaryTreeKey;
+        var folderDepth = multiSummaryBranch ? 2 : 3;
+        var showingFolders = tree && reportTreePath.Count < folderDepth;
+        reports.Items.Clear();
+        reportFolderRows.Children.Clear();
+        reports.Visibility = showingFolders ? Visibility.Collapsed : Visibility.Visible;
+        reportFolderScroll.Visibility = showingFolders ? Visibility.Visible : Visibility.Collapsed;
         reportFolderHeader.Visibility = reportPathScroll.Visibility = tree ? Visibility.Visible : Visibility.Collapsed;
         reportCurrentFolder.Text = reportTreePath.Count == 0 ? L.T("全部邮箱") : ReportTreeLabel(reportTreePath.Count - 1, reportTreePath[^1]);
         ToolTipService.SetToolTip(reportCurrentFolder, reportCurrentFolder.Text);
@@ -1165,8 +1176,6 @@ sealed partial class MainWindow : Window
             for (var level = 0; level < reportTreePath.Count; level++)
                 shown = shown.Where(report => ReportTreeSegments(report).Count > level &&
                     ReportTreeSegments(report)[level] == reportTreePath[level]);
-            var multiSummaryBranch = reportTreePath.Count > 0 && reportTreePath[0] == MultiSummaryTreeKey;
-            var folderDepth = multiSummaryBranch ? 2 : 3;
             if (reportTreePath.Count < folderDepth) {
                 Func<Report, string> key = report => ReportTreeSegments(report)[reportTreePath.Count];
                 var grouped = shown.GroupBy(key).ToArray();
@@ -1185,16 +1194,16 @@ sealed partial class MainWindow : Window
                         HorizontalContentAlignment = HorizontalAlignment.Stretch
                     };
                     Secondary(folderButton);
-                    folderButton.Click += (_, _) => DispatcherQueue.TryEnqueue(
-                        Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => {
-                            if (exitRequested || reportTree.IsChecked != true) return;
-                            reportTreePath.Add(folder);
-                            RenderReportRows();
-                        });
-                    reports.Items.Add(new ListViewItem {
-                        Tag = new ReportFolder(folder), HorizontalContentAlignment = HorizontalAlignment.Stretch,
-                        Padding = new Thickness(0), CornerRadius = new CornerRadius(4), Content = folderButton
-                    });
+                    folderButton.Click += async (_, _) => {
+                        // Let the complete WinUI pointer/click transaction unwind before
+                        // replacing the ListView's generated item containers.
+                        await Task.Delay(80);
+                        if (exitRequested || reportTree.IsChecked != true) return;
+                        reportTreePath.Add(folder);
+                        RenderReportRows();
+                    };
+                    folderButton.Tag = new ReportFolder(folder);
+                    reportFolderRows.Children.Add(folderButton);
                 }
                 return;
             }
@@ -1828,10 +1837,10 @@ sealed partial class MainWindow : Window
             reportRows.AddRange(new[] { multiTreeReport, olderMultiTreeReport });
             reportTreePath.Clear(); RenderReportRows();
             Check(multiTreeReport.is_multi_summary &&
-                reports.Items.OfType<ListViewItem>().Any(item => item.Tag is ReportFolder folder && folder.Name == MultiSummaryTreeKey),
+                reportFolderRows.Children.OfType<Button>().Any(item => item.Tag is ReportFolder folder && folder.Name == MultiSummaryTreeKey),
                 "Report tree exposes a dedicated virtual multi-summary folder under All mailboxes");
             reportTreePath.Add(MultiSummaryTreeKey); RenderReportRows();
-            Check(reports.Items.OfType<ListViewItem>().Select(item => (item.Tag as ReportFolder)?.Name)
+            Check(reportFolderRows.Children.OfType<Button>().Select(item => (item.Tag as ReportFolder)?.Name)
                     .SequenceEqual(new[] { "2026-11-06", "2026-11-05" }),
                 "Multi-summary tree groups reports by date with newest first");
             Check(IsReportDateFolder("2026-11-06") && !IsReportDateFolder("not-a-date"),
