@@ -62,7 +62,7 @@ enum ReportTreeSelfTest {
         let accountSenders = ReportTree.folders(reports, in: ["a@example.com", "2026-10-21"]).map(\.key)
         let otherAccountReport = ReportTree.reports(reports, in: ["b@example.com", "2026-10-21", "sender@example.com"]).first?.title
         let repairedPath = ReportTree.validPath(["a@example.com", "removed"], in: reports)
-        let virtual = reports.first(where: { $0.url.path == multiSummary.path })
+        let virtual = reports.first(where: { $0.title == "First, Second" && ReportTree.isMultiSummary($0) })
         let summaryRoot = ReportTree.folders(reports, in: ["全部邮箱"]).map(\.key)
         let summaryDates = ReportTree.folders(reports, in: ["全部邮箱", "多选总结"]).map(\.key)
         let summaryTitles = ReportTree.reports(reports, in: ["全部邮箱", "多选总结", "2026-10-22"]).map(\.title)
