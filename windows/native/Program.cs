@@ -1172,10 +1172,19 @@ sealed partial class MainWindow : Window
         reportBreadcrumb.Text = string.Join(" / ", new[] { L.T("全部邮箱") }.Concat(reportTreePath.Select((name, level) => ReportTreeLabel(level, name))));
         IEnumerable<Report> shown = reportRows;
         if (tree) {
-            for (var level = 0; level < reportTreePath.Count; level++)
-                shown = shown.Where(report => ReportTreeSegments(report).Count > level &&
-                    ReportTreeSegments(report)[level] == reportTreePath[level]);
+            for (var level = 0; level < reportTreePath.Count; level++) {
+                var depth = level;
+                var component = reportTreePath[depth];
+                shown = shown.Where(report => {
+                    var segments = ReportTreeSegments(report);
+                    return segments.Count > depth && segments[depth] == component;
+                }).ToArray();
+            }
             if (reportTreePath.Count < folderDepth) {
+                // A repaired or stale breadcrumb can be deeper than some report
+                // shapes (multi-summary reports have no sender level). Only group
+                // rows that actually contain the next path component.
+                shown = shown.Where(report => ReportTreeSegments(report).Count > reportTreePath.Count);
                 Func<Report, string> key = report => ReportTreeSegments(report)[reportTreePath.Count];
                 var grouped = shown.GroupBy(key).ToArray();
                 var dateFolders = grouped.Length > 0 && grouped.All(group => IsReportDateFolder(group.Key));
