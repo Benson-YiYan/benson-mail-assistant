@@ -4,3 +4,4 @@ certifi
 truststore
 tzdata
 markdown-it-py>=3,<5
+trustme>=1.2,<2

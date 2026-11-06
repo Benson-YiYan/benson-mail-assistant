@@ -375,7 +375,7 @@ sealed partial class MainWindow : Window
         searchTimer = DispatcherQueue.CreateTimer();
         searchTimer.Interval = TimeSpan.FromMilliseconds(200);
         searchTimer.IsRepeating = false;
-        searchTimer.Tick += async (_, _) => await Guard(Refresh);
+        searchTimer.Tick += async (_, _) => await Guard(async () => await Refresh());
         bridge.Event += ev => DispatcherQueue.TryEnqueue(() => { if (!exitRequested) HandleEvent(ev); });
         lifetime = new AppLifetime(AppContext.BaseDirectory, () => DispatcherQueue.TryEnqueue(async () => await Exit()), async () => {
             var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -644,7 +644,7 @@ sealed partial class MainWindow : Window
             Flyout = filters };
         Secondary(filterButton);
         Grid.SetColumn(filterButton, 1); toolbar.Children.Add(filterButton);
-        var refreshButton = Action(L.T("刷新"), Refresh); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
+        var refreshButton = Action(L.T("刷新"), async () => await Refresh()); Grid.SetColumn(refreshButton, 2); toolbar.Children.Add(refreshButton);
         multiSummaryButton = Action(L.Bootstrap("多选总结", "Summarize selected", "Resumir selección"), MultiSummary);
         Grid.SetColumn(multiSummaryButton, 3); toolbar.Children.Add(multiSummaryButton);
         Grid.SetColumn(reportTree, 4); toolbar.Children.Add(reportTree);
@@ -1243,7 +1243,7 @@ sealed partial class MainWindow : Window
                 senderPolicySnapshot = (await bridge.Call("policy_status")).Clone();
                 if (!exitRequested) RenderSenderPolicyRecords();
             });
-        if (ev.TryGetProperty("report", out _)) _ = Guard(Refresh);
+        if (ev.TryGetProperty("report", out _)) _ = Guard(async () => await Refresh());
         if (NativeNotificationsAllowed() && ev.TryGetProperty("notification", out var notice) && notified.Add(notice.GetProperty("id").GetString()!))
         {
             try
