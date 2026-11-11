@@ -244,6 +244,7 @@ sealed partial class MainWindow
     Task ResetSummaryPrompt()
     {
         summaryPrompt.Text = "";
+        RefreshSettingsDirty();
         return Task.CompletedTask;
     }
     Task RemoveMailboxDraftForFixture()

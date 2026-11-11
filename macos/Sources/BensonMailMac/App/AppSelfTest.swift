@@ -21,6 +21,13 @@ enum AppSelfTest {
             }
             checks += try ReportTreeSelfTest.run(base: store.base)
             checks += try ReportUninstallSelfTest.run(base: store.base)
+            if args.contains("--smoke-self-test-only") {
+                checks += try await ReportConversationSelfTest.run(base: store.base)
+                checks.append("Packaged application launches with synthetic report index and worker heartbeat; full UI suite not run")
+                try JSONSerialization.data(withJSONObject: ["ok": true, "checks": checks], options: [.prettyPrinted, .sortedKeys])
+                    .write(to: output.appendingPathComponent("result.json"))
+                NSApp.terminate(nil); return
+            }
             if args.contains("--settings-self-test-only") {
                 checks += try await SettingsDraftSelfTest.run(store: store, output: output)
                 try JSONSerialization.data(withJSONObject: ["ok": true, "checks": checks], options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("result.json"))

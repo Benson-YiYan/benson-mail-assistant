@@ -64,6 +64,12 @@ enum ReportConversationSelfTest {
         }
     }
     static func run(base: URL) async throws -> [String] {
+        try require(ChatMarkdown.blocks("说明\n\n| 项目 | 时间 |\n| --- | --- |\n| **午饭** | 12:00 |\n\n完成").contains(
+            .table([["项目", "时间"], ["**午饭**", "12:00"]])), "chat Markdown table lost headers or cells")
+        try require(ChatMarkdown.cells("| A\\|B | `x|y` |") == ["A|B", "`x|y`"],
+                    "chat table split escaped or inline-code pipes")
+        try require(!ChatMarkdown.blocks("```\n| A | B |\n| --- | --- |\n```").contains(
+            .table([["A", "B"]])), "chat parsed a fenced code example as a table")
         let root = base.appendingPathComponent("report-conversation-fixture")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let settings = root.appendingPathComponent("settings.json")

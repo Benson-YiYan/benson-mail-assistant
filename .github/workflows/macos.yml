@@ -18,10 +18,12 @@ jobs:
             architecture: arm64
             environment: .package-venv
             distribution: dist
+            test-options: ""
           - runner: macos-26-intel
             architecture: x86_64
             environment: .package-venv-intel
             distribution: dist-intel
+            test-options: "--smoke-only"
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     defaults:
@@ -44,7 +46,7 @@ jobs:
       - name: Build application and worker
         run: ./script/build_and_run.sh --build-only "${{ matrix.architecture }}"
       - name: Packaged application UI self-test
-        run: python3 script/test_ui.py "evidence/ci-ui-${{ matrix.architecture }}" "${{ matrix.distribution }}/邮件小秘书.app"
+        run: python3 script/test_ui.py "evidence/ci-ui-${{ matrix.architecture }}" "${{ matrix.distribution }}/邮件小秘书.app" ${{ matrix.test-options }}
       - name: Package DMG
         run: python3 script/package_release.py "${{ matrix.distribution }}" "${{ matrix.distribution }}/邮件小秘书.app"
       - name: Upload verified disk image

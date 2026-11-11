@@ -216,6 +216,10 @@ sealed partial class MainWindow
     }
     async Task ConversationSelfTest(Action<bool, string> check)
     {
+        var tableMessage = new MarkdownReportView();
+        tableMessage.Show("| 项目 | 时间 |\\n| --- | --- |\\n| **午饭** | 12:00 |".Replace("\\n", "\n"), true);
+        check(tableMessage.TableCount == 1 && tableMessage.BoldCount == 1,
+            "Chat Markdown renderer preserves table headers, cells and inline formatting");
         if (fixture == null || reports.Items.Count == 0) throw new InvalidOperationException("Conversation test needs synthetic reports");
         layout.UpdateLayout();
         check(preview.Visibility == Visibility.Visible && chatPanel.Visibility == Visibility.Visible && reportSplitter.IsLoaded,

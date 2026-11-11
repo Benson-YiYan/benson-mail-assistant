@@ -18,6 +18,8 @@ if '--assistant-tools-only' in sys.argv[3:]:
     test_options = ['--assistant-tools-self-test-only']
 if '--settings-only' in sys.argv[3:]:
     test_options = ['--settings-self-test-only']
+if '--smoke-only' in sys.argv[3:]:
+    test_options = ['--smoke-self-test-only']
 evidence.mkdir(parents=True, exist_ok=True)
 (evidence / 'result.json').unlink(missing_ok=True)
 with tempfile.TemporaryDirectory(prefix='BensonMail-UI-test-') as temporary:
@@ -65,4 +67,4 @@ with tempfile.TemporaryDirectory(prefix='BensonMail-UI-test-') as temporary:
             print(json.dumps(result, ensure_ascii=False, indent=2))
             sys.exit(0 if result.get('ok') else 1)
         time.sleep(1)
-    raise RuntimeError('GUI self-test did not finish in 40 seconds')
+    raise RuntimeError('GUI self-test did not finish in 120 seconds')

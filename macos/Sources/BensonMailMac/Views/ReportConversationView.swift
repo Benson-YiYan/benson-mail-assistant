@@ -132,7 +132,11 @@ struct ReportConversationView: View {
                             VStack(alignment: .leading, spacing: 5) {
                                 Label(T(message.role == "user" ? "你" : message.role == "assistant" ? "AI 助手" : "对话摘要"), systemImage: message.role == "user" ? "person.crop.circle" : "sparkles")
                                     .font(.caption.bold()).foregroundStyle(.secondary)
-                                Text(.init(message.content)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                                if message.role == "user" {
+                                    Text(message.content).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                                } else {
+                                    ChatMarkdownView(text: message.content)
+                                }
                                 ForEach(Array(message.files.enumerated()), id: \.offset) { _, file in
                                     Label(URL(fileURLWithPath: file).lastPathComponent, systemImage: "paperclip").font(.caption).foregroundStyle(.secondary)
                                 }
