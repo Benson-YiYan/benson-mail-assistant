@@ -156,3 +156,5 @@ Official OpenRouter `usage.cost` is recorded in USD. Compatible APIs must explic
 Query account balance runs only when clicked, supports official DeepSeek and OpenRouter endpoints, and does not generate AI content. Balances belong to the entire provider account and may include other applications; balance changes cannot be attributed to this app. OpenRouter balance queries require management permissions, so a normal inference key may be refused. Do not replace an inference key with a management key merely to query balances. A failed query is not displayed as a zero balance.
 
 After an update downloads and passes SHA256 verification, the app asks whether to install and restart. Choosing Later keeps the verified package for installation without downloading again.
+
+Email questions: AI replies support Markdown tables with headers and cells. Wide tables on Mac can be scrolled horizontally.

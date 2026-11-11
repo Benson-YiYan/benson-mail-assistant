@@ -100,3 +100,5 @@ Ayuda → Guía de uso abre este documento; ¿Cómo obtener un código de autori
 Modo Codex: Selecciona Codex en Servicios de IA, pulsa Buscar Codex o selecciona su ejecutable y guarda la página. La búsqueda rellena la ruta sin guardarla. Windows detecta instalaciones de Store y npm; Mac admite componentes CLI de Codex y ChatGPT.
 
 Al completar la descarga y verificación, se pregunta si deseas instalar y reiniciar. Confirmar inicia la instalación de inmediato. Más tarde conserva el paquete verificado sin descargarlo otra vez.
+
+Preguntas sobre el correo: las respuestas de IA admiten tablas Markdown con encabezados y celdas. Las tablas anchas en Mac se pueden desplazar horizontalmente.

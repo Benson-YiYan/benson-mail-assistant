@@ -153,3 +153,5 @@ El `usage.cost` oficial de OpenRouter se registra en USD. Una API compatible deb
 Consultar saldo de cuenta solo se ejecuta al pulsar el botón, admite los endpoints oficiales de DeepSeek y OpenRouter y no genera contenido de IA. El saldo pertenece a toda la cuenta y puede incluir otras aplicaciones; sus cambios no se atribuyen a esta aplicación. OpenRouter exige permisos de administración para consultar el saldo, por lo que puede rechazar una clave normal de inferencia. No sustituyas esa clave por una de administración solo para consultar el saldo. Un error no se presenta como saldo cero.
 
 Tras descargar y verificar la actualización con SHA256, la aplicación pregunta si deseas instalar y reiniciar. Elegir Más tarde conserva el paquete verificado para instalarlo sin volver a descargarlo.
+
+Preguntas sobre el correo: las respuestas de IA admiten tablas Markdown con encabezados y celdas. Las tablas anchas en Mac se pueden desplazar horizontalmente.

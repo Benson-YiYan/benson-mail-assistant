@@ -100,3 +100,5 @@ Help → User guide opens this document; How do I get an authorization code? ope
 Codex mode: Select Codex in AI services, click Find Codex or browse to its command-line executable, then save the page. Discovery fills the path without saving. Windows supports Store and npm installations; Mac supports bundled Codex and ChatGPT CLI components.
 
 After download and verification, a confirmation asks whether to install and restart. Confirming starts installation immediately. Later retains the verified package without downloading again.
+
+Email questions: AI replies support Markdown tables with headers and cells. Wide tables on Mac can be scrolled horizontally.
