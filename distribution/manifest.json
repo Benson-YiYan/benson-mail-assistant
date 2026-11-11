@@ -1,103 +1,103 @@
 {
   "schema_version": 1,
   "platforms": {
-    "windows-x64": {
-      "version": "202611060748",
-      "sha256": "f505f99492f68908cb1b4439e9631f21bbe9344fbd1dccf187d4f4a1c698c6ef",
-      "size": 24576170,
-      "notes": {
-        "zh": "修复“垃圾邮件文件夹”列表勾选状态无法保存、切换页面后丢失的问题。默认名称全部启用；每项可移除，也可批量删除、添加或恢复默认。",
-        "en": "Fixed spam-folder checkboxes not saving or losing their state after leaving settings. All default names are enabled; names can be removed individually, deleted in bulk, added, or restored.",
-        "es": "Se corrigió el problema por el que las casillas de carpetas de spam no se guardaban o perdían su estado al salir de ajustes. Todos los nombres predeterminados están activados; se pueden quitar individualmente, eliminar en lote, agregar o restaurar."
-      },
-      "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Windows-x64-Setup-202611060748.exe"
-      ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611060748.exe"
-    },
     "macos-arm64": {
-      "version": "202611060743",
-      "sha256": "165901d720052ed50ad7de208b41876fa3584e6c710adf1062f44c962904c9bd",
-      "size": 24758844,
+      "version": "202611111937",
+      "sha256": "c8c04a6c2db66bed82adc2a06e44f1593be8f8fe06c50d6fbe9eb2f0fa60cce2",
+      "size": 22484481,
       "notes": {
-        "zh": "修复“垃圾邮件文件夹”列表勾选状态无法保存、切换页面后丢失的问题。默认名称全部启用；每项可移除，也可批量删除、添加或恢复默认。",
-        "en": "Fixed spam-folder checkboxes not saving or losing their state after leaving settings. All default names are enabled; names can be removed individually, deleted in bulk, added, or restored.",
-        "es": "Se corrigió el problema por el que las casillas de carpetas de spam no se guardaban o perdían su estado al salir de ajustes. Todos los nombres predeterminados están activados; se pueden quitar individualmente, eliminar en lote, agregar o restaurar."
+        "zh": "新增自定义总结提示词、跨邮箱多选总结及AI对话表格显示；修复Windows报告树及恢复默认提示词后的草稿状态。",
+        "en": "Custom summary prompts, summaries across mailboxes and Markdown tables in chat. Fixed Windows report-tree filtering and prompt-reset draft state.",
+        "es": "Instrucciones personalizadas, resúmenes entre buzones y tablas Markdown en el chat. Correcciones del árbol de informes y borradores en Windows."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Mac-AppleSilicon-202611060743.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Mac-AppleSilicon-202611111937.dmg"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611060743.dmg"
+      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611111937.dmg"
     },
     "macos-x86_64": {
-      "version": "202611060748",
-      "sha256": "36a1c5f948921ab4cc0ad2e94991be498f73075d8f365ecfc3a80b22d14f43fd",
-      "size": 18800016,
+      "version": "202611111940",
+      "sha256": "be5f9f4c5a487623063e49db5487375722cdee3719ced498e3421462dc6c917f",
+      "size": 20373337,
       "notes": {
-        "zh": "修复“垃圾邮件文件夹”列表勾选状态无法保存、切换页面后丢失的问题。默认名称全部启用；每项可移除，也可批量删除、添加或恢复默认。",
-        "en": "Fixed spam-folder checkboxes not saving or losing their state after leaving settings. All default names are enabled; names can be removed individually, deleted in bulk, added, or restored.",
-        "es": "Se corrigió el problema por el que las casillas de carpetas de spam no se guardaban o perdían su estado al salir de ajustes. Todos los nombres predeterminados están activados; se pueden quitar individualmente, eliminar en lote, agregar o restaurar."
+        "zh": "新增自定义总结提示词、跨邮箱多选总结及AI对话表格显示；修复Windows报告树及恢复默认提示词后的草稿状态。",
+        "en": "Custom summary prompts, summaries across mailboxes and Markdown tables in chat. Fixed Windows report-tree filtering and prompt-reset draft state.",
+        "es": "Instrucciones personalizadas, resúmenes entre buzones y tablas Markdown en el chat. Correcciones del árbol de informes y borradores en Windows."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Mac-Intel-202611060748.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Mac-Intel-202611111940.dmg"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611060748.dmg"
+      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611111940.dmg"
+    },
+    "windows-x64": {
+      "version": "202611111937",
+      "sha256": "fb09353c70d00c332c4db8c6aa448311a7379b0110b798d06f78251a232d7fed",
+      "size": 24587937,
+      "notes": {
+        "zh": "新增自定义总结提示词、跨邮箱多选总结及AI对话表格显示；修复Windows报告树及恢复默认提示词后的草稿状态。",
+        "en": "Custom summary prompts, summaries across mailboxes and Markdown tables in chat. Fixed Windows report-tree filtering and prompt-reset draft state.",
+        "es": "Instrucciones personalizadas, resúmenes entre buzones y tablas Markdown en el chat. Correcciones del árbol de informes y borradores en Windows."
+      },
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Windows-x64-Setup-202611111937.exe"
+      ],
+      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611111937.exe"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202611060748",
-      "sha256": "430569924eff5e108fa6cf7c4502695ba8a75a8bf0267550e1fb8987b99d01a9",
-      "size": 42829,
+      "version": "202611111938",
+      "sha256": "c38d90504afb4db79e3390a84d033b33ae45be489a04f6afddad66e41476bc1c",
+      "size": 43783,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-windows-zh-202611060748.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-zh-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611060748.json"
+      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611111938.json"
     },
     "windows-en": {
-      "version": "202611060748",
-      "sha256": "c5a5ac761767fc2d6c9bc062dc9322fbb0173465cc036b588fc4a69ca9b29b22",
-      "size": 127778,
+      "version": "202611111938",
+      "sha256": "5aa8cb8f6e72154af014b78d4ada8e9a45589cad9f6245aea74f6297269dae63",
+      "size": 128809,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-windows-en-202611060748.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-en-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611060748.json"
+      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611111938.json"
     },
     "windows-es": {
-      "version": "202611060748",
-      "sha256": "076f4bbbc624e156e6b3a08acf64c0b1ca385294f5ca4ab24a13bb97b57af6e5",
-      "size": 138954,
+      "version": "202611111938",
+      "sha256": "92a0bfab318267c6ea4cbd1d973a6b4cf52ec4844864c72b74a516bc73b0410c",
+      "size": 139869,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-windows-es-202611060748.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-es-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611060748.json"
+      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611111938.json"
     },
     "macos-zh": {
-      "version": "202611060748",
-      "sha256": "191015fdbfd115a0dd17ddec7f8481f681429e06a80a57cbb3a8973689c3df1e",
-      "size": 43250,
+      "version": "202611111938",
+      "sha256": "f040fdc6c453ef08a725061ef19ee0a56ed96c7c394129676b900eeeaf269a82",
+      "size": 43972,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-macos-zh-202611060748.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-zh-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611060748.json"
+      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611111938.json"
     },
     "macos-en": {
-      "version": "202611060748",
-      "sha256": "23b91f423eb0ad3d12e6afb9d31780fb4c4e11d98e776a5ddbe723eb041505cf",
-      "size": 128322,
+      "version": "202611111938",
+      "sha256": "efdb72f4bb21760900096ad216bb113ffd76e19b30d750aece154236bec01c72",
+      "size": 129221,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-macos-en-202611060748.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-en-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611060748.json"
+      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611111938.json"
     },
     "macos-es": {
-      "version": "202611060748",
-      "sha256": "c28c13a4219e059d35f85d09e7e5a8fb6b71b724c0d48339c229958b52dc8943",
-      "size": 139696,
+      "version": "202611111938",
+      "sha256": "aa1c665c8d53d189e16e04344ec92a7de149234858f340619888d182509df3bb",
+      "size": 140646,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261106/BensonMail-Language-macos-es-202611060748.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-es-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611060748.json"
+      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611111938.json"
     }
   }
 }
