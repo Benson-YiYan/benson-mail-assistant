@@ -13,7 +13,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Mac-AppleSilicon-202611111937.dmg"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611111937.dmg"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Mac-AppleSilicon-202611111937.dmg"
     },
     "macos-x86_64": {
       "version": "202611111940",
@@ -27,7 +27,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Mac-Intel-202611111940.dmg"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611111940.dmg"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Mac-Intel-202611111940.dmg"
     },
     "windows-x64": {
       "version": "202611111937",
@@ -41,7 +41,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Windows-x64-Setup-202611111937.exe"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611111937.exe"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Windows-x64-Setup-202611111937.exe"
     }
   },
   "language_packs": {
@@ -52,7 +52,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-zh-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611111938.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-zh-202611111938.json"
     },
     "windows-en": {
       "version": "202611111938",
@@ -61,7 +61,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-en-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611111938.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-en-202611111938.json"
     },
     "windows-es": {
       "version": "202611111938",
@@ -70,7 +70,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-es-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611111938.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-es-202611111938.json"
     },
     "macos-zh": {
       "version": "202611111938",
@@ -79,7 +79,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-zh-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611111938.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-zh-202611111938.json"
     },
     "macos-en": {
       "version": "202611111938",
@@ -88,7 +88,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-en-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611111938.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-en-202611111938.json"
     },
     "macos-es": {
       "version": "202611111938",
@@ -97,7 +97,7 @@
       "mirrors": [
         "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-es-202611111938.json"
       ],
-      "url": "https://conversation-affair-inkjet-enhancing.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611111938.json"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-es-202611111938.json"
     }
   }
 }
