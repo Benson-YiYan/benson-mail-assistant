@@ -135,6 +135,36 @@ enum AppSelfTest {
                 throw Failure("CommonMark document structure failed before native snapshot")
             }
             checks.append("actual WebKit renders Markdown headings, bold, lists, links, tables and fenced code; HTML escaped and remote images absent")
+            let chatMarkdown = "# Chat response\n\n" + String(repeating: "A long response paragraph wraps to the available chat width. ", count: 24)
+            let chatMarkdownHost = NSHostingView(rootView: ChatMarkdownView(text: chatMarkdown))
+            chatMarkdownHost.frame = NSRect(x: 0, y: 0, width: 360, height: 48)
+            let chatMarkdownWindow = NSWindow(contentRect: NSRect(x: 160, y: 160, width: 360, height: 48),
+                                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            chatMarkdownWindow.contentView = chatMarkdownHost
+            chatMarkdownWindow.makeKeyAndOrderFront(nil)
+            let chatMarkdownDeadline = Date().addingTimeInterval(8)
+            func chatWebView() -> WKWebView? { webView(in: chatMarkdownHost) }
+            while (chatWebView()?.navigationDelegate as? NativeMarkdownView.Coordinator)?.measuredContentHeight ?? 0 <= 100,
+                  Date() < chatMarkdownDeadline {
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            guard let chatWeb = chatWebView(),
+                  let chatCoordinator = chatWeb.navigationDelegate as? NativeMarkdownView.Coordinator,
+                  chatCoordinator.measuredContentHeight > 100 else {
+                throw Failure("chat Markdown content did not report a usable intrinsic height")
+            }
+            let wideContentHeight = chatCoordinator.measuredContentHeight
+            chatMarkdownWindow.setContentSize(NSSize(width: 190, height: 48))
+            let narrowDeadline = Date().addingTimeInterval(5)
+            while (chatCoordinator.measuredWidth >= 190 || chatCoordinator.measuredContentHeight <= wideContentHeight),
+                  Date() < narrowDeadline {
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            guard chatCoordinator.measuredWidth < 190, chatCoordinator.measuredContentHeight > wideContentHeight else {
+                throw Failure("chat Markdown height did not adapt to a narrower window")
+            }
+            chatMarkdownWindow.orderOut(nil)
+            checks.append("content-sized chat Markdown remains visible and remeasures wrapped text after resizing")
             // Exercise the renderer inside the real report/chat split, not only its standalone host.
             guard let reportWindow = NSApp.windows.first(where: { $0.title == "邮件小秘书" && $0.canBecomeMain }),
                   let integratedRoot = reportWindow.contentView else { throw Failure("integrated report window missing") }

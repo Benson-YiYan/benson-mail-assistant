@@ -1,10 +1,20 @@
 import SwiftUI
 import WebKit
+import CryptoKit
 private typealias MarkdownState<Value> = SwiftUI.State<Value>
 
 /// A local-only Markdown document. Raw HTML is escaped and remote resources are blocked.
 enum MarkdownDocument {
+    private static let renderedCache: NSCache<NSString, NSString> = {
+        let cache = NSCache<NSString, NSString>()
+        cache.countLimit = 32
+        cache.totalCostLimit = 4 * 1024 * 1024
+        return cache
+    }()
+
     static func render(_ markdown: String) throws -> String {
+        let key = SHA256.hash(data: Data(markdown.utf8)).map { String(format: "%02x", $0) }.joined() as NSString
+        if let cached = renderedCache.object(forKey: key) { return cached as String }
         let process = Process(), input = Pipe(), output = Pipe()
         process.executableURL = ServiceInstaller.worker
         process.arguments = ["--render-markdown"]
@@ -17,7 +27,9 @@ enum MarkdownDocument {
         guard process.terminationStatus == 0, let fragment = String(data: bytes, encoding: .utf8) else {
             throw NSError(domain: "BensonMail.Markdown", code: 1, userInfo: [NSLocalizedDescriptionKey: "Markdown 排版失败，原文仍可复制或打开。"])
         }
-        return html(fragment)
+        let rendered = html(fragment)
+        renderedCache.setObject(rendered as NSString, forKey: key, cost: rendered.utf8.count)
+        return rendered
     }
     static func html(_ fragment: String) -> String {
         """
@@ -56,20 +68,75 @@ struct MarkdownReportView: View {
     }
 }
 
+struct ChatMarkdownView: View {
+    let text: String
+    @MarkdownState private var html = ""
+    @MarkdownState private var error = ""
+    @MarkdownState private var contentHeight: CGFloat = 48
+
+    var body: some View {
+        Group {
+            if error.isEmpty {
+                NativeMarkdownView(html: html) { measuredHeight in
+                    guard abs(contentHeight - measuredHeight) > 1 else { return }
+                    contentHeight = measuredHeight
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: contentHeight)
+            } else {
+                Text(text).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .task(id: text) {
+            html = ""; error = ""
+            contentHeight = 48
+            do {
+                let rendered = try await Task.detached { try MarkdownDocument.render(text) }.value
+                guard !Task.isCancelled else { return }
+                html = rendered
+            } catch {
+                guard !Task.isCancelled else { return }
+                error = error.localizedDescription
+            }
+        }
+    }
+}
+
+private final class ContentSizedMarkdownWebView: WKWebView {
+    var widthDidChange: (() -> Void)?
+
+    override func setFrameSize(_ newSize: NSSize) {
+        let widthChanged = abs(frame.width - newSize.width) > 1
+        super.setFrameSize(newSize)
+        if widthChanged { widthDidChange?() }
+    }
+}
+
 struct NativeMarkdownView: NSViewRepresentable {
     let html: String
+    var onContentHeightChange: ((CGFloat) -> Void)? = nil
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         config.defaultWebpagePreferences.allowsContentJavaScript = false
-        let view = WKWebView(frame: .zero, configuration: config)
+        let view = ContentSizedMarkdownWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
         view.setValue(false, forKey: "drawsBackground")
+        view.widthDidChange = { [weak coordinator = context.coordinator, weak view] in
+            guard let coordinator, let view else { return }
+            DispatchQueue.main.async { coordinator.measureContentHeight(in: view, forWidth: view.bounds.width) }
+        }
         return view
     }
     func updateNSView(_ view: WKWebView, context: Context) {
-        guard !html.isEmpty, context.coordinator.previous != html else { return }
+        context.coordinator.onContentHeightChange = onContentHeightChange
+        guard !html.isEmpty else { return }
+        guard context.coordinator.previous != html else {
+            context.coordinator.measureContentHeight(in: view, forWidth: view.bounds.width)
+            return
+        }
         context.coordinator.previous = html
         context.coordinator.finished = false
         context.coordinator.loadCount += 1
@@ -80,7 +147,26 @@ struct NativeMarkdownView: NSViewRepresentable {
         var finished = false
         var loadCount = 0
         var failure = ""
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { finished = true }
+        var onContentHeightChange: ((CGFloat) -> Void)?
+        var measuredContentHeight: CGFloat = 0
+        var measuredWidth: CGFloat = 0
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            finished = true
+            measureContentHeight(in: webView, forWidth: webView.bounds.width, force: true)
+        }
+        func measureContentHeight(in webView: WKWebView, forWidth width: CGFloat, force: Bool = false) {
+            guard onContentHeightChange != nil else { return }
+            guard width > 1, force || abs(measuredWidth - width) > 1 else { return }
+            measuredWidth = width
+            webView.evaluateJavaScript("Math.ceil(document.documentElement.scrollHeight)") { [weak self] value, _ in
+                guard let self, let number = value as? NSNumber else { return }
+                let height = max(48, CGFloat(number.doubleValue) + 4)
+                DispatchQueue.main.async {
+                    self.measuredContentHeight = height
+                    self.onContentHeightChange?(height)
+                }
+            }
+        }
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failure = error.localizedDescription }
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { failure = error.localizedDescription }
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
