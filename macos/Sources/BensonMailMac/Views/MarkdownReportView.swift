@@ -97,7 +97,7 @@ struct ChatMarkdownView: View {
                 html = rendered
             } catch {
                 guard !Task.isCancelled else { return }
-                error = error.localizedDescription
+                self.error = error.localizedDescription
             }
         }
     }
