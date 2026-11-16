@@ -695,7 +695,7 @@ sealed partial class MainWindow : Window
         article.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         article.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         article.Children.Add(Stack(Heading(L.T("邮件报告")), Row(Action(L.T("打开报告"), () =>
-            { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; }), retryReport, Action(L.T("回复草稿"), ReplyDraft), Action(L.T("查看来源"), ShowSources), conversationProgress)));
+            { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; }), retryReport, Action(L.T("回复草稿"), ReplyDraft), conversationProgress)));
         preview.BorderThickness = new Thickness(0);
         preview.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         preview.FontSize = 14;

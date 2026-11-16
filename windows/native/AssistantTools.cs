@@ -390,21 +390,6 @@ sealed partial class MainWindow
                 Note(L.T("仅手动查询，不生成 AI 内容。账户余额可能包含其他应用的消费，不能用于归属本软件费用。查询使用已保存的 AI 设置。")),
                 Note(L.T("OpenRouter 余额接口可能要求管理权限，普通推理 Key 可能返回 403。无需为了查询余额将推理 Key 换成管理 Key。")))) }.ShowAsync();
     }
-    async Task ShowSources()
-    {
-        if (SelectedReport is not Report report) return;
-        var result = await Assistant("sources", new { path = report.path });
-        var content = Stack(Note(L.T("以下内容来自保存的原邮件和附件提取结果，用于核对报告。AI 的推断仍需自行确认。")));
-        if (result.TryGetProperty("sources", out var sources)) foreach (var source in sources.EnumerateArray()) {
-            content.Children.Add(Heading(L.T(JsonText(source, "label"))));
-            if (source.TryGetProperty("truncated", out var truncated) && truncated.GetBoolean()) content.Children.Add(Note(L.T("来源文字过长，当前只展示部分内容。")));
-            content.Children.Add(new TextBox { Text = JsonText(source, "text"), IsReadOnly = true,
-                TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, MaxHeight = 240 });
-        }
-        if (JsonText(result, "limitation").Length > 0) content.Children.Add(Note(L.T(JsonText(result, "limitation"))));
-        if (!result.TryGetProperty("available", out var available) || !available.GetBoolean()) content.Children.Add(Note(L.T("这份旧报告未保存可核对的来源内容。")));
-        await new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("查看邮件与附件来源"), Content = Scroll(content), CloseButtonText = L.T("关闭") }.ShowAsync();
-    }
     async Task ReplyDraft()
     {
         if (SelectedReport is not Report report) return;

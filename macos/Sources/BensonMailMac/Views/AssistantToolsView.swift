@@ -171,45 +171,6 @@ struct OriginalMailView: View {
     }
 }
 
-struct ReportSourcesView: View {
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var language = AppLanguage.shared
-    let store: MailStore
-    let report: Report
-    @ToolState private var references: [[String: Any]] = []
-    @ObservedObject private var tools: AssistantTools
-    init(store: MailStore, report: Report) { self.store = store; self.report = report; self.tools = store.assistantTools }
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack { Text(T("报告溯源")).font(.title2.bold()); Spacer(); Button(T("关闭")) { dismiss() } }
-            Text(report.title).font(.headline).lineLimit(2)
-            Text(T("来源是原始材料索引，AI 引用仍需核对；未读取的附件不会作为事实依据。" )).font(.caption).foregroundStyle(.secondary)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(Array(references.enumerated()), id: \.offset) { _, source in
-                        VStack(alignment: .leading, spacing: 4) {
-                            let sourceID = source["id"] as? String ?? ""
-                            let sourceLabel = (source["label"] as? String) ?? (source["name"] as? String) ?? ""
-                            Text("[\(sourceID)] \(sourceLabel)").font(.subheadline.bold())
-                            if let text = source["text"] as? String ?? source["excerpt"] as? String { Text(text).textSelection(.enabled) }
-                            if let status = source["status"] as? String { Text(T(status)).font(.caption).foregroundStyle(.secondary) }
-                            if source["truncated"] as? Bool == true { Text(T("仅显示部分来源内容")).font(.caption).foregroundStyle(.orange) }
-                        }.frame(maxWidth: .infinity, alignment: .leading).padding(10).background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
-                    }
-                    if references.isEmpty { Text(T("点击读取来源，查看邮件正文和附件中的可用内容。")).foregroundStyle(.secondary) }
-                }
-            }.frame(minHeight: 100)
-            ToolStatus(tools: tools).font(.caption)
-        }.padding(22).frame(minWidth: 720, idealWidth: 800, minHeight: 500).task(id: report.id) { await loadSources() }
-    }
-    private func loadSources() async {
-        if let result = await tools.perform("report_sources", ["path": report.id]) {
-            references = result["sources"] as? [[String: Any]] ?? []
-            tools.notice = result["limitation"] as? String ?? ""
-        }
-    }
-}
-
 struct QuietHoursControl: View {
     @ObservedObject var store: MailStore
     @ObservedObject private var language = AppLanguage.shared

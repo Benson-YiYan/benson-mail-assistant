@@ -149,7 +149,7 @@ enum AssistantToolsSelfTest {
         report.mailboxAccount = "owner@example.invalid"
         let savedTools = store.assistantTools, savedSettings = store.settings
         let language = AppLanguage.shared, savedLanguage = language.code
-        let featureLabels = ["回复", "原文", "报告溯源", "费用与用量记录", "历史邮件补总结", "多选总结",
+        let featureLabels = ["回复", "原文", "费用与用量记录", "历史邮件补总结", "多选总结",
                              "选择已读取的邮件，可跨邮箱选择。确认后会一起发送给 AI 生成一份总结，可能产生费用。",
                              "按标题、发件人或邮箱搜索", "已选择：", "清除选择", "至少选择两封邮件。",
                              "最多选择100封邮件。", "缺少原邮件数据，不能选择此项。", "暂无可选择的已读取邮件", "没有符合搜索条件的邮件",
@@ -279,7 +279,6 @@ enum AssistantToolsSelfTest {
             let views: [(String, AnyView, NSSize, String)] = [
                 ("reply", AnyView(ReplyDraftView(store: store, report: report)), NSSize(width: 900, height: 680), T("回复")),
                 ("original", AnyView(OriginalMailView(report: report)), NSSize(width: 900, height: 680), T("原文")),
-                ("sources", AnyView(ReportSourcesView(store: store, report: report)), NSSize(width: 900, height: 600), T("报告溯源")),
                 ("usage", AnyView(UsageSettingsView(store: store)), NSSize(width: 760, height: 580), T("费用与用量记录")),
                 ("history", AnyView(HistoryBackfillView(store: store)), NSSize(width: 700, height: 430), T("历史邮件补总结")),
                 ("multi-summary", AnyView(MultiSummaryView(store: store)), NSSize(width: 760, height: 640), T("多选总结")),

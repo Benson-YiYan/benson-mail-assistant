@@ -141,7 +141,6 @@ private struct ReportActionsView: View {
     let report: Report
     @ToolState private var showReply = false
     @ToolState private var showOriginal = false
-    @ToolState private var showSources = false
     var body: some View {
         HStack {
             Button(T("重新总结"), systemImage: "sparkles") {
@@ -154,9 +153,6 @@ private struct ReportActionsView: View {
             Button(T("原文"), systemImage: "doc.text") { showOriginal = true }
                 .accessibilityIdentifier("mail-report-original")
                 .sheet(isPresented: $showOriginal) { OriginalMailView(report: report).tint(.blue) }
-            Button(T("报告溯源"), systemImage: "doc.text.magnifyingglass") { showSources = true }
-                .accessibilityIdentifier("mail-report-sources")
-                .sheet(isPresented: $showSources) { ReportSourcesView(store: store, report: report).tint(.blue) }
             Text(T("使用当前语言和 AI 设置，替换这份报告；原邮件不变。"))
                 .font(.caption).foregroundStyle(.secondary).lineLimit(2)
         }

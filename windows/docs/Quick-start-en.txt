@@ -56,9 +56,8 @@ Long chats compress earlier turns and retain recent turns. Compression is not ve
 Select a report and choose Reply draft in the reading pane.
 Choose Formal, Brief or Friendly and select the incoming email language, Chinese, English or Spanish. Generate, edit recipient/subject/body, then Save local draft or copy to your email app to send. Generation can incur charges. Check recipient, commitments, dates, files and tone. The assistant does not actually send mail, attach files or claim actions were completed.
 
-10. Enhanced attachments and report sources
+10. Attachment extraction
 Select a report and choose View sources in the reading pane.
-Body citations use [mail.body]; attachment citations use [attachment.N]. PDF references use [attachment.N, page:P] only when an actual [page:P] marker was extracted. The sources pane displays material supplied to AI. A citation locates text; it does not independently verify an inference. Old reports do not gain citations automatically; regenerate to use the new instructions. Truncation is identified. Unread attachments are not treated as known facts.
 Images and scanned PDFs first use native local OCR: Apple Vision/PDFKit on Mac and Windows OCR/PDF APIs on Windows, without requiring users to install Python. Windows may need suitable system OCR language support; image quality affects results. If native OCR is unavailable, an existing Tesseract installation can serve as fallback; scanned-PDF fallback also requires pdftoppm. External tools are not downloaded automatically. OCR runs locally; extracted text is subsequently sent to your selected AI with the analysis.
 Limits: 20 MB per attachment, about 100000 extracted characters and at most 20 scanned pages OCRed per PDF. Office extraction is mainly text, without macros or reconstructed pictures/layout. Encrypted, damaged, unsupported or timed-out files are explicitly unread. OCR is not a full visual understanding of the image.
 
