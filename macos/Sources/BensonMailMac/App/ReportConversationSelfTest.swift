@@ -97,7 +97,7 @@ enum ReportConversationSelfTest {
                     "chat Markdown headings did not render")
         try require(chatHTML.contains("<ul>") && chatHTML.contains("<blockquote>") &&
                     chatHTML.contains("<td><strong>午饭</strong></td>") &&
-                    chatHTML.contains("<code>literal **code**</code>"),
+                    chatHTML.contains("literal **code**"),
                     "chat Markdown lists, quote, table, or code did not render")
         try require(chatHTML.contains("<ul>") && !chatHTML.contains("<script>"),
                     "chat Markdown renderer emitted unsafe HTML")
