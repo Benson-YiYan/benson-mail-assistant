@@ -155,3 +155,9 @@ Consultar saldo de cuenta solo se ejecuta al pulsar el botón, admite los endpoi
 Tras descargar y verificar la actualización con SHA256, la aplicación pregunta si deseas instalar y reiniciar. Elegir Más tarde conserva el paquete verificado para instalarlo sin volver a descargarlo.
 
 Preguntas sobre el correo: las respuestas de IA se muestran con formato Markdown, incluidos títulos, párrafos, listas anidadas, citas, tablas, bloques de código, enlaces y formatos en línea habituales.
+
+## Funciones de Windows
+
+El resumen histórico permite elegir buzón y fechas, buscar por asunto o remitente y seleccionar mensajes individualmente, todos, ninguno o los resultados actuales. Las reglas se aplican de forma predeterminada. La lista se desplaza por separado y los contadores permanecen visibles.
+
+Los informes permiten ver y copiar el correo original. Las respuestas permiten elegir una cuenta guardada y revisar destinatario, asunto y cuerpo antes de confirmar el envío SMTP. El chat permite recuperar conversaciones guardadas y quitar adjuntos individuales. Incluye filtros por remitentes conocidos, registros de ejecución y más comandos de bandeja.

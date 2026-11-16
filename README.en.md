@@ -158,3 +158,9 @@ Query account balance runs only when clicked, supports official DeepSeek and Ope
 After an update downloads and passes SHA256 verification, the app asks whether to install and restart. Choosing Later keeps the verified package for installation without downloading again.
 
 Email questions: AI replies are rendered as Markdown, including headings, paragraphs, nested lists, block quotes, tables, code blocks, links and common inline formatting.
+
+## Windows features
+
+Historical-mail summaries include mailbox and date selection, subject/sender search, individual selection, Select all, Select none and Select all current search results. Mail rules are enabled by default. Candidates scroll separately while counts remain visible.
+
+Reports offer original-email viewing and copying. Replies support a saved sender mailbox and a full recipient/subject/body review before confirmed SMTP delivery. Chat supports restoring saved conversations and removing individual extra attachments. Known-sender filters, runtime records and expanded tray commands are available.
