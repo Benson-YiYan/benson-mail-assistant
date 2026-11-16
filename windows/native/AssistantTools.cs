@@ -42,7 +42,7 @@ sealed partial class MainWindow
             else selectedUids.Remove(candidate.Uid);
         }
     }
-    static Grid HistoryDialogLayout(UIElement options, UIElement filters, ScrollViewer candidates, FrameworkElement status, double width, double height)
+    static Grid HistoryDialogLayout(UIElement options, FrameworkElement filters, ScrollViewer candidates, FrameworkElement status, double width, double height)
     {
         // Only the candidate list takes the remaining height. Counts and errors must
         // never be pushed beneath the dialog buttons by long mail subjects.
