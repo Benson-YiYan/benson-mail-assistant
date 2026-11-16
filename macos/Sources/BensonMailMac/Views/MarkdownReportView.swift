@@ -101,10 +101,11 @@ struct ConversationTranscriptView: View {
                                 let document = try MarkdownDocument.render(content)
                                 body = document.components(separatedBy: "<body>").last?.components(separatedBy: "</body>").first ?? Self.escape(content)
                             }
-                            fragments.append("<section><strong>" + label + "</strong>" + body +
+                            fragments.append("<section" + (role == "user" ? " class=\"user-message\"" : "") + "><strong>" + label + "</strong>" + body +
                                 files.map { "<p>" + Self.escape(URL(fileURLWithPath: $0).lastPathComponent) + "</p>" }.joined() + "</section><hr>")
                         }
-                        return MarkdownDocument.html(fragments.isEmpty ? "<p>" + welcome + "</p>" : fragments.joined())
+                        let style = "<style>.user-message{background:rgba(0,122,255,.10);border-radius:8px;padding:10px;margin:8px 0}@media(prefers-color-scheme:dark){.user-message{background:rgba(0,122,255,.16)}}</style>"
+                        return MarkdownDocument.html(style + (fragments.isEmpty ? "<p>" + welcome + "</p>" : fragments.joined()))
                     }.value
                     guard !Task.isCancelled else { return }
                     html = rendered

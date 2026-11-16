@@ -163,7 +163,7 @@ sealed partial class MainWindow
                 }
                 card.Children.Add(new TextBlock { FontFamily = MailTypography.Font, Text = string.Join(" · ", names), TextWrapping = TextWrapping.Wrap, Opacity = .65 });
             }
-            chatMessages.Children.Add(Card(card, 12));
+            chatMessages.Children.Add(Card(card, 12, userMessage: role == "user"));
         }
         AppendPendingConversation();
         if (chatMessages.Children.Count == 0) chatMessages.Children.Add(Note(L.T("基于原邮件和实际附件提问，可添加文件；不会用总结报告代替原文。聊天记录自动保存。")));
@@ -218,7 +218,7 @@ sealed partial class MainWindow
         streamingReply = new MarkdownReportView { ContentSized = true, FontFamily = MailTypography.Font, FontSize = 14 };
         streamingReply.Show(pending.partial, true);
         streamingReplyPath = conversationPath;
-        chatMessages.Children.Add(Card(sent, 12));
+        chatMessages.Children.Add(Card(sent, 12, userMessage: true));
         chatMessages.Children.Add(Card(Stack(new TextBlock { Text = L.T("邮件小秘书"), FontFamily = MailTypography.Font }, streamingReply), 12));
     }
     void ReceiveChatPartial(JsonElement ev)

@@ -440,7 +440,7 @@ sealed partial class MainWindow : Window
         Grid.SetRow(actions, 1); page.Children.Add(actions);
         return page;
     }
-    static Border Card(UIElement content, double padding = 18)
+    static Border Card(UIElement content, double padding = 18, bool userMessage = false)
     {
         var card = new Border { Child = content, Padding = new Thickness(padding),
             CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1) };
@@ -451,6 +451,7 @@ sealed partial class MainWindow : Window
             var foreground = System.Drawing.SystemColors.WindowText;
             card.Background = new SolidColorBrush(Desktop.HighContrast
                 ? Windows.UI.Color.FromArgb(background.A, background.R, background.G, background.B)
+                : userMessage ? Windows.UI.Color.FromArgb(dark ? (byte)41 : (byte)26, 0, 122, 255)
                 : Windows.UI.Color.FromArgb(dark ? (byte)13 : (byte)179, 255, 255, 255));
             card.BorderBrush = new SolidColorBrush(Desktop.HighContrast
                 ? Windows.UI.Color.FromArgb(foreground.A, foreground.R, foreground.G, foreground.B)
