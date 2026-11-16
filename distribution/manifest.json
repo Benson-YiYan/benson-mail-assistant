@@ -2,102 +2,102 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611161020",
-      "sha256": "a4bf4348587394372b19261e9c1978324499beddf94b3b87e8d1ca22659422eb",
-      "size": 24586018,
+      "version": "202611161219",
+      "sha256": "9f2c6e1f7c8ac9fba042d79c9e0f4466a315f7071a65fc6d3eee989baf4dec83",
+      "size": 24582427,
       "notes": {
-        "zh": "邮件对话支持完整 Markdown；改进 Windows 引用、任务列表与行内格式。",
-        "en": "Full Markdown rendering in email chat; improved Windows block quotes, task lists and inline formatting.",
-        "es": "Markdown completo en el chat; mejoras en citas, listas de tareas y formatos en línea en Windows."
+        "zh": "修复 Mac 对话 AI 回复不可见，并优化 Markdown 重复解析开销。",
+        "en": "Fix invisible Mac chat replies and reduce repeated Markdown rendering work.",
+        "es": "Corrige las respuestas invisibles en Mac y reduce el trabajo repetido al mostrar Markdown."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116/BensonMail-Windows-x64-Setup-202611161020.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.1/BensonMail-Windows-x64-Setup-202611161219.exe"
       ],
-      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611161020.exe"
+      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611161219.exe"
     },
     "macos-arm64": {
-      "version": "202611161027",
-      "sha256": "d591a27fc3e5a4a0c6373894b0a3123a3d1a9a337b7f1a3307103f7f48528628",
-      "size": 21141287,
+      "version": "202611161209",
+      "sha256": "2c4542fa4e2face1884004cd5a16aca3fcb2b398d35925b852bd9a057782dfa5",
+      "size": 21275578,
       "notes": {
-        "zh": "邮件对话支持完整 Markdown；后台刷新不再清除未确认的输入法组合文字。",
-        "en": "Full Markdown rendering in email chat; background refresh preserves uncommitted IME composition.",
-        "es": "Markdown completo en el chat; las actualizaciones conservan la composición IME sin confirmar."
+        "zh": "修复对话 AI 回复正文不可见；回复高度随 Markdown 内容和窗口宽度自适应，缓存排版结果以减少重复处理。",
+        "en": "Fix invisible chat reply bodies; size replies to Markdown content and window width, with cached rendering.",
+        "es": "Corrige los cuerpos de respuesta invisibles; ajusta su altura al contenido y al ancho de ventana con renderizado en caché."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116/BensonMail-Mac-AppleSilicon-202611161027.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.1/BensonMail-Mac-AppleSilicon-202611161209.dmg"
       ],
-      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611161027.dmg"
+      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611161209.dmg"
     },
     "macos-x86_64": {
-      "version": "202611161031",
-      "sha256": "cd3211b7cec562280478d3adc398d9a85e54ae8c9a13425db0e1bf3b4d68ccfb",
-      "size": 20311669,
+      "version": "202611161213",
+      "sha256": "ce259dfc80b50f22ddb8d067b00531b1c4e94a024af55c9e70a21ce601249b34",
+      "size": 20407306,
       "notes": {
-        "zh": "邮件对话支持完整 Markdown；后台刷新不再清除未确认的输入法组合文字。",
-        "en": "Full Markdown rendering in email chat; background refresh preserves uncommitted IME composition.",
-        "es": "Markdown completo en el chat; las actualizaciones conservan la composición IME sin confirmar."
+        "zh": "修复对话 AI 回复正文不可见；回复高度随 Markdown 内容和窗口宽度自适应，缓存排版结果以减少重复处理。",
+        "en": "Fix invisible chat reply bodies; size replies to Markdown content and window width, with cached rendering.",
+        "es": "Corrige los cuerpos de respuesta invisibles; ajusta su altura al contenido y al ancho de ventana con renderizado en caché."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116/BensonMail-Mac-Intel-202611161031.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.1/BensonMail-Mac-Intel-202611161213.dmg"
       ],
-      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611161031.dmg"
+      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611161213.dmg"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202611161035",
+      "version": "202611161224",
       "sha256": "e7487d02149f95ab854b00725fdacf2fa31c27fe5a237260c379e5cf60e52691",
       "size": 43845,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116/BensonMail-Language-windows-zh-202611161035.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.1/BensonMail-Language-windows-zh-202611161224.json"
       ],
-      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611161035.json"
+      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611161224.json"
     },
     "windows-en": {
-      "version": "202611161035",
+      "version": "202611161224",
       "sha256": "cecb29365cb708c4f859878425c26998838b794c67dc0bc25e88bdddb97b7eb8",
       "size": 128868,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116/BensonMail-Language-windows-en-202611161035.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.1/BensonMail-Language-windows-en-202611161224.json"
       ],
-      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611161035.json"
+      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611161224.json"
     },
     "windows-es": {
-      "version": "202611161035",
+      "version": "202611161224",
       "sha256": "b0e14ae19cac347b861a2eb7e712b6fae75e87a99b9396c7676724573608dd30",
       "size": 139923,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116/BensonMail-Language-windows-es-202611161035.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.1/BensonMail-Language-windows-es-202611161224.json"
       ],
-      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611161035.json"
+      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611161224.json"
     },
     "macos-zh": {
-      "version": "202611161035",
+      "version": "202611161224",
       "sha256": "2ae2c81543f0ee81c0ad242f6783d2983087bc2ab20085ff7af6b97b4b7020a6",
       "size": 44034,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116/BensonMail-Language-macos-zh-202611161035.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.1/BensonMail-Language-macos-zh-202611161224.json"
       ],
-      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611161035.json"
+      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611161224.json"
     },
     "macos-en": {
-      "version": "202611161035",
+      "version": "202611161224",
       "sha256": "b5ed1441bf45bed9acc58a8841453c85d9682b30d28110d06b1f4d3902357c27",
       "size": 129280,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116/BensonMail-Language-macos-en-202611161035.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.1/BensonMail-Language-macos-en-202611161224.json"
       ],
-      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611161035.json"
+      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611161224.json"
     },
     "macos-es": {
-      "version": "202611161035",
+      "version": "202611161224",
       "sha256": "bda05a54cd38a44b6f14d5b9ca01fc123ed552be03be6f4c281bdcbaeb004a7d",
       "size": 140700,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116/BensonMail-Language-macos-es-202611161035.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.1/BensonMail-Language-macos-es-202611161224.json"
       ],
-      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611161035.json"
+      "url": "https://use-texts-protest-suggest.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611161224.json"
     }
   }
 }
