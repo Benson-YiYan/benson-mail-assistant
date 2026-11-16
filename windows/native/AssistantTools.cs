@@ -42,6 +42,39 @@ sealed partial class MainWindow
             else selectedUids.Remove(candidate.Uid);
         }
     }
+    static Grid HistoryDialogLayout(UIElement options, UIElement filters, ScrollViewer candidates, FrameworkElement status, double width, double height)
+    {
+        // Only the candidate list takes the remaining height. Counts and errors must
+        // never be pushed beneath the dialog buttons by long mail subjects.
+        var panel = new Grid { Width = width, Height = height, RowSpacing = 10, MinWidth = 0 };
+        panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star), MinHeight = 0 });
+        panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var optionScroll = Scroll(options); optionScroll.MaxHeight = Math.Max(90, height * .45);
+        optionScroll.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        candidates.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+        candidates.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        candidates.MinHeight = 0;
+        var statusScroll = Scroll(status); statusScroll.MaxHeight = Math.Max(60, height * .25);
+        Grid.SetRow(optionScroll, 0); Grid.SetRow(filters, 1); Grid.SetRow(candidates, 2); Grid.SetRow(statusScroll, 3);
+        panel.Children.Add(optionScroll); panel.Children.Add(filters); panel.Children.Add(candidates); panel.Children.Add(statusScroll);
+        return panel;
+    }
+    static Grid HistoryColumns(params FrameworkElement[] controls)
+    {
+        var row = new Grid { ColumnSpacing = 8, MinWidth = 0 };
+        for (var index = 0; index < controls.Length; index++) {
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 0 });
+            controls[index].MinWidth = 0; controls[index].HorizontalAlignment = HorizontalAlignment.Stretch;
+            Grid.SetColumn(controls[index], index); row.Children.Add(controls[index]);
+        }
+        return row;
+    }
+    static Button HistorySelectionButton(string title) => new() {
+        Content = new TextBlock { Text = L.T(title), TextWrapping = TextWrapping.Wrap },
+        HorizontalContentAlignment = HorizontalAlignment.Center
+    };
     static CheckBox HistoryPolicyControl() =>
         new() { Content = L.T("应用邮件屏蔽规则"), IsChecked = true };
     static object HistoryPreviewRequest(string start, string end, string mailboxId, bool applyMailPolicy) =>
@@ -110,6 +143,36 @@ sealed partial class MainWindow
         var currentSearchSelected = bulkSelection.SetEquals(new long[] { 1, 2, 3 });
         check(selectAllCandidates && selectNoneCandidates && currentSearchSelected,
             "History select all/none covers every candidate; current-search select adds matches and keeps hidden selections");
+        var historyStatus = new TextBlock { Text = "待总结：6 / 6\n已总结：0\n按邮件屏蔽规则跳过：0", TextWrapping = TextWrapping.Wrap };
+        var longMailRows = new StackPanel();
+        for (var i = 0; i < 20; i++) longMailRows.Children.Add(new CheckBox {
+            Content = new TextBlock { Text = "Long synthetic mail subject " + i + new string('X', 300), TextWrapping = TextWrapping.Wrap },
+            HorizontalContentAlignment = HorizontalAlignment.Stretch, HorizontalAlignment = HorizontalAlignment.Stretch
+        });
+        var historyScroll = Scroll(longMailRows);
+        var historyAll = HistorySelectionButton("全选");
+        var historyNone = HistorySelectionButton("全不选");
+        var historySearch = HistorySelectionButton("全选当前搜索结果");
+        check(historyAll.Visibility == Visibility.Visible && historyNone.Visibility == Visibility.Visible && historySearch.Visibility == Visibility.Visible,
+            "All history selection actions are visible when their parent row is shown");
+        var historyFilters = HistoryColumns(historyAll, historyNone, historySearch);
+        var historyLayout = HistoryDialogLayout(Stack(new TextBlock { Text = "Synthetic options" }), historyFilters, historyScroll, historyStatus, 620, 520);
+        layout.Children.Add(historyLayout);
+        Grid.SetRowSpan(historyLayout, Math.Max(1, layout.RowDefinitions.Count));
+        try {
+            foreach (var viewport in new[] { (Width: 620d, Height: 520d), (Width: 360d, Height: 400d) }) {
+                historyLayout.Width = viewport.Width; historyLayout.Height = viewport.Height;
+                layout.UpdateLayout();
+                var footer = historyStatus.TransformToVisual(historyLayout).TransformPoint(new Windows.Foundation.Point(0, 0));
+                var filters = historyFilters.TransformToVisual(historyLayout).TransformPoint(new Windows.Foundation.Point(0, 0));
+                var list = historyScroll.TransformToVisual(historyLayout).TransformPoint(new Windows.Foundation.Point(0, 0));
+                check(historyStatus.ActualHeight > 0 && footer.Y + historyStatus.ActualHeight <= historyLayout.ActualHeight + 1 &&
+                    historyScroll.ActualHeight > 0 && historyScroll.ScrollableHeight > 0 &&
+                    list.Y >= filters.Y + historyFilters.ActualHeight - 1 && historyFilters.ActualWidth <= viewport.Width + 1,
+                    "History long mail list scrolls while selection buttons and full count footer remain visible at " + viewport.Width + "x" + viewport.Height);
+            }
+        }
+        finally { layout.Children.Remove(historyLayout); }
         using var defaultPolicyRequest = JsonDocument.Parse(JsonSerializer.Serialize(
             HistoryPreviewRequest("2026-10-01", "2026-10-31", "fixture", defaultPolicy.IsChecked ?? false)));
         using var disabledPolicyRequest = JsonDocument.Parse(JsonSerializer.Serialize(
@@ -180,15 +243,15 @@ sealed partial class MainWindow
     async Task BackfillHistory()
     {
         if (SettingsDirty("mail")) throw new InvalidOperationException(L.T("请先保存此页设置，再测试连接。"));
-        var start = new CalendarDatePicker { Header = L.T("起始日期"), Date = DateTimeOffset.Now.AddDays(-7), MinWidth = 0, Width = 200 };
-        var end = new CalendarDatePicker { Header = L.T("结束日期"), Date = DateTimeOffset.Now, MinWidth = 0, Width = 200 };
+        var start = new CalendarDatePicker { Header = L.T("起始日期"), Date = DateTimeOffset.Now.AddDays(-7), MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var end = new CalendarDatePicker { Header = L.T("结束日期"), Date = DateTimeOffset.Now, MinWidth = 0, HorizontalAlignment = HorizontalAlignment.Stretch };
         var message = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
         JsonElement snapshot = default;
         var senderSearch = new TextBox { PlaceholderText = L.T("搜索邮件标题或发件人"), Visibility = Visibility.Collapsed };
-        var selectAllCandidates = new Button { Content = L.T("全选"), Visibility = Visibility.Collapsed };
-        var selectNoCandidates = new Button { Content = L.T("全不选"), Visibility = Visibility.Collapsed };
-        var selectCurrentSearchCandidates = new Button { Content = L.T("全选当前搜索结果"), Visibility = Visibility.Collapsed };
-        var candidateActions = Row(selectAllCandidates, selectNoCandidates, selectCurrentSearchCandidates);
+        var selectAllCandidates = HistorySelectionButton("全选");
+        var selectNoCandidates = HistorySelectionButton("全不选");
+        var selectCurrentSearchCandidates = HistorySelectionButton("全选当前搜索结果");
+        var candidateActions = HistoryColumns(selectAllCandidates, selectNoCandidates, selectCurrentSearchCandidates);
         candidateActions.Visibility = Visibility.Collapsed;
         var applyMailPolicy = HistoryPolicyControl();
         var policyNote = new TextBlock {
@@ -196,10 +259,19 @@ sealed partial class MainWindow
             TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .75
         };
         var candidatesPanel = new StackPanel { Spacing = 3 };
-        var candidatesScroll = new ScrollViewer { MaxHeight = 300, Content = candidatesPanel, Visibility = Visibility.Collapsed };
+        var candidatesScroll = Scroll(candidatesPanel); candidatesScroll.Visibility = Visibility.Collapsed;
         var selectedUids = new System.Collections.Generic.HashSet<long>();
         var candidateRows = new System.Collections.Generic.List<(long Uid, string Sender, string Subject, CheckBox Check)>();
         var previewButton = new Button { Content = L.T("查看待处理数量") };
+        var mailbox = new ComboBox { Header = L.T("邮箱"), HorizontalAlignment = HorizontalAlignment.Stretch, MinWidth = 0 };
+        foreach (var profile in mailboxProfiles) mailbox.Items.Add(new ComboBoxItem {
+            Content = JsonText(profile, "account"), Tag = JsonText(profile, "id")
+        });
+        mailbox.SelectedIndex = mailboxProfiles.FindIndex(profile => JsonText(profile, "id") == SelectedMailboxDraftId);
+        if (mailbox.SelectedIndex < 0 && mailbox.Items.Count > 0) mailbox.SelectedIndex = 0;
+        previewButton.IsEnabled = mailbox.SelectedIndex >= 0;
+        var previewGeneration = 0; var loading = false;
+        string MailboxId() => (mailbox.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
         var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("补总结历史邮件"),
             PrimaryButtonText = L.T("确认加入总结队列"), IsPrimaryButtonEnabled = false, CloseButtonText = L.T("取消") };
         void RefreshCandidateSelection()
@@ -223,11 +295,14 @@ sealed partial class MainWindow
         }
         void Invalidate()
         {
+            ++previewGeneration;
             snapshot = default; selectedUids.Clear(); candidateRows.Clear(); candidatesPanel.Children.Clear();
             dialog.IsPrimaryButtonEnabled = false; message.Text = "";
+            senderSearch.Text = "";
             senderSearch.Visibility = candidatesScroll.Visibility = Visibility.Collapsed;
             candidateActions.Visibility = Visibility.Collapsed;
         }
+        mailbox.SelectionChanged += (_, _) => { Invalidate(); previewButton.IsEnabled = !loading && mailbox.SelectedIndex >= 0; };
         start.DateChanged += (_, _) => Invalidate(); end.DateChanged += (_, _) => Invalidate();
         applyMailPolicy.Checked += (_, _) => Invalidate();
         applyMailPolicy.Unchecked += (_, _) => Invalidate();
@@ -251,24 +326,30 @@ sealed partial class MainWindow
             RefreshCandidateSelection();
         };
         previewButton.Click += async (_, _) => {
-            dialog.IsPrimaryButtonEnabled = false; previewButton.IsEnabled = false;
+            dialog.IsPrimaryButtonEnabled = false; previewButton.IsEnabled = false; loading = true;
+            var generation = ++previewGeneration;
+            var requestedMailbox = MailboxId();
             snapshot = default; selectedUids.Clear(); candidateRows.Clear(); candidatesPanel.Children.Clear();
             senderSearch.Visibility = candidatesScroll.Visibility = candidateActions.Visibility = Visibility.Collapsed;
             try {
                 if (!start.Date.HasValue || !end.Date.HasValue || start.Date.Value.Date > end.Date.Value.Date)
                     throw new InvalidOperationException(L.T("请选择有效的起始和结束日期。"));
                 message.Text = L.T("正在读取邮件数量，不会调用 AI…");
-                snapshot = await Assistant("history_preview", HistoryPreviewRequest(
+                if (string.IsNullOrWhiteSpace(requestedMailbox)) throw new InvalidOperationException(L.T("请选择邮箱"));
+                var result = await Assistant("history_preview", HistoryPreviewRequest(
                     start.Date.Value.ToString("yyyy-MM-dd"), end.Date.Value.ToString("yyyy-MM-dd"),
-                    SelectedMailboxDraftId, applyMailPolicy.IsChecked ?? false));
+                    requestedMailbox, applyMailPolicy.IsChecked ?? false));
+                if (generation != previewGeneration) return;
+                snapshot = result;
                 if ((snapshot.TryGetProperty("messages", out var items) || snapshot.TryGetProperty("candidates", out items)) &&
                     items.ValueKind == JsonValueKind.Array) {
                     foreach (var item in items.EnumerateArray()) {
                         if (!item.TryGetProperty("uid", out var uidValue) || !uidValue.TryGetInt64(out var uid)) continue;
                         var sender = JsonText(item, "sender", L.T("未知发件人"));
                         var subject = JsonText(item, "subject", L.T("无标题"));
-                        var received = JsonText(item, "received_at", "");
-                        var check = new CheckBox { IsChecked = true, Content = Stack(
+                        var received = JsonText(item, "received_at", JsonText(item, "date", ""));
+                        var check = new CheckBox { IsChecked = true, HorizontalAlignment = HorizontalAlignment.Stretch,
+                            HorizontalContentAlignment = HorizontalAlignment.Stretch, MinWidth = 0, Content = Stack(
                             new TextBlock { Text = subject, TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold },
                             new TextBlock { Text = sender + (string.IsNullOrWhiteSpace(received) ? "" : " · " + received),
                                 TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .75 }), Margin = new Thickness(0, 2, 0, 2) };
@@ -290,12 +371,30 @@ sealed partial class MainWindow
                             : "");
                     dialog.IsPrimaryButtonEnabled = false;
                 }
-            } catch (Exception error) { message.Text = L.T(error.Message); }
-            finally { previewButton.IsEnabled = true; }
+            } catch (Exception error) { if (generation == previewGeneration) message.Text = L.T(error.Message); }
+            finally { loading = false; previewButton.IsEnabled = mailbox.SelectedIndex >= 0; }
         };
-        dialog.Content = Stack(Note(L.T("针对当前选中的邮箱。日期按邮箱服务器的收件日期筛选。")),
-            Row(start, end), applyMailPolicy, policyNote, previewButton, senderSearch, candidateActions, candidatesScroll, message);
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary && snapshot.ValueKind == JsonValueKind.Object) {
+        var options = Stack(Note(L.T("日期按邮箱服务器的收件日期筛选。")), mailbox,
+            HistoryColumns(start, end), applyMailPolicy, policyNote, previewButton);
+        var size = layout.XamlRoot.Size;
+        var content = HistoryDialogLayout(options, Stack(senderSearch, candidateActions), candidatesScroll, message,
+            Math.Max(220, Math.Min(720, size.Width - 112)), Math.Max(180, Math.Min(680, size.Height - 220)));
+        dialog.Resources["ContentDialogMaxWidth"] = 820d;
+        dialog.Content = content;
+        void ResizeHistoryDialog()
+        {
+            var available = layout.XamlRoot.Size;
+            content.Width = Math.Max(220, Math.Min(720, available.Width - 112));
+            content.Height = Math.Max(180, Math.Min(680, available.Height - 220));
+            if (content.Children[0] is ScrollViewer optionScroll) optionScroll.MaxHeight = Math.Max(90, content.Height * .45);
+            if (content.Children[3] is ScrollViewer statusScroll) statusScroll.MaxHeight = Math.Max(60, content.Height * .25);
+        }
+        void RootSizeChanged(XamlRoot _, XamlRootChangedEventArgs __) => ResizeHistoryDialog();
+        layout.XamlRoot.Changed += RootSizeChanged;
+        ContentDialogResult confirmation;
+        try { confirmation = await dialog.ShowAsync(); }
+        finally { layout.XamlRoot.Changed -= RootSizeChanged; ++previewGeneration; }
+        if (confirmation == ContentDialogResult.Primary && snapshot.ValueKind == JsonValueKind.Object) {
             var chosen = candidateRows.Where(row => selectedUids.Contains(row.Uid)).Select(row => row.Uid).ToArray();
             if (chosen.Length == 0) return;
             var result = await Assistant("history_queue", new { preview_id = JsonText(snapshot, "preview_id"), selected_uids = chosen });
@@ -389,45 +488,5 @@ sealed partial class MainWindow
                 Heading(L.T("账户余额")), balanceButton, balanceResult,
                 Note(L.T("仅手动查询，不生成 AI 内容。账户余额可能包含其他应用的消费，不能用于归属本软件费用。查询使用已保存的 AI 设置。")),
                 Note(L.T("OpenRouter 余额接口可能要求管理权限，普通推理 Key 可能返回 403。无需为了查询余额将推理 Key 换成管理 Key。")))) }.ShowAsync();
-    }
-    async Task ReplyDraft()
-    {
-        if (SelectedReport is not Report report) return;
-        var tone = new ComboBox { Header = L.T("语气"), HorizontalAlignment = HorizontalAlignment.Stretch };
-        foreach (var text in new[] { "正式", "友好", "简短" }) tone.Items.Add(L.T(text)); tone.SelectedIndex = 0;
-        var language = new ComboBox { Header = L.T("草稿语言"), HorizontalAlignment = HorizontalAlignment.Stretch };
-        foreach (var text in new[] { L.T("跟随来信语言"), "简体中文", "English", "Español" }) language.Items.Add(text); language.SelectedIndex = 0;
-        var instructions = new TextBox { Header = L.T("补充要求"), AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 80 };
-        var draft = new TextBox { Header = L.T("可编辑的回复草稿"), AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 220 };
-        var status = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
-        var recipient = new TextBox { Header = L.T("收件人") };
-        var subject = new TextBox { Header = L.T("主题") };
-        string draftPath = "";
-        var saveDraft = new Button { Content = L.T("保存本地草稿"), IsEnabled = false };
-        var generate = new Button { Content = L.T("生成草稿") };
-        var copy = new Button { Content = L.T("复制草稿"), IsEnabled = false };
-        generate.Click += async (_, _) => {
-            generate.IsEnabled = false; status.Text = L.T("正在生成草稿…");
-            try {
-                var result = await Assistant("reply_draft", new { path = report.path, instructions = instructions.Text,
-                    tone = new[] { "formal", "friendly", "brief" }[Math.Max(0, tone.SelectedIndex)],
-                    language = new[] { "auto", "zh", "en", "es" }[Math.Max(0, language.SelectedIndex)] });
-                draft.Text = JsonText(result, "draft"); copy.IsEnabled = draft.Text.Length > 0;
-                recipient.Text = JsonText(result, "recipient"); subject.Text = JsonText(result, "subject");
-                draftPath = JsonText(result, "draft_path", JsonText(result, "path")); saveDraft.IsEnabled = draftPath.Length > 0;
-                status.Text = L.T("收件人：") + JsonText(result, "recipient") + "\n" + L.T("主题：") + JsonText(result, "subject") + "\n" +
-                    L.T("草稿未发送。请核对收件人、日期、金额和承诺，再复制到邮箱发送。");
-            } catch (Exception error) { status.Text = L.T(error.Message); }
-            finally { generate.IsEnabled = true; }
-        };
-        saveDraft.Click += async (_, _) => {
-            saveDraft.IsEnabled = false;
-            try { await Assistant("draft_save", new { draft_path = draftPath, draft = draft.Text, recipient = recipient.Text, subject = subject.Text }); status.Text = L.T("本地草稿已保存，尚未发送。"); }
-            catch (Exception error) { status.Text = L.T(error.Message); }
-            finally { saveDraft.IsEnabled = true; }
-        };
-        copy.Click += (_, _) => { var data = new DataPackage(); data.SetText(draft.Text); Clipboard.SetContent(data); status.Text = L.T("草稿已复制，尚未发送。"); };
-        await new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("回复草稿"), CloseButtonText = L.T("关闭"),
-            Content = Scroll(Stack(tone, language, instructions, Row(generate, copy, saveDraft), recipient, subject, draft, status)) }.ShowAsync();
     }
 }

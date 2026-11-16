@@ -29,10 +29,12 @@ internal sealed class NativeTray : IDisposable
     {
         internal string Text;
         internal readonly Action Invoke;
+        internal bool Enabled = true;
         internal Command(string text, Action action) { Text = text; Invoke = action; }
     }
     internal readonly List<Command> Commands = new();
     internal event EventHandler? DoubleClick, BalloonTipClicked;
+    internal event Action? MenuOpening;
     internal string Text { get => text; set { text = value; if (visible) Send(1); } }
     internal bool Visible
     {
@@ -92,7 +94,7 @@ internal sealed class NativeTray : IDisposable
         var menu = CreatePopupMenu();
         if (menu == IntPtr.Zero) throw new Win32Exception();
         for (int index = 0; index < Commands.Count; index++)
-            if (!AppendMenuW(menu, 0, (UIntPtr)(index + 1), Commands[index].Text))
+            if (!AppendMenuW(menu, Commands[index].Enabled ? 0u : 1u, (UIntPtr)(index + 1), Commands[index].Text))
             { DestroyMenu(menu); throw new Win32Exception(); }
         return menu;
     }
@@ -104,6 +106,7 @@ internal sealed class NativeTray : IDisposable
         uint selected = 0;
         try
         {
+            MenuOpening?.Invoke();
             menu = CreateMenu();
             GetCursorPos(out var point);
             // The main WinUI window may be hidden/minimized, so it cannot reliably
@@ -128,7 +131,7 @@ internal sealed class NativeTray : IDisposable
     internal bool VerifyNativeState()
     {
         var menu = CreateMenu();
-        try { return visible && IsWindow(window) && Send(1) && GetMenuItemCount(menu) == Commands.Count && Commands.Count == 3; }
+        try { return visible && IsWindow(window) && Send(1) && GetMenuItemCount(menu) == Commands.Count && Commands.Count >= 9; }
         finally { DestroyMenu(menu); }
     }
     public void Dispose()

@@ -13,11 +13,18 @@ sealed partial class MainWindow
     readonly Button retryReport = new() { Content = L.T("重新总结"), IsEnabled = false };
     readonly Button sendQuestion = new() { Content = L.T("发送问题"), IsEnabled = false };
     readonly Button attachQuestion = new() { Content = L.T("添加附件"), IsEnabled = false };
+    readonly TextBlock conversationHeading = new() { VerticalAlignment = VerticalAlignment.Center, FontFamily = MailTypography.Font };
+    readonly Button restoreConversation = new() { Content = L.T("恢复对话"), IsEnabled = false, MinHeight = 24, Padding = new Thickness(8, 0, 8, 0) };
     readonly Button clearQuestionFiles = new() { Content = L.T("移除附件"), IsEnabled = false };
     readonly TextBox question = new() { Header = L.T("对邮件提问"), PlaceholderText = L.T("针对原邮件和附件提问，可继续追问或添加文件"),
         AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 80, MinHeight = 60, MaxHeight = 80 };
     readonly TextBlock conversationStatus = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
-    readonly TextBlock questionFiles = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = 20, IsTextSelectionEnabled = true };
+    readonly StackPanel questionFileItems = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
+    readonly ScrollViewer questionFiles = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+        HorizontalScrollMode = ScrollMode.Enabled, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+        VerticalScrollMode = ScrollMode.Disabled, MaxHeight = 34 };
+    string questionFilesSignature = "";
+    readonly HashSet<string> restoringConversations = new(StringComparer.OrdinalIgnoreCase);
     MarkdownReportView? streamingReply;
     string? streamingReplyPath;
     readonly Dictionary<string, (string question, string[] files, string partial)> pendingConversations = new(StringComparer.OrdinalIgnoreCase);
@@ -39,8 +46,17 @@ sealed partial class MainWindow
 
     Grid BuildReportConversation()
     {
-        foreach (var control in new Control[] { retryReport, sendQuestion, attachQuestion, clearQuestionFiles, question })
+        foreach (var control in new Control[] { retryReport, sendQuestion, attachQuestion, clearQuestionFiles, restoreConversation, question })
             control.FontFamily = MailTypography.Font;
+        var chatHeader = new Grid();
+        chatHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        chatHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        conversationHeading.Text = L.T("对邮件提问"); chatHeader.Children.Add(conversationHeading);
+        Grid.SetColumn(restoreConversation, 1); chatHeader.Children.Add(restoreConversation);
+        question.Header = chatHeader;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(restoreConversation, "mail-chat-restore");
+        restoreConversation.Click += async (_, _) => await RestoreConversation();
+        questionFiles.Content = questionFileItems;
         retryReport.Click += async (_, _) => await RetrySelectedReport();
         sendQuestion.Click += async (_, _) => await SendQuestion();
         question.KeyDown += async (_, e) => {
@@ -52,7 +68,7 @@ sealed partial class MainWindow
         };
         attachQuestion.Click += async (_, _) => await Guard(AddQuestionFiles);
         clearQuestionFiles.Click += (_, _) => {
-            if (conversationPath == null) return;
+            if (conversationPath == null || conversationBusy.Contains(conversationPath)) return;
             var draft = Draft(conversationPath); draft.files.Clear(); questionDrafts[conversationPath] = draft; UpdateConversationControls();
         };
         question.TextChanged += (_, _) => {
@@ -137,6 +153,48 @@ sealed partial class MainWindow
             if (CurrentConversation(path, generation)) UpdateConversationControls();
         }
     }
+    async Task RestoreConversation()
+    {
+        if (conversationPath == null) return;
+        var path = conversationPath;
+        var generation = previewGeneration;
+        if (!conversationBusy.Add(path)) return;
+        restoringConversations.Add(path); conversationErrors.Remove(path); UpdateConversationControls();
+        try { await LoadConversation(path, generation); }
+        finally {
+            restoringConversations.Remove(path); conversationBusy.Remove(path);
+            if (CurrentConversation(path, generation)) UpdateConversationControls();
+        }
+    }
+    void RemoveQuestionFile(string path, string file)
+    {
+        if (conversationBusy.Contains(path)) return;
+        var draft = Draft(path);
+        draft.files.Remove(file); questionDrafts[path] = draft;
+        if (string.Equals(path, conversationPath, StringComparison.OrdinalIgnoreCase)) UpdateConversationControls();
+    }
+    void RefreshQuestionFiles(string? path, List<string> files, bool busy)
+    {
+        // Typing must not rebuild focused controls or interrupt input composition.
+        var signature = (path ?? "") + "\0" + busy + "\0" + string.Join("\0", files);
+        if (questionFilesSignature == signature) return;
+        questionFilesSignature = signature; questionFileItems.Children.Clear();
+        foreach (var file in files) {
+            var name = Path.GetFileName(file);
+            var remove = new Button { Content = "×", MinWidth = 24, MinHeight = 24, Padding = new Thickness(4, 0, 4, 0),
+                IsEnabled = path != null && !busy, FontFamily = MailTypography.Font };
+            var capturedPath = path; var capturedFile = file;
+            remove.Click += (_, _) => { if (capturedPath != null) RemoveQuestionFile(capturedPath, capturedFile); };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(remove, L.T("移除附件") + " " + name);
+            ToolTipService.SetToolTip(remove, L.T("移除附件") + " " + name);
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+            row.Children.Add(new TextBlock { Text = name, FontFamily = MailTypography.Font, MaxWidth = 180,
+                TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center });
+            row.Children.Add(remove); ToolTipService.SetToolTip(row, file);
+            questionFileItems.Children.Add(row);
+        }
+        questionFiles.Visibility = files.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
     void SetConversation(JsonElement result)
     {
         streamingReply = null; streamingReplyPath = null;
@@ -147,6 +205,8 @@ sealed partial class MainWindow
     void RefreshConversationLanguage()
     {
         reportSplitter?.SetLabel(L.T("拖动调整报告与聊天区域"));
+        conversationHeading.Text = L.T("对邮件提问"); restoreConversation.Content = L.T("恢复对话");
+        questionFilesSignature = "";
         chatMessages.Children.Clear();
         if (conversationHistory.ValueKind == JsonValueKind.Array) foreach (var message in conversationHistory.EnumerateArray()) {
             var role = message.TryGetProperty("role", out var r) ? r.GetString() : "assistant";
@@ -175,18 +235,17 @@ sealed partial class MainWindow
         var selected = conversationPath != null;
         var busy = selected && conversationBusy.Contains(conversationPath!);
         retryReport.IsEnabled = selected && !busy;
+        restoreConversation.IsEnabled = selected && !busy;
         attachQuestion.IsEnabled = selected && !busy;
         question.IsEnabled = selected && !busy;
         var draft = selected ? Draft(conversationPath!) : ("", new List<string>());
         clearQuestionFiles.IsEnabled = selected && !busy && draft.Item2.Count > 0;
         sendQuestion.IsEnabled = selected && !busy && (!string.IsNullOrWhiteSpace(question.Text) || draft.Item2.Count > 0);
-        var names = new List<string>(); foreach (var file in draft.Item2) names.Add(Path.GetFileName(file));
-        questionFiles.Text = string.Join(" · ", names);
-        questionFiles.Visibility = names.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        ToolTipService.SetToolTip(questionFiles, questionFiles.Text);
-        question.Height = names.Count == 0 ? 80 : 60;
+        RefreshQuestionFiles(conversationPath, draft.Item2, busy);
+        question.Height = draft.Item2.Count == 0 ? 80 : 60;
         conversationProgress.IsActive = busy;
-        conversationStatus.Text = busy ? L.T("AI 正在处理，请稍候…") :
+        conversationStatus.Text = selected && restoringConversations.Contains(conversationPath!) ? L.T("正在恢复对话…") :
+            busy ? L.T("AI 正在处理，请稍候…") :
             selected && conversationErrors.TryGetValue(conversationPath!, out var error) ? L.T("操作失败：") + error :
             conversationCompressed ? L.T("已压缩较早的聊天记录，保留上下文继续对话。") : selected ? L.T("聊天记录自动保存；发送后会调用 AI。") : L.T("请先选择一封邮件。");
     }
@@ -301,6 +360,25 @@ sealed partial class MainWindow
         ResetConversation();
         await LoadConversation(path, previewGeneration);
         check(conversationPath == path && retryReport.IsEnabled, "Selected report enables re-analysis and restores its saved conversation");
+        var firstAttachment = Path.Combine(fixture, "first-draft.txt");
+        var secondAttachment = Path.Combine(fixture, "second-draft.txt");
+        var otherPath = path + ".other";
+        questionDrafts[path] = ("Unsent input stays intact", new List<string> { firstAttachment, secondAttachment });
+        questionDrafts[otherPath] = ("Other report draft", new List<string> { firstAttachment });
+        question.Text = "Unsent input stays intact"; UpdateConversationControls();
+        var firstChip = questionFileItems.Children[0];
+        question.Text += " while typing";
+        check(ReferenceEquals(firstChip, questionFileItems.Children[0]),
+            "Typing does not rebuild attachment controls or interrupt composition");
+        conversationBusy.Add(path); UpdateConversationControls(); RemoveQuestionFile(path, firstAttachment);
+        check(Draft(path).files.Count == 2 && !restoreConversation.IsEnabled,
+            "Attachment removal and restore cannot race an active AI request");
+        conversationBusy.Remove(path); RemoveQuestionFile(path, firstAttachment);
+        check(Draft(path).files.Count == 1 && Draft(path).files[0] == secondAttachment &&
+            Draft(otherPath).files.Count == 1 && question.Text == "Unsent input stays intact while typing" &&
+            questionFileItems.Children.Count == 1,
+            "Removing one attachment preserves the remaining file, text and other report draft");
+        questionDrafts[path] = ("", new List<string>()); question.Text = ""; questionDrafts.Remove(otherPath);
         pendingConversations[path] = ("Synthetic streaming question", Array.Empty<string>(), "");
         RefreshConversationLanguage();
         ReceiveChatPartial(JsonSerializer.SerializeToElement(new { chat_path = path, chat_partial = "# Live reply\n\n| A | B |\n| --- | --- |\n| 1 | 2 |" }));
@@ -340,9 +418,13 @@ sealed partial class MainWindow
             "Repeated send is deduplicated; multi-turn questions retain history and clear only the successful draft");
         var savedCount = conversationHistory.GetArrayLength();
         conversationHistory = default; chatMessages.Children.Clear();
-        await LoadConversation(path, previewGeneration);
-        check(conversationHistory.ValueKind == JsonValueKind.Array && conversationHistory.GetArrayLength() == savedCount,
-            "Conversation history restores from the backend without an AI request");
+        questionDrafts[path] = ("Preserve this unfinished question", new List<string> { attached });
+        question.Text = "Preserve this unfinished question";
+        await RestoreConversation();
+        check(conversationHistory.ValueKind == JsonValueKind.Array && conversationHistory.GetArrayLength() == savedCount &&
+            question.Text == "Preserve this unfinished question" && Draft(path).files.Count == 1 && restoreConversation.IsEnabled,
+            "Restore reloads saved history without AI while preserving the current question and attachments");
+        questionDrafts[path] = ("", new List<string>()); question.Text = "";
         SetConversation(JsonSerializer.SerializeToElement(new { messages = conversationHistory, compressed = true }));
         check(conversationCompressed && conversationStatus.Text == L.T("已压缩较早的聊天记录，保留上下文继续对话。"),
             "Compressed context status is visible without exposing implementation details");

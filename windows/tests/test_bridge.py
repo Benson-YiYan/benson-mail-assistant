@@ -10,6 +10,17 @@ from benson_mail.bridge import Controller
 
 
 class BridgeTests(unittest.TestCase):
+    def test_runtime_log_is_bounded_and_excludes_subjects_and_credentials(self):
+        for _ in range(505):
+            self.controller.emit({'event': {'status': '正在分析', 'detail': 'private@example.com secret subject'}})
+        text = self.controller.command('runtime_log', {})['text']
+        self.assertEqual(len(text.splitlines()), 500)
+        self.assertIn('正在分析', text)
+        self.assertNotIn('private', text)
+        self.assertNotIn('secret', text)
+        self.controller.emit({'event': {'status': 'secret unsupported status'}})
+        self.assertEqual(self.controller.command('runtime_log', {})['text'], text)
+
     def test_codex_detect_does_not_save_or_require_pause(self):
         original=dict(self.controller.config)
         with patch('benson_mail.bridge.platform.discover_codex',return_value=['C:/Codex/resources/codex.exe']), patch('benson_mail.bridge.platform.verify_codex',return_value=True), patch.object(self.controller,'persist') as persist, patch.object(self.controller,'paused') as paused:
@@ -192,6 +203,28 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(self.controller.command('read_report', {'path': str(report)}), '模拟六项报告')
         with self.assertRaises(ValueError):
             self.controller.command('read_report', {'path': str(self.root / 'config.txt')})
+
+    def test_original_read_uses_saved_mail_not_report_and_never_extracts_attachments(self):
+        from benson_mail.report_metadata import write_metadata
+        folder = self.root / 'reports' / '2026-11-16'
+        folder.mkdir(parents=True)
+        report = folder / 'sample.md'
+        report.write_text('AI-generated text is not the original', encoding='utf-8')
+        self.controller.config['output_dir'] = str(folder.parent)
+        write_metadata(self.root, report, {'subject': 'Actual title', 'sender': 'sender@example.invalid',
+            'mailbox_account': 'recipient@example.invalid', 'body': 'Actual original body',
+            'attachments': [{'name': 'contract.pdf', 'path': '/private/unread.pdf'}]})
+        with patch('benson_mail.mail_chat._extract') as extract:
+            result = self.controller.command('read_original', {'path': str(report)})
+        self.assertTrue(result['available'])
+        self.assertEqual(result['body'], 'Actual original body')
+        self.assertEqual(result['attachments'], ['contract.pdf'])
+        extract.assert_not_called()
+        self.assertNotIn('/private/unread.pdf', json.dumps(result))
+        old = folder / 'legacy.txt'; old.write_text('Old AI report', encoding='utf-8')
+        self.assertFalse(self.controller.command('read_original', {'path': str(old)})['available'])
+        with self.assertRaises(ValueError):
+            self.controller.command('read_original', {'path': str(self.root / 'config.json')})
 
     def test_mail_secret_omitted_and_native_startup_used(self):
         with patch('benson_mail.bridge.platform.save_secret') as save, patch(

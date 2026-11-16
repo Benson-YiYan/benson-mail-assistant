@@ -36,7 +36,8 @@ class Controller:
             self.report_migration = {'moved': 0, 'skipped': 0,
                                      'errors': [{'source': self.config.get('output_dir', ''),
                                                  'error': type(error).__name__}]}
-        self.emit = emit
+        self.runtime_log_lock = threading.Lock()
+        self.emit = lambda message: (self.record_runtime_event(message), emit(message))[-1]
         self.launcher = launcher
         self.service = None
         self.services = {}
@@ -45,6 +46,23 @@ class Controller:
         self.config_lock = threading.Lock()
         self.fixture = False
         self.report_entry_cache = {}
+
+    def record_runtime_event(self, message):
+        # Keep finite status labels only: subjects, addresses and server error text
+        # may contain private data and must never enter the runtime log.
+        event = message.get('event', {})
+        state = event.get('status')
+        if state not in ('已暂停', '运行中', '正在检查', '正在分析', '需要检查'):
+            return
+        from datetime import datetime
+        try:
+            with self.runtime_log_lock:
+                path = self.root / 'runtime.log'
+                lines = path.read_text(encoding='utf-8').splitlines()[-499:] if path.exists() else []
+                lines.append(datetime.now().astimezone().isoformat(timespec='seconds') + '  ' + state)
+                path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+        except OSError:
+            pass  # A logging failure must never interrupt mail processing.
 
     def persist(self):
         with self.config_lock:
@@ -123,7 +141,7 @@ class Controller:
         self.emit({'event': event})
 
     def command(self, name, data):
-        if self.prepared_exit and name not in ('shutdown', 'resume_after_exit_cancel', 'config', 'reports', 'read_report', 'runtime_info'):
+        if self.prepared_exit and name not in ('shutdown', 'resume_after_exit_cancel', 'config', 'reports', 'read_report', 'read_original', 'runtime_log', 'runtime_info'):
             raise ValueError('正在准备退出，请稍候。')
         if name == 'report_view':
             path = self.root / 'view-preferences.json'
@@ -163,6 +181,18 @@ class Controller:
             if self.fixture and request.get('action') not in ('usage', 'usage_summary', 'usage_rates', 'usage_balance', 'sources', 'report_sources', 'diagnostics', 'diagnostics_export', 'draft_save'):
                 raise ValueError('模拟测试禁止访问真实邮件或 AI。')
             return dispatch(self.root, request, self)
+        if name == 'runtime_log':
+            path = self.root / 'runtime.log'
+            text = path.read_text(encoding='utf-8') if path.exists() else ''
+            diagnostic = self.root / 'last-diagnostic.json'
+            if diagnostic.exists():
+                from .assistant_tools import _safe_diagnostic
+                try:
+                    value = _safe_diagnostic(json.loads(diagnostic.read_text(encoding='utf-8')))
+                    text += '\n' + json.dumps(value, ensure_ascii=False, indent=2)
+                except (ValueError, OSError):
+                    pass
+            return {'text': text}
         if name == 'runtime_info':
             import ctypes
             from ctypes import wintypes
@@ -460,6 +490,27 @@ class Controller:
                     entries.append({k: str(v) if isinstance(v, Path) else v for k, v in entry.items()
                                     if k != 'searchable'})
             return entries
+        if name == 'read_original':
+            from .mail_chat import _report
+            report = _report(self.root, data.get('path', ''), self.config)
+            try:
+                message = read_metadata(self.root, report)
+            except FileNotFoundError:
+                message = {}
+            available = isinstance(message, dict) and bool(message) and not message.get('unavailable')
+            if not available:
+                return {'available': False, 'body': '', 'attachments': []}
+            body = message.get('body')
+            if not isinstance(body, str):
+                body = '\n\n'.join(part.get('text', '') for part in message.get('bodies', [])
+                                   if isinstance(part, dict) and isinstance(part.get('text'), str))
+            return {'available': True, 'body': body,
+                    'title': str(message.get('subject') or report.stem),
+                    'sender': str(message.get('sender') or message.get('from') or ''),
+                    'account': str(message.get('mailbox_account') or message.get('account') or ''),
+                    'received': str(message.get('received') or message.get('received_at') or ''),
+                    'attachments': [str(item.get('name') or item.get('filename') or 'attachment')
+                                    for item in message.get('attachments', []) if isinstance(item, dict)]}
         if name == 'read_report':
             path = Path(data['path']).resolve()
             output = Path(self.config['output_dir']).resolve()
@@ -587,7 +638,7 @@ def run(launcher=None, fixture=None):
             try:
                 request = json.loads(line)
                 command = request['command']
-                if fixture and command not in ('validate_settings_page', 'save_settings_page', 'assistant_features', 'config', 'report_view', 'reports', 'read_report', 'report_retry', 'chat_history', 'chat_send', 'policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'save_notifications', 'language_status', 'prepare_exit', 'resume_after_exit_cancel', 'test_mail_draft'):
+                if fixture and command not in ('validate_settings_page', 'save_settings_page', 'assistant_features', 'config', 'report_view', 'reports', 'read_report', 'read_original', 'runtime_log', 'report_retry', 'chat_history', 'chat_send', 'policy_status', 'policy_save', 'policy_remove_records', 'policy_summarize_records', 'interval', 'shutdown', 'runtime_info', 'mail_presets', 'select_mail', 'save_mail', 'save_language', 'save_notifications', 'language_status', 'prepare_exit', 'resume_after_exit_cancel', 'test_mail_draft'):
                     raise ValueError('模拟测试禁止访问真实邮件或 AI。')
                 result = controller.command(command, request.get('data', {}))
                 emit({'id': request['id'], 'ok': True, 'result': result})

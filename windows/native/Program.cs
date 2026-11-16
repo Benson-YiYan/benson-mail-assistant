@@ -359,9 +359,7 @@ sealed partial class MainWindow : Window
             control.FontFamily = MailTypography.Font;
         tray = new NativeTray(WinRT.Interop.WindowNative.GetWindowHandle(this),
             Path.Combine(AppContext.BaseDirectory, "assets", "mail.ico"), L.T("邮件小秘书"));
-        tray.Commands.Add(new NativeTray.Command(L.T("打开窗口"), () => DispatcherQueue.TryEnqueue(Restore)));
-        tray.Commands.Add(new NativeTray.Command(L.T("开始／暂停监听"), () => DispatcherQueue.TryEnqueue(async () => await Guard(ToggleService))));
-        tray.Commands.Add(new NativeTray.Command(L.T("退出邮件小秘书"), () => DispatcherQueue.TryEnqueue(async () => await Exit())));
+        ConfigureTrayCommands();
         tray.DoubleClick += (_, _) => DispatcherQueue.TryEnqueue(Restore);
         tray.BalloonTipClicked += (_, _) => DispatcherQueue.TryEnqueue(Restore);
         AppWindow.Closing += (_, e) =>
@@ -588,7 +586,7 @@ sealed partial class MainWindow : Window
                 Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), oauthTokenButton),
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。")))),
-            Card(Stack(Heading(L.T("检查频率")), interval))),
+            Card(Stack(Heading(L.T("检查频率")), interval, Action(L.T("打开运行记录"), ShowRuntimeLog)))),
             SettingsSaveBar("mail", mailSaveButton, Action(L.T("测试邮箱连接"), () => TestSavedSettings("mail")))));
         aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading(L.T("选择您喜欢的 AI")), provider, apiBase, model, apiKey, harnessPath,
             Row(Action(L.T("检测 Harness"), async () => { var found = await Call("harness_detect", new { path = harnessPath.Text }); harnessPath.Text = found.GetString() ?? ""; }), Action(L.T("浏览 Harness……"), PickHarness)),
@@ -628,7 +626,7 @@ sealed partial class MainWindow : Window
         attachment.Items.Add(L.T("全部")); attachment.Items.Add(L.T("有附件")); attachment.Items.Add(L.T("无附件")); attachment.SelectedIndex = 0;
         var dates = new Grid { ColumnSpacing = 8 };
         for (int i = 0; i < 4; i++) dates.ColumnDefinitions.Add(new ColumnDefinition());
-        dates.Children.Add(sender); Grid.SetColumn(from, 1); dates.Children.Add(from);
+        dates.Children.Add(Stack(sender, KnownSenderButton())); Grid.SetColumn(from, 1); dates.Children.Add(from);
         Grid.SetColumn(to, 2); dates.Children.Add(to); Grid.SetColumn(attachment, 3); dates.Children.Add(attachment);
         filters = new Flyout { Content = Stack(new TextBlock { FontFamily = MailTypography.Font, Text = L.T("筛选邮件"), FontSize = 18 }, dates,
             Row(Action(L.T("应用筛选"), async () => { await Refresh(); if (!exitRequested) filters.Hide(); }), Action(L.T("重置"), async () =>
@@ -695,7 +693,7 @@ sealed partial class MainWindow : Window
         article.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         article.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         article.Children.Add(Stack(Heading(L.T("邮件报告")), Row(Action(L.T("打开报告"), () =>
-            { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; }), retryReport, Action(L.T("回复草稿"), ReplyDraft), conversationProgress)));
+            { if (SelectedReport is Report report) Open(report.path); return Task.CompletedTask; }), retryReport, Action(L.T("回复"), ReplyDraft), Action(L.T("原文"), ShowOriginalMail), Action(L.T("复制原文"), CopyOriginalMail), conversationProgress)));
         preview.BorderThickness = new Thickness(0);
         preview.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         preview.FontSize = 14;
@@ -1255,7 +1253,7 @@ sealed partial class MainWindow : Window
             else { var separator = raw.IndexOf(" · ", StringComparison.Ordinal);
                 detail.Text = separator < 0 ? L.T(raw) : raw[..(separator + 3)] + L.T(raw[(separator + 3)..]); }
         }
-        if (ev.TryGetProperty("check_done", out _)) check.IsEnabled = true;
+        if (ev.TryGetProperty("check_done", out _)) { check.IsEnabled = true; lastCheckAt = DateTime.Now; }
         if ((ev.TryGetProperty("policy_changed", out _) || ev.TryGetProperty("check_done", out _)) &&
             senderPolicyLoaded && !senderPolicyBusy && mailPage.Visibility == Visibility.Visible)
             _ = Guard(async () => {
@@ -1880,6 +1878,7 @@ sealed partial class MainWindow : Window
             Check(entityText.ToString() == "A & B / 中", "HTML entities decoded into actual native Run text");
             await Task.Delay(80);
             preview.Show(fixturePreview, false);
+            await OriginalMailSelfTest(Check);
             await ConversationSelfTest(Check);
 
             await bridge.Call("interval", new { seconds = 35 });
@@ -1888,7 +1887,7 @@ sealed partial class MainWindow : Window
             try { await bridge.Call("interval", new { seconds = 0 }); throw new Exception("Invalid interval accepted"); }
             catch (InvalidOperationException) { checks.Add("Invalid interval rejected"); }
             AppWindow.Hide(); Restore();
-            Check(tray.Visible && tray.VerifyNativeState(), "Native shell envelope icon, three menu commands and window restore");
+            Check(tray.Visible && tray.VerifyNativeState(), "Native shell envelope icon, complete menu commands and window restore");
             await Task.Delay(1000);
             var screenArg = Array.IndexOf(Program.Args, "--screenshot");
             void Capture(string path)
