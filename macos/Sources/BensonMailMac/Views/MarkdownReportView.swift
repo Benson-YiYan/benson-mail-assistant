@@ -77,10 +77,14 @@ struct ChatMarkdownView: View {
     var body: some View {
         Group {
             if error.isEmpty {
-                NativeMarkdownView(html: html) { measuredHeight in
-                    guard abs(contentHeight - measuredHeight) > 1 else { return }
-                    contentHeight = measuredHeight
-                }
+                NativeMarkdownView(
+                    html: html,
+                    onContentHeightChange: { measuredHeight in
+                        guard abs(contentHeight - measuredHeight) > 1 else { return }
+                        contentHeight = measuredHeight
+                    },
+                    forwardsScrollWheelToAncestor: true
+                )
                 .frame(maxWidth: .infinity)
                 .frame(height: contentHeight)
             } else {
@@ -103,19 +107,39 @@ struct ChatMarkdownView: View {
     }
 }
 
-private final class ContentSizedMarkdownWebView: WKWebView {
+final class ContentSizedMarkdownWebView: WKWebView {
     var widthDidChange: (() -> Void)?
+    var forwardsScrollWheelToAncestor = false
+    var forwardedScrollWheelCount = 0
 
     override func setFrameSize(_ newSize: NSSize) {
         let widthChanged = abs(frame.width - newSize.width) > 1
         super.setFrameSize(newSize)
         if widthChanged { widthDidChange?() }
     }
+
+    override func scrollWheel(with event: NSEvent) {
+        guard forwardsScrollWheelToAncestor else {
+            super.scrollWheel(with: event)
+            return
+        }
+        var ancestor = superview
+        while let view = ancestor {
+            if let scrollView = view as? NSScrollView {
+                forwardedScrollWheelCount += 1
+                scrollView.scrollWheel(with: event)
+                return
+            }
+            ancestor = view.superview
+        }
+        super.scrollWheel(with: event)
+    }
 }
 
 struct NativeMarkdownView: NSViewRepresentable {
     let html: String
     var onContentHeightChange: ((CGFloat) -> Void)? = nil
+    var forwardsScrollWheelToAncestor = false
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
@@ -132,6 +156,7 @@ struct NativeMarkdownView: NSViewRepresentable {
     }
     func updateNSView(_ view: WKWebView, context: Context) {
         context.coordinator.onContentHeightChange = onContentHeightChange
+        (view as? ContentSizedMarkdownWebView)?.forwardsScrollWheelToAncestor = forwardsScrollWheelToAncestor
         guard !html.isEmpty else { return }
         guard context.coordinator.previous != html else {
             context.coordinator.measureContentHeight(in: view, forWidth: view.bounds.width)

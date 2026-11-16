@@ -168,6 +168,49 @@ enum AppSelfTest {
             }
             chatMarkdownWindow.orderOut(nil)
             checks.append("content-sized chat Markdown remains visible and remeasures wrapped text after resizing")
+            let scrollText = "# Scroll input fixture\n\n" +
+                String(repeating: "A long chat response line that should scroll with the conversation rather than inside its own web view.\n\n", count: 80)
+            let scrollHost = NSHostingView(rootView: ScrollView {
+                ChatMarkdownView(text: scrollText)
+            }.frame(width: 360, height: 180))
+            scrollHost.frame = NSRect(x: 0, y: 0, width: 360, height: 180)
+            let scrollWindow = NSWindow(contentRect: NSRect(x: 180, y: 180, width: 360, height: 180),
+                                        styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            scrollWindow.contentView = scrollHost
+            scrollWindow.makeKeyAndOrderFront(nil)
+            let scrollDeadline = Date().addingTimeInterval(8)
+            var chatScrollWeb: WKWebView?
+            while (chatScrollWeb == nil || (chatScrollWeb?.navigationDelegate as? NativeMarkdownView.Coordinator)?.measuredContentHeight ?? 0 < 500),
+                  Date() < scrollDeadline {
+                chatScrollWeb = webView(in: scrollHost)
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            guard let chatScrollWeb,
+                  let contentSizedWeb = chatScrollWeb as? ContentSizedMarkdownWebView else {
+                throw Failure("scrollable chat Markdown web view did not mount")
+            }
+            var ancestor = chatScrollWeb.superview
+            var chatScrollView: NSScrollView?
+            while let view = ancestor {
+                if let scroll = view as? NSScrollView { chatScrollView = scroll; break }
+                ancestor = view.superview
+            }
+            guard let chatScrollView else { throw Failure("outer chat scroll view missing above Markdown content") }
+            chatScrollView.layoutSubtreeIfNeeded()
+            let initialScrollOrigin = chatScrollView.contentView.bounds.origin.y
+            let wheelCGEvent = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
+                                       wheel1: -80, wheel2: 0, wheel3: 0)
+            guard let wheelCGEvent else { throw Failure("synthetic chat scroll event missing") }
+            wheelCGEvent.location = NSPoint(x: scrollWindow.frame.minX + 100, y: scrollWindow.frame.minY + 100)
+            guard let wheelEvent = NSEvent(cgEvent: wheelCGEvent) else { throw Failure("chat scroll event conversion failed") }
+            contentSizedWeb.scrollWheel(with: wheelEvent)
+            try await Task.sleep(nanoseconds: 150_000_000)
+            guard contentSizedWeb.forwardedScrollWheelCount > 0,
+                  chatScrollView.contentView.bounds.origin.y != initialScrollOrigin else {
+                throw Failure("mouse-wheel scroll over AI Markdown did not move the outer conversation")
+            }
+            scrollWindow.orderOut(nil)
+            checks.append("mouse-wheel input over AI Markdown scrolls the outer conversation")
             // Exercise the renderer inside the real report/chat split, not only its standalone host.
             guard let reportWindow = NSApp.windows.first(where: { $0.title == "邮件小秘书" && $0.canBecomeMain }),
                   let integratedRoot = reportWindow.contentView else { throw Failure("integrated report window missing") }
