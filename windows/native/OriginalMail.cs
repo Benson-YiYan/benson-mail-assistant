@@ -49,8 +49,8 @@ sealed partial class MainWindow
     }
     async Task OriginalMailSelfTest(Action<bool, string> check)
     {
-        reports.SelectedIndex = 0;
-        if (SelectedReport is not Report report) throw new InvalidOperationException("Original-mail fixture report missing");
+        if (reports.Items.Count == 0 || reports.Items[0] is not ListViewItem { Tag: Report report })
+            throw new InvalidOperationException("Original-mail fixture report missing");
         var original = await bridge.Call("read_original", new { path = report.path });
         check(HasOriginalBody(original) && JsonText(original, "body").Contains("请检查合同正文"),
             "Original-mail action loads saved incoming body instead of generated report text without contacting AI");
