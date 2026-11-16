@@ -3,6 +3,7 @@ using Markdig;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 using Markdig.Extensions.Tables;
+using Markdig.Extensions.TaskLists;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
@@ -14,7 +15,8 @@ namespace BensonMail;
 // Parse Markdown as data into native controls. No HTML engine, remote images or scripts.
 internal sealed class MarkdownReportView : UserControl
 {
-    static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder().UsePipeTables().DisableHtml().Build();
+    static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
+        .UsePipeTables().UseTaskLists().UseEmphasisExtras().DisableHtml().Build();
     readonly ScrollViewer scroller = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         HorizontalContentAlignment = HorizontalAlignment.Stretch };
@@ -28,10 +30,11 @@ internal sealed class MarkdownReportView : UserControl
     public int CodeCount { get; private set; }
     public int ListCount { get; private set; }
     public int BoldCount { get; private set; }
+    public int QuoteCount { get; private set; }
     public void Show(string value, bool isMarkdown)
     {
         text = value; markdown = isMarkdown;
-        HeadingCount = TableCount = LinkCount = CodeCount = ListCount = BoldCount = 0;
+        HeadingCount = TableCount = LinkCount = CodeCount = ListCount = BoldCount = QuoteCount = 0;
         var stack = new StackPanel { Spacing = 12, Padding = new Thickness(12) };
         if (isMarkdown) Blocks(Markdown.Parse(value, Pipeline), stack);
         else stack.Children.Add(Plain(value));
@@ -92,6 +95,18 @@ internal sealed class MarkdownReportView : UserControl
                     var contents = new StackPanel { Spacing = 4 }; Blocks(item, contents);
                     Grid.SetColumn(contents, 1); line.Children.Add(contents); target.Children.Add(line);
                 }
+            }
+            else if (block is QuoteBlock quote)
+            {
+                QuoteCount++;
+                var quoted = new StackPanel { Spacing = 8, Margin = new Thickness(12, 0, 0, 0) };
+                Blocks(quote, quoted);
+                target.Children.Add(new Border {
+                    BorderThickness = new Thickness(3, 0, 0, 0),
+                    BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.Gray),
+                    Padding = new Thickness(10, 2, 2, 2),
+                    Child = quoted
+                });
             }
             else if (block is CodeBlock code)
             {

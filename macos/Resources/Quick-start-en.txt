@@ -101,4 +101,4 @@ Codex mode: Select Codex in AI services, click Find Codex or browse to its comma
 
 After download and verification, a confirmation asks whether to install and restart. Confirming starts installation immediately. Later retains the verified package without downloading again.
 
-Email questions: AI replies support Markdown tables with headers and cells. Wide tables on Mac can be scrolled horizontally.
+Email questions: AI replies render Markdown, including headings, paragraphs, nested lists, block quotes, tables, code blocks, links and common inline formatting. Raw HTML is disabled.

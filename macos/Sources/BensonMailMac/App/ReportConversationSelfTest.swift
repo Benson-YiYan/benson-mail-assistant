@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 @MainActor
@@ -74,12 +75,32 @@ enum ReportConversationSelfTest {
         imeEditor.unmarkText()
         ChatComposer.synchronizeModelText("committed draft", to: imeEditor)
         try require(imeEditor.string == "committed draft", "committed draft did not synchronize after IME composition ended")
-        try require(ChatMarkdown.blocks("说明\n\n| 项目 | 时间 |\n| --- | --- |\n| **午饭** | 12:00 |\n\n完成").contains(
-            .table([["项目", "时间"], ["**午饭**", "12:00"]])), "chat Markdown table lost headers or cells")
-        try require(ChatMarkdown.cells("| A\\|B | `x|y` |") == ["A|B", "`x|y`"],
-                    "chat table split escaped or inline-code pipes")
-        try require(!ChatMarkdown.blocks("```\n| A | B |\n| --- | --- |\n```").contains(
-            .table([["A", "B"]])), "chat parsed a fenced code example as a table")
+        let chatMarkdown = """
+        # 标题一
+        ## 标题二
+
+        - 列表项一
+        -- 列表项二
+
+        > 引用内容
+
+        | 项目 | 时间 |
+        | --- | --- |
+        | **午饭** | 12:00 |
+
+        ```text
+        literal **code**
+        ```
+        """
+        let chatHTML = try MarkdownDocument.render(chatMarkdown)
+        try require(chatHTML.contains("<h1>标题一</h1>") && chatHTML.contains("<h2>标题二</h2>"),
+                    "chat Markdown headings did not render")
+        try require(chatHTML.contains("<ul>") && chatHTML.contains("<blockquote>") &&
+                    chatHTML.contains("<td><strong>午饭</strong></td>") &&
+                    chatHTML.contains("<code>literal **code**</code>"),
+                    "chat Markdown lists, quote, table, or code did not render")
+        try require(chatHTML.contains("<ul>") && !chatHTML.contains("<script>"),
+                    "chat Markdown renderer emitted unsafe HTML")
         let root = base.appendingPathComponent("report-conversation-fixture")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let settings = root.appendingPathComponent("settings.json")

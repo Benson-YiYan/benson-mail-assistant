@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-private struct ChatComposer: NSViewRepresentable {
+struct ChatComposer: NSViewRepresentable {
     @Binding var text: String
     let enabled: Bool
     let enterToSend: Bool
@@ -139,7 +139,7 @@ struct ReportConversationView: View {
                                 if message.role == "user" {
                                     Text(message.content).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
                                 } else {
-                                    ChatMarkdownView(text: message.content)
+                                    MarkdownReportView(text: message.content)
                                 }
                                 ForEach(Array(message.files.enumerated()), id: \.offset) { _, file in
                                     Label(URL(fileURLWithPath: file).lastPathComponent, systemImage: "paperclip").font(.caption).foregroundStyle(.secondary)

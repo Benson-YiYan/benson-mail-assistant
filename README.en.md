@@ -157,4 +157,4 @@ Query account balance runs only when clicked, supports official DeepSeek and Ope
 
 After an update downloads and passes SHA256 verification, the app asks whether to install and restart. Choosing Later keeps the verified package for installation without downloading again.
 
-Email questions: AI replies support Markdown tables with headers and cells. Wide tables on Mac can be scrolled horizontally.
+Email questions: AI replies are rendered as Markdown, including headings, paragraphs, nested lists, block quotes, tables, code blocks, links and common inline formatting.

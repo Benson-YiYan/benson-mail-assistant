@@ -101,4 +101,4 @@ Modo Codex: Selecciona Codex en Servicios de IA, pulsa Buscar Codex o selecciona
 
 Al completar la descarga y verificación, se pregunta si deseas instalar y reiniciar. Confirmar inicia la instalación de inmediato. Más tarde conserva el paquete verificado sin descargarlo otra vez.
 
-Preguntas sobre el correo: las respuestas de IA admiten tablas Markdown con encabezados y celdas. Las tablas anchas en Mac se pueden desplazar horizontalmente.
+Preguntas sobre el correo: las respuestas de IA muestran Markdown, incluidos títulos, párrafos, listas anidadas, citas, tablas, bloques de código, enlaces y formatos en línea habituales. El HTML no se ejecuta.
