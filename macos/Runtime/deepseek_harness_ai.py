@@ -47,7 +47,7 @@ def command(path, args):
 
 
 @localized
-def complete(base='', model='', key='', messages=(), stop=None, *, cli_path=''):
+def complete(base='', model='', key='', messages=(), stop=None, *, cli_path='', on_delta=None):
     # base/model/key are intentionally unused: configuration and credentials belong to dsh.
     if stop is not None and stop.is_set():
         raise RuntimeError(_t('分析已停止，邮件将在下次重试。'))
@@ -71,6 +71,33 @@ def complete(base='', model='', key='', messages=(), stop=None, *, cli_path=''):
             'personaPrefix': system}})
         patch.write_text(json.dumps(rows, ensure_ascii=False), encoding='utf-8')
         argv = command(cli_path, ['--profile', 'headless', '--patch', str(patch), '--json'])
+        if on_delta is not None:
+            if __package__:
+                from .cli_stream import run_jsonl
+            else:
+                from cli_stream import run_jsonl
+            answer = ''
+            delivered = ''
+            def receive(event):
+                nonlocal answer, delivered
+                # Harness --json publishes committed text blocks, not tentative token deltas.
+                # Ignore thinking/tool/status payloads and truncated projections.
+                if event.get('type') == 'text' and not event.get('truncated'):
+                    text = event.get('text')
+                    if isinstance(text, str) and text:
+                        on_delta(text)
+                        delivered += text
+                elif event.get('type') == 'final':
+                    text = event.get('text')
+                    if isinstance(text, str):
+                        answer = text
+                        if text.startswith(delivered) and len(text) > len(delivered):
+                            on_delta(text[len(delivered):])
+                            delivered = text
+            code = run_jsonl(argv, prompt, root, receive, timeout=180, stop=stop)
+            if code or not answer.strip():
+                raise RuntimeError('[AI_HARNESS_FAILED] ' + _t('已安装的 DeepSeek Harness 执行失败（退出码 ') + str(code) + _t('）。请在 Harness 中检查登录、模型与网络，并确认版本支持 headless --json。'))
+            return answer
         flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
         # Do not retain reasoning or diagnostic output. The terminal JSON event contains the answer.
         with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as source:

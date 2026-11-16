@@ -18,6 +18,9 @@ sealed partial class MainWindow
         AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 80, MinHeight = 60, MaxHeight = 80 };
     readonly TextBlock conversationStatus = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
     readonly TextBlock questionFiles = new() { TextTrimming = TextTrimming.CharacterEllipsis, MaxHeight = 20, IsTextSelectionEnabled = true };
+    MarkdownReportView? streamingReply;
+    string? streamingReplyPath;
+    readonly Dictionary<string, (string question, string[] files, string partial)> pendingConversations = new(StringComparer.OrdinalIgnoreCase);
     readonly StackPanel chatMessages = new() { Spacing = 12 };
     readonly ScrollViewer chatScroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
     readonly Grid chatPanel = new() { RowSpacing = 8 };
@@ -112,6 +115,7 @@ sealed partial class MainWindow
     }
     void ResetConversation()
     {
+        streamingReply = null; streamingReplyPath = null;
         conversationPath = SelectedReport?.path;
         conversationHistory = default; conversationCompressed = false; chatMessages.Children.Clear();
         loadingQuestion = true;
@@ -135,6 +139,7 @@ sealed partial class MainWindow
     }
     void SetConversation(JsonElement result)
     {
+        streamingReply = null; streamingReplyPath = null;
         conversationHistory = result.TryGetProperty("messages", out var messages) ? messages.Clone() : default;
         conversationCompressed = result.TryGetProperty("compressed", out var compressed) && compressed.ValueKind == JsonValueKind.True;
         RefreshConversationLanguage();
@@ -147,7 +152,7 @@ sealed partial class MainWindow
             var role = message.TryGetProperty("role", out var r) ? r.GetString() : "assistant";
             var heading = new TextBlock { FontFamily = MailTypography.Font, Text = L.T(role == "user" ? "我" : role == "system" ? "上下文摘要" : "邮件小秘书"),
                 FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-            var body = new MarkdownReportView { FontFamily = MailTypography.Font, FontSize = 14 };
+            var body = new MarkdownReportView { FontFamily = MailTypography.Font, FontSize = 14, ContentSized = true };
             body.Show(message.TryGetProperty("content", out var text) ? text.GetString() ?? "" : "", true);
             var card = Stack(heading, body);
             if (message.TryGetProperty("files", out var files) && files.ValueKind == JsonValueKind.Array) {
@@ -160,6 +165,7 @@ sealed partial class MainWindow
             }
             chatMessages.Children.Add(Card(card, 12));
         }
+        AppendPendingConversation();
         if (chatMessages.Children.Count == 0) chatMessages.Children.Add(Note(L.T("基于原邮件和实际附件提问，可添加文件；不会用总结报告代替原文。聊天记录自动保存。")));
         UpdateConversationControls();
         chatScroll.UpdateLayout(); chatScroll.ChangeView(null, chatScroll.ScrollableHeight, null);
@@ -197,30 +203,72 @@ sealed partial class MainWindow
         foreach (var file in picked) if (!draft.files.Contains(file.Path)) draft.files.Add(file.Path);
         questionDrafts[path] = draft; UpdateConversationControls();
     }
+    void AppendPendingConversation()
+    {
+        streamingReply = null; streamingReplyPath = null;
+        if (conversationPath == null || !pendingConversations.TryGetValue(conversationPath, out var pending)) return;
+        var sentQuestion = new TextBlock { Text = pending.question, TextWrapping = TextWrapping.Wrap,
+            IsTextSelectionEnabled = true, FontFamily = MailTypography.Font };
+        var sent = Stack(new TextBlock { Text = L.T("我"), FontFamily = MailTypography.Font }, sentQuestion);
+        if (pending.files.Length > 0) {
+            var names = new List<string>(); foreach (var file in pending.files) names.Add(Path.GetFileName(file));
+            sent.Children.Add(new TextBlock { Text = string.Join(" · ", names), TextWrapping = TextWrapping.Wrap,
+                FontFamily = MailTypography.Font, Opacity = .65 });
+        }
+        streamingReply = new MarkdownReportView { ContentSized = true, FontFamily = MailTypography.Font, FontSize = 14 };
+        streamingReply.Show(pending.partial, true);
+        streamingReplyPath = conversationPath;
+        chatMessages.Children.Add(Card(sent, 12));
+        chatMessages.Children.Add(Card(Stack(new TextBlock { Text = L.T("邮件小秘书"), FontFamily = MailTypography.Font }, streamingReply), 12));
+    }
+    void ReceiveChatPartial(JsonElement ev)
+    {
+        if (!ev.TryGetProperty("chat_path", out var path) || !ev.TryGetProperty("chat_partial", out var partial) ||
+            path.ValueKind != JsonValueKind.String || partial.ValueKind != JsonValueKind.String) return;
+        var key = path.GetString();
+        if (key == null || !pendingConversations.TryGetValue(key, out var pending)) return;
+        var text = partial.GetString() ?? "";
+        if (pending.partial == text) return;
+        pendingConversations[key] = (pending.question, pending.files, text);
+        if (!string.Equals(key, conversationPath, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(streamingReplyPath, conversationPath, StringComparison.OrdinalIgnoreCase) || streamingReply == null) return;
+        var follow = chatScroll.ScrollableHeight - chatScroll.VerticalOffset < 40;
+        streamingReply.Show(text, true);
+        if (follow) { chatScroll.UpdateLayout(); chatScroll.ChangeView(null, chatScroll.ScrollableHeight, null, true); }
+    }
     async Task SendQuestion()
     {
         if (conversationPath == null || (string.IsNullOrWhiteSpace(question.Text) && Draft(conversationPath).files.Count == 0)) return;
-        var path = conversationPath; var generation = previewGeneration;
+        var path = conversationPath;
         if (!conversationBusy.Add(path)) return;
         ++conversationLoadGeneration; // Do not let an older history read replace a newly sent answer.
         var draft = Draft(path); var sentText = question.Text; var sentFiles = draft.files.ToArray();
         conversationErrors.Remove(path); UpdateConversationControls();
         try {
+            pendingConversations[path] = (sentText, sentFiles, "");
+            RefreshConversationLanguage();
             var result = await bridge.Call("chat_send", new { path, text = sentText, files = sentFiles });
             questionDrafts[path] = ("", new List<string>());
-            if (!CurrentConversation(path, generation)) return;
+            pendingConversations.Remove(path);
+            if (!CurrentConversation(path, previewGeneration)) return;
             loadingQuestion = true; question.Text = ""; loadingQuestion = false;
             SetConversation(result);
         } catch (Exception error) { conversationErrors[path] = error.Message; }
-        finally { conversationBusy.Remove(path); if (CurrentConversation(path, generation)) UpdateConversationControls(); }
+        finally {
+            var hadPending = pendingConversations.Remove(path); conversationBusy.Remove(path);
+            if (CurrentConversation(path, previewGeneration)) {
+                if (hadPending) RefreshConversationLanguage(); else UpdateConversationControls();
+            }
+        }
     }
     async Task ConversationSelfTest(Action<bool, string> check)
     {
-        var tableMessage = new MarkdownReportView();
+        var tableMessage = new MarkdownReportView { ContentSized = true };
         tableMessage.Show("# 一级标题\n## 二级标题\n\n- 列表项\n-- 子列表项\n\n> 引用内容\n\n| 项目 | 时间 |\n| --- | --- |\n| **午饭** | 12:00 |", true);
         check(tableMessage.HeadingCount == 2 && tableMessage.ListCount >= 1 && tableMessage.QuoteCount == 1 &&
             tableMessage.TableCount == 1 && tableMessage.BoldCount == 1,
             "Chat Markdown renderer preserves headings, nested lists, quotes, tables and inline formatting");
+        check(tableMessage.Content is StackPanel, "Chat Markdown uses its content height without a nested scroll viewer");
         if (fixture == null || reports.Items.Count == 0) throw new InvalidOperationException("Conversation test needs synthetic reports");
         layout.UpdateLayout();
         check(preview.Visibility == Visibility.Visible && chatPanel.Visibility == Visibility.Visible && reportSplitter.IsLoaded,
@@ -253,6 +301,15 @@ sealed partial class MainWindow
         ResetConversation();
         await LoadConversation(path, previewGeneration);
         check(conversationPath == path && retryReport.IsEnabled, "Selected report enables re-analysis and restores its saved conversation");
+        pendingConversations[path] = ("Synthetic streaming question", Array.Empty<string>(), "");
+        RefreshConversationLanguage();
+        ReceiveChatPartial(JsonSerializer.SerializeToElement(new { chat_path = path, chat_partial = "# Live reply\n\n| A | B |\n| --- | --- |\n| 1 | 2 |" }));
+        check(streamingReply != null && streamingReply.HeadingCount == 1 && streamingReply.TableCount == 1 &&
+            streamingReply.Content is StackPanel, "Streaming chunks update one content-sized Markdown reply inside the conversation scroll area");
+        SetConversation(JsonSerializer.SerializeToElement(new { messages = conversationHistory, compressed = false }));
+        check(streamingReply != null && streamingReply.TableCount == 1,
+            "Refreshing the conversation preserves an in-flight streamed reply");
+        pendingConversations.Remove(path); RefreshConversationLanguage();
         var initialLanguage = L.Code;
         foreach (var language in new[] { "zh", "en", "es" }) {
             await ChangeLanguage(language);

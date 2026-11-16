@@ -496,7 +496,17 @@ class Controller:
                         lock.release()
             if name == 'chat_history':
                 return chat_history(self.root, path)
-            return chat_send(self.root, path, data.get('text', ''), data.get('files', []))
+            accumulated, last_progress = '', 0
+            def delta(text):
+                nonlocal accumulated, last_progress
+                import time
+                from .mail_chat import _clean_internal_source_tags as clean_internal_source_tags
+                accumulated += text
+                now = time.monotonic()
+                if now - last_progress >= .3:
+                    self.event({'chat_path': str(path), 'chat_partial': clean_internal_source_tags(accumulated)})
+                    last_progress = now
+            return chat_send(self.root, path, data.get('text', ''), data.get('files', []), on_delta=delta)
         raise ValueError('未知操作。')
 
     def fixture_conversation(self, name, path, data):

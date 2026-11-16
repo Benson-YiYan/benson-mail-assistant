@@ -42,6 +42,7 @@ enum ReportConversationSelfTest {
                 sendCount += 1
                 if pauseNextSend {
                     pauseNextSend = false
+                    try Data("# Streaming reply\n\n| Name | Value |".utf8).write(to: file.deletingPathExtension().appendingPathExtension("progress"), options: .atomic)
                     await withCheckedContinuation { pending = $0 }
                 }
                 // Read at operation time, just as the real worker does. The UI must not bake a language into the request.
@@ -120,6 +121,12 @@ enum ReportConversationSelfTest {
         let sending = Task { await chat.send(a.path) }
         for _ in 0..<100 where worker.pending == nil { await Task.yield() }
         try require(worker.pending != nil && chat.state(a.path).busy, "in-flight send did not enter busy state")
+        let progressDeadline = Date().addingTimeInterval(3)
+        while chat.state(a.path).partialAnswer.isEmpty && Date() < progressDeadline {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        try require(chat.state(a.path).streaming && chat.state(a.path).partialAnswer.contains("Streaming reply") && chat.state(a.path).messages.isEmpty,
+                    "streamed answer did not arrive before worker completion")
         await chat.send(a.path)
         var wronglyRetried = false
         await chat.regenerate(a.path) { _, _, _ in wronglyRetried = true }
@@ -131,6 +138,7 @@ enum ReportConversationSelfTest {
         try require(chat.state(b.path).messages.isEmpty && chat.state(b.path).draft == "Unsent B", "completed first-report answer overwrote the second report")
         try require(chat.state(a.path).draft.isEmpty && chat.state(a.path).files.isEmpty && !chat.state(a.path).busy, "successful send did not clear its own composer")
         try require(worker.requestFiles.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) }, "private request was left on disk")
+        try require(worker.requestFiles.allSatisfy { !FileManager.default.fileExists(atPath: $0.deletingPathExtension().appendingPathExtension("progress").path) }, "private stream progress was left on disk")
         let restored = ReportConversationStore(base: root, executor: { try await worker.run($0) })
         await restored.load(a.path)
         try require(restored.state(a.path).messages.count == 2 && restored.state(a.path).messages.first?.files == [attachment.lastPathComponent], "persisted history/attachments were not restored in a fresh UI store")

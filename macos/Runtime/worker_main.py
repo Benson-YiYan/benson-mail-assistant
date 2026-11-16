@@ -93,7 +93,19 @@ def main():
                 if not args:
                     raise ValueError('Missing chat request')
                 request = json.loads(Path(args[0]).read_text(encoding='utf-8'))
-                result = chat_send(home, request['path'], request.get('text', ''), request.get('files', []))
+                progress = Path(args[0]).with_suffix('.progress')
+                accumulated = ''
+                last_progress = 0
+                def delta(text):
+                    nonlocal accumulated, last_progress
+                    import time
+                    from mail_chat import clean_internal_source_tags, _atomic
+                    accumulated += text
+                    now = time.monotonic()
+                    if now - last_progress >= .3:
+                        _atomic(progress, clean_internal_source_tags(accumulated))
+                        last_progress = now
+                result = chat_send(home, request['path'], request.get('text', ''), request.get('files', []), on_delta=delta)
             else:
                 if not args:
                     raise ValueError('Missing report path')

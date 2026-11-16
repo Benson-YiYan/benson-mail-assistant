@@ -135,82 +135,43 @@ enum AppSelfTest {
                 throw Failure("CommonMark document structure failed before native snapshot")
             }
             checks.append("actual WebKit renders Markdown headings, bold, lists, links, tables and fenced code; HTML escaped and remote images absent")
-            let chatMarkdown = "# Chat response\n\n" + String(repeating: "A long response paragraph wraps to the available chat width. ", count: 24)
-            let chatMarkdownHost = NSHostingView(rootView: ChatMarkdownView(text: chatMarkdown))
-            chatMarkdownHost.frame = NSRect(x: 0, y: 0, width: 360, height: 48)
-            let chatMarkdownWindow = NSWindow(contentRect: NSRect(x: 160, y: 160, width: 360, height: 48),
-                                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            chatMarkdownWindow.contentView = chatMarkdownHost
-            chatMarkdownWindow.makeKeyAndOrderFront(nil)
-            let chatMarkdownDeadline = Date().addingTimeInterval(8)
-            func chatWebView() -> WKWebView? { webView(in: chatMarkdownHost) }
-            while (chatWebView()?.navigationDelegate as? NativeMarkdownView.Coordinator)?.measuredContentHeight ?? 0 <= 100,
-                  Date() < chatMarkdownDeadline {
-                try await Task.sleep(nanoseconds: 50_000_000)
+            let longReply = "# Chat response\n\n" + String(repeating: "A long response paragraph wraps at the available conversation width.\n\n", count: 60)
+            let transcriptMessages = [ReportChatMessage(role: "user", content: "<script>user input stays literal</script>"),
+                                      ReportChatMessage(role: "assistant", content: longReply)]
+            let transcriptHost = NSHostingView(rootView: ConversationTranscriptView(messages: transcriptMessages, question: "", partial: ""))
+            let transcriptWindow = NSWindow(contentRect: NSRect(x: 160, y: 160, width: 420, height: 240),
+                                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            transcriptWindow.contentView = transcriptHost
+            transcriptWindow.makeKeyAndOrderFront(nil)
+            let transcriptDeadline = Date().addingTimeInterval(10)
+            while (webView(in: transcriptHost)?.navigationDelegate as? NativeMarkdownView.Coordinator)?.finished != true,
+                  Date() < transcriptDeadline { try await Task.sleep(nanoseconds: 50_000_000) }
+            guard let transcriptWeb = webView(in: transcriptHost),
+                  let transcriptCoordinator = transcriptWeb.navigationDelegate as? NativeMarkdownView.Coordinator,
+                  transcriptCoordinator.finished else { throw Failure("single-surface conversation did not render") }
+            func countWebViews(_ view: NSView) -> Int {
+                (view is WKWebView ? 1 : 0) + view.subviews.reduce(0) { $0 + countWebViews($1) }
             }
-            guard let chatWeb = chatWebView(),
-                  let chatCoordinator = chatWeb.navigationDelegate as? NativeMarkdownView.Coordinator,
-                  chatCoordinator.measuredContentHeight > 100 else {
-                throw Failure("chat Markdown content did not report a usable intrinsic height")
+            guard countWebViews(transcriptHost) == 1,
+                  transcriptCoordinator.previous?.contains("&lt;script&gt;user input stays literal&lt;/script&gt;") == true,
+                  transcriptCoordinator.previous?.contains("<h1>Chat response</h1>") == true else {
+                throw Failure("conversation must use one Markdown surface and escape user input")
             }
-            let wideContentHeight = chatCoordinator.measuredContentHeight
-            let wideContentWidth = chatCoordinator.measuredWidth
-            chatMarkdownWindow.setContentSize(NSSize(width: 190, height: 48))
-            let narrowDeadline = Date().addingTimeInterval(5)
-            while (chatCoordinator.measuredWidth >= wideContentWidth - 50 ||
-                   chatCoordinator.measuredContentHeight <= wideContentHeight),
-                  Date() < narrowDeadline {
-                try await Task.sleep(nanoseconds: 50_000_000)
+            let documentHeight = try await transcriptWeb.evaluateJavaScript("document.documentElement.scrollHeight") as? NSNumber
+            guard (documentHeight?.doubleValue ?? 0) > 500 else { throw Failure("long chat reply is not scrollable") }
+            try await transcriptWeb.evaluateJavaScript("window.scrollTo(0,300)")
+            let beforeWheel = try await transcriptWeb.evaluateJavaScript("window.scrollY") as? NSNumber
+            guard let wheelCG = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 80, wheel2: 0, wheel3: 0),
+                  let wheel = NSEvent(cgEvent: wheelCG) else { throw Failure("scroll fixture event missing") }
+            let wheelTarget = transcriptWeb.hitTest(NSPoint(x: 100, y: 100)) ?? transcriptWeb
+            wheelTarget.scrollWheel(with: wheel)
+            try await Task.sleep(nanoseconds: 250_000_000)
+            let afterWheel = try await transcriptWeb.evaluateJavaScript("window.scrollY") as? NSNumber
+            guard beforeWheel?.doubleValue != afterWheel?.doubleValue else {
+                throw Failure("wheel over Markdown did not scroll the single conversation surface")
             }
-            guard chatCoordinator.measuredWidth < wideContentWidth - 50,
-                  chatCoordinator.measuredContentHeight > wideContentHeight else {
-                throw Failure("chat Markdown resize failed: width \(wideContentWidth) -> \(chatCoordinator.measuredWidth), height \(wideContentHeight) -> \(chatCoordinator.measuredContentHeight)")
-            }
-            chatMarkdownWindow.orderOut(nil)
-            checks.append("content-sized chat Markdown remains visible and remeasures wrapped text after resizing")
-            let scrollText = "# Scroll input fixture\n\n" +
-                String(repeating: "A long chat response line that should scroll with the conversation rather than inside its own web view.\n\n", count: 80)
-            let scrollHost = NSHostingView(rootView: ScrollView {
-                ChatMarkdownView(text: scrollText)
-            }.frame(width: 360, height: 180))
-            scrollHost.frame = NSRect(x: 0, y: 0, width: 360, height: 180)
-            let scrollWindow = NSWindow(contentRect: NSRect(x: 180, y: 180, width: 360, height: 180),
-                                        styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            scrollWindow.contentView = scrollHost
-            scrollWindow.makeKeyAndOrderFront(nil)
-            let scrollDeadline = Date().addingTimeInterval(8)
-            var chatScrollWeb: WKWebView?
-            while (chatScrollWeb == nil || (chatScrollWeb?.navigationDelegate as? NativeMarkdownView.Coordinator)?.measuredContentHeight ?? 0 < 500),
-                  Date() < scrollDeadline {
-                chatScrollWeb = webView(in: scrollHost)
-                try await Task.sleep(nanoseconds: 50_000_000)
-            }
-            guard let chatScrollWeb,
-                  let contentSizedWeb = chatScrollWeb as? ContentSizedMarkdownWebView else {
-                throw Failure("scrollable chat Markdown web view did not mount")
-            }
-            var ancestor = chatScrollWeb.superview
-            var chatScrollView: NSScrollView?
-            while let view = ancestor {
-                if let scroll = view as? NSScrollView { chatScrollView = scroll; break }
-                ancestor = view.superview
-            }
-            guard let chatScrollView else { throw Failure("outer chat scroll view missing above Markdown content") }
-            chatScrollView.layoutSubtreeIfNeeded()
-            let initialScrollOrigin = chatScrollView.contentView.bounds.origin.y
-            let wheelCGEvent = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
-                                       wheel1: -80, wheel2: 0, wheel3: 0)
-            guard let wheelCGEvent else { throw Failure("synthetic chat scroll event missing") }
-            wheelCGEvent.location = NSPoint(x: scrollWindow.frame.minX + 100, y: scrollWindow.frame.minY + 100)
-            guard let wheelEvent = NSEvent(cgEvent: wheelCGEvent) else { throw Failure("chat scroll event conversion failed") }
-            contentSizedWeb.scrollWheel(with: wheelEvent)
-            try await Task.sleep(nanoseconds: 150_000_000)
-            guard contentSizedWeb.forwardedScrollWheelCount > 0,
-                  chatScrollView.contentView.bounds.origin.y != initialScrollOrigin else {
-                throw Failure("mouse-wheel scroll over AI Markdown did not move the outer conversation")
-            }
-            scrollWindow.orderOut(nil)
-            checks.append("mouse-wheel input over AI Markdown scrolls the outer conversation")
+            transcriptWindow.orderOut(nil)
+            checks.append("all chat messages share one native Markdown scrolling surface; wheel input moves it and user HTML is escaped")
             // Exercise the renderer inside the real report/chat split, not only its standalone host.
             guard let reportWindow = NSApp.windows.first(where: { $0.title == "邮件小秘书" && $0.canBecomeMain }),
                   let integratedRoot = reportWindow.contentView else { throw Failure("integrated report window missing") }

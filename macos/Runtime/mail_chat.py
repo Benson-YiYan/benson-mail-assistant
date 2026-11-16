@@ -139,7 +139,7 @@ def _save_history(path, state):
     _atomic(path, text)
 
 
-def _complete(root, config, messages):
+def _complete(root, config, messages, on_delta=None):
     """Use the same provider configuration and OS credential storage as monitoring."""
     provider = config.get('ai_provider', 'codex')
     if IS_WINDOWS_PACKAGE:
@@ -150,12 +150,12 @@ def _complete(root, config, messages):
         key = ai_api.saved_api_key(root, config)
         if not key:
             raise _error(config, '未找到此基础地址的API Key，请在设置中保存。', 'No API key was found for this base URL. Save it in Settings.', 'No se encontró una clave API para esta URL base. Guárdala en Configuración.')
-        answer = ai_api.complete(config.get('api_base', ''), config.get('api_model', ''), key, messages, threading.Event())
+        answer = ai_api.complete(config.get('api_base', ''), config.get('api_model', ''), key, messages, threading.Event(), **({'on_delta': on_delta} if on_delta else {}))
     elif provider == 'deepseek_harness':
         # Harness's adapter flattens turns; encode roles so assistant text cannot become a user instruction.
         system = '\n\n'.join(m['content'] for m in messages if m['role'] == 'system')
         turns = [m for m in messages if m['role'] != 'system']
-        answer = deepseek_harness_ai.complete('', '', '', [{'role': 'system', 'content': system}, {'role': 'user', 'content': json.dumps({'conversation': turns}, ensure_ascii=False)}], threading.Event(), cli_path=config.get('harness_path', ''))
+        answer = deepseek_harness_ai.complete('', '', '', [{'role': 'system', 'content': system}, {'role': 'user', 'content': json.dumps({'conversation': turns}, ensure_ascii=False)}], threading.Event(), cli_path=config.get('harness_path', ''), **({'on_delta': on_delta} if on_delta else {}))
     elif provider == 'codex':
         if IS_WINDOWS_PACKAGE:
             command = config.get('codex_command') or []
@@ -168,7 +168,17 @@ def _complete(root, config, messages):
             output = Path(temporary) / 'answer.txt'
             args = list(command) + ['exec', '--ephemeral', '--sandbox', 'read-only', '--skip-git-repo-check', '--color', 'never', '-o', str(output), '-']
             try:
-                result = subprocess.run(args, input=json.dumps({'conversation': messages}, ensure_ascii=False), text=True, encoding='utf-8', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=temporary, timeout=600, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                if on_delta is not None:
+                    if IS_WINDOWS_PACKAGE:
+                        from .cli_stream import run_jsonl, codex_events
+                    else:
+                        from cli_stream import run_jsonl, codex_events
+                    args.insert(len(command) + 1, '--json')
+                    code = run_jsonl(args, json.dumps({'conversation': messages}, ensure_ascii=False),
+                        temporary, codex_events(on_delta))
+                    result = subprocess.CompletedProcess(args, code)
+                else:
+                    result = subprocess.run(args, input=json.dumps({'conversation': messages}, ensure_ascii=False), text=True, encoding='utf-8', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=temporary, timeout=600, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             except subprocess.TimeoutExpired:
                 raise RuntimeError('Codex timed out; the report and conversation have not been overwritten.') from None
             if result.returncode or not output.exists():
@@ -273,7 +283,7 @@ def _turn(message):
 
 
 @localized_from_root
-def chat_send(root, path, text, files=()):
+def chat_send(root, path, text, files=(), on_delta=None):
     config = _config(root); report = _report(root, path, config); location = _history_path(root, report)
     if not isinstance(text, str) or len(text) > MAX_INPUT or not (text.strip() or files):
         raise _error(config, '请输入问题（最多20000字符）或选择文件。', 'Enter a question (at most 20000 characters) or select files.', 'Escribe una pregunta (máximo 20000 caracteres) o selecciona archivos.')
@@ -307,7 +317,7 @@ def chat_send(root, path, text, files=()):
                 messages = context()
             if sum(len(m['content']) for m in messages) > MAX_CONTEXT:
                 raise _error(config, '原邮件、附件或最近对话超过60000字符上下文预算，尚未发送问题。请减少文件或问题长度；完整历史已保留。', 'Original mail, files or recent turns exceed the 60000-character context budget. This question was not sent. Reduce files or question length; full history is retained.', 'El correo original, los archivos o los turnos recientes superan el presupuesto de 60000 caracteres. Esta pregunta no se envió. Reduce archivos o texto; se conserva el historial completo.')
-        answer = clean_internal_source_tags(_complete(root, config, messages))
+        answer = clean_internal_source_tags(_complete(root, config, messages, **({'on_delta': on_delta} if on_delta else {})))
         state['messages'] += [new, {'role': 'assistant', 'content': answer}]
         _save_history(location, state)
         return {**_view(state), 'answer': answer}

@@ -1238,6 +1238,7 @@ sealed partial class MainWindow : Window
     }
     void HandleEvent(JsonElement ev)
     {
+        if (ev.TryGetProperty("chat_partial", out _)) { ReceiveChatPartial(ev); return; }
         if (ev.TryGetProperty("status", out var state))
         {
             var rawStatus = state.GetString();

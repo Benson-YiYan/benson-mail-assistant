@@ -36,6 +36,9 @@ struct ReportChatSnapshot: Decodable {
 
 struct ReportConversationState {
     var messages: [ReportChatMessage] = []
+    var streaming = false
+    var streamingQuestion = ""
+    var partialAnswer = ""
     var compressed = false
     var loaded = false
     var busy = false
@@ -109,13 +112,27 @@ final class ReportConversationStore: ObservableObject {
         let question = original.draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !original.busy, !question.isEmpty || !original.files.isEmpty else { return }
         update(path) { $0.busy = true; $0.operation = "正在回答邮件问题…"; $0.error = "" }
-        defer { update(path) { $0.busy = false; $0.operation = "" } }
+        update(path) { $0.streaming = true; $0.streamingQuestion = question; $0.partialAnswer = "" }
+        defer { update(path) { $0.busy = false; $0.operation = ""; $0.streaming = false; $0.streamingQuestion = "" } }
         do {
             // Send private request text through a temporary file, never through command-line arguments.
             let requests = base.appendingPathComponent("chat-requests")
             try FileManager.default.createDirectory(at: requests, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             let request = requests.appendingPathComponent(UUID().uuidString + ".json")
-            defer { try? FileManager.default.removeItem(at: request) }
+            let progress = request.deletingPathExtension().appendingPathExtension("progress")
+            defer { try? FileManager.default.removeItem(at: request); try? FileManager.default.removeItem(at: progress) }
+            let polling = Task { @MainActor in
+                var previous = ""
+                while !Task.isCancelled {
+                    if let data = try? Data(contentsOf: progress), data.count <= 4 * 1024 * 1024,
+                       let partial = String(data: data, encoding: .utf8), partial != previous {
+                        previous = partial
+                        self.update(path) { $0.partialAnswer = partial }
+                    }
+                    do { try await Task.sleep(nanoseconds: 150_000_000) } catch { break }
+                }
+            }
+            defer { polling.cancel() }
             let bytes = try JSONEncoder().encode(ChatRequest(path: path, text: question, files: original.files))
             try bytes.write(to: request, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: request.path)
@@ -123,11 +140,18 @@ final class ReportConversationStore: ObservableObject {
             let snapshot = try Self.decode(ReportChatSnapshot.self, from: result)
             update(path) {
                 $0.messages = snapshot.messages; $0.compressed = snapshot.compressed; $0.loaded = true
+                $0.partialAnswer = ""
                 // Preserve edits if a caller changed a draft while the worker was running.
                 if $0.draft == original.draft { $0.draft = "" }
                 if $0.files == original.files { $0.files = [] }
             }
-        } catch { update(path) { $0.error = error.localizedDescription } }
+        } catch { update(path) {
+            $0.error = error.localizedDescription
+            if !$0.partialAnswer.isEmpty {
+                $0.messages += [ReportChatMessage(role: "user", content: question, files: original.files), ReportChatMessage(role: "assistant", content: $0.partialAnswer)]
+                $0.partialAnswer = ""
+            }
+        } }
     }
     func regenerate(_ path: String, updated: (String, URL, String) -> Void) async {
         guard !state(path).busy else { return }

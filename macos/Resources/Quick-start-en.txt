@@ -102,3 +102,5 @@ Codex mode: Select Codex in AI services, click Find Codex or browse to its comma
 After download and verification, a confirmation asks whether to install and restart. Confirming starts installation immediately. Later retains the verified package without downloading again.
 
 Email questions: AI replies render Markdown, including headings, paragraphs, nested lists, block quotes, tables, code blocks, links and common inline formatting. Raw HTML is disabled.
+
+Chat uses one vertical scroll area for the whole conversation. With a streaming-capable API, answers appear as they arrive. Other APIs show the completed response. Codex CLI and DeepSeek Harness update when their tools emit answer text; no typewriter animation is used. Reading earlier messages does not force you back to the bottom.

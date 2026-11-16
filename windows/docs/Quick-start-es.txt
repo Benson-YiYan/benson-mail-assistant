@@ -105,3 +105,5 @@ Codex puede instalarse en cualquier ubicación. Buscar Codex comprueba PATH, npm
 Al completar la descarga y verificación, se pregunta si deseas instalar y reiniciar. Confirmar inicia la instalación de inmediato. Más tarde conserva el paquete verificado sin descargarlo otra vez.
 
 Preguntas sobre el correo: las respuestas de IA muestran Markdown, incluidos títulos, párrafos, listas anidadas, citas, tablas, bloques de código, enlaces y formatos en línea habituales. El HTML no se ejecuta.
+
+El chat usa una sola zona de desplazamiento vertical para toda la conversación. Las API compatibles muestran la respuesta mientras llega; las demás muestran el resultado completo. Codex CLI y DeepSeek Harness se actualizan cuando la herramienta emite texto de respuesta, sin simularlo con una animación. Al leer mensajes anteriores, no se fuerza el salto al final.

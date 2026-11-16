@@ -125,31 +125,8 @@ struct ReportConversationView: View {
                 Label(T("较早的对话已压缩为摘要，后续提问会继续使用摘要与最近的消息。"), systemImage: "text.alignleft")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            ScrollViewReader { scroll in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        if state.messages.isEmpty {
-                            Text(T("可以针对这封邮件和附件继续提问，也可以添加文件。对话会自动保存。"))
-                                .font(.callout).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        ForEach(state.messages) { message in
-                            VStack(alignment: .leading, spacing: 5) {
-                                Label(T(message.role == "user" ? "你" : message.role == "assistant" ? "AI 助手" : "对话摘要"), systemImage: message.role == "user" ? "person.crop.circle" : "sparkles")
-                                    .font(.caption.bold()).foregroundStyle(.secondary)
-                                if message.role == "user" {
-                                    Text(message.content).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
-                                } else {
-                                    ChatMarkdownView(text: message.content)
-                                }
-                                ForEach(Array(message.files.enumerated()), id: \.offset) { _, file in
-                                    Label(URL(fileURLWithPath: file).lastPathComponent, systemImage: "paperclip").font(.caption).foregroundStyle(.secondary)
-                                }
-                            }.padding(10).background(message.role == "user" ? Color.accentColor.opacity(0.07) : Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-                        }
-                        Color.clear.frame(height: 1).id("conversation-bottom")
-                    }.padding(.trailing, 6)
-                }.onChange(of: state.messages.count) { _, _ in scroll.scrollTo("conversation-bottom", anchor: .bottom) }
-            }.frame(minHeight: 75, maxHeight: .infinity)
+            ConversationTranscriptView(messages: state.messages, question: state.streamingQuestion, partial: state.partialAnswer, pending: state.streaming, files: state.files)
+                .frame(minHeight: 75, maxHeight: .infinity)
             if !state.error.isEmpty {
                 HStack(alignment: .top) {
                     Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)

@@ -82,24 +82,32 @@ def saved_api_key(root, config):
     return result.stdout.strip() if result.returncode == 0 else ''
 
 @localized
-def complete(base, model, key, messages, stop=None):
+def complete(base, model, key, messages, stop=None, on_delta=None):
     url = endpoint(base)
     if not model.strip() or not key.strip():
         raise ValueError(_t('请填写模型名和 API Key。'))
     if stop is not None and stop.is_set():
         raise RuntimeError(_t('分析已停止，邮件将在下次重试。'))
-    payload = json.dumps({'model': model.strip(), 'messages': messages, 'stream': False}, ensure_ascii=False).encode()
+    parameters = {'model': model.strip(), 'messages': messages, 'stream': on_delta is not None}
+    if on_delta is not None:
+        parameters['stream_options'] = {'include_usage': True}
+    payload = json.dumps(parameters, ensure_ascii=False).encode()
     if len(payload) > 2 * 1024 * 1024:
         raise RuntimeError(_t('本封邮件及附件文字过大，尚未发送给 AI，请缩小附件后重试。'))
     request = urllib.request.Request(url, data=payload, headers={
         'Authorization': 'Bearer ' + key.strip(), 'Content-Type': 'application/json',
-        'Accept': 'application/json', 'User-Agent': 'BensonMail/1.1'}, method='POST')
+        'Accept': 'text/event-stream' if on_delta is not None else 'application/json', 'User-Agent': 'BensonMail/1.1'}, method='POST')
     try:
         with urllib.request.build_opener(NoRedirect()).open(request, timeout=120) as response:
-            raw = response.read(MAX_RESPONSE + 1)
-        if len(raw) > MAX_RESPONSE:
+            if on_delta is not None and 'text/event-stream' in response.headers.get('Content-Type', '').lower():
+                value = read_stream(response, on_delta, stop)
+                raw = None
+            else:
+                raw = response.read(MAX_RESPONSE + 1)
+        if raw is not None and len(raw) > MAX_RESPONSE:
             raise RuntimeError(_t('AI 返回内容过大，邮件保留待重试。'))
-        value = json.loads(raw)
+        if raw is not None:
+            value = json.loads(raw)
     except urllib.error.HTTPError as error:
         code = error.code
         error.close()
@@ -129,3 +137,72 @@ def complete(base, model, key, messages, stop=None):
         return content.strip()
     except (KeyError, IndexError, TypeError, ValueError):
         raise RuntimeError(_t('AI 没有返回报告，请检查模型是否支持 Chat Completions。')) from None
+
+
+def read_stream(response, on_delta, stop=None):
+    """Consume bounded SSE events; only public answer deltas leave this adapter."""
+    chunks, usage, finish, total, ended = [], None, None, 0, False
+    data_lines = []
+
+    def consume(data):
+        nonlocal usage, finish, ended
+        if data.strip() == b'[DONE]':
+            ended = True
+            return
+        if not data.strip():
+            return
+        try:
+            event = json.loads(data)
+            if not isinstance(event, dict):
+                raise ValueError()
+            if event.get('error'):
+                raise RuntimeError('AI 服务商返回流式错误 [AI_STREAM_PROVIDER]')
+            if isinstance(event.get('usage'), dict):
+                usage = event['usage']
+            choices = event.get('choices', [])
+            if not isinstance(choices, list):
+                raise ValueError()
+            for choice in choices:
+                if not isinstance(choice, dict):
+                    raise ValueError()
+                if choice.get('index', 0) != 0:
+                    continue
+                delta = choice.get('delta') or {}
+                if not isinstance(delta, dict):
+                    raise ValueError()
+                content = delta.get('content', '')
+                if isinstance(content, list):
+                    content = ''.join(p.get('text', '') for p in content
+                                      if isinstance(p, dict) and isinstance(p.get('text'), str))
+                if isinstance(content, str) and content:
+                    chunks.append(content)
+                    on_delta(content)
+                if choice.get('finish_reason'):
+                    finish = choice['finish_reason']
+                break
+        except (ValueError, UnicodeError, TypeError):
+            raise RuntimeError('AI 返回无效的流式数据 [AI_STREAM_INVALID]') from None
+
+    while not ended:
+        if stop is not None and stop.is_set():
+            raise RuntimeError('AI 请求已停止 [AI_CANCELLED]')
+        # Bound the allocation itself, including a provider sending no newline.
+        line = response.readline(MAX_RESPONSE - total + 1)
+        if not line:
+            if data_lines:
+                consume(b'\n'.join(data_lines))
+            break
+        total += len(line)
+        if total > MAX_RESPONSE:
+            raise RuntimeError('AI 返回流式内容过大 [AI_STREAM_LIMIT]')
+        line = line.rstrip(b'\r\n')
+        if not line:
+            if data_lines:
+                consume(b'\n'.join(data_lines))
+                data_lines.clear()
+        elif line.startswith(b'data:'):
+            value = line[5:]
+            data_lines.append(value[1:] if value.startswith(b' ') else value)
+    if not ended and finish is None:
+        raise RuntimeError('AI 流式连接在回答完成前断开 [AI_STREAM_INCOMPLETE]')
+    return {'choices': [{'message': {'content': ''.join(chunks)}, 'finish_reason': finish}], 'usage': usage}

@@ -21,6 +21,7 @@ internal sealed class MarkdownReportView : UserControl
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
         HorizontalContentAlignment = HorizontalAlignment.Stretch };
     public MarkdownReportView() { Content = scroller; }
+    public bool ContentSized { get; set; }
     string text = "";
     bool markdown = true;
     public string Text { get => text; set => Show(value, markdown); }
@@ -38,7 +39,8 @@ internal sealed class MarkdownReportView : UserControl
         var stack = new StackPanel { Spacing = 12, Padding = new Thickness(12) };
         if (isMarkdown) Blocks(Markdown.Parse(value, Pipeline), stack);
         else stack.Children.Add(Plain(value));
-        scroller.Content = stack;
+        if (ContentSized) { scroller.Content = null; Content = stack; }
+        else { Content = scroller; scroller.Content = stack; }
     }
     TextBlock Plain(string value) => new() { Text = value, IsTextSelectionEnabled = true,
         FontFamily = FontFamily, FontSize = FontSize, TextWrapping = TextWrapping.Wrap };

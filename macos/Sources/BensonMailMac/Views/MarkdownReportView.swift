@@ -68,128 +68,102 @@ struct MarkdownReportView: View {
     }
 }
 
-struct ChatMarkdownView: View {
-    let text: String
+/// One native scroll surface for the entire conversation, including streamed replies.
+struct ConversationTranscriptView: View {
+    @ObservedObject private var language = AppLanguage.shared
+    let messages: [ReportChatMessage]
+    let question: String
+    let partial: String
+    var pending = false
+    var files: [String] = []
     @MarkdownState private var html = ""
-    @MarkdownState private var error = ""
-    @MarkdownState private var contentHeight: CGFloat = 48
-
+    private var revision: String {
+        messages.map { $0.role + "\n" + $0.content + "\n" + $0.files.joined(separator: "\n") }.joined(separator: "\n\n") + question + partial + String(pending) + files.joined() + language.code
+    }
     var body: some View {
-        Group {
-            if error.isEmpty {
-                NativeMarkdownView(
-                    html: html,
-                    onContentHeightChange: { measuredHeight in
-                        guard abs(contentHeight - measuredHeight) > 1 else { return }
-                        contentHeight = measuredHeight
-                    },
-                    forwardsScrollWheelToAncestor: true
-                )
-                .frame(maxWidth: .infinity)
-                .frame(height: contentHeight)
-            } else {
-                Text(text).textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        NativeMarkdownView(html: html, preservesScrollPosition: true)
+            .task(id: revision) {
+                do {
+                    // Coalesce incoming chunks; completed messages reuse the bounded render cache.
+                    try Task.checkCancellation()
+                    let rows = messages.map { ($0.role, $0.content, $0.files) } +
+                        (!pending && question.isEmpty && partial.isEmpty ? [] : [("user", question, files), ("assistant", partial, [])])
+                    let userLabel = Self.escape(T("你")), assistantLabel = Self.escape(T("AI 助手"))
+                    let welcome = Self.escape(T("可以针对这封邮件和附件继续提问，也可以添加文件。对话会自动保存。"))
+                    let rendered = try await Task.detached {
+                        var fragments: [String] = []
+                        for (role, content, files) in rows {
+                            let label = role == "user" ? userLabel : assistantLabel
+                            let body: String
+                            if role == "user" {
+                                body = "<p style=\"white-space:pre-wrap\">" + Self.escape(content) + "</p>"
+                            } else {
+                                let document = try MarkdownDocument.render(content)
+                                body = document.components(separatedBy: "<body>").last?.components(separatedBy: "</body>").first ?? Self.escape(content)
+                            }
+                            fragments.append("<section><strong>" + label + "</strong>" + body +
+                                files.map { "<p>" + Self.escape(URL(fileURLWithPath: $0).lastPathComponent) + "</p>" }.joined() + "</section><hr>")
+                        }
+                        return MarkdownDocument.html(fragments.isEmpty ? "<p>" + welcome + "</p>" : fragments.joined())
+                    }.value
+                    guard !Task.isCancelled else { return }
+                    html = rendered
+                } catch is CancellationError {} catch {
+                    if !Task.isCancelled { html = MarkdownDocument.html("<pre>" + Self.escape(revision) + "</pre>") }
+                }
             }
-        }
-        .task(id: text) {
-            html = ""; error = ""
-            contentHeight = 48
-            do {
-                let rendered = try await Task.detached { try MarkdownDocument.render(text) }.value
-                guard !Task.isCancelled else { return }
-                html = rendered
-            } catch {
-                guard !Task.isCancelled else { return }
-                self.error = error.localizedDescription
-            }
-        }
     }
-}
-
-final class ContentSizedMarkdownWebView: WKWebView {
-    var widthDidChange: (() -> Void)?
-    var forwardsScrollWheelToAncestor = false
-    var forwardedScrollWheelCount = 0
-
-    override func setFrameSize(_ newSize: NSSize) {
-        let widthChanged = abs(frame.width - newSize.width) > 1
-        super.setFrameSize(newSize)
-        if widthChanged { widthDidChange?() }
-    }
-
-    override func scrollWheel(with event: NSEvent) {
-        guard forwardsScrollWheelToAncestor else {
-            super.scrollWheel(with: event)
-            return
-        }
-        var ancestor = superview
-        while let view = ancestor {
-            if let scrollView = view as? NSScrollView {
-                forwardedScrollWheelCount += 1
-                scrollView.scrollWheel(with: event)
-                return
-            }
-            ancestor = view.superview
-        }
-        super.scrollWheel(with: event)
+    private static func escape(_ text: String) -> String {
+        text.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
     }
 }
 
 struct NativeMarkdownView: NSViewRepresentable {
     let html: String
-    var onContentHeightChange: ((CGFloat) -> Void)? = nil
-    var forwardsScrollWheelToAncestor = false
+    var preservesScrollPosition = false
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         config.defaultWebpagePreferences.allowsContentJavaScript = false
-        let view = ContentSizedMarkdownWebView(frame: .zero, configuration: config)
+        let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
         view.setValue(false, forKey: "drawsBackground")
-        view.widthDidChange = { [weak coordinator = context.coordinator, weak view] in
-            guard let coordinator, let view else { return }
-            DispatchQueue.main.async { coordinator.measureContentHeight(in: view, forWidth: view.bounds.width) }
-        }
         return view
     }
     func updateNSView(_ view: WKWebView, context: Context) {
-        context.coordinator.onContentHeightChange = onContentHeightChange
-        (view as? ContentSizedMarkdownWebView)?.forwardsScrollWheelToAncestor = forwardsScrollWheelToAncestor
         guard !html.isEmpty else { return }
-        guard context.coordinator.previous != html else {
-            context.coordinator.measureContentHeight(in: view, forWidth: view.bounds.width)
-            return
-        }
+        guard context.coordinator.previous != html else { return }
         context.coordinator.previous = html
         context.coordinator.finished = false
         context.coordinator.loadCount += 1
-        view.loadHTMLString(html, baseURL: nil)
+        if preservesScrollPosition, context.coordinator.loadCount > 1 {
+            let coordinator = context.coordinator
+            let expected = html
+            view.evaluateJavaScript("({y:window.scrollY,bottom:window.scrollY+window.innerHeight>=document.documentElement.scrollHeight-30})") { value, _ in
+                guard coordinator.previous == expected else { return }
+                let position = value as? [String: Any]
+                coordinator.savedScrollY = (position?["y"] as? NSNumber)?.doubleValue ?? 0
+                coordinator.followBottom = position?["bottom"] as? Bool ?? true
+                view.loadHTMLString(expected, baseURL: nil)
+            }
+        } else {
+            context.coordinator.followBottom = preservesScrollPosition
+            view.loadHTMLString(html, baseURL: nil)
+        }
     }
     final class Coordinator: NSObject, WKNavigationDelegate {
         var previous: String?
         var finished = false
         var loadCount = 0
         var failure = ""
-        var onContentHeightChange: ((CGFloat) -> Void)?
-        var measuredContentHeight: CGFloat = 0
-        var measuredWidth: CGFloat = 0
+        var savedScrollY: Double = 0
+        var followBottom = false
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             finished = true
-            measureContentHeight(in: webView, forWidth: webView.bounds.width, force: true)
-        }
-        func measureContentHeight(in webView: WKWebView, forWidth width: CGFloat, force: Bool = false) {
-            guard onContentHeightChange != nil else { return }
-            guard width > 1, force || abs(measuredWidth - width) > 1 else { return }
-            measuredWidth = width
-            webView.evaluateJavaScript("Math.ceil(document.documentElement.scrollHeight)") { [weak self] value, _ in
-                guard let self, let number = value as? NSNumber else { return }
-                let height = max(48, CGFloat(number.doubleValue) + 4)
-                DispatchQueue.main.async {
-                    self.measuredContentHeight = height
-                    self.onContentHeightChange?(height)
-                }
+            if followBottom || savedScrollY > 0 {
+                let target = followBottom ? "document.documentElement.scrollHeight" : String(savedScrollY)
+                webView.evaluateJavaScript("window.scrollTo(0," + target + ")", completionHandler: nil)
             }
         }
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failure = error.localizedDescription }
