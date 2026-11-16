@@ -47,11 +47,15 @@ private struct ChatComposer: NSViewRepresentable {
         editor.isEditable = enabled
         editor.isSelectable = true
         editor.textContainer?.containerSize = NSSize(width: scroll.contentSize.width, height: .greatestFiniteMagnitude)
-        if editor.string != text {
-            let selection = editor.selectedRange()
-            editor.string = text
-            editor.setSelectedRange(NSRange(location: min(selection.location, (text as NSString).length), length: 0))
-        }
+        Self.synchronizeModelText(text, to: editor)
+    }
+
+    static func synchronizeModelText(_ text: String, to editor: NSTextView) {
+        // Background state refreshes must not replace AppKit's uncommitted IME text.
+        guard !editor.hasMarkedText(), editor.string != text else { return }
+        let selection = editor.selectedRange()
+        editor.string = text
+        editor.setSelectedRange(NSRange(location: min(selection.location, (text as NSString).length), length: 0))
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }

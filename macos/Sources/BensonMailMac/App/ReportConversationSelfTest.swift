@@ -64,6 +64,16 @@ enum ReportConversationSelfTest {
         }
     }
     static func run(base: URL) async throws -> [String] {
+        let imeEditor = NSTextView()
+        imeEditor.setMarkedText("wo'you'shen'me", selectedRange: NSRange(location: 14, length: 0),
+                                replacementRange: NSRange(location: 0, length: 0))
+        guard imeEditor.hasMarkedText() else { throw Failure(message: "synthetic IME composition did not start") }
+        ChatComposer.synchronizeModelText("older saved draft", to: imeEditor)
+        try require(imeEditor.hasMarkedText() && imeEditor.string == "wo'you'shen'me",
+                    "background model refresh replaced unfinished IME composition")
+        imeEditor.unmarkText()
+        ChatComposer.synchronizeModelText("committed draft", to: imeEditor)
+        try require(imeEditor.string == "committed draft", "committed draft did not synchronize after IME composition ended")
         try require(ChatMarkdown.blocks("说明\n\n| 项目 | 时间 |\n| --- | --- |\n| **午饭** | 12:00 |\n\n完成").contains(
             .table([["项目", "时间"], ["**午饭**", "12:00"]])), "chat Markdown table lost headers or cells")
         try require(ChatMarkdown.cells("| A\\|B | `x|y` |") == ["A|B", "`x|y`"],
