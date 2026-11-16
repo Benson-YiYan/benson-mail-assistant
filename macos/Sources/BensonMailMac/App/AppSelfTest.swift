@@ -161,14 +161,20 @@ enum AppSelfTest {
             guard (documentHeight?.doubleValue ?? 0) > 500 else { throw Failure("long chat reply is not scrollable") }
             try await transcriptWeb.evaluateJavaScript("window.scrollTo(0,300)")
             let beforeWheel = try await transcriptWeb.evaluateJavaScript("window.scrollY") as? NSNumber
-            guard let wheelCG = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 80, wheel2: 0, wheel3: 0),
-                  let wheel = NSEvent(cgEvent: wheelCG) else { throw Failure("scroll fixture event missing") }
-            let wheelTarget = transcriptWeb.hitTest(NSPoint(x: 100, y: 100)) ?? transcriptWeb
-            wheelTarget.scrollWheel(with: wheel)
+            guard let wheelCG = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 80, wheel2: 0, wheel3: 0) else {
+                throw Failure("scroll fixture event missing")
+            }
+            // WebKit's asynchronous scrolling requires dispatch through the native event queue.
+            // Directly invoking scrollWheel skips that route when page JavaScript is disabled.
+            let wheelPoint = transcriptWindow.convertPoint(toScreen: transcriptWeb.convert(NSPoint(x: 100, y: 100), to: nil))
+            wheelCG.location = CGPoint(x: wheelPoint.x, y: (NSScreen.main?.frame.maxY ?? 0) - wheelPoint.y)
+            wheelCG.setIntegerValueField(.mouseEventWindowUnderMousePointer, value: Int64(transcriptWindow.windowNumber))
+            wheelCG.setIntegerValueField(.mouseEventWindowUnderMousePointerThatCanHandleThisEvent, value: Int64(transcriptWindow.windowNumber))
+            wheelCG.post(tap: .cgSessionEventTap)
             try await Task.sleep(nanoseconds: 250_000_000)
             let afterWheel = try await transcriptWeb.evaluateJavaScript("window.scrollY") as? NSNumber
             guard beforeWheel?.doubleValue != afterWheel?.doubleValue else {
-                throw Failure("wheel over Markdown did not scroll the single conversation surface")
+                throw Failure("wheel over Markdown did not scroll the single conversation surface: before=\(String(describing: beforeWheel)), after=\(String(describing: afterWheel))")
             }
             transcriptWindow.orderOut(nil)
             checks.append("all chat messages share one native Markdown scrolling surface; wheel input moves it and user HTML is escaped")

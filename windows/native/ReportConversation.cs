@@ -306,7 +306,7 @@ sealed partial class MainWindow
         ReceiveChatPartial(JsonSerializer.SerializeToElement(new { chat_path = path, chat_partial = "# Live reply\n\n| A | B |\n| --- | --- |\n| 1 | 2 |" }));
         check(streamingReply != null && streamingReply.HeadingCount == 1 && streamingReply.TableCount == 1 &&
             streamingReply.Content is StackPanel, "Streaming chunks update one content-sized Markdown reply inside the conversation scroll area");
-        SetConversation(JsonSerializer.SerializeToElement(new { messages = conversationHistory, compressed = false }));
+        SetConversation(JsonSerializer.SerializeToElement(new { messages = Array.Empty<object>(), compressed = false }));
         check(streamingReply != null && streamingReply.TableCount == 1,
             "Refreshing the conversation preserves an in-flight streamed reply");
         pendingConversations.Remove(path); RefreshConversationLanguage();
