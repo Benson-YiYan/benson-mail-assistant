@@ -70,7 +70,8 @@ sealed partial class MainWindow
                         "Existing settings card refreshes to " + language + ": " + label);
                 check(retryReport.Content?.ToString() == L.T("重新总结") &&
                     sendQuestion.Content?.ToString() == L.T("发送问题") &&
-                    question.Header?.ToString() == L.T("对邮件提问") &&
+                    conversationHeading.Text == L.T("对邮件提问") &&
+                    restoreConversation.Content?.ToString() == L.T("恢复对话") &&
                     notificationToggle.Content?.ToString() == L.T(notificationsEnabled ? "暂停系统通知" : "开启系统通知") &&
                     this.check.Content?.ToString() == L.T("立即检查"),
                     "Existing report/chat actions and check button refresh to " + language);
