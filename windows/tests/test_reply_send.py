@@ -79,8 +79,16 @@ class ReplySendTests(unittest.TestCase):
         transport=Mock()
         tools._smtp_auth(transport,{'account':'owner@example.invalid'},'token',True)
         self.assertEqual(transport.auth.call_args.args[0],'XOAUTH2')
-        response=transport.auth.call_args.args[1](None)
+        callback=transport.auth.call_args.args[1]
+        response=callback()
         self.assertIsInstance(response,str);self.assertIn('auth=Bearer token',response)
+        self.assertEqual(callback(b'authentication error'), '')
+        # Use smtplib's real AUTH path so its no-argument initial-response call
+        # is exercised without opening a socket or sending a real message.
+        transport=tools.smtplib.SMTP()
+        transport.docmd=Mock(return_value=(235,b'authenticated'))
+        tools._smtp_auth(transport,{'account':'owner@example.invalid'},'token',True)
+        self.assertEqual(transport.docmd.call_args.args[0],'AUTH')
 
     def test_dispatch_routes_send_without_extra_work(self):
         with patch.object(tools,'reply_send',return_value={'sent':True}) as send:

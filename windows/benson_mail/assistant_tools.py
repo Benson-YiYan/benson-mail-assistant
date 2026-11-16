@@ -477,7 +477,7 @@ def _smtp_auth(client, connection, secret, oauth2):
     if any(c in secret for c in '\r\n\x01') or any(c in username for c in '\r\n\x01'):
         raise ValueError('OAuth2 access token or login name is invalid.')
     response = f'user={username}\x01auth=Bearer {secret}\x01\x01'
-    client.auth('XOAUTH2', lambda challenge: response)
+    client.auth('XOAUTH2', lambda challenge=None: response if challenge is None else '')
 
 
 def reply_send(root, request, controller=None):
