@@ -49,6 +49,7 @@ sealed partial class MainWindow
     }
     async Task OriginalMailSelfTest(Action<bool, string> check)
     {
+        reports.SelectedIndex = 0;
         if (SelectedReport is not Report report) throw new InvalidOperationException("Original-mail fixture report missing");
         var original = await bridge.Call("read_original", new { path = report.path });
         check(HasOriginalBody(original) && JsonText(original, "body").Contains("请检查合同正文"),
