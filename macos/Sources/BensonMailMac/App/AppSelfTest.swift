@@ -154,14 +154,17 @@ enum AppSelfTest {
                 throw Failure("chat Markdown content did not report a usable intrinsic height")
             }
             let wideContentHeight = chatCoordinator.measuredContentHeight
+            let wideContentWidth = chatCoordinator.measuredWidth
             chatMarkdownWindow.setContentSize(NSSize(width: 190, height: 48))
             let narrowDeadline = Date().addingTimeInterval(5)
-            while (chatCoordinator.measuredWidth >= 190 || chatCoordinator.measuredContentHeight <= wideContentHeight),
+            while (chatCoordinator.measuredWidth >= wideContentWidth - 50 ||
+                   chatCoordinator.measuredContentHeight <= wideContentHeight),
                   Date() < narrowDeadline {
                 try await Task.sleep(nanoseconds: 50_000_000)
             }
-            guard chatCoordinator.measuredWidth < 190, chatCoordinator.measuredContentHeight > wideContentHeight else {
-                throw Failure("chat Markdown height did not adapt to a narrower window")
+            guard chatCoordinator.measuredWidth < wideContentWidth - 50,
+                  chatCoordinator.measuredContentHeight > wideContentHeight else {
+                throw Failure("chat Markdown resize failed: width \(wideContentWidth) -> \(chatCoordinator.measuredWidth), height \(wideContentHeight) -> \(chatCoordinator.measuredContentHeight)")
             }
             chatMarkdownWindow.orderOut(nil)
             checks.append("content-sized chat Markdown remains visible and remeasures wrapped text after resizing")
