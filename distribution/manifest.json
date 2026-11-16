@@ -1,103 +1,103 @@
 {
   "schema_version": 1,
   "platforms": {
-    "macos-arm64": {
-      "version": "202611111937",
-      "sha256": "c8c04a6c2db66bed82adc2a06e44f1593be8f8fe06c50d6fbe9eb2f0fa60cce2",
-      "size": 22484481,
+    "windows-x64": {
+      "version": "202611161720",
+      "sha256": "bf49a6804042fe5ead2a81822555a716e16ca30d12eff041112b61dfa3354ba7",
+      "size": 24595047,
       "notes": {
-        "zh": "新增自定义总结提示词、跨邮箱多选总结及AI对话表格显示；修复Windows报告树及恢复默认提示词后的草稿状态。",
-        "en": "Custom summary prompts, summaries across mailboxes and Markdown tables in chat. Fixed Windows report-tree filtering and prompt-reset draft state.",
-        "es": "Instrucciones personalizadas, resúmenes entre buzones y tablas Markdown en el chat. Correcciones del árbol de informes y borradores en Windows."
+        "zh": "聊天共用一个滚动区；修复 AI 回复不可见和滚轮滚动，支持完整 Markdown 与流式回答；用户消息增加透明浅蓝底色。Codex/Harness 按工具实际输出片段更新。",
+        "en": "One conversation scroll area; fix invisible replies and scrolling, support full Markdown and live streamed answers, and tint user messages translucent blue. Codex/Harness update at their native output granularity.",
+        "es": "Una sola zona de desplazamiento; corrige respuestas invisibles y desplazamiento, admite Markdown y respuestas en tiempo real, y añade fondo azul translúcido a los mensajes del usuario. Codex/Harness se actualizan según sus fragmentos reales."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Mac-AppleSilicon-202611111937.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.3/BensonMail-Windows-x64-Setup-202611161720.exe"
       ],
-      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611111937.dmg"
+      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611161720.exe"
+    },
+    "macos-arm64": {
+      "version": "202611161721",
+      "sha256": "ad1bbc063972134e4919da65ee2e12dffe12e03c4787b9758d0043fc990e586a",
+      "size": 21273860,
+      "notes": {
+        "zh": "聊天共用一个滚动区；修复 AI 回复不可见和滚轮滚动，支持完整 Markdown 与流式回答；用户消息增加透明浅蓝底色。Codex/Harness 按工具实际输出片段更新。",
+        "en": "One conversation scroll area; fix invisible replies and scrolling, support full Markdown and live streamed answers, and tint user messages translucent blue. Codex/Harness update at their native output granularity.",
+        "es": "Una sola zona de desplazamiento; corrige respuestas invisibles y desplazamiento, admite Markdown y respuestas en tiempo real, y añade fondo azul translúcido a los mensajes del usuario. Codex/Harness se actualizan según sus fragmentos reales."
+      },
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.3/BensonMail-Mac-AppleSilicon-202611161721.dmg"
+      ],
+      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611161721.dmg"
     },
     "macos-x86_64": {
-      "version": "202611111940",
-      "sha256": "be5f9f4c5a487623063e49db5487375722cdee3719ced498e3421462dc6c917f",
-      "size": 20373337,
+      "version": "202611161726",
+      "sha256": "306d8e246b163c71915eb9b2dfc6337d2c326d6ae5c677ee42aef13a0cc141bb",
+      "size": 20426807,
       "notes": {
-        "zh": "新增自定义总结提示词、跨邮箱多选总结及AI对话表格显示；修复Windows报告树及恢复默认提示词后的草稿状态。",
-        "en": "Custom summary prompts, summaries across mailboxes and Markdown tables in chat. Fixed Windows report-tree filtering and prompt-reset draft state.",
-        "es": "Instrucciones personalizadas, resúmenes entre buzones y tablas Markdown en el chat. Correcciones del árbol de informes y borradores en Windows."
+        "zh": "聊天共用一个滚动区；修复 AI 回复不可见和滚轮滚动，支持完整 Markdown 与流式回答；用户消息增加透明浅蓝底色。Codex/Harness 按工具实际输出片段更新。",
+        "en": "One conversation scroll area; fix invisible replies and scrolling, support full Markdown and live streamed answers, and tint user messages translucent blue. Codex/Harness update at their native output granularity.",
+        "es": "Una sola zona de desplazamiento; corrige respuestas invisibles y desplazamiento, admite Markdown y respuestas en tiempo real, y añade fondo azul translúcido a los mensajes del usuario. Codex/Harness se actualizan según sus fragmentos reales."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Mac-Intel-202611111940.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.3/BensonMail-Mac-Intel-202611161726.dmg"
       ],
-      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611111940.dmg"
-    },
-    "windows-x64": {
-      "version": "202611111937",
-      "sha256": "fb09353c70d00c332c4db8c6aa448311a7379b0110b798d06f78251a232d7fed",
-      "size": 24587937,
-      "notes": {
-        "zh": "新增自定义总结提示词、跨邮箱多选总结及AI对话表格显示；修复Windows报告树及恢复默认提示词后的草稿状态。",
-        "en": "Custom summary prompts, summaries across mailboxes and Markdown tables in chat. Fixed Windows report-tree filtering and prompt-reset draft state.",
-        "es": "Instrucciones personalizadas, resúmenes entre buzones y tablas Markdown en el chat. Correcciones del árbol de informes y borradores en Windows."
-      },
-      "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Windows-x64-Setup-202611111937.exe"
-      ],
-      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611111937.exe"
+      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611161726.dmg"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202611111938",
-      "sha256": "c38d90504afb4db79e3390a84d033b33ae45be489a04f6afddad66e41476bc1c",
-      "size": 43783,
+      "version": "202611161737",
+      "sha256": "762db9e887b20ffe24a45f9323db3384f02c0b569bd64c039a1251b7e8110626",
+      "size": 44261,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-zh-202611111938.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.3/BensonMail-Language-windows-zh-202611161737.json"
       ],
-      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611111938.json"
+      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611161737.json"
     },
     "windows-en": {
-      "version": "202611111938",
-      "sha256": "5aa8cb8f6e72154af014b78d4ada8e9a45589cad9f6245aea74f6297269dae63",
-      "size": 128809,
+      "version": "202611161737",
+      "sha256": "e98d355c94f59bdeb796206fd43b48da16d865b09d3e4e27e51ebd4cbd6883fb",
+      "size": 129205,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-en-202611111938.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.3/BensonMail-Language-windows-en-202611161737.json"
       ],
-      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611111938.json"
+      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611161737.json"
     },
     "windows-es": {
-      "version": "202611111938",
-      "sha256": "92a0bfab318267c6ea4cbd1d973a6b4cf52ec4844864c72b74a516bc73b0410c",
-      "size": 139869,
+      "version": "202611161737",
+      "sha256": "f6f249f9521182925fb4299f80c46ef0c51c1ba58eb1c6ebec741b210eb17ecc",
+      "size": 140294,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-windows-es-202611111938.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.3/BensonMail-Language-windows-es-202611161737.json"
       ],
-      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611111938.json"
+      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611161737.json"
     },
     "macos-zh": {
-      "version": "202611111938",
-      "sha256": "f040fdc6c453ef08a725061ef19ee0a56ed96c7c394129676b900eeeaf269a82",
-      "size": 43972,
+      "version": "202611161737",
+      "sha256": "e84bea5d4dce64c52d0cb44a805ace1ec7b4daaa399ed9c8753664016c3e98fc",
+      "size": 44450,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-zh-202611111938.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.3/BensonMail-Language-macos-zh-202611161737.json"
       ],
-      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611111938.json"
+      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611161737.json"
     },
     "macos-en": {
-      "version": "202611111938",
-      "sha256": "efdb72f4bb21760900096ad216bb113ffd76e19b30d750aece154236bec01c72",
-      "size": 129221,
+      "version": "202611161737",
+      "sha256": "5cd17c15a63a8ab8a1e104fcc524502190224a4f1c2f48980fdccc257900d431",
+      "size": 129617,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-en-202611111938.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.3/BensonMail-Language-macos-en-202611161737.json"
       ],
-      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611111938.json"
+      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611161737.json"
     },
     "macos-es": {
-      "version": "202611111938",
-      "sha256": "aa1c665c8d53d189e16e04344ec92a7de149234858f340619888d182509df3bb",
-      "size": 140646,
+      "version": "202611161737",
+      "sha256": "ef2a86cf78bab17a07f86485cf2f064a992a025fa942eab41f0ad0910169d51d",
+      "size": 141071,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261111/BensonMail-Language-macos-es-202611111938.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.3/BensonMail-Language-macos-es-202611161737.json"
       ],
-      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611111938.json"
+      "url": "https://old-yards-cemetery-custom.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611161737.json"
     }
   }
 }
