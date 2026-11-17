@@ -55,6 +55,17 @@ enum LanguageUIAuditSelfTest {
                 throw Failure("mounted sender picker did not react to language: " + code)
             }
         }
+        try verifyTreeLabels()
+        return [
+            "report-tree virtual groups and sender captions localize in all four languages while original account, date and sender keys remain intact",
+            "real immutable-host workspace card titles switch Chinese/English/Spanish/Chinese without root replacement; blocked-mail heading never remains Chinese in another language",
+            "already-mounted bulk sender picker follows language changes independently of its parent"
+        ]
+    }
+    static func verifyTreeLabels() throws {
+        let language = AppLanguage.shared
+        let original = language.code
+        defer { language.select(original) }
         for code in ["en", "es", "chinglish", "zh"] {
             language.select(code)
             guard ReportTree.displayLabel("全部邮箱", level: 0) == T("全部邮箱"),
@@ -71,11 +82,6 @@ enum LanguageUIAuditSelfTest {
                 }
             }
         }
-        return [
-            "report-tree virtual groups and sender captions localize in all four languages while original account, date and sender keys remain intact",
-            "real immutable-host workspace card titles switch Chinese/English/Spanish/Chinese without root replacement; blocked-mail heading never remains Chinese in another language",
-            "already-mounted bulk sender picker follows language changes independently of its parent"
-        ]
     }
     private static func visibleText(_ image: URL, language: String) throws -> String {
         let request = VNRecognizeTextRequest()

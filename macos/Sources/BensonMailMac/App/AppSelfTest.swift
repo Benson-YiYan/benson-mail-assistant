@@ -719,6 +719,8 @@ enum AppSelfTest {
             _ = try? capture(settingsWindow, to: output.appendingPathComponent("mac-settings-chinglish.png"))
             settingsWindow.orderOut(nil)
             checks.append("Chinglish catalog activation persists; phonetic word-separated navigation labels render while addresses, error codes, original reports and monitoring remain unchanged")
+            try LanguageUIAuditSelfTest.verifyTreeLabels()
+            checks.append("Report-tree labels use all four UI languages without changing mailbox, date or sender identities")
             AppLanguage.shared.select("zh")
             try verifyHelp(["使用指南", "如何获取授权码？", "检查更新", "关于邮件小秘书"], heading: "帮助")
             guard T("邮件小秘书") == "邮件小秘书", store.settings.ui_language == "zh" else { throw Failure("Chinese switch failed") }
