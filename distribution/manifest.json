@@ -2,46 +2,46 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611170921",
-      "sha256": "c8cea2d771f466b4fa5afee821a4245248eb0f0596687d43a909fcf80321cc06",
-      "size": 24727732,
+      "version": "202611171002",
+      "sha256": "b9062c2a3529d5ecc6914e686d3deb1904e48f4653bd4d48dfbf668a55a05eac",
+      "size": 24725336,
       "notes": {
-        "zh": "新增 Chinglish（英格力士）音译界面，补齐英语和西语翻译；改进报告树与运行状态的语言显示。Chinglish 随软件提供，AI 回答使用正常英语。",
-        "en": "Add the bundled phonetic Chinglish interface; complete English and Spanish labels and localize report-tree and runtime status text. AI answers remain normal English in Chinglish mode.",
-        "es": "Añade la interfaz fonética Chinglish incluida; completa textos en inglés y español y traduce el árbol de informes y los estados. En Chinglish, la IA responde en inglés normal."
+        "zh": "修复侧栏语言刷新：邮件报告、邮箱与检查、AI 服务和通用设置随英语、西语和 Chinglish 正确切换；保留当前页面和未发送的输入。",
+        "en": "Fix sidebar labels when switching English, Spanish and Chinglish; keep the selected page and unfinished input.",
+        "es": "Corrige los textos de la barra lateral al cambiar entre inglés, español y Chinglish; conserva la página seleccionada y el texto sin enviar."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Windows-x64-Setup-202611170921.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117.1/BensonMail-Windows-x64-Setup-202611171002.exe"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611170921.exe"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611171002.exe"
     },
     "macos-arm64": {
-      "version": "202611170928",
-      "sha256": "f40c3047cd250b23d3049d186488c40e0a330f1f589ab26133dbe5bc6ea9320d",
-      "size": 23055037,
+      "version": "202611171012",
+      "sha256": "139118dde8fa6588c4a30e24fcdc99a87ed1ec87446a52cb7c1ff805fcd3e6d9",
+      "size": 23075453,
       "notes": {
-        "zh": "新增 Chinglish（英格力士）音译界面，补齐英语和西语翻译；改进报告树与运行状态的语言显示。Chinglish 随软件提供，AI 回答使用正常英语。",
-        "en": "Add the bundled phonetic Chinglish interface; complete English and Spanish labels and localize report-tree and runtime status text. AI answers remain normal English in Chinglish mode.",
-        "es": "Añade la interfaz fonética Chinglish incluida; completa textos en inglés y español y traduce el árbol de informes y los estados. En Chinglish, la IA responde en inglés normal."
+        "zh": "修复侧栏语言刷新：邮件报告、邮箱与检查、AI 服务和通用设置随英语、西语和 Chinglish 正确切换；保留当前页面和未发送的输入。",
+        "en": "Fix sidebar labels when switching English, Spanish and Chinglish; keep the selected page and unfinished input.",
+        "es": "Corrige los textos de la barra lateral al cambiar entre inglés, español y Chinglish; conserva la página seleccionada y el texto sin enviar."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Mac-AppleSilicon-202611170928.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117.1/BensonMail-Mac-AppleSilicon-202611171012.dmg"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611170928.dmg"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611171012.dmg"
     },
     "macos-x86_64": {
-      "version": "202611170933",
-      "sha256": "73335aec0c799732966aae74f331e0f230da7a5e354949034dea31727afe8f9f",
-      "size": 20752423,
+      "version": "202611171018",
+      "sha256": "36ec5817753b13451bd9ceb73fe49c0a9f22fc8002f91dab3959914862ffe890",
+      "size": 19998330,
       "notes": {
-        "zh": "新增 Chinglish（英格力士）音译界面，补齐英语和西语翻译；改进报告树与运行状态的语言显示。Chinglish 随软件提供，AI 回答使用正常英语。",
-        "en": "Add the bundled phonetic Chinglish interface; complete English and Spanish labels and localize report-tree and runtime status text. AI answers remain normal English in Chinglish mode.",
-        "es": "Añade la interfaz fonética Chinglish incluida; completa textos en inglés y español y traduce el árbol de informes y los estados. En Chinglish, la IA responde en inglés normal."
+        "zh": "修复侧栏语言刷新：邮件报告、邮箱与检查、AI 服务和通用设置随英语、西语和 Chinglish 正确切换；保留当前页面和未发送的输入。",
+        "en": "Fix sidebar labels when switching English, Spanish and Chinglish; keep the selected page and unfinished input.",
+        "es": "Corrige los textos de la barra lateral al cambiar entre inglés, español y Chinglish; conserva la página seleccionada y el texto sin enviar."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Mac-Intel-202611170933.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117.1/BensonMail-Mac-Intel-202611171018.dmg"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611170933.dmg"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611171018.dmg"
     }
   },
   "language_packs": {
