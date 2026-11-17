@@ -10,6 +10,7 @@ enum SidebarLanguageSelfTest {
         @ObservedObject var selection: Selection
         var body: some View {
             WorkspaceNavigationList(selection: $selection.page)
+                .frame(width: 320, height: 480)
         }
     }
     static func run(output: URL) async throws -> [String] {
@@ -19,7 +20,7 @@ enum SidebarLanguageSelfTest {
         defer { language.select(original) }
         let selection = Selection()
         let host = NSHostingView(rootView: Host(selection: selection))
-        let window = NSWindow(contentRect: NSRect(x: 60, y: 60, width: 340, height: 320),
+        let window = NSWindow(contentRect: NSRect(x: 60, y: 60, width: 320, height: 480),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.contentView = host
         window.makeKeyAndOrderFront(nil)
@@ -36,6 +37,16 @@ enum SidebarLanguageSelfTest {
             }
             return nil
         }
+        func describe(_ value: Any, depth: Int = 0) -> [String] {
+            guard depth < 20, let node = value as? NSObject else { return [] }
+            let fields = [("accessibilityRole", "AXRole"), ("accessibilityIdentifier", "AXIdentifier"),
+                          ("accessibilityLabel", "AXDescription"), ("accessibilityValue", "AXValue")]
+                .map { String(describing: attribute(node, $0.0, $0.1) ?? "") }
+            return [String(repeating: " ", count: depth) + fields.joined(separator: " | ")] +
+                (attribute(node, "accessibilityChildren", "AXChildren") as? [Any] ?? [])
+                    .flatMap { describe($0, depth: depth + 1) }
+        }
+        try await Task.sleep(nanoseconds: 650_000_000)
         for code in ["zh", "en", "es", "chinglish", "en", "zh"] {
             language.select(code)
             guard language.code == code else {
@@ -45,6 +56,7 @@ enum SidebarLanguageSelfTest {
             host.layoutSubtreeIfNeeded()
             for page in WorkspacePage.allCases {
                 guard let row = find(host, id: "workspace-nav-" + page.id) else {
+                    try? describe(host).joined(separator: "\n").write(to: output.appendingPathComponent("sidebar-accessibility.txt"), atomically: true, encoding: .utf8)
                     throw AppSelfTest.Failure("Mounted sidebar row missing in " + code + ": " + page.rawValue)
                 }
                 let labels = [
