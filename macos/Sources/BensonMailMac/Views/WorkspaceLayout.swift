@@ -14,7 +14,7 @@ struct WorkspaceNavigationRow: View {
     let page: WorkspacePage
     var body: some View {
         Label(T(page.rawValue), systemImage: page.icon)
-            .id(language.code)
+            .id(page.id + ":" + language.code)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(T(page.rawValue))
             .accessibilityIdentifier("workspace-nav-" + page.id)
