@@ -1070,6 +1070,7 @@
     "SMTP send failed. Check SMTP availability, network and proxy settings. [SMTP_CONNECTION]": "艾斯艾姆提皮·森德·费尔德. 切克·艾斯艾姆提皮·阿维勒比勒提, 内特沃克·安德·普拉克西·塞听斯. [SMTP_CONNECTION]",
     "SMTP发送出现意外错误，请检查已发送邮件后再决定是否重试。 [SMTP_UNEXPECTED]": "艾斯艾姆提皮·森德·费尔德·比科兹·奥夫·安·阿尼克斯佩克提德·诶尔. [SMTP_UNEXPECTED]",
     "SMTP send failed because of an unexpected error. [SMTP_UNEXPECTED]": "艾斯艾姆提皮·森德·费尔德·比科兹·奥夫·安·阿尼克斯佩克提德·诶尔. [SMTP_UNEXPECTED]",
+    "来自：": "弗若姆 ",
     "Email Assistant": "伊喵·阿西斯腾特",
     " · Beijing time": " · 贝日伊恩·泰姆",
     "All": "奥尔",
@@ -2008,7 +2009,8 @@
     "Unnamed attachment": "阿恩内姆德·阿泰吃玛恩特",
     "Row ": "若 ",
     "Enter a complete email address: ": "诶恩特·诶·克姆普利特·伊喵·诶德瑞斯: ",
-    "[authorization header hidden]": "[奥瑟阿泽舍恩·赫德·希德恩]"
+    "[authorization header hidden]": "[奥瑟阿泽舍恩·赫德·希德恩]",
+    "From ": "弗若姆 "
   },
   "templates": [
     {

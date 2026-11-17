@@ -1070,7 +1070,8 @@
     "SMTP发送失败，请检查服务状态、网络和代理设置。 [SMTP_CONNECTION]": "Falló el envío SMTP. Revisa la disponibilidad del servicio, la red y el proxy. [SMTP_CONNECTION]",
     "SMTP send failed. Check SMTP availability, network and proxy settings. [SMTP_CONNECTION]": "Falló el envío SMTP. Revisa la disponibilidad del servicio, la red y el proxy. [SMTP_CONNECTION]",
     "SMTP发送出现意外错误，请检查已发送邮件后再决定是否重试。 [SMTP_UNEXPECTED]": "Se produjo un error inesperado de SMTP. Revisa Enviados antes de decidir si reintentas. [SMTP_UNEXPECTED]",
-    "SMTP send failed because of an unexpected error. [SMTP_UNEXPECTED]": "Se produjo un error inesperado de SMTP. Revisa Enviados antes de decidir si reintentas. [SMTP_UNEXPECTED]"
+    "SMTP send failed because of an unexpected error. [SMTP_UNEXPECTED]": "Se produjo un error inesperado de SMTP. Revisa Enviados antes de decidir si reintentas. [SMTP_UNEXPECTED]",
+    "From ": "De "
   },
   "templates": [
     {

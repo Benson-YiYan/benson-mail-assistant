@@ -1145,7 +1145,8 @@ sealed partial class MainWindow : Window
     string ReportTreeLabel(int level, string name) =>
         name == MultiSummaryTreeKey ? L.Bootstrap("多选总结", "Multi-summary", "Resumen múltiple") :
         name == "unknown-account" ? L.T("未知邮箱") :
-        name == "From unknown-sender" ? "From " + L.T("未知发件人") : name;
+        level == 2 && name.StartsWith("From ", StringComparison.Ordinal)
+            ? L.T("From ") + (name == "From unknown-sender" ? L.T("未知发件人") : name[5..]) : name;
     IReadOnlyList<string> ReportTreeSegments(Report report)
     {
         if (report.is_multi_summary) return new[] { MultiSummaryTreeKey, report.day };

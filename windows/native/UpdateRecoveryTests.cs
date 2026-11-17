@@ -72,6 +72,16 @@ sealed partial class MainWindow
             }
             foreach (var language in new[] { "zh", "en", "es", "chinglish", "zh", "es", "en", "zh" }) {
                 await ChangeLanguage(language);
+                RuntimeLogLanguageSelfTest(check);
+                var senderReport = new Report("C:/fixture/report.md", "Original subject", "Sender", "", null) {
+                    sender_email = "sender@example.invalid", account = "recipient@example.invalid", day = "2026-11-17"
+                };
+                var senderKey = ReportTreeSegments(senderReport)[2];
+                check(senderKey == "From sender@example.invalid" &&
+                    ReportTreeLabel(2, senderKey) == L.T("From ") + "sender@example.invalid" &&
+                    ReportTreeLabel(2, "From unknown-sender") == L.T("From ") + L.T("未知发件人") &&
+                    ReportTreeLabel(0, senderKey) == senderKey && senderReport.path == "C:/fixture/report.md",
+                    "Report-tree sender prefix is localized in " + language + " without changing sender folder keys, addresses or paths");
                 foreach (var label in chineseLabels)
                     check(HasText(Content as UIElement, L.T(label)),
                         "Existing settings card refreshes to " + language + ": " + label);

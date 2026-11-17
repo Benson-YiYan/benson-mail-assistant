@@ -21,6 +21,15 @@ enum ReportTree {
         guard let row = labels[text] else { return nil }
         return language == "es" ? row.1 : language == "en" ? row.0 : nil
     }
+    /// Localize virtual groups and the sender caption, never mailbox identities,
+    /// dates or sender names. Storage paths and grouping keys remain unchanged.
+    static func displayLabel(_ key: String, level: Int, parent: [String] = []) -> String {
+        if key.isEmpty { return T(level == 0 ? "未识别的邮箱" : "未识别的发件人") }
+        if level == 0 && key == "全部邮箱" { return T("全部邮箱") }
+        if level == 1 && parent == ["全部邮箱"] && key == "多选总结" { return T("多选总结") }
+        if level == 2 && parent != ["全部邮箱", "多选总结"] { return T("来自：") + key }
+        return key
+    }
     struct Folder: Identifiable {
         let key: String
         let count: Int

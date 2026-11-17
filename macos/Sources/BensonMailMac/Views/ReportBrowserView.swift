@@ -11,11 +11,7 @@ struct ReportBrowserView: View {
 
     private var visible: [Report] { treeEnabled ? ReportTree.reports(store.filteredReports, in: path) : store.filteredReports }
     private func folderLabel(_ key: String, level: Int, parent: [String] = []) -> String {
-        if key.isEmpty { return T(level == 0 ? "未识别的邮箱" : "未识别的发件人") }
-        if level == 2 && !(parent.count >= 2 && parent[1] == "多选总结") {
-            return "From " + key
-        }
-        return key
+        ReportTree.displayLabel(key, level: level, parent: parent)
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -57,7 +53,7 @@ struct ReportBrowserView: View {
                         Button { path.append(folder.key) } label: {
                             HStack(spacing: 9) {
                                 Image(systemName: "folder.fill").foregroundStyle(.blue)
-                                Text(folderLabel(folder.key, level: path.count)).lineLimit(2)
+                                Text(folderLabel(folder.key, level: path.count, parent: path)).lineLimit(2)
                                 Spacer(minLength: 4)
                                 Text("\(folder.count)").font(.caption).foregroundStyle(.secondary)
                                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)

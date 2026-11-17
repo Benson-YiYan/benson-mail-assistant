@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -66,10 +67,36 @@ sealed partial class MainWindow
     async Task ShowRuntimeLog()
     {
         var result = await bridge.Call("runtime_log");
-        var text = JsonText(result, "text");
+        var text = LocalizedRuntimeLog(JsonText(result, "text"));
         if (string.IsNullOrWhiteSpace(text)) text = L.Bootstrap("暂无运行记录。", "No runtime records yet.", "Todavía no hay registros.");
         await new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("运行记录"),
             Content = Scroll(new TextBlock { Text = text, IsTextSelectionEnabled = true, TextWrapping = TextWrapping.Wrap }),
             CloseButtonText = L.T("关闭"), MinWidth = 420, MaxWidth = 900 }.ShowAsync();
+    }
+    static string LocalizedRuntimeLog(string text)
+    {
+        // Only the app's finite state labels are translated. Timestamps and
+        // diagnostic JSON remain byte-for-byte readable for troubleshooting.
+        return string.Join("\n", text.Split('\n').Select(line => {
+            var separator = line.IndexOf("  ", StringComparison.Ordinal);
+            if (separator <= 0 || !DateTimeOffset.TryParse(line[..separator], CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out _)) return line;
+            var suffix = line[(separator + 2)..];
+            var state = suffix.TrimEnd('\r');
+            if (state is not ("已暂停" or "运行中" or "正在检查" or "正在分析" or "需要检查")) return line;
+            return line[..(separator + 2)] + L.T(state) + (suffix.EndsWith('\r') ? "\r" : "");
+        }));
+    }
+    static void RuntimeLogLanguageSelfTest(Action<bool, string> check)
+    {
+        const string timestamp = "2026-11-17T10:20:30+08:00";
+        const string diagnostic = "{\r\n  \"error_code\": \"SMTP_AUTH\",\r\n  \"detail\": \"正在分析\"\r\n}";
+        var source = string.Join("\r\n", new[] { "已暂停", "运行中", "正在检查", "正在分析", "需要检查" }
+            .Select(state => timestamp + "  " + state)) + "\r\n" + diagnostic;
+        var expected = string.Join("\r\n", new[] { "已暂停", "运行中", "正在检查", "正在分析", "需要检查" }
+            .Select(state => timestamp + "  " + L.T(state))) + "\r\n" + diagnostic;
+        check(LocalizedRuntimeLog(source) == expected &&
+            LocalizedRuntimeLog("mail@example.invalid  正在分析") == "mail@example.invalid  正在分析",
+            "Runtime log localizes finite status labels in " + L.Code + " while preserving timestamps, line endings and diagnostics");
     }
 }

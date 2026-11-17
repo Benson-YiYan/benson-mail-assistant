@@ -55,7 +55,24 @@ enum LanguageUIAuditSelfTest {
                 throw Failure("mounted sender picker did not react to language: " + code)
             }
         }
+        for code in ["en", "es", "chinglish", "zh"] {
+            language.select(code)
+            guard ReportTree.displayLabel("全部邮箱", level: 0) == T("全部邮箱"),
+                  ReportTree.displayLabel("多选总结", level: 1, parent: ["全部邮箱"]) == T("多选总结"),
+                  ReportTree.displayLabel("2026-11-17", level: 2, parent: ["全部邮箱", "多选总结"]) == "2026-11-17",
+                  ReportTree.displayLabel("sender@example.invalid", level: 2, parent: ["owner@example.invalid", "2026-11-17"]) == T("来自：") + "sender@example.invalid",
+                  ReportTree.displayLabel("多选总结", level: 2, parent: ["owner@example.invalid", "2026-11-17"]) == T("来自：") + "多选总结",
+                  ReportTree.displayLabel("owner@example.invalid", level: 0) == "owner@example.invalid" else {
+                throw Failure("report-tree localization changed a date, sender or account identity: " + code)
+            }
+            if code == "en" || code == "es" {
+                guard ReportTree.displayLabel("sender@example.invalid", level: 2) == (code == "en" ? "From " : "De ") + "sender@example.invalid" else {
+                    throw Failure("report-tree sender caption is not localized: " + code)
+                }
+            }
+        }
         return [
+            "report-tree virtual groups and sender captions localize in all four languages while original account, date and sender keys remain intact",
             "real immutable-host workspace card titles switch Chinese/English/Spanish/Chinese without root replacement; blocked-mail heading never remains Chinese in another language",
             "already-mounted bulk sender picker follows language changes independently of its parent"
         ]

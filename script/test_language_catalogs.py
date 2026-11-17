@@ -33,7 +33,7 @@ class CatalogValidationTests(unittest.TestCase):
             pack = payload(platform, "chinglish")
             self.assertEqual(pack["exact"]["邮件报告"], "喵·瑞泼特斯")
             self.assertEqual(pack["exact"]["邮箱与检查"], "喵博克斯·&·切克斯")
-            self.assertEqual(pack["exact"], json.loads((ROOT/folder/"ui-chinglish.json").read_text())["exact"],
+            self.assertEqual(pack["exact"], json.loads((ROOT/folder/"ui-chinglish.json").read_text(encoding="utf-8"))["exact"],
                              "Regenerate the checked-in native Chinglish catalog after changing English labels")
             self.assertIn("Carnegie Mellon", pack["notices"])
             self.assertNotIn("Select a report", pack["guides"]["quick_start"])
@@ -45,7 +45,7 @@ class CatalogValidationTests(unittest.TestCase):
             for source in (ROOT/folder).rglob(suffix):
                 if "Test" in source.name:
                     continue
-                for value in re.findall(r'(?:L\.)?T\("((?:\\.|[^"\\])*)"\)', source.read_text()):
+                for value in re.findall(r'(?:L\.)?T\("((?:\\.|[^"\\])*)"\)', source.read_text(encoding="utf-8")):
                     if not re.search(r'[\u3400-\u9fff]', value) or r'\(' in value:
                         continue  # Swift interpolation is covered by dynamic templates.
                     try:

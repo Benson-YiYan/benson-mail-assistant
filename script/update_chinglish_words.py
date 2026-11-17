@@ -83,21 +83,21 @@ def main():
     pronunciations = cmudict.dict()
     words = set()
     for folder in ("macos/Resources", "windows/native"):
-        data = json.loads((ROOT / folder / "ui-en.json").read_text())
+        data = json.loads((ROOT / folder / "ui-en.json").read_text(encoding="utf-8"))
         text = "\n".join(data["exact"].values()) + "\n" + "\n".join(row["en"] for row in data["templates"])
         if folder.startswith("macos"):
             docs = ROOT / folder
         else:
             docs = ROOT / "windows/docs"
         for name in ("Quick-start-en.txt", "Mail-account-setup-en.txt"):
-            text += "\n" + (docs / name).read_text()
+            text += "\n" + (docs / name).read_text(encoding="utf-8")
         words.update(word.lower() for word in re.findall(r"[A-Za-z]+(?:['’][A-Za-z]+)?", text))
     target = Path(__file__).with_name("chinglish-words.json")
-    labels = json.loads(target.read_text()) if target.exists() else {}
+    labels = json.loads(target.read_text(encoding="utf-8")) if target.exists() else {}
     labels.update({word: phonetic(pronunciations[word][0]) for word in sorted(words) if word in pronunciations})
     labels.update(OVERRIDES)
-    target.write_text(json.dumps(dict(sorted(labels.items())), ensure_ascii=False, indent=2) + "\n")
-    (ROOT / "docs/Chinglish-lexicon-LICENSE.txt").write_text(cmudict.license_string())
+    target.write_text(json.dumps(dict(sorted(labels.items())), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (ROOT / "docs/Chinglish-lexicon-LICENSE.txt").write_text(cmudict.license_string(), encoding="utf-8")
     print("Phonetic words:", len(labels))
 
 

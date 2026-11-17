@@ -57,7 +57,7 @@ def payload(platform,code):
         guides = {name: transliterate(text) for name, text in guides.items()}
     result = {'schema_version':1,'language':code,'platform':platform,**catalog,'guides':guides}
     if code == 'chinglish':
-        result['notices'] = (ROOT/'docs/Chinglish-lexicon-LICENSE.txt').read_text()
+        result['notices'] = (ROOT/'docs/Chinglish-lexicon-LICENSE.txt').read_text(encoding="utf-8")
     return result
 
 def main():
