@@ -18,6 +18,7 @@ PROTECTED = re.compile(
     r"```[\s\S]*?```|`[^`\n]+`|https?://[^\s<>)]+|"
     r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|"
     r"\{\d+\}|%(?:\d+\$)?[sdf]|\[[A-Z][A-Z0-9_:-]+\]|"
+    r"\byyyyMMddHHmm\b|\bYYYY-MM-DD\b|\bHH:mm\b|"
     r"(?<!\w)(?:[A-Za-z]:\\[^\s]+|/[A-Za-z0-9_./-]+)|"
     r"\b[A-Za-z0-9_./-]+\.(?:json|md|txt|exe|app|dmg|ps1|py|bat|command|pdf|log|csv)\b",
     0)
