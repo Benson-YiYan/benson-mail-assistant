@@ -2,102 +2,120 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611162326",
-      "sha256": "989bde6918c14d62fc4f9926d34d69734950c1a40df6eabbeeb76e0322220fd2",
-      "size": 24626445,
+      "version": "202611170921",
+      "sha256": "c8cea2d771f466b4fa5afee821a4245248eb0f0596687d43a909fcf80321cc06",
+      "size": 24727732,
       "notes": {
-        "zh": "修复 Windows 历史邮件弹窗和批量选择；补齐确认回复发送、原文查看、恢复对话、附件移除、运行记录与托盘操作。",
-        "en": "Fix Windows historical-mail layout and selection; add confirmed reply sending, original mail, conversation restore, attachment removal, runtime records and tray commands.",
-        "es": "Corrige el resumen histórico de Windows; añade envío confirmado, originales, recuperación del chat, retirada de adjuntos, registros y comandos de bandeja."
+        "zh": "新增 Chinglish（英格力士）音译界面，补齐英语和西语翻译；改进报告树与运行状态的语言显示。Chinglish 随软件提供，AI 回答使用正常英语。",
+        "en": "Add the bundled phonetic Chinglish interface; complete English and Spanish labels and localize report-tree and runtime status text. AI answers remain normal English in Chinglish mode.",
+        "es": "Añade la interfaz fonética Chinglish incluida; completa textos en inglés y español y traduce el árbol de informes y los estados. En Chinglish, la IA responde en inglés normal."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.5/BensonMail-Windows-x64-Setup-202611162326.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Windows-x64-Setup-202611170921.exe"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611162326.exe"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611170921.exe"
     },
     "macos-arm64": {
-      "version": "202611162133",
-      "sha256": "6dc0f7ba8ccf54d77852b26fe3b3912317fa49d9744fe884e2715ec00180ad21",
-      "size": 21154653,
+      "version": "202611170928",
+      "sha256": "f40c3047cd250b23d3049d186488c40e0a330f1f589ab26133dbe5bc6ea9320d",
+      "size": 23055037,
       "notes": {
-        "zh": "聊天共用一个滚动区；修复 AI 回复不可见和滚轮滚动，支持完整 Markdown 与流式回答；用户消息增加透明浅蓝底色。Codex/Harness 按工具实际输出片段更新。",
-        "en": "One conversation scroll area; fix invisible replies and scrolling, support full Markdown and live streamed answers, and tint user messages translucent blue. Codex/Harness update at their native output granularity.",
-        "es": "Una sola zona de desplazamiento; corrige respuestas invisibles y desplazamiento, admite Markdown y respuestas en tiempo real, y añade fondo azul translúcido a los mensajes del usuario. Codex/Harness se actualizan según sus fragmentos reales."
+        "zh": "新增 Chinglish（英格力士）音译界面，补齐英语和西语翻译；改进报告树与运行状态的语言显示。Chinglish 随软件提供，AI 回答使用正常英语。",
+        "en": "Add the bundled phonetic Chinglish interface; complete English and Spanish labels and localize report-tree and runtime status text. AI answers remain normal English in Chinglish mode.",
+        "es": "Añade la interfaz fonética Chinglish incluida; completa textos en inglés y español y traduce el árbol de informes y los estados. En Chinglish, la IA responde en inglés normal."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.5/BensonMail-Mac-AppleSilicon-202611162133.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Mac-AppleSilicon-202611170928.dmg"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611162133.dmg"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611170928.dmg"
     },
     "macos-x86_64": {
-      "version": "202611162123",
-      "sha256": "1a0e2a9b9f6cbfcd8f1b7a1b90a6052943b57dd443fee88f37ac795c52636a82",
-      "size": 20389590,
+      "version": "202611170933",
+      "sha256": "73335aec0c799732966aae74f331e0f230da7a5e354949034dea31727afe8f9f",
+      "size": 20752423,
       "notes": {
-        "zh": "聊天共用一个滚动区；修复 AI 回复不可见和滚轮滚动，支持完整 Markdown 与流式回答；用户消息增加透明浅蓝底色。Codex/Harness 按工具实际输出片段更新。",
-        "en": "One conversation scroll area; fix invisible replies and scrolling, support full Markdown and live streamed answers, and tint user messages translucent blue. Codex/Harness update at their native output granularity.",
-        "es": "Una sola zona de desplazamiento; corrige respuestas invisibles y desplazamiento, admite Markdown y respuestas en tiempo real, y añade fondo azul translúcido a los mensajes del usuario. Codex/Harness se actualizan según sus fragmentos reales."
+        "zh": "新增 Chinglish（英格力士）音译界面，补齐英语和西语翻译；改进报告树与运行状态的语言显示。Chinglish 随软件提供，AI 回答使用正常英语。",
+        "en": "Add the bundled phonetic Chinglish interface; complete English and Spanish labels and localize report-tree and runtime status text. AI answers remain normal English in Chinglish mode.",
+        "es": "Añade la interfaz fonética Chinglish incluida; completa textos en inglés y español y traduce el árbol de informes y los estados. En Chinglish, la IA responde en inglés normal."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.5/BensonMail-Mac-Intel-202611162123.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Mac-Intel-202611170933.dmg"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611162123.dmg"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611170933.dmg"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202611162325",
-      "sha256": "d5787fd2f8c5d655bbf25e4013bcc6f1cd1cf351f813917dd0849b52d1dcc61e",
-      "size": 44188,
+      "version": "202611170940",
+      "sha256": "184dd58439ab1abff08cae5587dd73d9646b61ee886b196b94811e9c316d7e1e",
+      "size": 44570,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.5/BensonMail-Language-windows-zh-202611162325.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-windows-zh-202611170940.json"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611162325.json"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611170940.json"
     },
     "windows-en": {
-      "version": "202611162325",
-      "sha256": "154a4a5200460c5b9ab00f453e32688879c00561326ee53aa1595a4129a9f9d2",
-      "size": 130424,
+      "version": "202611170940",
+      "sha256": "30660094beaa7d9cf97959d7d1a2fabb8263d0d6a8568dbe4015391f3928c8ae",
+      "size": 153736,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.5/BensonMail-Language-windows-en-202611162325.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-windows-en-202611170940.json"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611162325.json"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611170940.json"
     },
     "windows-es": {
-      "version": "202611162325",
-      "sha256": "37cea2b1160bd90b7c0e5315029f71794a1cf9647243c556292be575f9290e77",
-      "size": 141803,
+      "version": "202611170940",
+      "sha256": "df16ae112ee5fa3995a76786b363f9f7c66b70bec6c6df28f8bde22f242710a7",
+      "size": 167229,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.5/BensonMail-Language-windows-es-202611162325.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-windows-es-202611170940.json"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611162325.json"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611170940.json"
+    },
+    "windows-chinglish": {
+      "version": "202611170940",
+      "sha256": "b12b6f05e860c9d63232e15c6809ee4fb81c62948de30cccc496a206e2953426",
+      "size": 339230,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-windows-chinglish-202611170940.json"
+      ],
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-windows-chinglish-202611170940.json"
     },
     "macos-zh": {
-      "version": "202611162325",
-      "sha256": "042c29e3a97f3a74dd7f503831640e0e4a47f0a75a1c2c634a6136fbec2269ae",
-      "size": 43931,
+      "version": "202611170940",
+      "sha256": "f6b33876d82111cabc38bcf8f83f09e95f2f1b9e617503d7ae78bf99329f52bf",
+      "size": 44311,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.5/BensonMail-Language-macos-zh-202611162325.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-macos-zh-202611170940.json"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611162325.json"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611170940.json"
     },
     "macos-en": {
-      "version": "202611162325",
-      "sha256": "89dbea6c88612d7a46b938b254e8780b91d389b66581a574999e0f3d798e7584",
-      "size": 129025,
+      "version": "202611170940",
+      "sha256": "d65f8493f308230edf6c1d04a8b049180134f8faf721e8aab001760601cbad08",
+      "size": 152317,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.5/BensonMail-Language-macos-en-202611162325.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-macos-en-202611170940.json"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611162325.json"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611170940.json"
     },
     "macos-es": {
-      "version": "202611162325",
-      "sha256": "384084a23cd0912bd2860f39ca21209c3eb6794eb34dd585ed61dcd830ff8bae",
-      "size": 140493,
+      "version": "202611170940",
+      "sha256": "32828f7e7e257ede55951a8dba29975130a88ec75224bcaaae48e16ac271a749",
+      "size": 165877,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261116.5/BensonMail-Language-macos-es-202611162325.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-macos-es-202611170940.json"
       ],
-      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611162325.json"
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611170940.json"
+    },
+    "macos-chinglish": {
+      "version": "202611170940",
+      "sha256": "ec08843ffcef6726fc543d220694a7e7ae46e8463d5215e7b6618317d6adee7e",
+      "size": 336708,
+      "mirrors": [
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-macos-chinglish-202611170940.json"
+      ],
+      "url": "https://equilibrium-sims-literally-plains.trycloudflare.com/downloads/BensonMail-Language-macos-chinglish-202611170940.json"
     }
   }
 }
