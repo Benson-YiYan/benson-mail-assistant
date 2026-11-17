@@ -67,9 +67,21 @@ def main():
         language = json.loads((data_home() / 'settings.json').read_text()).get('ui_language', 'zh')
     except (OSError, ValueError):
         language = 'zh'
-    en = language == 'en'
+    en = language in ('en', 'chinglish')
+    spanish = {
+        '微软邮箱 OAuth2 取令牌工具\n请先按教程注册自己的应用并启用公共客户端流程。此工具只负责登录取令牌。': 'Herramienta OAuth2 de Microsoft\nPrimero registra tu aplicación y activa los flujos de cliente público según la guía.',
+        '应用程序(客户端) ID：': 'ID de aplicación (cliente): ',
+        '租户（个人账户直接回车使用 consumers）：': 'Inquilino (pulsa Intro para cuentas personales: consumers): ',
+        '请在浏览器打开以下微软官方网址，输入一次性代码并登录：': 'Abre esta dirección oficial de Microsoft, introduce el código de un solo uso e inicia sesión:',
+        '一次性代码：': 'Código de un solo uso: ',
+        '已复制访问令牌！回到邮件小秘书，粘贴到 OAuth2 访问令牌框，保存并测试。令牌会过期，本软件不自动续期。': 'Token de acceso copiado. Pégalo en el campo OAuth2 de la aplicación, guarda y prueba. Los tokens caducan y no se renuevan automáticamente.',
+        '已取消。': 'Cancelado.',
+        '客户端 ID 必须为应用注册页中的 UUID，租户须为 ID 或域名。': 'El ID del cliente debe ser el UUID del registro; el inquilino debe ser un ID o dominio.',
+        '未取得令牌。请检查网络、应用注册、公共客户端流程及管理员授权。错误：': 'No se obtuvo el token. Revisa la red, el registro, los flujos de cliente público y la autorización. Error: ',
+        '按回车关闭此窗口。': 'Pulsa Intro para cerrar esta ventana.'
+    }
     def text(zh, english):
-        return english if en else zh
+        return spanish.get(zh, english) if language == 'es' else english if en else zh
     print(text('微软邮箱 OAuth2 取令牌工具\n请先按教程注册自己的应用并启用公共客户端流程。此工具只负责登录取令牌。', 'Microsoft mail OAuth2 token helper\nFirst register your own application and enable public client flows as explained in the guide.'))
     try:
         client = input(text('应用程序(客户端) ID：', 'Application (client) ID: ')).strip()

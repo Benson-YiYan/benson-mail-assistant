@@ -14,7 +14,10 @@ namespace BensonMail;
 internal static class L
 {
     internal static string Code { get; private set; } = "zh";
-    internal static string Locale => Code == "zh" ? "zh-CN" : Code == "es" ? "es-ES" : "en-US";
+    internal static readonly string[] Codes = { "zh", "en", "es", "chinglish" };
+    internal static int LanguageIndex(string code) => Math.Max(0, Array.IndexOf(Codes, code));
+    internal static string LanguageAt(int index) => index >= 0 && index < Codes.Length ? Codes[index] : "en";
+    internal static string Locale => Code is "zh" or "chinglish" ? "zh-CN" : Code == "es" ? "es-ES" : "en-US";
     static readonly Dictionary<string, string> exact = new();
     static readonly Dictionary<string, string> originals = new() {
         ["Email Assistant"] = "邮件小秘书", ["Asistente de correo electrónico"] = "邮件小秘书",
@@ -30,7 +33,7 @@ internal static class L
     static readonly Dictionary<string, List<(Regex pattern, string english)>> fallbackTemplates = new();
     static L()
     {
-        foreach (var code in new[] { "en", "es" }) {
+        foreach (var code in new[] { "en", "es", "chinglish" }) {
             var labels = new Dictionary<string, string>();
             var patterns = new List<(Regex pattern, string english)>();
             using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("BensonMail.ui-" + code + ".json")
@@ -61,7 +64,7 @@ internal static class L
     }
     internal static bool TryLoad(string code, bool activate = false)
     {
-        if (code is not ("zh" or "en" or "es")) return false;
+        if (code is not ("zh" or "en" or "es" or "chinglish")) return false;
         foreach (var path in PackPaths(code)) try {
             var info = new FileInfo(path);
             if (!info.Exists || info.Length < 2 || info.Length > 8 * 1024 * 1024) continue;
@@ -81,10 +84,25 @@ internal static class L
             if (activate) {
                 exact.Clear(); templates.Clear();
                 foreach (var pair in nextExact) exact[pair.Key] = pair.Value;
+                // Current built-in labels correct omissions in older downloaded packs.
+                // Unknown keys from a newer data-only pack remain available.
+                if (fallbackExact.TryGetValue(code, out var builtIn))
+                    foreach (var pair in builtIn) exact[pair.Key] = pair.Value;
+                if (fallbackTemplates.TryGetValue(code, out var patterns)) templates.AddRange(patterns);
                 templates.AddRange(nextTemplates); Code = code;
             }
             return true;
         } catch { }
+        // Chinglish ships in the app so the experimental interface works offline
+        // before its optional data-only pack has been published.
+        if (code == "chinglish" && fallbackExact.TryGetValue(code, out var labels)) {
+            if (activate) {
+                exact.Clear(); templates.Clear();
+                foreach (var pair in labels) exact[pair.Key] = pair.Value;
+                templates.AddRange(fallbackTemplates[code]); Code = code;
+            }
+            return true;
+        }
         return false;
     }
     internal static void Initialize()
@@ -92,25 +110,32 @@ internal static class L
         Code = Detect(CultureInfo.CurrentUICulture.Name);
         try {
             var initial = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "installed-language.txt")).Trim();
-            if (initial is "zh" or "en" or "es") Code = initial;
+            if (initial is "zh" or "en" or "es" or "chinglish") Code = initial;
         } catch { }
         try {
             var path = Path.Combine(DataHome, "config.json");
             if (File.Exists(path)) { using var config = JsonDocument.Parse(File.ReadAllText(path));
-                if (config.RootElement.TryGetProperty("ui_language", out var language) && language.GetString() is "zh" or "en" or "es") Code = language.GetString()!; }
+                if (config.RootElement.TryGetProperty("ui_language", out var language) && language.GetString() is "zh" or "en" or "es" or "chinglish") Code = language.GetString()!; }
         } catch { }
         if (Array.IndexOf(Program.Args, "--self-test") >= 0 || Array.IndexOf(Program.Args, "--uninstall-ui-test") >= 0) Code = "zh";
         var index = Array.IndexOf(Program.Args, "--ui-language");
-        if (index >= 0 && index + 1 < Program.Args.Length && Program.Args[index + 1] is "zh" or "en" or "es") Code = Program.Args[index + 1];
+        if (index >= 0 && index + 1 < Program.Args.Length && Program.Args[index + 1] is "zh" or "en" or "es" or "chinglish") Code = Program.Args[index + 1];
         TryLoad(Code, true);
     }
     internal static bool Select(string code) => TryLoad(code, true);
-    internal static string Bootstrap(string zh, string en, string es) => Code == "zh" ? zh : Code == "es" ? es : en;
+    internal static string Bootstrap(string zh, string en, string es) => Code == "zh" ? zh : Code == "es" ? es :
+        Code == "chinglish" ? Chinglish(zh, en) : en;
+    static string Chinglish(string zh, string en)
+    {
+        var translated = T(zh);
+        return translated != zh ? translated : T(en);
+    }
     internal static string GuidePath(string name)
     {
         var basename = name == "quick_start" ? "Quick-start-" : "Mail-account-setup-";
-        var installed = Path.Combine(AppContext.BaseDirectory, basename + Code + ".txt");
-        if (File.Exists(installed)) return installed;
+        var guideCode = Code == "chinglish" ? "en" : Code;
+        var installed = Path.Combine(AppContext.BaseDirectory, basename + guideCode + ".txt");
+        if (Code != "chinglish" && File.Exists(installed)) return installed;
         foreach (var path in PackPaths(Code)) try {
             using var doc = JsonDocument.Parse(File.ReadAllText(path));
             var text = doc.RootElement.GetProperty("guides").GetProperty(name).GetString()!;
@@ -118,7 +143,7 @@ internal static class L
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!); File.WriteAllText(destination, text);
             return destination;
         } catch { }
-        return Path.Combine(AppContext.BaseDirectory, basename + Code + ".txt");
+        return Path.Combine(AppContext.BaseDirectory, basename + guideCode + ".txt");
     }
     internal static string T(string? value)
     {
@@ -137,8 +162,8 @@ internal static class L
             if (prefix != null) value = sourcePrefix + value[prefix.Length..];
         }
         if (Code == "zh") return value;
-        if (value == "邮件小秘书") return Code == "es" ? "Asistente de correo electrónico" : "Email Assistant";
-        if (value == "卸载邮件小秘书") return Code == "es" ? "Desinstalar Asistente de correo electrónico" : "Uninstall Email Assistant";
+        if (value == "邮件小秘书" && Code != "chinglish") return Code == "es" ? "Asistente de correo electrónico" : "Email Assistant";
+        if (value == "卸载邮件小秘书" && Code != "chinglish") return Code == "es" ? "Desinstalar Asistente de correo electrónico" : "Uninstall Email Assistant";
         string? translated = null;
         if (exact.TryGetValue(value, out var found)) translated = found;
         else foreach (var (pattern, english) in templates) {
@@ -151,7 +176,7 @@ internal static class L
             break;
         }
         // Keep update recovery usable with a language pack downloaded by an older release.
-        if (translated == null && value == "前往 GitHub 下载最新版")
+        if (translated == null && Code != "chinglish" && value == "前往 GitHub 下载最新版")
             translated = Bootstrap(value, "Download the latest version from GitHub", "Descargar la última versión desde GitHub");
         if (translated == null && fallbackExact.TryGetValue(Code, out var builtIn) && builtIn.TryGetValue(value, out var fallback)) translated = fallback;
         if (translated == null && fallbackTemplates.TryGetValue(Code, out var patterns)) foreach (var (pattern, replacement) in patterns) {

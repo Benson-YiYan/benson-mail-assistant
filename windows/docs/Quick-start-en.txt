@@ -106,3 +106,5 @@ After download and verification, a confirmation asks whether to install and rest
 Email questions: AI replies render Markdown, including headings, paragraphs, nested lists, block quotes, tables, code blocks, links and common inline formatting. Raw HTML is disabled.
 
 Chat uses one vertical scroll area for the whole conversation. With a streaming-capable API, answers appear as they arrive. Other APIs show the completed response. Codex CLI and DeepSeek Harness update when their tools emit answer text; no typewriter animation is used. Reading earlier messages does not force you back to the bottom.
+
+Chinglish is an additional, bundled interface language available in General settings. English words are rendered as playful Chinese sounds separated by middle dots, for example 喵·瑞泼特斯. Interface labels and guides use these sounds; email content, AI reports/answers, addresses, paths, commands and error codes are preserved. AI output uses normal English when Chinglish is selected.

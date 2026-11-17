@@ -15,15 +15,21 @@ _TRANSLATIONS['AI 连接正常。'] = ['AI connection successful.', 'Conexión c
 _TRANSLATIONS['AI 连接测试失败，请检查配置。'] = ['AI connection test failed. Check the settings.', 'La prueba de conexión con la IA falló. Revisa la configuración.']
 
 
+def output_language(language):
+    """Chinglish changes the interface, never the language of email/AI content."""
+    return 'en' if language == 'chinglish' else language
+
+
 @contextmanager
 def using_language(language):
+    language = output_language(language)
     token = _LANGUAGE.set(language if language in ('zh', 'en', 'es') else 'zh')
     try: yield
     finally: _LANGUAGE.reset(token)
 
 def text(value, language=None):
     translations = _TRANSLATIONS.get(value)
-    language = _LANGUAGE.get() if language is None else language
+    language = output_language(_LANGUAGE.get() if language is None else language)
     return translations[0 if language == 'en' else 1] if translations and language != 'zh' else value
 
 def localized(function):

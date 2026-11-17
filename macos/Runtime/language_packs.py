@@ -10,7 +10,7 @@ import tempfile
 import urllib.parse
 import urllib.request
 
-CODES = ('zh', 'en', 'es')
+CODES = ('zh', 'en', 'es', 'chinglish')
 PLATFORMS = ('windows', 'macos')
 MANIFEST_URL = 'https://raw.githubusercontent.com/Benson-YiYan/benson-mail-assistant/main/distribution/manifest.json'
 API_URL = 'https://api.github.com/repos/Benson-YiYan/benson-mail-assistant/contents/distribution/manifest.json?ref=main'

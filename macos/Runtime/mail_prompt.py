@@ -41,6 +41,7 @@ def clean_internal_source_tags(text):
 
 
 def analysis_prompt(language=None, custom_prompt=''):
+    language = 'en' if language == 'chinglish' else language
     prompt = {'en': ENGLISH_ANALYSIS_PROMPT, 'es': SPANISH_ANALYSIS_PROMPT}.get(language, ANALYSIS_PROMPT)
     custom = str(custom_prompt or '').strip()
     if custom:

@@ -189,7 +189,7 @@ def _validate(controller, page, data):
             if not isinstance(data['autostart'],bool): raise ValueError('Autostart must be a boolean.')
             config['autostart']=data['autostart'];plan['autostart']=data['autostart']
         if 'ui_language' in data:
-            if data['ui_language'] not in ('zh','en','es'): raise ValueError('Invalid interface language')
+            if data['ui_language'] not in ('zh','en','es','chinglish'): raise ValueError('Invalid interface language')
             config['ui_language']=data['ui_language']
     return plan
 

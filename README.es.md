@@ -161,3 +161,5 @@ Preguntas sobre el correo: las respuestas de IA se muestran con formato Markdown
 El resumen histórico permite elegir buzón y fechas, buscar por asunto o remitente y seleccionar mensajes individualmente, todos, ninguno o los resultados actuales. Las reglas se aplican de forma predeterminada. La lista se desplaza por separado y los contadores permanecen visibles.
 
 Los informes permiten ver y copiar el correo original. Las respuestas permiten elegir una cuenta guardada y revisar destinatario, asunto y cuerpo antes de confirmar el envío SMTP. El chat permite recuperar conversaciones guardadas y quitar adjuntos individuales. Incluye filtros por remitentes conocidos, registros de ejecución y más comandos de bandeja.
+
+Chinglish es un idioma adicional incluido para la interfaz, disponible en Ajustes generales. Representa la pronunciación inglesa con caracteres chinos separados por puntos medios, por ejemplo 喵·瑞泼特斯. La interfaz y las guías usan esta forma; se conservan los correos, informes y respuestas de IA, direcciones, rutas, comandos y códigos de error. Con Chinglish, la IA responde en inglés normal.

@@ -103,7 +103,9 @@ def validate_catalog(data, directory=DOWNLOADS):
 
 def validate_language_catalog(data, directory=DOWNLOADS):
     expected = {platform + '-' + code for platform in ('windows', 'macos') for code in ('zh', 'en', 'es')}
-    if set(data) != expected: raise ValueError('Exactly six platform/language packs are required')
+    extended = expected | {'windows-chinglish', 'macos-chinglish'}
+    if set(data) not in (expected, extended):
+        raise ValueError('All six standard packs, optionally with both Chinglish packs, are required')
     result = {}
     for key, item in data.items():
         name = item.get('file', '')

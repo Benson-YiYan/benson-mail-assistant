@@ -4,8 +4,8 @@ import AppKit
 /// Language catalogs are opt-in downloads. Existing reports, mailbox identities and secrets stay untouched.
 final class AppLanguage: ObservableObject {
     static let shared = AppLanguage()
-    static let supported = ["zh", "en", "es"]
-    static let appNames = ["邮件小秘书", "Mail Secretary", "Email Assistant", "Asistente de correo electrónico"]
+    static let supported = ["zh", "en", "es", "chinglish"]
+    static let appNames = ["邮件小秘书", "Mail Secretary", "Email Assistant", "Asistente de correo electrónico", "伊喵·阿西斯腾特"]
     @Published private(set) var code: String
     @Published private(set) var isDownloading = false
     private var exact: [String: String] = [:]
@@ -14,6 +14,13 @@ final class AppLanguage: ObservableObject {
     private let base: URL
     private let startupLanguage: String
     private var startupHandled = false
+    private static let bundledChinglish: [String: String] = {
+        guard let url = Bundle.main.resourceURL?.appendingPathComponent("languages/chinglish.json"),
+              let data = try? Data(contentsOf: url), data.count <= 8 * 1024 * 1024,
+              let row = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let labels = row["exact"] as? [String: String] else { return [:] }
+        return labels
+    }()
 
     struct Catalog {
         let exact: [String: String]
@@ -30,9 +37,9 @@ final class AppLanguage: ObservableObject {
         return first.hasPrefix("es") ? "es" : "en"
     }
     var canPersistInitialLanguage: Bool { code == startupLanguage && isInstalled(startupLanguage) }
-    var localeIdentifier: String { ["zh": "zh_CN", "en": "en_US", "es": "es_ES"][code] ?? "en_US" }
+    var localeIdentifier: String { ["zh": "zh_CN", "en": "en_US", "es": "es_ES", "chinglish": "zh_CN"][code] ?? "en_US" }
     static func appName(_ language: String) -> String {
-        ["zh": "邮件小秘书", "en": "Email Assistant", "es": "Asistente de correo electrónico"][language] ?? "Email Assistant"
+        ["zh": "邮件小秘书", "en": "Email Assistant", "es": "Asistente de correo electrónico", "chinglish": "伊喵·阿西斯腾特"][language] ?? "Email Assistant"
     }
     private init() {
         let args = CommandLine.arguments
@@ -69,7 +76,36 @@ final class AppLanguage: ObservableObject {
                       let target = pattern["en"] as? String else { valid = false; break }
                 result.append((regex, target))
             }
-            if valid { return Catalog(exact: exact, templates: result, guides: guideTexts) }
+            if valid {
+                var currentExact = exact
+                // Shipping corrections supersede older downloaded UI labels. Guides
+                // remain supplied by the validated pack and current bundled guide.
+                if let current = bundledLabels(for: language) {
+                    currentExact.merge(current.exact) { _, shipping in shipping }
+                    let currentPatterns = Set(current.templates.map { $0.0.pattern })
+                    result = current.templates + result.filter { !currentPatterns.contains($0.0.pattern) }
+                }
+                return Catalog(exact: currentExact, templates: result, guides: guideTexts)
+            }
+        }
+        return nil
+    }
+    private func bundledLabels(for language: String) -> (exact: [String: String], templates: [(NSRegularExpression, String)])? {
+        guard language != "zh", let resources = Bundle.main.resourceURL else { return nil }
+        for url in [resources.appendingPathComponent("ui-\(language).json"),
+                    resources.appendingPathComponent("languages/\(language).json")] {
+            guard let data = try? Data(contentsOf: url), data.count <= 8 * 1024 * 1024,
+                  let row = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let labels = row["exact"] as? [String: String],
+                  let patterns = row["templates"] as? [[String: Any]] else { continue }
+            var compiled: [(NSRegularExpression, String)] = []
+            for pattern in patterns {
+                guard let source = pattern["pattern"] as? String,
+                      let regex = try? NSRegularExpression(pattern: source, options: .dotMatchesLineSeparators),
+                      let target = pattern["en"] as? String else { return nil }
+                compiled.append((regex, target))
+            }
+            return (labels, compiled)
         }
         return nil
     }
@@ -86,7 +122,7 @@ final class AppLanguage: ObservableObject {
             "你没有下载这个语言，是否现在下载？": "You have not downloaded this language. Download it now?",
             "下载语言": "Download language", "下载": "Download", "取消": "Cancel", "重试": "Retry", "稍后": "Later",
             "语言下载失败": "Language download failed", "正在下载语言…": "Downloading language…",
-            "下载简体中文": "Download Simplified Chinese", "下载英文": "Download English", "下载西班牙文": "Download Spanish",
+            "下载简体中文": "Download Simplified Chinese", "下载英文": "Download English", "下载西班牙文": "Download Spanish", "下载 Chinglish": "Download Chinglish",
             "界面语言": "Interface language", "语言更改立即生效，下次打开时保留。": "Language changes apply immediately and are remembered.",
             "语言包已安装": "Language pack installed", "语言包尚未下载": "Language pack not downloaded",
             "下载失败，请检查网络后重试。": "Download failed. Check your internet connection and retry.",
@@ -103,7 +139,7 @@ final class AppLanguage: ObservableObject {
             "你没有下载这个语言，是否现在下载？": "No has descargado este idioma. ¿Quieres descargarlo ahora?",
             "下载语言": "Descargar idioma", "下载": "Descargar", "取消": "Cancelar", "重试": "Reintentar", "稍后": "Más tarde",
             "语言下载失败": "Error al descargar el idioma", "正在下载语言…": "Descargando idioma…",
-            "下载简体中文": "Descargar chino simplificado", "下载英文": "Descargar inglés", "下载西班牙文": "Descargar español",
+            "下载简体中文": "Descargar chino simplificado", "下载英文": "Descargar inglés", "下载西班牙文": "Descargar español", "下载 Chinglish": "Descargar Chinglish",
             "界面语言": "Idioma de la interfaz", "语言更改立即生效，下次打开时保留。": "El cambio de idioma se aplica al instante y se guarda.",
             "语言包已安装": "Paquete de idioma instalado", "语言包尚未下载": "Paquete de idioma sin descargar",
             "下载失败，请检查网络后重试。": "No se pudo descargar. Comprueba la conexión a Internet y vuelve a intentarlo.",
@@ -114,13 +150,22 @@ final class AppLanguage: ObservableObject {
             "前往 GitHub 下载最新版": "Descargar la última versión desde GitHub"
         ]
         if text == "邮件小秘书" { return appName(language) }
+        if language == "chinglish" {
+            if let label = bundledChinglish[text] { return label }
+            // Bootstrap dialogs also work before the optional pack is installed.
+            let labels = ["下载语言": "当楼德·兰贵知", "下载": "当楼德", "取消": "坎搜", "重试": "瑞踹", "稍后": "雷特尔",
+                "语言下载失败": "兰贵知·当楼德·费尔德", "正在下载语言…": "当楼丁·兰贵知…",
+                "你没有下载这个语言，是否现在下载？": "尤·嗨夫·闹特·当楼迪德·迪斯·兰贵知。·当楼德·伊特·闹？"]
+            return labels[text] ?? en[text] ?? text
+        }
         return (language == "es" ? es[text] : language == "en" ? en[text] : nil) ?? text
     }
     func translate(_ text: String) -> String {
         if text == "邮件小秘书" { return Self.appName(code) }
         guard code != "zh" else { return text }
-        if let value = AssistantToolsLocalization.translate(text, language: code) { return value }
+        // The playful catalog must win over normal English/Spanish compatibility labels.
         if let value = exact[text] { return value }
+        if let value = AssistantToolsLocalization.translate(text, language: code) { return value }
         if let value = ReportTree.translate(text, language: code) { return value }
         if let value = SenderPolicyLocalization.translate(text, language: code) { return value }
         let networkCodePrefix = "网络错误代码："
@@ -129,15 +174,18 @@ final class AppLanguage: ObservableObject {
             return label + text.dropFirst(networkCodePrefix.count)
         }
         if text.contains("邮箱连接失败："), text.contains("\n服务器："), text.contains("\n阶段：") {
-            let labels = code == "es" ? ["服务器：": "Servidor: ", "阶段：": "Etapa: ", "具体原因：": "Detalles: "] : ["服务器：": "Server: ", "阶段：": "Stage: ", "具体原因：": "Details: "]
+            var labels = code == "es" ? ["服务器：": "Servidor: ", "阶段：": "Etapa: ", "具体原因：": "Detalles: "] : ["服务器：": "Server: ", "阶段：": "Stage: ", "具体原因：": "Details: "]
+            if code == "chinglish" { for key in Array(labels.keys) { labels[key] = exact[key] ?? labels[key] } }
+            let failedLabel = exact["邮箱连接失败："] ?? (code == "es" ? "Error de conexión al correo: " : "Email connection failed: ")
+            let hiddenLabel = exact["[已隐藏凭据]"] ?? (code == "es" ? "[credenciales ocultas]" : "[credentials hidden]")
             return text.components(separatedBy: "\n").map { line in
                 if let marker = line.range(of: "邮箱连接失败：") {
                     let hint = String(line[marker.upperBound...])
-                    return String(line[..<marker.lowerBound]) + (code == "es" ? "Error de conexión al correo: " : "Email connection failed: ") + (exact[hint] ?? hint)
+                    return String(line[..<marker.lowerBound]) + failedLabel + (exact[hint] ?? hint)
                 }
                 for (source, target) in labels where line.hasPrefix(source) {
                     let value = String(line.dropFirst(source.count))
-                    return target + (exact[value] ?? value).replacingOccurrences(of: "[已隐藏凭据]", with: code == "es" ? "[credenciales ocultas]" : "[credentials hidden]")
+                    return target + (exact[value] ?? value).replacingOccurrences(of: "[已隐藏凭据]", with: hiddenLabel)
                 }
                 return line
             }.joined(separator: "\n")
@@ -200,7 +248,7 @@ final class AppLanguage: ObservableObject {
                     try await change(to: value, confirmDownload: {
                         let alert = NSAlert()
                         alert.messageText = Self.bootstrap("下载语言", language: dialogLanguage)
-                        alert.informativeText = Self.bootstrap("你没有下载这个语言，是否现在下载？", language: dialogLanguage) + "\n\n" + ["zh": "简体中文", "en": "English", "es": "Español"][value, default: value]
+                        alert.informativeText = Self.bootstrap("你没有下载这个语言，是否现在下载？", language: dialogLanguage) + "\n\n" + ["zh": "简体中文", "en": "English", "es": "Español", "chinglish": "Chinglish（英格力士）"][value, default: value]
                         alert.addButton(withTitle: Self.bootstrap("下载", language: dialogLanguage))
                         alert.addButton(withTitle: Self.bootstrap("取消", language: dialogLanguage))
                         NSApp.activate(ignoringOtherApps: true)
@@ -283,7 +331,7 @@ func T(_ text: String) -> String { AppLanguage.shared.translate(text) }
 
 struct LanguageSettings: View {
     @ObservedObject private var language = AppLanguage.shared
-    private let choices = [("zh", "简体中文", "下载简体中文"), ("en", "English", "下载英文"), ("es", "Español", "下载西班牙文")]
+    private let choices = [("zh", "简体中文", "下载简体中文"), ("en", "English", "下载英文"), ("es", "Español", "下载西班牙文"), ("chinglish", "Chinglish（英格力士）", "下载 Chinglish")]
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Picker(T("界面语言"), selection: Binding(get: { language.code }, set: { language.requestSelect($0) })) {

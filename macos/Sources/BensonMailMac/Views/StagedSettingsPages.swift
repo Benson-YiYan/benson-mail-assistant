@@ -164,7 +164,7 @@ struct StagedSettingsPage: View {
         Group {
             WorkspaceCard("界面语言") {
                 Picker(T("界面语言"), selection: Binding(get: { draft.value.ui_language ?? language.code }, set: { draft.value.ui_language = $0 })) {
-                    Text("简体中文").tag("zh"); Text("English").tag("en"); Text("Español").tag("es")
+                    Text("简体中文").tag("zh"); Text("English").tag("en"); Text("Español").tag("es"); Text("Chinglish（英格力士）").tag("chinglish")
                 }
             }
             WorkspaceCard("报告保存位置") {

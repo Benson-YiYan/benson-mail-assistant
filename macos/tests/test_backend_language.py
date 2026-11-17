@@ -11,6 +11,27 @@ import ai_runner
 from mail_policy import policy_save
 
 class BackendLanguageTests(unittest.TestCase):
+    def test_chinglish_uses_english_ai_and_keeps_original_data(self):
+        from mail_chat import _language, _chat_system
+        from mail_prompt import analysis_prompt
+        from runtime_i18n import text, using_language
+        self.assertEqual(_language({'ui_language': 'chinglish'}), 'en')
+        self.assertIn('Answer in English', _chat_system(_language({'ui_language': 'chinglish'})))
+        self.assertEqual(analysis_prompt('chinglish'), analysis_prompt('en'))
+        self.assertIn('Custom summary prompt:', analysis_prompt('chinglish', '用户要求保持原样'))
+        self.assertIn('用户要求保持原样', analysis_prompt('chinglish', '用户要求保持原样'))
+        with using_language('chinglish'):
+            self.assertEqual(text('AI 连接正常。'), 'AI connection successful.')
+            self.assertEqual(text('原始邮件正文'), '原始邮件正文')
+
+    def test_chinglish_language_pack_identity_and_catalog_are_supported(self):
+        from language_packs import validate_pack, CODES
+        payload = {'schema_version': 1, 'platform': 'macos', 'language': 'chinglish',
+                   'exact': {'邮件报告': '喵·瑞泼特斯'}, 'templates': [],
+                   'guides': {'mail_account': '阿康特', 'quick_start': '盖德'}}
+        self.assertIn('chinglish', CODES)
+        self.assertEqual(validate_pack(json.dumps(payload).encode(), 'chinglish', 'macos'), payload)
+
     def test_api_specific_errors_localized_and_redacted(self):
         for language,label in [('en','Cause:'),('es','Causa:')]:
             text=ai_api.connection_error(TimeoutError('secret https://example.invalid/private'),'secret',language=language)

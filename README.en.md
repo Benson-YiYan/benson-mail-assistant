@@ -164,3 +164,5 @@ Email questions: AI replies are rendered as Markdown, including headings, paragr
 Historical-mail summaries include mailbox and date selection, subject/sender search, individual selection, Select all, Select none and Select all current search results. Mail rules are enabled by default. Candidates scroll separately while counts remain visible.
 
 Reports offer original-email viewing and copying. Replies support a saved sender mailbox and a full recipient/subject/body review before confirmed SMTP delivery. Chat supports restoring saved conversations and removing individual extra attachments. Known-sender filters, runtime records and expanded tray commands are available.
+
+Chinglish is an additional, bundled interface language available in General settings. English words are rendered as playful Chinese sounds separated by middle dots, for example 喵·瑞泼特斯. Interface labels and guides use these sounds; email content, AI reports/answers, addresses, paths, commands and error codes are preserved. AI output uses normal English when Chinglish is selected.

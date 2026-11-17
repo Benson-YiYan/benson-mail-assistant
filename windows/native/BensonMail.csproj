@@ -28,6 +28,7 @@
          Language selection and the account guides still use the user's installed packs. -->
     <EmbeddedResource Include="ui-en.json" />
     <EmbeddedResource Include="ui-es.json" />
+    <EmbeddedResource Include="ui-chinglish.json" />
     <!-- Scope the patch requirement to .NET; a global RuntimeFrameworkVersion
          also overrides the unrelated Microsoft.Windows.SDK.NET.Ref pack. -->
     <FrameworkReference Update="Microsoft.NETCore.App" RuntimeFrameworkVersion="8.0.32" />

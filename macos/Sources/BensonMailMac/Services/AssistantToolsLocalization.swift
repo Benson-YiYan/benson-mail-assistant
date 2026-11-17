@@ -158,6 +158,13 @@ enum AssistantToolsLocalization {
         "你确定发送以下内容给": ["Are you sure you want to send the following to ", "¿Seguro que quieres enviar lo siguiente a "],
         "吗？": ["?", "?"],
         "已暂停监听": ["Monitoring paused", "Supervisión pausada"],
+        "筛选发件人": ["Filter sender", "Filtrar remitente"],
+        "发送": ["Send", "Enviar"],
+        "先查询数量，确认后才调用 AI。已完成的邮件会跳过。": ["Preview the count first; AI is called only after confirmation. Completed messages are skipped.", "Consulta primero la cantidad; solo se llama a la IA tras confirmar. Se omiten los mensajes completados."],
+        "总结提示词": ["Summary prompt", "Instrucciones del resumen"],
+        "留空时使用内置默认提示词；自定义内容会补充到邮件安全要求和六项报告要求之后。保存本页后生效。": ["Leave blank to use the built-in prompt. Custom instructions follow the email safety rules and six-section report requirements. Changes take effect after saving this page.", "Déjalo en blanco para usar las instrucciones predeterminadas. Las instrucciones personalizadas se añaden después de las reglas de seguridad y los requisitos de las seis secciones. Se aplican al guardar esta página."],
+        "按完整名称匹配；规则对所有已添加的邮箱生效。": ["Match complete folder names; rules apply to every added mailbox.", "Se comparan nombres completos de carpetas; las reglas se aplican a todos los buzones añadidos."],
+        "下载 Chinglish": ["Download Chinglish", "Descargar Chinglish"],
     ]
 
     static func translate(_ text: String, language: String) -> String? {

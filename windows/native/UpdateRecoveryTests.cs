@@ -50,6 +50,13 @@ sealed partial class MainWindow
                 "Legacy Spanish packs translate the existing recovery button when switching languages");
             check(L.T("屏蔽邮件") == "Correos bloqueados",
                 "Legacy Spanish language packs retain built-in sender policy labels");
+            check(L.Select("chinglish") && L.T("邮件报告") == "喵·瑞泼特斯" &&
+                L.Bootstrap("邮箱与检查", "Mailbox & Checks", "Correo y comprobaciones") == "喵博克斯·&·切克斯",
+                "Chinglish is available offline and phonetic bootstrap labels match the selected interface");
+            check(L.LanguageAt(3) == "chinglish" && L.LanguageIndex("chinglish") == 3 && L.Locale == "zh-CN",
+                "Chinglish has its own persistent picker code and a Chinese glyph locale");
+            check(L.T("synthetic@example.invalid") == "synthetic@example.invalid" && L.T("[SMTP_AUTH]") == "[SMTP_AUTH]",
+                "Chinglish preserves email addresses and technical error codes");
             // Run the real language-change handler over the existing settings cards,
             // report/chat controls and tray. Dictionary coverage alone misses stale UI.
             var chineseLabels = new[] { "管理邮箱", "邮箱连接", "检查频率", "选择您喜欢的 AI", "系统通知与免打扰", "历史邮件补总结", "诊断包", "费用单价" };
@@ -63,7 +70,7 @@ sealed partial class MainWindow
                 else if (element is ContentControl content) return HasText(content.Content as UIElement, text);
                 return false;
             }
-            foreach (var language in new[] { "zh", "en", "es", "zh", "es", "en", "zh" }) {
+            foreach (var language in new[] { "zh", "en", "es", "chinglish", "zh", "es", "en", "zh" }) {
                 await ChangeLanguage(language);
                 foreach (var label in chineseLabels)
                     check(HasText(Content as UIElement, L.T(label)),

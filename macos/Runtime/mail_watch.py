@@ -44,7 +44,7 @@ try:
     stage = 'UID SEARCH 检查邮件编号'
     uid_data = require_ok(client.uid('search', None, 'ALL'), 'UID SEARCH')
     current_uids = {int(u) for u in uid_data[0].split()}
-    stage = 'IMAP read-only retrieval or synchronization' if connection.get('ui_language') == 'en' else 'IMAP 只读读取或同步'
+    stage = 'IMAP read-only retrieval or synchronization' if connection.get('ui_language') in ('en', 'chinglish') else 'IMAP 只读读取或同步'
     next_uid = max(current_uids, default=0) + 1
     if not STATE.exists():
         save({'uidvalidity': validity, 'next_uid': next_uid, 'pending': [], 'historical_pending': [], 'mailbox_key': identity})

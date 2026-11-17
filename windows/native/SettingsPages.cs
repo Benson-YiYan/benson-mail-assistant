@@ -54,7 +54,7 @@ sealed partial class MainWindow
         };
         return new() { ["output_dir"] = folder.Text, ["notifications_enabled"] = notificationsSetting.IsOn,
             ["quiet_hours"] = new { enabled = quietEnabled.IsOn, start = quietStart.Text, end = quietEnd.Text },
-            ["autostart"] = startup.IsOn, ["ui_language"] = languageChoice.SelectedIndex == 0 ? "zh" : languageChoice.SelectedIndex == 2 ? "es" : "en" };
+            ["autostart"] = startup.IsOn, ["ui_language"] = L.LanguageAt(languageChoice.SelectedIndex) };
     }
     bool SettingsDirty(string page) => page.Length > 0 && pageBaselines.TryGetValue(page, out var baseline) && baseline != JsonSerializer.Serialize(SettingsValues(page));
     void AcceptSettingsBaseline(string page)
@@ -111,7 +111,7 @@ sealed partial class MainWindow
             else {
                 LoadNotificationPreferences(config); folder.Text = JsonText(config, "output_dir");
                 startup.IsOn = config.TryGetProperty("autostart", out var auto) && auto.GetBoolean();
-                changingLanguage = true; languageChoice.SelectedIndex = L.Code == "zh" ? 0 : L.Code == "es" ? 2 : 1; changingLanguage = false;
+                changingLanguage = true; languageChoice.SelectedIndex = L.LanguageIndex(L.Code); changingLanguage = false;
             }
             AcceptSettingsBaseline(page);
         }
@@ -125,7 +125,7 @@ sealed partial class MainWindow
             var values = SettingsValues(page);
             if (page == "general") {
                 await bridge.Call("validate_settings_page", new { page, values });
-                var code = languageChoice.SelectedIndex == 0 ? "zh" : languageChoice.SelectedIndex == 2 ? "es" : "en";
+                var code = L.LanguageAt(languageChoice.SelectedIndex);
                 if (!await EnsureLanguage(code)) return;
             }
             await Call("save_settings_page", new { page, values });

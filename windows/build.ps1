@@ -25,6 +25,11 @@ Copy-Item README.en.md "dist/BensonMail/Read me - English.md"
 Copy-Item docs/Mail-account-setup-*.txt dist/BensonMail/
 Copy-Item docs/Quick-start-*.txt dist/BensonMail/
 Copy-Item docs/Markdig-LICENSE.txt dist/BensonMail/
+Copy-Item ../docs/Chinglish-lexicon-LICENSE.txt dist/BensonMail/
+python ../script/build_language_packs.py --output build/language-packs
+if ($LASTEXITCODE -ne 0) { throw 'Language pack generation failed' }
+New-Item -ItemType Directory -Force dist/BensonMail/languages | Out-Null
+Copy-Item build/language-packs/windows/chinglish.json dist/BensonMail/languages/
 Copy-Item docs/Get-Outlook-Token.bat, docs/Get-Outlook-Token.ps1 dist/BensonMail/
 New-Item -ItemType Directory -Force dist/BensonMail/assets | Out-Null
 Copy-Item assets/mail.ico dist/BensonMail/assets/mail.ico -Force

@@ -5,9 +5,14 @@ import hashlib
 import json
 import re
 from pathlib import Path
+import sys
+# This file is also loaded by path from the packaged-UI fixture builder.
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+from chinglish import catalog as phonetic_catalog, transliterate
 
 ROOT=Path(__file__).resolve().parents[1]
-LANGUAGES=('zh','en','es')
+LANGUAGES=('zh','en','es','chinglish')
 
 def validate_catalog(catalog, platform, code):
     """Reject leaked source labels and broken dynamic-message translations."""
@@ -20,13 +25,13 @@ def validate_catalog(catalog, platform, code):
     for source, translated in catalog['exact'].items():
         if not isinstance(translated, str) or not translated.strip():
             raise ValueError(f'{platform}/{code}: empty translation for {source!r}')
-        if re.search(r'[\u3400-\u9fff]', translated):
+        if code != 'chinglish' and re.search(r'[\u3400-\u9fff]', translated):
             raise ValueError(f'{platform}/{code}: Chinese text remains in translation for {source!r}')
     seen = {}
     for row in catalog['templates']:
         pattern, translated = row['pattern'], row['en']
         expression = re.compile(pattern)
-        if not translated.strip() or re.search(r'[\u3400-\u9fff]', translated):
+        if not translated.strip() or (code != 'chinglish' and re.search(r'[\u3400-\u9fff]', translated)):
             raise ValueError(f'{platform}/{code}: untranslated dynamic message {pattern!r}')
         if pattern in seen and seen[pattern] != translated:
             raise ValueError(f'{platform}/{code}: conflicting translations for {pattern!r}')
@@ -36,13 +41,24 @@ def validate_catalog(catalog, platform, code):
 
 def payload(platform,code):
     folder=ROOT/('macos/Resources' if platform=='macos' else 'windows/native')
-    catalog={'exact':{},'templates':[]} if code=='zh' else json.loads((folder/f'ui-{code}.json').read_text(encoding='utf-8'))
+    if code not in LANGUAGES:
+        raise ValueError('Unsupported language: ' + code)
+    if code == 'chinglish':
+        catalog = phonetic_catalog(json.loads((folder/'ui-en.json').read_text(encoding='utf-8')))
+    else:
+        catalog={'exact':{},'templates':[]} if code=='zh' else json.loads((folder/f'ui-{code}.json').read_text(encoding='utf-8'))
     validate_catalog(catalog, platform, code)
     docs=ROOT/('macos/Resources' if platform=='macos' else 'windows/docs')
-    quick=docs/f'Quick-start-{code}.txt'
-    return {'schema_version':1,'language':code,'platform':platform,**catalog,'guides':{
-        'mail_account':(docs/f'Mail-account-setup-{code}.txt').read_text(encoding='utf-8'),
-        'quick_start':quick.read_text(encoding='utf-8')}}
+    guide_code = 'en' if code == 'chinglish' else code
+    guides = {
+        'mail_account':(docs/f'Mail-account-setup-{guide_code}.txt').read_text(encoding='utf-8'),
+        'quick_start':(docs/f'Quick-start-{guide_code}.txt').read_text(encoding='utf-8')}
+    if code == 'chinglish':
+        guides = {name: transliterate(text) for name, text in guides.items()}
+    result = {'schema_version':1,'language':code,'platform':platform,**catalog,'guides':guides}
+    if code == 'chinglish':
+        result['notices'] = (ROOT/'docs/Chinglish-lexicon-LICENSE.txt').read_text()
+    return result
 
 def main():
     parser=argparse.ArgumentParser()
@@ -69,6 +85,6 @@ def main():
                     'mirrors':[f'https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/{args.tag}/{name}']}
     if entries:
         (args.output/'language-catalog.json').write_text(json.dumps(entries,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-    print(json.dumps({'ok':True,'packs':6,'output':str(args.output),'version':args.version}))
+    print(json.dumps({'ok':True,'packs':len(LANGUAGES)*2,'output':str(args.output),'version':args.version}))
 
 if __name__=='__main__': main()

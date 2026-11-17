@@ -55,7 +55,7 @@ def runtime_text(zh, en, es):
         language = settings().get('ui_language')
     except (OSError, ValueError, AttributeError):
         language = None  # Reporting a damaged settings file must not crash the error notification path.
-    return {'en': en, 'es': es}.get(language, zh)
+    return {'en': en, 'es': es, 'chinglish': en}.get(language, zh)
 
 
 def unavailable_report(language=None):
@@ -67,7 +67,7 @@ def unavailable_report(language=None):
         'es': ('Correo nuevo', 'Este mensaje se movió fuera de la bandeja de entrada o se eliminó antes de que pudiera leerse.', 'Remitente', 'Desconocido.', 'Resumen', 'No se puede leer.',
                'Qué debo hacer', 'Si necesitas consultarlo, revisa el archivo o la papelera.', 'Adjuntos', 'Desconocidos.', 'Respuesta sugerida', 'No es posible sugerir una respuesta.')
     }
-    parts = reports.get(language, reports['zh'])
+    parts = reports.get('en' if language == 'chinglish' else language, reports['zh'])
     return '\n\n'.join(f'## {number + 1}. {parts[number * 2]}\n\n{parts[number * 2 + 1]}' for number in range(6))
 
 

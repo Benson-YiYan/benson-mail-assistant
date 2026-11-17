@@ -42,7 +42,8 @@ def _config(root):
 
 
 def _language(config):
-    return config.get('ui_language') if config.get('ui_language') in ('zh', 'en', 'es') else 'zh'
+    language = config.get('ui_language')
+    return 'en' if language == 'chinglish' else language if language in ('zh', 'en', 'es') else 'zh'
 
 
 def _error(config, zh, en, es):

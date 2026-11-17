@@ -49,6 +49,6 @@ def test():
         print(redact_mail_error(error, secret))
         raise SystemExit(1)
     except Exception as error:
-        stage = 'Email connection test' if value and value.get('ui_language') == 'en' else '邮箱连接测试'
+        stage = 'Email connection test' if value and value.get('ui_language') in ('en', 'chinglish') else '邮箱连接测试'
         print(str(mail_error(error, value, secret, stage, value.get('ui_language', 'zh'))) if value else '无法读取邮箱连接配置（' + type(error).__name__ + '），请重新保存邮箱设置。')
         raise SystemExit(1)

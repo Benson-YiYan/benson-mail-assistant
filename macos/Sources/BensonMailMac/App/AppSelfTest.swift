@@ -702,6 +702,23 @@ enum AppSelfTest {
             _ = try? capture(settingsWindow, to: output.appendingPathComponent("mac-settings-spanish.png"))
             settingsWindow.orderOut(nil)
             checks.append("Spanish pack activation and application name; missing-pack cancel, offline failure, invalid pack and successful consented retry tested with local fixtures; mailbox/AI/report settings preserved")
+            language.select("chinglish")
+            guard language.code == "chinglish", store.settings.ui_language == "chinglish",
+                  T("邮件报告") == "喵·瑞泼特斯", T("邮箱与检查") == "喵博克斯·&·切克斯",
+                  T("fixture@example.invalid") == "fixture@example.invalid",
+                  T("SMTP_AUTH") == "SMTP_AUTH", store.reportText == existingText,
+                  store.reports.map(\.title) == existingTitles,
+                  store.settings.enabled == enabledBeforeLanguage else {
+                throw Failure("Chinglish switch did not preserve content, settings or required phonetic labels")
+            }
+            let chinglishSettings = try JSONDecoder().decode(MailSettings.self, from: Data(contentsOf: store.settingsURL))
+            guard chinglishSettings.ui_language == "chinglish" else { throw Failure("Chinglish language choice was not persisted") }
+            settingsWindow.contentView = NSHostingView(rootView: SettingsView(store: store))
+            settingsWindow.makeKeyAndOrderFront(nil)
+            try await Task.sleep(nanoseconds: 180_000_000)
+            _ = try? capture(settingsWindow, to: output.appendingPathComponent("mac-settings-chinglish.png"))
+            settingsWindow.orderOut(nil)
+            checks.append("Chinglish catalog activation persists; phonetic word-separated navigation labels render while addresses, error codes, original reports and monitoring remain unchanged")
             AppLanguage.shared.select("zh")
             try verifyHelp(["使用指南", "如何获取授权码？", "检查更新", "关于邮件小秘书"], heading: "帮助")
             guard T("邮件小秘书") == "邮件小秘书", store.settings.ui_language == "zh" else { throw Failure("Chinese switch failed") }

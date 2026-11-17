@@ -102,3 +102,5 @@ Al completar la descarga y verificación, se pregunta si deseas instalar y reini
 Preguntas sobre el correo: las respuestas de IA muestran Markdown, incluidos títulos, párrafos, listas anidadas, citas, tablas, bloques de código, enlaces y formatos en línea habituales. El HTML no se ejecuta.
 
 El chat usa una sola zona de desplazamiento vertical para toda la conversación. Las API compatibles muestran la respuesta mientras llega; las demás muestran el resultado completo. Codex CLI y DeepSeek Harness se actualizan cuando la herramienta emite texto de respuesta, sin simularlo con una animación. Al leer mensajes anteriores, no se fuerza el salto al final.
+
+Chinglish es un idioma adicional incluido para la interfaz, disponible en Ajustes generales. Representa la pronunciación inglesa con caracteres chinos separados por puntos medios, por ejemplo 喵·瑞泼特斯. La interfaz y las guías usan esta forma; se conservan los correos, informes y respuestas de IA, direcciones, rutas, comandos y códigos de error. Con Chinglish, la IA responde en inglés normal.

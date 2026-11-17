@@ -76,7 +76,10 @@ sealed class UpdateTransport : IDisposable
         if (language == "es") summary = download
             ? (timeout ? "El servidor de descarga no respondió durante 45 segundos. Inténtalo de nuevo." : "No se pudo descargar, verificar o instalar la actualización. Consulta los detalles a continuación.")
             : (timeout ? "La solicitud de actualización agotó el tiempo de espera (10 segundos por servidor)." : "No se pudo buscar actualizaciones. Revisa la conexión, el reloj del sistema y el proxy.");
-        return summary + Environment.NewLine + (language == "es" ? "Detalles técnicos:" : english ? "Technical details:" : "底层错误详情：") + Environment.NewLine + output.ToString().Trim();
+        if (language == "chinglish") summary = L.T(summary);
+        var details = language == "es" ? "Detalles técnicos:" : english ? "Technical details:" :
+            language == "chinglish" ? L.T("底层错误详情：") : "底层错误详情：";
+        return summary + Environment.NewLine + details + Environment.NewLine + output.ToString().Trim();
     }
     public void Dispose() => client.Dispose();
     sealed class FixtureHandler : HttpMessageHandler

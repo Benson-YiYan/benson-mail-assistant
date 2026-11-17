@@ -610,8 +610,8 @@ sealed partial class MainWindow : Window
             check.IsEnabled = false;
             try { await Call("check"); } catch { if (!exitRequested) check.IsEnabled = true; throw; }
         });
-        languageChoice.Items.Add("简体中文"); languageChoice.Items.Add("English"); languageChoice.Items.Add("Español");
-        languageChoice.SelectedIndex = L.Code == "zh" ? 0 : L.Code == "es" ? 2 : 1;
+        languageChoice.Items.Add("简体中文"); languageChoice.Items.Add("English"); languageChoice.Items.Add("Español"); languageChoice.Items.Add("Chinglish（英格力士）");
+        languageChoice.SelectedIndex = L.LanguageIndex(L.Code);
         languageChoice.SelectionChanged += async (_, _) => {
             if (changingLanguage || !initialized) return;
             RefreshSettingsDirty();
@@ -1535,7 +1535,7 @@ sealed partial class MainWindow : Window
             if (!L.Select(code)) throw new IOException(L.T("语言包不可用。"));
         } finally {
             changingLanguage = true;
-            languageChoice.SelectedIndex = L.Code == "zh" ? 0 : L.Code == "es" ? 2 : 1;
+            languageChoice.SelectedIndex = L.LanguageIndex(L.Code);
             changingLanguage = false;
         }
         changingLanguage = true;
@@ -1549,7 +1549,7 @@ sealed partial class MainWindow : Window
             RefreshMailLogin(account, mailUsername, mailLoginSummary);
             Title = L.T("邮件小秘书"); tray.Text = Title;
             foreach (var item in tray.Commands) item.Text = L.T(item.Text);
-            languageChoice.SelectedIndex = code == "zh" ? 0 : code == "es" ? 2 : 1;
+            languageChoice.SelectedIndex = L.LanguageIndex(code);
             // Account names are user content; translate only the app's enabled/paused suffix.
             var selected = savedMailboxes.SelectedIndex;
             for (var i = 0; i < mailboxProfiles.Count; i++) {
@@ -1963,6 +1963,13 @@ sealed partial class MainWindow : Window
                 "Spanish selection persists and provides its account guide");
             Check(preview.Text == spanishPreview && account.Text == spanishAccount && running == spanishRunning,
                 "Spanish language change preserves report contents, accounts and monitoring");
+            await ChangeLanguage("chinglish");
+            config = await bridge.Call("config");
+            Check(L.Code == "chinglish" && languageChoice.SelectedIndex == 3 &&
+                config.GetProperty("ui_language").GetString() == "chinglish" &&
+                L.T("邮件报告") == "喵·瑞泼特斯", "Chinglish picker and bridge persistence use the fourth independent language");
+            Check(preview.Text == spanishPreview && account.Text == spanishAccount && running == spanishRunning,
+                "Chinglish preserves email content, account inputs and monitoring");
             await ChangeLanguage("zh");
             var promptCount = 0;
             languagePromptFixture = dialog => {

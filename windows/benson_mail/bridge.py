@@ -264,7 +264,7 @@ class Controller:
             return {key: preferences[key] for key in ('notifications_enabled', 'quiet_hours')}
         if name == 'save_language':
             language = data.get('ui_language')
-            if language not in ('zh', 'en', 'es'):
+            if language not in ('zh', 'en', 'es', 'chinglish'):
                 raise ValueError('Invalid interface language')
             self.config['ui_language'] = language
             self.persist()
@@ -563,6 +563,7 @@ class Controller:
     def fixture_conversation(self, name, path, data):
         """Exercise the real UI protocol using isolated data, never a model or credentials."""
         language = self.config.get('ui_language', 'zh')
+        if language == 'chinglish': language = 'en'
         if name == 'report_retry':
             answer = {'zh': '## 1. 新邮件提醒\n模拟邮件重新总结\n## 2. 谁发的\n演示发件人\n## 3. 说了啥\n模拟内容\n## 4. 我要干什么\n核对\n## 5. 附件里有什么\n模拟合同\n## 6. 建议回复\n收到，谢谢。',
                       'en': '## 1. New email\nSynthetic email summarized again\n## 2. Sender\nDemo\n## 3. Summary\nSynthetic content\n## 4. Actions\nReview\n## 5. Attachments\nSynthetic contract\n## 6. Suggested reply\nReceived, thank you.',
@@ -611,7 +612,8 @@ def run(launcher=None, fixture=None):
         if fixture_packs:
             from .language_packs import validate_pack
             directory = root / 'languages'; directory.mkdir(exist_ok=True)
-            for code in ('zh', 'en', 'es'):
+            for code in ('zh', 'en', 'es', 'chinglish'):
+                if not (Path(fixture_packs) / (code + '.json')).exists(): continue
                 data = (Path(fixture_packs) / (code + '.json')).read_bytes()
                 validate_pack(data, code, 'windows')
                 (directory / (code + '.json')).write_bytes(data)

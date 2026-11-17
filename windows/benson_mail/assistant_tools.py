@@ -665,7 +665,7 @@ def diagnostics_export(root, destination):
         path = selected / ('EmailAssistant-Diagnostics-' + datetime.now().strftime('%Y%m%d-%H%M%S') + '-' + uuid.uuid4().hex[:6] + '.zip')
     config = _chat()._config(root)
     config_public = {}
-    for key, allowed in (('ui_language', ('zh','en','es')), ('ai_provider', ('api','codex','deepseek_harness'))):
+    for key, allowed in (('ui_language', ('zh','en','es','chinglish')), ('ai_provider', ('api','codex','deepseek_harness'))):
         if config.get(key) in allowed: config_public[key] = config[key]
     if type(config.get('interval')) is int and 1 <= config['interval'] <= 86400: config_public['interval'] = config['interval']
     if type(config.get('enabled')) is bool: config_public['enabled'] = config['enabled']
@@ -998,6 +998,7 @@ def _dispatch(root, request, controller=None):
 
 
 _ERROR_TEXT = {
+    'The multi-summary folder path is not a directory.': ('多选总结路径不是文件夹，请检查报告保存位置。', 'La ruta del resumen múltiple no es una carpeta. Revisa dónde se guardan los informes.'),
     'Automatic usage recording requires an explicit application data directory.': ('自动记录用量需要明确的应用数据目录。', 'El registro automático requiere una carpeta de datos explícita.'),
     'Choose an existing local reply draft.': ('请选择已保存的本地回复草稿。', 'Selecciona un borrador local guardado.'),
     'Reply draft must contain between 1 and 60000 characters.': ('回复草稿必须包含1至60000字符。', 'El borrador debe contener entre 1 y 60000 caracteres.'),
@@ -1008,11 +1009,11 @@ _ERROR_TEXT = {
     'Choose auto, zh, en or es.': ('请选择自动、中文、英文或西班牙语。', 'Elige automático, chino, inglés o español.'),
     'Reply instructions exceed 10000 characters.': ('回复要求不能超过10000字符。', 'Las instrucciones de respuesta no pueden superar los 10000 caracteres.'),
     'Original email and attachments exceed the context budget; no draft was requested.': ('原邮件及附件超过上下文预算，尚未调用 AI 生成草稿。', 'El correo original y los adjuntos superan el límite de contexto; no se solicitó un borrador a la IA.'),
-    'Choose between 2 and 100 email reports to summarize.': ('请选择2至100封已读取邮件进行总结。', 'Select between 2 and 100 read emails to summarize.'),
-    'The same email report was selected more than once.': ('同一封邮件报告不能重复选择。', 'The same email report cannot be selected more than once.'),
-    'Selected emails and attachments exceed the 60000-character budget; no AI request was sent.': ('所选邮件和附件超过60000字符限制，未调用 AI。', 'The selected emails and attachments exceed the 60000-character limit; no AI request was sent.'),
-    'The multi-summary folder cannot contain symbolic links or junctions.': ('多选总结目录不能包含符号链接或目录联接。', 'The multi-summary folder cannot contain symbolic links or junctions.'),
-    'The multi-summary folder is outside the report folder.': ('多选总结目录超出了报告文件夹范围。', 'The multi-summary folder is outside the report folder.'),
+    'Choose between 2 and 100 email reports to summarize.': ('请选择2至100封已读取邮件进行总结。', 'Selecciona entre 2 y 100 correos leídos para resumir.'),
+    'The same email report was selected more than once.': ('同一封邮件报告不能重复选择。', 'No se puede seleccionar el mismo informe más de una vez.'),
+    'Selected emails and attachments exceed the 60000-character budget; no AI request was sent.': ('所选邮件和附件超过60000字符限制，未调用 AI。', 'Los correos y adjuntos seleccionados superan el límite de 60000 caracteres; no se envió ninguna solicitud a la IA.'),
+    'The multi-summary folder cannot contain symbolic links or junctions.': ('多选总结目录不能包含符号链接或目录联接。', 'La carpeta de resumen múltiple no puede contener enlaces simbólicos ni uniones de directorio.'),
+    'The multi-summary folder is outside the report folder.': ('多选总结目录超出了报告文件夹范围。', 'La carpeta de resumen múltiple está fuera de la carpeta de informes.'),
     'Choose a destination for the diagnostic package.': ('请选择诊断包的保存位置。', 'Elige dónde guardar el paquete de diagnóstico.'),
     'Mailbox not found.': ('找不到所选邮箱，请重新选择。', 'No se encuentra el buzón seleccionado. Vuelve a seleccionarlo.'),
     'Mailbox controller is required.': ('邮箱服务尚未就绪，请重新打开软件。', 'El servicio de correo no está listo. Vuelve a abrir la aplicación.'),

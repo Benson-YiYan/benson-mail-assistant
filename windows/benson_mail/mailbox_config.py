@@ -342,6 +342,7 @@ def redact_mail_error(error, secret, username=''):
 
 
 def mail_error(error, value, secret, stage, language='zh'):
+    language = 'en' if language == 'chinglish' else language
     detail = redact_mail_error(error, secret, value['username'])
     lowered = detail.casefold()
     if isinstance(error, ProxyConnectionError):

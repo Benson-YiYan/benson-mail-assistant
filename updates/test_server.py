@@ -166,6 +166,21 @@ class LanguageReleaseServerTests(unittest.TestCase):
     setUp = ReleaseServerTests.setUp
     tearDown = ReleaseServerTests.tearDown
     request = ReleaseServerTests.request
+    def test_eight_packs_support_chinglish_without_accepting_partial_pairs(self):
+        import hashlib
+        entries = {}
+        for platform in ('windows', 'macos'):
+            for code in ('zh', 'en', 'es', 'chinglish'):
+                name = f'BensonMail-Language-{platform}-{code}-202611170900.json'
+                data = json.dumps({'schema_version': 1, 'platform': platform, 'language': code}).encode()
+                (self.directory / name).write_bytes(data)
+                entries[platform + '-' + code] = {'file': name, 'version': '202611170900', 'size': len(data),
+                    'sha256': hashlib.sha256(data).hexdigest(), 'mirrors': [
+                    'https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/' + name]}
+        self.assertEqual(len(server.validate_language_catalog(entries, self.directory)), 8)
+        entries.pop('macos-chinglish')
+        with self.assertRaises(ValueError): server.validate_language_catalog(entries, self.directory)
+
     def test_six_language_packs_are_allowlisted_and_digest_checked(self):
         import hashlib
         entries={}

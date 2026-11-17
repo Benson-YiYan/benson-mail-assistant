@@ -19,6 +19,15 @@ class SettingsPageTests(unittest.TestCase):
         self.before=self.controller.path.read_bytes()
     def mail(self,**extra):
         return {'account':'new@example.invalid','host':'imap.new.invalid','secret':'NEW_SECRET','output_dir':str(self.root/'new-reports'),'autostart':True,**extra}
+    def test_chinglish_interface_language_saves_and_reloads_without_affecting_mail(self):
+        self.controller.command('save_language', {'ui_language': 'chinglish'})
+        self.assertEqual(json.loads(self.controller.path.read_text())['ui_language'], 'chinglish')
+        result = self.controller.command('validate_settings_page', {'page': 'general', 'values': {'ui_language': 'chinglish'}})
+        self.assertTrue(result['valid'])
+        fresh = Controller(self.root, lambda event: None, launcher='C:/Mail/App.exe')
+        self.assertEqual(fresh.config['ui_language'], 'chinglish')
+        self.assertEqual(fresh.config['account'], 'old@example.invalid')
+
     def test_invalid_interval_after_valid_mail_fields_changes_nothing(self):
         with patch('benson_mail.settings_page.platform.save_secret') as secret,patch('benson_mail.settings_page.platform.set_autostart') as registry:
             with self.assertRaises(ValueError): self.controller.command('save_settings_page',{'page':'mail','values':self.mail(seconds='bad')})
