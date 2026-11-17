@@ -12,9 +12,7 @@ struct ContentView: View {
         HSplitView {
             VStack(alignment: .leading, spacing: 16) {
                 Label(T("邮件小秘书"), systemImage: "envelope.fill").font(.headline).padding(.horizontal, 16).padding(.top, 20)
-                List(selection: Binding<WorkspacePage?>(get: { store.workspacePage }, set: { if let page = $0 { store.settingsDraft.navigate(page) } })) {
-                    ForEach(WorkspacePage.allCases) { page in Label(T(page.rawValue), systemImage: page.icon).tag(page) }
-                }.listStyle(.sidebar)
+                WorkspaceNavigationList(selection: Binding<WorkspacePage?>(get: { store.workspacePage }, set: { if let page = $0 { store.settingsDraft.navigate(page) } }))
                 VStack(alignment: .leading, spacing: 12) {
                     Button(T("打开报告文件夹"), systemImage: "folder") { store.openFolder() }
                     Button(T("退出邮件小秘书"), systemImage: "power") { NSApp.terminate(nil) }

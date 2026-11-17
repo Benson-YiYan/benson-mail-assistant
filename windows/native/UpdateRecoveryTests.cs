@@ -71,7 +71,17 @@ sealed partial class MainWindow
                 return false;
             }
             foreach (var language in new[] { "zh", "en", "es", "chinglish", "zh", "es", "en", "zh" }) {
+                var navigationSelection = navigation.SelectedIndex;
+                var currentWorkspace = currentPageIndex;
+                var unfinishedQuestion = question.Text;
+                var sidebarControls = navigationLabels.ConvertAll(item => item.label);
                 await ChangeLanguage(language);
+                check(navigationLabels.Count == 4 && navigationLabels.TrueForAll(item =>
+                    item.label.Text == L.T(item.source) && item.label.Language == L.Locale &&
+                    sidebarControls.Contains(item.label) && item.label.IsLoaded) &&
+                    navigation.SelectedIndex == navigationSelection && currentPageIndex == currentWorkspace &&
+                    question.Text == unfinishedQuestion,
+                    "All four mounted sidebar labels refresh to " + language + " without replacing controls, changing pages or clearing input");
                 RuntimeLogLanguageSelfTest(check);
                 var senderReport = new Report("C:/fixture/report.md", "Original subject", "Sender", "", null) {
                     sender_email = "sender@example.invalid", account = "recipient@example.invalid", day = "2026-11-17"

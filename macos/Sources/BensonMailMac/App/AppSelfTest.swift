@@ -21,6 +21,7 @@ enum AppSelfTest {
             }
             checks += try ReportTreeSelfTest.run(base: store.base)
             checks += try ReportUninstallSelfTest.run(base: store.base)
+            checks += try await SidebarLanguageSelfTest.run(output: output)
             if args.contains("--smoke-self-test-only") {
                 checks += try await ReportConversationSelfTest.run(base: store.base)
                 checks.append("Packaged application launches with synthetic report index and worker heartbeat; full UI suite not run")

@@ -7,6 +7,31 @@ enum WorkspacePage: String, CaseIterable, Identifiable {
     var icon: String { switch self { case .reports: "tray"; case .mailbox: "envelope.badge"; case .ai: "sparkles"; case .general: "gearshape" } }
 }
 
+struct WorkspaceNavigationRow: View {
+    // ForEach keeps stable page identities. Each retained row must observe the
+    // language itself, rather than relying on its parent's body being rebuilt.
+    @ObservedObject private var language = AppLanguage.shared
+    let page: WorkspacePage
+    var body: some View {
+        Label(T(page.rawValue), systemImage: page.icon)
+            .id(language.code)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(T(page.rawValue))
+            .accessibilityIdentifier("workspace-nav-" + page.id)
+    }
+}
+
+struct WorkspaceNavigationList: View {
+    @Binding var selection: WorkspacePage?
+    var body: some View {
+        List(selection: $selection) {
+            ForEach(WorkspacePage.allCases) { page in
+                WorkspaceNavigationRow(page: page).tag(page)
+            }
+        }.listStyle(.sidebar)
+    }
+}
+
 struct WorkspaceCard<Content: View>: View {
     @ObservedObject private var language = AppLanguage.shared
     let title: String

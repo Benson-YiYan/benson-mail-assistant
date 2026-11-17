@@ -223,6 +223,7 @@ sealed partial class MainWindow : Window
     readonly Grid layout = new() { UseLayoutRounding = true, Language = L.Locale };
     readonly ListView navigation = new() { SelectionMode = ListViewSelectionMode.Single,
         BorderThickness = new Thickness(0), Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
+    readonly List<(string source, TextBlock label)> navigationLabels = new();
     readonly Grid pages = new() { Padding = new Thickness(24, 12, 24, 20) };
     readonly Grid reportPage = new() { RowSpacing = 16 };
     readonly Grid mailPage = new();
@@ -493,13 +494,14 @@ sealed partial class MainWindow : Window
         var brand = Row(new SymbolIcon(Symbol.Mail) { Margin = new Thickness(4, 0, 0, 0) },
             new TextBlock { FontFamily = MailTypography.Font, Text = L.T("邮件小秘书"), FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center });
-        foreach (var (label, symbol) in new[] { (L.T("邮件报告"), Symbol.Mail), (L.T("邮箱与检查"), Symbol.Setting), (L.T("AI 服务"), Symbol.Message), (L.T("通用设置"), Symbol.Setting) })
+        foreach (var (source, symbol) in new[] { ("邮件报告", Symbol.Mail), ("邮箱与检查", Symbol.Setting), ("AI 服务", Symbol.Message), ("通用设置", Symbol.Setting) })
         {
             var indicator = new Border { Width = 3, Height = 18, CornerRadius = new CornerRadius(2),
                 Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 95, 184)),
                 Opacity = 0, VerticalAlignment = VerticalAlignment.Center };
-            var item = new ListViewItem { Content = Row(indicator, new SymbolIcon(symbol) { Width = 20 },
-                new TextBlock { FontFamily = MailTypography.Font, Text = label, VerticalAlignment = VerticalAlignment.Center }),
+            var label = new TextBlock { FontFamily = MailTypography.Font, Text = L.T(source), VerticalAlignment = VerticalAlignment.Center };
+            navigationLabels.Add((source, label));
+            var item = new ListViewItem { Content = Row(indicator, new SymbolIcon(symbol) { Width = 20 }, label),
                 Padding = new Thickness(8, 10, 10, 10), CornerRadius = new CornerRadius(4),
                 Margin = new Thickness(0, 2, 0, 2), HorizontalContentAlignment = HorizontalAlignment.Stretch };
             navigation.SelectionChanged += (_, _) => indicator.Opacity = item.IsSelected ? 1 : 0;
@@ -1542,6 +1544,12 @@ sealed partial class MainWindow : Window
         changingLanguage = true;
         try {
             L.Apply(Content as UIElement, reports, savedMailboxes, detail, chatMessages, questionFiles, conversationStatus, senderPolicyAddresses, senderPolicyRecords, senderPolicyStatus);
+            // Keep the four persistent navigation controls tied to their source
+            // identities instead of relying on reverse lookup of translated text.
+            foreach (var (source, label) in navigationLabels) {
+                label.Text = L.T(source);
+                label.Language = L.Locale;
+            }
             ApplyFeatureLabels();
             RenderMigrationWarning();
             savedMailboxes.Header = savedMailboxes.Header is string mailboxHeader ? L.T(mailboxHeader) : savedMailboxes.Header;
