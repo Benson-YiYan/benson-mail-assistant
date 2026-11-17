@@ -38,6 +38,9 @@ enum SidebarLanguageSelfTest {
         }
         for code in ["zh", "en", "es", "chinglish", "en", "zh"] {
             language.select(code)
+            guard language.code == code else {
+                throw AppSelfTest.Failure("Sidebar language fixture could not activate " + code)
+            }
             try await Task.sleep(nanoseconds: 250_000_000)
             host.layoutSubtreeIfNeeded()
             for page in WorkspacePage.allCases {
