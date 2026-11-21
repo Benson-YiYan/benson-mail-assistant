@@ -229,6 +229,7 @@ class AssistantToolTests(unittest.TestCase):
         second.write_text('Second report')
         second_mail = {**self.mail, 'uid':'9', 'subject':'Second mail', 'mailbox_account':'second@example.invalid', 'body':'Second original body.'}
         second.with_suffix('.mail.json').write_text(json.dumps(second_mail))
+        self.config['ui_language'] = 'chinglish'
         self.config['summary_prompt'] = 'Include the shared deadline.'
         self.save_config()
         with patch.object(chat, '_complete', return_value='Combined report') as complete:
@@ -240,6 +241,7 @@ class AssistantToolTests(unittest.TestCase):
         self.assertEqual(target.read_text(), 'Combined report\n')
         messages = complete.call_args.args[2]
         self.assertIn('Include the shared deadline.', messages[0]['content'])
+        self.assertIn('Output language for this report: Chinglish', messages[0]['content'])
         supplied = json.loads(messages[1]['content'])['selected_emails']
         self.assertEqual([item['subject'] for item in supplied], ['Question','Second mail'])
         if WINDOWS:
@@ -321,6 +323,8 @@ class AssistantToolTests(unittest.TestCase):
         self.assertIn('Retrieve the original email',result['limitation'])
         self.assertNotIn('can be discussed',result['limitation'])
     def test_resummary_preserves_original_sidecar_and_unread_attachment_limits(self):
+        self.config['ui_language'] = 'chinglish'
+        self.save_config()
         self.mail['attachments']=[{'name':'scan.pdf','text':'[page:1]\n[Scanned page: no text layer. OCR unavailable; contents were not read.]'}]
         sidecar=self.report.with_suffix('.mail.json');sidecar.write_text(json.dumps(self.mail));before=sidecar.read_bytes()
         with patch.object(chat,'_complete',return_value='New report [mail.body]') as complete:
@@ -330,6 +334,7 @@ class AssistantToolTests(unittest.TestCase):
         prompt=complete.call_args.args[2]
         self.assertIn('contents were not read',json.dumps(prompt))
         self.assertIn('Do not expose internal source IDs',prompt[0]['content'])
+        self.assertIn('Output language for this report: Chinglish',prompt[0]['content'])
         self.assertNotIn('cite factual claims',prompt[0]['content'])
     def test_empty_diagnostic_destination_does_not_create_cwd_export(self):
         for destination in ('','   '):

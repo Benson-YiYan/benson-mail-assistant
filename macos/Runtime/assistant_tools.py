@@ -286,7 +286,7 @@ def multi_summary(root, request):
         from .core import analysis_prompt
     else:
         from mail_prompt import analysis_prompt
-    system_prompt = analysis_prompt(chat._language(config), config.get('summary_prompt', ''))
+    system_prompt = analysis_prompt(config.get('ui_language'), config.get('summary_prompt', ''))
     user_content = json.dumps({'selected_emails': selected}, ensure_ascii=False)
     if len(system_prompt) + len(user_content) > chat.MAX_CONTEXT:
         raise ValueError('Selected emails and attachments exceed the 60000-character budget; no AI request was sent.')

@@ -355,7 +355,7 @@ def report_retry(root, path):
     config = _config(root); report = _report(root, path, config); location = _history_path(root, report)
     with _locked(location):
         original = _mail_context(root, report, config, require_original=True)
-        messages = [{'role': 'system', 'content': analysis_prompt(_language(config), config.get('summary_prompt', ''))}, {'role': 'user', 'content': json.dumps(original['original_mail'], ensure_ascii=False)}]
+        messages = [{'role': 'system', 'content': analysis_prompt(config.get('ui_language'), config.get('summary_prompt', ''))}, {'role': 'user', 'content': json.dumps(original['original_mail'], ensure_ascii=False)}]
         if sum(len(m['content']) for m in messages) > MAX_CONTEXT:
             raise _error(config, '原邮件及附件超过60000字符预算，原报告未修改。', 'Original mail and attachments exceed the 60000-character budget; the report was not modified.', 'El correo y los adjuntos superan 60000 caracteres; no se modificó el informe.')
         answer = clean_internal_source_tags(_complete(root, config, messages))

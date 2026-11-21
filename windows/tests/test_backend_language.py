@@ -10,13 +10,19 @@ from benson_mail.core import Service, attachment_text
 from benson_mail.mail_policy import policy_save
 
 class BackendLanguageTests(unittest.TestCase):
-    def test_chinglish_uses_english_ai_and_keeps_original_data(self):
+    def test_chinglish_summaries_are_phonetic_and_keep_original_data(self):
         from benson_mail.mail_chat import _language, _chat_system
         from benson_mail.core import analysis_prompt
         from benson_mail.runtime_i18n import text, using_language
         self.assertEqual(_language({'ui_language': 'chinglish'}), 'en')
         self.assertIn('Answer in English', _chat_system(_language({'ui_language': 'chinglish'})))
-        self.assertEqual(analysis_prompt('chinglish'), analysis_prompt('en'))
+        prompt = analysis_prompt('chinglish')
+        self.assertIn('Output language for this report: Chinglish', prompt)
+        self.assertIn('喵·瑞泼特斯', prompt)
+        self.assertIn('Preserve exact email addresses', prompt)
+        self.assertIn('copyable suggested email reply must remain', prompt)
+        for code in ('zh', 'en', 'es'):
+            self.assertNotIn('Output language for this report: Chinglish', analysis_prompt(code))
         self.assertIn('Custom summary prompt:', analysis_prompt('chinglish', '用户要求保持原样'))
         self.assertIn('用户要求保持原样', analysis_prompt('chinglish', '用户要求保持原样'))
         with using_language('chinglish'):

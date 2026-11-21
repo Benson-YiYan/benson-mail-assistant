@@ -61,14 +61,22 @@ def clean_internal_source_tags(text):
     return re.sub(r'\[(?:mail\.body|attachment\.\d+(?:,\s*page:\d+)?)\]', '', str(text)).strip()
 
 
+CHINGLISH_SUMMARY_STYLE = """Output language for this report: Chinglish (英格力士), a phonetic rendering of English words using Chinese characters. This overrides the English prose requirement above, while retaining all six sections and factual requirements.
+Write generated headings, summaries, tasks, attachment explanations and reply explanations in English word order, but transliterate every English word into Chinese sounds. Separate adjacent transliterated words with the middle dot ·. Do not use ordinary Chinese translations or leave generated prose in normal English. Examples: Mail Reports -> 喵·瑞泼特斯; Mailbox & checks -> 喵博克斯·&·切克斯; New email -> 纽·伊喵.
+Keep Markdown syntax (headings, lists, tables, emphasis, links and code fences) intact. Preserve exact email addresses, URLs, paths, filenames, commands, code, error codes, identifiers, dates, times, amounts and numbers. Preserve proper names and verbatim quotations when accuracy requires it. The copyable suggested email reply must remain in the incoming message's language; only its surrounding explanation uses Chinglish. Never alter the original email or attachment data.
+"""
+
 def analysis_prompt(language=None, custom_prompt=''):
-    language = 'en' if language == 'chinglish' else language
+    chinglish = language == 'chinglish'
+    language = 'en' if chinglish else language
     prompt = {'en': ENGLISH_ANALYSIS_PROMPT, 'es': SPANISH_ANALYSIS_PROMPT}.get(language, ANALYSIS_PROMPT)
     custom = str(custom_prompt or '').strip()
     if custom:
         label = {'en': 'Custom summary prompt:', 'es': 'Instrucción de resumen personalizada:',
                  'zh': '用户自定义的总结提示词：'}.get(language, '用户自定义的总结提示词：')
         prompt += '\n\n' + label + '\n' + custom
+    if chinglish:
+        prompt += '\n\n' + CHINGLISH_SUMMARY_STYLE
     return prompt
 
 @localized
