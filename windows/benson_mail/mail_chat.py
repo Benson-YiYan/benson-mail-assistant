@@ -25,7 +25,6 @@ if IS_WINDOWS_PACKAGE:
 else:
     import context_budget
     from report_metadata import read_metadata
-MAX_CONTEXT = 60000
 MAX_INPUT = 20000
 MAX_SUMMARY = 10000
 MAX_FILE = 20 * 1024 * 1024
@@ -405,6 +404,10 @@ def chat_send(root, path, text, files=(), on_delta=None):
         provider = config.get('ai_provider', 'codex')
         def size(messages):
             return context_budget.estimate_messages(messages, provider)
+        if context_budget.advertised_input_budget(root, config) is None:
+            # A heuristic is useful for compacting history, but cannot establish
+            # the unknown model's hard limit for the original email or question.
+            budget = max(budget, size(fixed + [latest]) + min(2048, budget // 8))
         options = {'on_delta': on_delta} if on_delta else {}
         messages, pending = _fit_chat(root, config, state, fixed, latest, budget, size)
         try:
@@ -457,8 +460,7 @@ def report_retry(root, path):
         else:
             from mail_prompt import analysis_prompt
         messages = [{'role': 'system', 'content': analysis_prompt(config.get('ui_language'), config.get('summary_prompt', ''))}, {'role': 'user', 'content': json.dumps(original['original_mail'], ensure_ascii=False)}]
-        if sum(len(m['content']) for m in messages) > MAX_CONTEXT:
-            raise _error(config, '原邮件及附件超过60000字符预算，原报告未修改。', 'Original mail and attachments exceed the 60000-character budget; the report was not modified.', 'El correo y los adjuntos superan 60000 caracteres; no se modificó el informe.')
+        context_budget.check_summary_budget(root, config, messages)
         answer = _clean_internal_source_tags(_complete(root, config, messages))
         # Metadata and report filename remain unchanged. Replacement only follows a successful answer.
         rendered = answer + '\n'

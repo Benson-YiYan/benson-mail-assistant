@@ -166,11 +166,11 @@ def _write_disk_cache(path, fingerprint, advertised, ttl):
                 pass
 
 
-def input_budget(root, config):
+def advertised_input_budget(root, config):
+    """Return only a provider-advertised budget; an unknown window is not a limit."""
     provider = config.get('ai_provider', 'codex')
-    fallback = FALLBACK_INPUT_TOKENS.get(provider, 24000)
     if provider != 'api':
-        return fallback
+        return None
 
     if __package__:
         from . import ai_api
@@ -178,11 +178,11 @@ def input_budget(root, config):
         import ai_api
     model = config.get('api_model')
     if not isinstance(model, str) or not model.strip() or not isinstance(config.get('api_base'), str):
-        return fallback
+        return None
     try:
         endpoint = ai_api.endpoint(config['api_base'])
     except ValueError:
-        return fallback
+        return None
     model = model.strip()
     url = endpoint.removesuffix('/chat/completions') + '/models'
     cache_key = (str(root), url, model)
@@ -190,7 +190,7 @@ def input_budget(root, config):
     with _cache_lock:
         cached = _cache.get(cache_key)
         if cached and cached[0] > started:
-            return cached[1] or fallback
+            return cached[1]
     # Mac starts one worker per turn; share the most recently used budget across
     # worker processes. This cache contains no URL, model name, or credential.
     disk_path = _cache_path(root)
@@ -211,4 +211,25 @@ def input_budget(root, config):
         if len(_cache) >= 128:
             _cache.pop(next(iter(_cache)))
         _cache[cache_key] = cached
-    return cached[1] or fallback
+    return cached[1]
+
+
+def input_budget(root, config):
+    """A compaction target, not a hard rejection limit when metadata is unknown."""
+    known = advertised_input_budget(root, config)
+    return known if known is not None else FALLBACK_INPUT_TOKENS.get(config.get('ai_provider', 'codex'), 24000)
+
+
+def check_summary_budget(root, config, messages):
+    """Check complete summary input against a known model window without truncation."""
+    known = advertised_input_budget(root, config)
+    if known is None or estimate_messages(messages, config.get('ai_provider', 'codex')) <= known:
+        return
+    language = config.get('ui_language', 'zh')
+    text = {
+        'zh': '原邮件、附件或提示词超出当前模型公布的上下文预算，请减少所选邮件或换用上下文更大的模型；已有报告未修改。',
+        'en': 'Original emails, attachments or instructions exceed the context budget advertised by this model. Select fewer emails or a model with a larger context window; existing reports were not changed.',
+        'es': 'Los correos originales, adjuntos o instrucciones superan el contexto publicado por este modelo. Selecciona menos correos o un modelo con más contexto; no se modificaron los informes existentes.',
+    }.get('en' if language == 'chinglish' else language)
+    raise ValueError((text or 'Summary input exceeds the model context budget; existing reports were not changed.') +
+                     ' [AI_CONTEXT_LENGTH]')

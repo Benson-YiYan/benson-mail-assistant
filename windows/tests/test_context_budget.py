@@ -62,6 +62,28 @@ class ContextBudgetTests(unittest.TestCase):
         messages = [{'role': 'user', 'content': 'hello'}]
         self.assertGreater(budget.estimate_messages(messages, 'codex'), budget.estimate_messages(messages))
 
+    def test_summary_checks_advertised_tokens_instead_of_character_count(self):
+        messages = [{'role': 'user', 'content': 'x' * 75000}]
+        with patch.object(budget, 'advertised_input_budget', return_value=32000):
+            budget.check_summary_budget('fixture', self.config, messages)
+        with patch.object(budget, 'advertised_input_budget', return_value=8000):
+            for language, expected in [('zh', '上下文预算'), ('en', 'context budget'),
+                                       ('es', 'contexto publicado'), ('chinglish', 'context budget')]:
+                with self.assertRaisesRegex(ValueError, expected) as failure:
+                    budget.check_summary_budget('fixture', {**self.config, 'ui_language': language}, messages)
+                self.assertIn('[AI_CONTEXT_LENGTH]', str(failure.exception))
+
+    def test_unknown_summary_window_has_no_fallback_rejection(self):
+        messages = [{'role': 'user', 'content': '原邮件数据' * 30000}]
+        with patch.object(budget, '_metadata_budget', return_value=None), \
+                tempfile.TemporaryDirectory() as root:
+            self.assertIsNone(budget.advertised_input_budget(root, self.config))
+            self.assertEqual(budget.input_budget(root, self.config), budget.FALLBACK_INPUT_TOKENS['api'])
+            budget.check_summary_budget(root, self.config, messages)
+            for provider in ('codex', 'deepseek_harness'):
+                self.assertIsNone(budget.advertised_input_budget(root, {'ai_provider': provider}))
+                budget.check_summary_budget(root, {'ai_provider': provider}, messages)
+
     def test_http_context_rejection_is_typed_and_does_not_reveal_error_body(self):
         body = io.BytesIO(b'{"error":{"code":"context_length_exceeded","message":"private"}}')
         opener = Mock()

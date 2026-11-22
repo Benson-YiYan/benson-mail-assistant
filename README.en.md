@@ -111,6 +111,8 @@ Select a report and choose Summarize again to regenerate all six sections in the
 
 Ask about this email supports follow-up questions and additional files selected with the file picker. Each email has its own saved conversation that can be reopened. Factual answers use the original email and readable original attachments. Conversation is included, but generated reports, previous answers and compressed summaries are not factual evidence. Long conversations compress earlier turns into a summary while keeping recent messages, with a compression indicator. Compression is not word-for-word preservation; the complete conversation remains locally saved. Quote and verify critical figures or wording. Internal source labels are kept out of reports and chat answers.
 
+Automatic, historical, regenerated and multi-email summaries no longer use a fixed 60,000-character context cap; when the provider advertises a model window, preflight checks use a token budget with room reserved for the answer. Unknown limits are left to the provider; default chat estimates only trigger earlier-message compression and do not impose a hard cap on the original email or current question. File extraction, individual questions, request transport and local history still have their own resource limits; incomplete extraction is disclosed.
+
 These actions call your configured AI and may incur charges. Supplementary files are read only for text extraction; unreadable or oversized files cause an explicit error. No emails are sent. Conversation history is stored in local application data. Uninstalling removes it even when mailbox and AI settings are retained; copy any conversations you need before uninstalling.
 
 ## Sender rules and spam

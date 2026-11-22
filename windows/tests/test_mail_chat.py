@@ -167,22 +167,45 @@ class MailChatTests(unittest.TestCase):
             self.assertEqual(len(history['messages']), 6)
             self.assertEqual([m['content'] for m in history['messages'] if m['role']=='assistant'], ['Answer en','Answer es','Answer zh'])
 
-    def test_oversized_fixed_context_never_calls_provider_or_overwrites(self):
+    def test_known_model_overflow_never_calls_provider_or_overwrites(self):
         for module in (windows, mac):
             root, report, _ = self.fixture(module)
             data = json.loads(report.with_suffix('.mail.json').read_text())
             data['body'] = 'x'*70000
             report.with_suffix('.mail.json').write_text(json.dumps(data))
             before = report.read_bytes()
-            with patch.object(module.context_budget, 'input_budget', return_value=8000), patch.object(module, '_complete') as provider:
+            with patch.object(module.context_budget, 'advertised_input_budget', return_value=8000), patch.object(module.context_budget, 'input_budget', return_value=8000), patch.object(module, '_complete') as provider:
                 with self.assertRaisesRegex(ValueError, 'context budget'): module.chat_send(root, report, 'Question', [])
-                with self.assertRaisesRegex(ValueError, '60000'): module.report_retry(root, report)
+                with self.assertRaisesRegex(ValueError, 'AI_CONTEXT_LENGTH'): module.report_retry(root, report)
                 self.assertFalse(provider.called)
             self.assertEqual(report.read_bytes(), before)
             self.assertEqual(module.chat_history(root, report)['messages'], [])
-            with patch.object(module.context_budget, 'input_budget', return_value=32000), patch.object(module, '_complete', return_value='Answer') as provider:
+
+    def test_original_over_60000_characters_fits_advertised_model(self):
+        for module in (windows, mac):
+            root, report, _ = self.fixture(module)
+            data = json.loads(report.with_suffix('.mail.json').read_text())
+            data['body'] = 'x'*70000
+            report.with_suffix('.mail.json').write_text(json.dumps(data))
+            with patch.object(module.context_budget, 'advertised_input_budget', return_value=32000), patch.object(module.context_budget, 'input_budget', return_value=32000), patch.object(module, '_complete', return_value='Answer') as provider:
                 module.chat_send(root, report, 'Question', [])
+                self.assertIn(data['body'], provider.call_args.args[2][1]['content'])
+                result = module.report_retry(root, report)
             self.assertIn(data['body'], provider.call_args.args[2][1]['content'])
+            self.assertEqual(report.read_text(), result['text'])
+
+    def test_unknown_model_has_no_fixed_original_or_summary_limit(self):
+        for module in (windows, mac):
+            root, report, _ = self.fixture(module)
+            data = json.loads(report.with_suffix('.mail.json').read_text())
+            data['body'] = '原邮件全文' * 15000
+            report.with_suffix('.mail.json').write_text(json.dumps(data))
+            with patch.object(module.context_budget, 'advertised_input_budget', return_value=None), patch.object(module.context_budget, 'input_budget', return_value=8000), patch.object(module, '_complete', return_value='Answer') as provider:
+                module.chat_send(root, report, 'Question', [])
+                self.assertIn(data['body'], provider.call_args.args[2][1]['content'])
+                result = module.report_retry(root, report)
+            self.assertIn(data['body'], provider.call_args.args[2][1]['content'])
+            self.assertEqual(report.read_text(), result['text'])
 
     def test_rejected_context_retries_once_without_replaying_streamed_text(self):
         for module in (windows, mac):

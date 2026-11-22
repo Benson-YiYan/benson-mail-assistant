@@ -255,6 +255,53 @@ class AssistantToolTests(unittest.TestCase):
                          ['owner@example.invalid','second@example.invalid'])
         self.assertEqual([source['original_mail']['body'] for source in metadata['sources']],
                          ['Original body fact.','Second original body.'])
+    def test_large_multi_summary_uses_model_budget_and_keeps_complete_originals(self):
+        second = self.output / 'second.md'
+        second.write_text('Second report')
+        self.mail['body'] = 'Original complete body ' + 'x' * 70000
+        self.report.with_suffix('.mail.json').write_text(json.dumps(self.mail))
+        second_mail = {**self.mail, 'uid': '9', 'subject': 'Second mail', 'body': 'Second complete body ' + 'y' * 70000}
+        second.with_suffix('.mail.json').write_text(json.dumps(second_mail))
+        self.config['summary_prompt'] = 'Keep all dates and amounts.'
+        self.save_config()
+        original = self.report.with_suffix('.mail.json').read_bytes()
+        for advertised in (128000, None):
+            with self.subTest(advertised=advertised), patch.object(chat.context_budget, 'advertised_input_budget', return_value=advertised), patch.object(chat, '_complete', return_value='Combined report') as complete:
+                result = tools.multi_summary(self.root, {'paths': [str(self.report), str(second)]})
+            messages = complete.call_args.args[2]
+            self.assertGreater(sum(len(m['content']) for m in messages), 60000)
+            self.assertIn('Keep all dates and amounts.', messages[0]['content'])
+            supplied = json.loads(messages[1]['content'])['selected_emails']
+            self.assertEqual([m['original_mail']['body'] for m in supplied], [self.mail['body'], second_mail['body']])
+            self.assertEqual(Path(result['path']).read_text(), 'Combined report\n')
+            self.assertEqual(self.report.with_suffix('.mail.json').read_bytes(), original)
+
+    def test_multi_summary_known_model_overflow_does_not_call_ai_or_create_folder(self):
+        second = self.output / 'second.md'
+        second.write_text('Second report')
+        self.mail['body'] = 'x' * 70000
+        self.report.with_suffix('.mail.json').write_text(json.dumps(self.mail))
+        second.with_suffix('.mail.json').write_text(json.dumps({**self.mail, 'uid': '9', 'subject': 'Second mail'}))
+        before = {path: path.read_bytes() for path in self.output.iterdir()}
+        with patch.object(chat.context_budget, 'advertised_input_budget', return_value=1000), patch.object(chat, '_complete') as complete:
+            with self.assertRaises(ValueError):
+                tools.multi_summary(self.root, {'paths': [str(self.report), str(second)]})
+        complete.assert_not_called()
+        self.assertFalse((self.output / '全部邮箱').exists())
+        self.assertEqual({path: path.read_bytes() for path in self.output.iterdir()}, before)
+
+    def test_large_reply_draft_has_no_fixed_character_input_cap(self):
+        self.mail['body'] = 'Original complete body ' + 'x' * 70000
+        self.report.with_suffix('.mail.json').write_text(json.dumps(self.mail))
+        before = self.report.with_suffix('.mail.json').read_bytes()
+        for advertised in (64000, None):
+            with self.subTest(advertised=advertised), patch.object(chat.context_budget, 'advertised_input_budget', return_value=advertised), patch.object(chat, '_complete', return_value='Reply draft') as complete:
+                result = tools.reply_draft(self.root, {'path': str(self.report)})
+            supplied = json.loads(complete.call_args.args[2][1]['content'])
+            self.assertEqual(supplied['original_mail']['body'], self.mail['body'])
+            self.assertFalse(result['sent'])
+            self.assertEqual(self.report.with_suffix('.mail.json').read_bytes(), before)
+
     def test_multi_summary_filename_caps_joined_titles_at_64_characters(self):
         self.assertEqual(
             tools._multi_summary_filename(['1日的安排', '2日的安排', '午饭前买菜', '3日的安排']),
@@ -290,8 +337,10 @@ class AssistantToolTests(unittest.TestCase):
         with patch.object(chat,'_complete') as complete, self.assertRaises(ValueError): tools.reply_draft(self.root, {'path':str(self.report)})
         complete.assert_not_called()
         self.mail['body']='x'*61000;self.report.with_suffix('.mail.json').write_text(json.dumps(self.mail))
-        with patch.object(chat,'_complete') as complete, self.assertRaises(ValueError): tools.reply_draft(self.root, {'path':str(self.report)})
+        with patch.object(chat.context_budget, 'advertised_input_budget', return_value=1000), patch.object(chat,'_complete') as complete, self.assertRaises(ValueError):
+            tools.reply_draft(self.root, {'path':str(self.report)})
         complete.assert_not_called()
+        self.assertFalse((self.root / 'reply_drafts').exists())
     def test_sources_have_real_pages_and_translated_labels(self):
         for language, expected in (('zh','原邮件正文'),('en','Original email body'),('es','Cuerpo del correo original')):
             self.config['ui_language']=language;self.save_config()
