@@ -2,46 +2,46 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611171002",
-      "sha256": "b9062c2a3529d5ecc6914e686d3deb1904e48f4653bd4d48dfbf668a55a05eac",
-      "size": 24725336,
+      "version": "202611221329",
+      "sha256": "8884cfc7eb8a2dd045c067c8518d513cf7eafa2dd6a6313a2a8e3bb225b0c0a1",
+      "size": 24744321,
       "notes": {
-        "zh": "修复侧栏语言刷新：邮件报告、邮箱与检查、AI 服务和通用设置随英语、西语和 Chinglish 正确切换；保留当前页面和未发送的输入。",
-        "en": "Fix sidebar labels when switching English, Spanish and Chinglish; keep the selected page and unfinished input.",
-        "es": "Corrige los textos de la barra lateral al cambiar entre inglés, español y Chinglish; conserva la página seleccionada y el texto sin enviar."
+        "zh": "邮件问答按模型 Token 预算压缩旧对话，移除固定 60,000 字符上下文限制，完整对话保存在本机。Chinglish 界面下，新生成的邮件总结也使用音译。",
+        "en": "Email chat compacts earlier turns according to a model token budget and retains the complete local transcript. New email summaries use phonetic Chinglish when selected.",
+        "es": "El chat comprime turnos anteriores según el presupuesto de tokens y conserva el historial completo en el equipo. Los resúmenes nuevos usan la fonética Chinglish cuando se selecciona."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117.1/BensonMail-Windows-x64-Setup-202611171002.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122/BensonMail-Windows-x64-Setup-202611221329.exe"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611171002.exe"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611221329.exe"
     },
     "macos-arm64": {
-      "version": "202611171012",
-      "sha256": "139118dde8fa6588c4a30e24fcdc99a87ed1ec87446a52cb7c1ff805fcd3e6d9",
-      "size": 23075453,
+      "version": "202611221328",
+      "sha256": "123271d9032bbbcffa9f012b1db76198acc9476c32b31c2ad8a02ed31f656baf",
+      "size": 22577623,
       "notes": {
-        "zh": "修复侧栏语言刷新：邮件报告、邮箱与检查、AI 服务和通用设置随英语、西语和 Chinglish 正确切换；保留当前页面和未发送的输入。",
-        "en": "Fix sidebar labels when switching English, Spanish and Chinglish; keep the selected page and unfinished input.",
-        "es": "Corrige los textos de la barra lateral al cambiar entre inglés, español y Chinglish; conserva la página seleccionada y el texto sin enviar."
+        "zh": "邮件问答按模型 Token 预算压缩旧对话，移除固定 60,000 字符上下文限制，完整对话保存在本机。Chinglish 界面下，新生成的邮件总结也使用音译。",
+        "en": "Email chat compacts earlier turns according to a model token budget and retains the complete local transcript. New email summaries use phonetic Chinglish when selected.",
+        "es": "El chat comprime turnos anteriores según el presupuesto de tokens y conserva el historial completo en el equipo. Los resúmenes nuevos usan la fonética Chinglish cuando se selecciona."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117.1/BensonMail-Mac-AppleSilicon-202611171012.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122/BensonMail-Mac-AppleSilicon-202611221328.dmg"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611171012.dmg"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611221328.dmg"
     },
     "macos-x86_64": {
-      "version": "202611171018",
-      "sha256": "36ec5817753b13451bd9ceb73fe49c0a9f22fc8002f91dab3959914862ffe890",
-      "size": 19998330,
+      "version": "202611221330",
+      "sha256": "f9d796b14c62a67932c3d06d5fffe2ad9282c7c9e28091027dd8d133a660494a",
+      "size": 20771876,
       "notes": {
-        "zh": "修复侧栏语言刷新：邮件报告、邮箱与检查、AI 服务和通用设置随英语、西语和 Chinglish 正确切换；保留当前页面和未发送的输入。",
-        "en": "Fix sidebar labels when switching English, Spanish and Chinglish; keep the selected page and unfinished input.",
-        "es": "Corrige los textos de la barra lateral al cambiar entre inglés, español y Chinglish; conserva la página seleccionada y el texto sin enviar."
+        "zh": "邮件问答按模型 Token 预算压缩旧对话，移除固定 60,000 字符上下文限制，完整对话保存在本机。Chinglish 界面下，新生成的邮件总结也使用音译。",
+        "en": "Email chat compacts earlier turns according to a model token budget and retains the complete local transcript. New email summaries use phonetic Chinglish when selected.",
+        "es": "El chat comprime turnos anteriores según el presupuesto de tokens y conserva el historial completo en el equipo. Los resúmenes nuevos usan la fonética Chinglish cuando se selecciona."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117.1/BensonMail-Mac-Intel-202611171018.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122/BensonMail-Mac-Intel-202611221330.dmg"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611171018.dmg"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611221330.dmg"
     }
   },
   "language_packs": {
