@@ -13,8 +13,16 @@ import urllib.parse
 import urllib.request
 
 from .runtime_i18n import _LANGUAGE
+from .context_budget import ContextLengthError, is_context_error
 
 MAX_RESPONSE = 4 * 1024 * 1024
+
+
+def _context_length_error(safe_to_retry=True):
+    message = {'en': 'The AI provider rejected the request because it exceeds the model context window.',
+               'es': 'El proveedor de IA rechazó la solicitud porque supera la ventana de contexto del modelo.'
+               }.get(_LANGUAGE.get(), '请求超过模型的上下文窗口，AI 服务商拒绝了请求。')
+    return ContextLengthError(message + ' [AI_CONTEXT_LENGTH]', safe_to_retry=safe_to_retry)
 
 def tls_context():
     """Use native Windows chain building plus bundled public trust roots."""
@@ -122,9 +130,20 @@ def complete(base, model, key, messages, stop=None, on_delta=None):
             raise RuntimeError(_t('AI 返回内容过大，邮件保留待重试。'))
         if raw is not None:
             value = json.loads(raw)
+            if is_context_error(value):
+                raise _context_length_error()
     except urllib.error.HTTPError as error:
         code = error.code
-        error.close()
+        try:
+            if code in (400, 413, 422):
+                try:
+                    body = error.read(16385)
+                    if len(body) <= 16384 and is_context_error(json.loads(body)):
+                        raise _context_length_error() from None
+                except (OSError, ValueError):
+                    pass
+        finally:
+            error.close()
         hints = {401: _t('API Key 无效或已过期'), 403: _t('API Key 没有权限'),
                  404: _t('基础地址或模型名不正确'), 429: _t('额度不足或请求过于频繁')}
         raise RuntimeError((_t('AI 接口错误（HTTP %s）：%s。') % (code, hints.get(code, _t('请检查服务商状态和接口配置')))) + f' [AI_HTTP_{code}]') from None
@@ -170,6 +189,8 @@ def read_stream(response, on_delta, stop=None):
             if not isinstance(event, dict):
                 raise ValueError()
             if event.get('error'):
+                if is_context_error(event):
+                    raise _context_length_error(not chunks)
                 raise RuntimeError('AI 服务商返回流式错误 [AI_STREAM_PROVIDER]')
             if isinstance(event.get('usage'), dict):
                 usage = event['usage']

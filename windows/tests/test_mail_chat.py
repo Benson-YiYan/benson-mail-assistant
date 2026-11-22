@@ -80,14 +80,14 @@ class MailChatTests(unittest.TestCase):
             state = module._load_history(location, report.resolve())
             state['messages'] = [{'role': 'user' if i % 2 == 0 else 'assistant', 'content': f'Unique turn {i} ' + 'x'*600} for i in range(12)]
             module._save_history(location, state)
-            with patch.object(module, 'MAX_CONTEXT', 8000), patch.object(module, '_complete', side_effect=['Compressed decisions remain', 'Final answer']) as provider:
+            with patch.object(module.context_budget, 'input_budget', return_value=2300), patch.object(module, '_complete', side_effect=['Compressed decisions remain', 'Final answer']) as provider:
                 result = module.chat_send(root, report, 'Q'*1600, [])
             self.assertTrue(result['compressed']); self.assertEqual(len(result['messages']), 14)
             self.assertEqual(result['messages'][0]['content'], state['messages'][0]['content'])
             final = provider.call_args.args[2]
             transcript = '\n'.join(m['content'] for m in final)
             self.assertIn('Compressed decisions remain', transcript)
-            for i in range(6,12): self.assertIn(f'Unique turn {i} ', transcript)
+            for i in range(8,12): self.assertIn(f'Unique turn {i} ', transcript)
             self.assertNotIn('Unique turn 0 ', transcript)
             self.assertEqual(module.chat_history(root, report)['summary'], 'Compressed decisions remain')
 
@@ -97,7 +97,7 @@ class MailChatTests(unittest.TestCase):
             location = module._history_path(root, report.resolve()); state = module._load_history(location, report.resolve())
             state['messages'] = [{'role': 'user' if i % 2 == 0 else 'assistant', 'content': str(i)+'x'*600} for i in range(12)]
             module._save_history(location, state); before = location.read_bytes()
-            with patch.object(module, 'MAX_CONTEXT', 8000), patch.object(module, '_complete', side_effect=RuntimeError('compression failed')):
+            with patch.object(module.context_budget, 'input_budget', return_value=2300), patch.object(module, '_complete', side_effect=RuntimeError('compression failed')):
                 with self.assertRaises(RuntimeError): module.chat_send(root, report, 'Q'*1600, [])
             self.assertEqual(location.read_bytes(), before)
 
@@ -174,12 +174,40 @@ class MailChatTests(unittest.TestCase):
             data['body'] = 'x'*70000
             report.with_suffix('.mail.json').write_text(json.dumps(data))
             before = report.read_bytes()
-            with patch.object(module, '_complete') as provider:
-                with self.assertRaisesRegex(ValueError, '60000'): module.chat_send(root, report, 'Question', [])
+            with patch.object(module.context_budget, 'input_budget', return_value=8000), patch.object(module, '_complete') as provider:
+                with self.assertRaisesRegex(ValueError, 'context budget'): module.chat_send(root, report, 'Question', [])
                 with self.assertRaisesRegex(ValueError, '60000'): module.report_retry(root, report)
                 self.assertFalse(provider.called)
             self.assertEqual(report.read_bytes(), before)
             self.assertEqual(module.chat_history(root, report)['messages'], [])
+            with patch.object(module.context_budget, 'input_budget', return_value=32000), patch.object(module, '_complete', return_value='Answer') as provider:
+                module.chat_send(root, report, 'Question', [])
+            self.assertIn(data['body'], provider.call_args.args[2][1]['content'])
+
+    def test_rejected_context_retries_once_without_replaying_streamed_text(self):
+        for module in (windows, mac):
+            for safe in (True, False):
+                root, report, _ = self.fixture(module)
+                location = module._history_path(root, report.resolve())
+                state = module._load_history(location, report.resolve())
+                state['messages'] = [
+                    {'role': role, 'content': f'turn {i} ' + 'x' * 2400}
+                    for i in range(5) for role in ('user', 'assistant')
+                ]
+                module._save_history(location, state)
+                before = location.read_bytes()
+                rejected = module.context_budget.ContextLengthError('context rejected', safe_to_retry=safe)
+                with patch.object(module.context_budget, 'input_budget', return_value=12000), patch.object(module, '_complete', side_effect=[rejected, 'Notes', 'Answer']) as provider:
+                    if safe:
+                        result = module.chat_send(root, report, 'Question')
+                        self.assertTrue(result['compressed'])
+                        self.assertEqual(result['messages'][:10], state['messages'])
+                        self.assertEqual(provider.call_count, 3)
+                    else:
+                        with self.assertRaises(module.context_budget.ContextLengthError):
+                            module.chat_send(root, report, 'Question')
+                        self.assertEqual(location.read_bytes(), before)
+                        provider.assert_called_once()
 
     def test_invalid_history_preserves_original_bytes_and_does_not_send(self):
         for module in (windows, mac):
