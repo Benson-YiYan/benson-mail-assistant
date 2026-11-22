@@ -2,120 +2,120 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611221329",
-      "sha256": "8884cfc7eb8a2dd045c067c8518d513cf7eafa2dd6a6313a2a8e3bb225b0c0a1",
-      "size": 24744321,
+      "version": "202611221720",
+      "sha256": "df99b399a1e3923debb367ec995cd5c80f3f82c3ea25884c6cbb1ae9ae2bf4dc",
+      "size": 24741676,
       "notes": {
-        "zh": "邮件问答按模型 Token 预算压缩旧对话，移除固定 60,000 字符上下文限制，完整对话保存在本机。Chinglish 界面下，新生成的邮件总结也使用音译。",
-        "en": "Email chat compacts earlier turns according to a model token budget and retains the complete local transcript. New email summaries use phonetic Chinglish when selected.",
-        "es": "El chat comprime turnos anteriores según el presupuesto de tokens y conserva el historial completo en el equipo. Los resúmenes nuevos usan la fonética Chinglish cuando se selecciona."
+        "zh": "修复重新总结、多选总结仍按60000字符拒绝的问题。使用上游公布的模型 Token 预算，未知窗口交由上游判断；保留原资料和已有报告，更新使用指南。",
+        "en": "Remove remaining 60,000-character checks from regenerated and multi-email summaries. Use advertised model-token budgets; unknown windows defer to the provider. Preserve original inputs and reports; update the guides.",
+        "es": "Elimina las comprobaciones restantes de 60.000 caracteres al regenerar y resumir varios correos. Usa el presupuesto publicado por el modelo; si no se conoce, decide el proveedor. Conserva originales e informes y actualiza las guías."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122/BensonMail-Windows-x64-Setup-202611221329.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Windows-x64-Setup-202611221720.exe"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611221329.exe"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611221720.exe"
     },
     "macos-arm64": {
-      "version": "202611221328",
-      "sha256": "123271d9032bbbcffa9f012b1db76198acc9476c32b31c2ad8a02ed31f656baf",
-      "size": 22577623,
+      "version": "202611221721",
+      "sha256": "eef3d2daf2828673e62345294f0050cc11dfaee77677230f0a100fc6e1faa2a8",
+      "size": 22578832,
       "notes": {
-        "zh": "邮件问答按模型 Token 预算压缩旧对话，移除固定 60,000 字符上下文限制，完整对话保存在本机。Chinglish 界面下，新生成的邮件总结也使用音译。",
-        "en": "Email chat compacts earlier turns according to a model token budget and retains the complete local transcript. New email summaries use phonetic Chinglish when selected.",
-        "es": "El chat comprime turnos anteriores según el presupuesto de tokens y conserva el historial completo en el equipo. Los resúmenes nuevos usan la fonética Chinglish cuando se selecciona."
+        "zh": "修复重新总结、多选总结仍按60000字符拒绝的问题。使用上游公布的模型 Token 预算，未知窗口交由上游判断；保留原资料和已有报告，更新使用指南。",
+        "en": "Remove remaining 60,000-character checks from regenerated and multi-email summaries. Use advertised model-token budgets; unknown windows defer to the provider. Preserve original inputs and reports; update the guides.",
+        "es": "Elimina las comprobaciones restantes de 60.000 caracteres al regenerar y resumir varios correos. Usa el presupuesto publicado por el modelo; si no se conoce, decide el proveedor. Conserva originales e informes y actualiza las guías."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122/BensonMail-Mac-AppleSilicon-202611221328.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Mac-AppleSilicon-202611221721.dmg"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611221328.dmg"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611221721.dmg"
     },
     "macos-x86_64": {
-      "version": "202611221330",
-      "sha256": "f9d796b14c62a67932c3d06d5fffe2ad9282c7c9e28091027dd8d133a660494a",
-      "size": 20771876,
+      "version": "202611221726",
+      "sha256": "f46d6f0745de73cc2b99ee9eabc2163ac6f5cbb9cc5604ddc1bcce7f90d54d45",
+      "size": 20772348,
       "notes": {
-        "zh": "邮件问答按模型 Token 预算压缩旧对话，移除固定 60,000 字符上下文限制，完整对话保存在本机。Chinglish 界面下，新生成的邮件总结也使用音译。",
-        "en": "Email chat compacts earlier turns according to a model token budget and retains the complete local transcript. New email summaries use phonetic Chinglish when selected.",
-        "es": "El chat comprime turnos anteriores según el presupuesto de tokens y conserva el historial completo en el equipo. Los resúmenes nuevos usan la fonética Chinglish cuando se selecciona."
+        "zh": "修复重新总结、多选总结仍按60000字符拒绝的问题。使用上游公布的模型 Token 预算，未知窗口交由上游判断；保留原资料和已有报告，更新使用指南。",
+        "en": "Remove remaining 60,000-character checks from regenerated and multi-email summaries. Use advertised model-token budgets; unknown windows defer to the provider. Preserve original inputs and reports; update the guides.",
+        "es": "Elimina las comprobaciones restantes de 60.000 caracteres al regenerar y resumir varios correos. Usa el presupuesto publicado por el modelo; si no se conoce, decide el proveedor. Conserva originales e informes y actualiza las guías."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122/BensonMail-Mac-Intel-202611221330.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Mac-Intel-202611221726.dmg"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611221330.dmg"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611221726.dmg"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202611170940",
-      "sha256": "184dd58439ab1abff08cae5587dd73d9646b61ee886b196b94811e9c316d7e1e",
-      "size": 44570,
+      "version": "202611221718",
+      "sha256": "20e90d74937ac8e6f51d591d0968e5930a158b5ff16390e7cf30114bd45dc302",
+      "size": 45210,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-windows-zh-202611170940.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-windows-zh-202611221718.json"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611170940.json"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611221718.json"
     },
     "windows-en": {
-      "version": "202611170940",
-      "sha256": "30660094beaa7d9cf97959d7d1a2fabb8263d0d6a8568dbe4015391f3928c8ae",
-      "size": 153736,
+      "version": "202611221718",
+      "sha256": "82c9d20d90c329a5a92e75e436eacc7949125678e86f2abd64c1bb9ca2cd67a5",
+      "size": 154484,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-windows-en-202611170940.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-windows-en-202611221718.json"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611170940.json"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611221718.json"
     },
     "windows-es": {
-      "version": "202611170940",
-      "sha256": "df16ae112ee5fa3995a76786b363f9f7c66b70bec6c6df28f8bde22f242710a7",
-      "size": 167229,
+      "version": "202611221718",
+      "sha256": "593773e572110491e10bba69d105bb011cd5e37186d50626cee4ff01afeb5dc7",
+      "size": 168109,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-windows-es-202611170940.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-windows-es-202611221718.json"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611170940.json"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611221718.json"
     },
     "windows-chinglish": {
-      "version": "202611170940",
-      "sha256": "b12b6f05e860c9d63232e15c6809ee4fb81c62948de30cccc496a206e2953426",
-      "size": 339230,
+      "version": "202611221718",
+      "sha256": "4da043b9769dc316a66ae92d00510089be1c394c993002f653af7805845c2f8f",
+      "size": 340750,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-windows-chinglish-202611170940.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-windows-chinglish-202611221718.json"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-windows-chinglish-202611170940.json"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-windows-chinglish-202611221718.json"
     },
     "macos-zh": {
-      "version": "202611170940",
-      "sha256": "f6b33876d82111cabc38bcf8f83f09e95f2f1b9e617503d7ae78bf99329f52bf",
-      "size": 44311,
+      "version": "202611221718",
+      "sha256": "7905aeb41e138c7128257bf45b44950dc80a97ea35d163c4744ab76a01f4161a",
+      "size": 44951,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-macos-zh-202611170940.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-macos-zh-202611221718.json"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611170940.json"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611221718.json"
     },
     "macos-en": {
-      "version": "202611170940",
-      "sha256": "d65f8493f308230edf6c1d04a8b049180134f8faf721e8aab001760601cbad08",
-      "size": 152317,
+      "version": "202611221718",
+      "sha256": "b144ee26553876643c0591bc42b3ae69c9b9b59bb88ca8a84d5608176e033e36",
+      "size": 153065,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-macos-en-202611170940.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-macos-en-202611221718.json"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611170940.json"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611221718.json"
     },
     "macos-es": {
-      "version": "202611170940",
-      "sha256": "32828f7e7e257ede55951a8dba29975130a88ec75224bcaaae48e16ac271a749",
-      "size": 165877,
+      "version": "202611221718",
+      "sha256": "8808cdbdfb6bbeca9eac578b5841155a8645ac8d7f83558241cf53090d59f0ea",
+      "size": 166757,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-macos-es-202611170940.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-macos-es-202611221718.json"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611170940.json"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611221718.json"
     },
     "macos-chinglish": {
-      "version": "202611170940",
-      "sha256": "ec08843ffcef6726fc543d220694a7e7ae46e8463d5215e7b6618317d6adee7e",
-      "size": 336708,
+      "version": "202611221718",
+      "sha256": "fcd5ff3872442ed8d97105632377845530b790562ac383eb777c603bc84e372d",
+      "size": 338228,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261117/BensonMail-Language-macos-chinglish-202611170940.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-macos-chinglish-202611221718.json"
       ],
-      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-macos-chinglish-202611170940.json"
+      "url": "https://sponsorship-adaptor-north-citizenship.trycloudflare.com/downloads/BensonMail-Language-macos-chinglish-202611221718.json"
     }
   }
 }
