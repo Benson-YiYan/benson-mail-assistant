@@ -26,6 +26,18 @@ class MailConnectionTests(unittest.TestCase):
                              ('security', 'plain'), ('mail_auth', 'guess'), ('username', 'u\nx')]:
             with self.subTest(field=field, value=value), self.assertRaises(ValueError):
                 normalize(self.config(**{field: value}))
+    def test_managed_oauth_requires_matching_provider_connection(self):
+        valid = {
+            'account': 'demo@gmail.com', 'mail_provider': 'gmail',
+            'host': 'imap.gmail.com', 'port': 993, 'security': 'ssl',
+            'mail_auth': 'oauth2', 'oauth_mode': 'managed',
+            'oauth_client_id': 'demo.apps.googleusercontent.com',
+        }
+        self.assertEqual(normalize(valid)['oauth_mode'], 'managed')
+        for change in ({'host': 'imap.example.invalid'}, {'port': 143}, {'security': 'starttls'},
+                       {'username': 'alternate'}):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                normalize({**valid, **change})
     def test_progress_isolated_by_connection_and_legacy_progress_preserved(self):
         old = self.config(host='imap.163.com')
         expected = hashlib.sha256(b'demo@example.invalid|imap.163.com').hexdigest()[:24]
@@ -94,3 +106,30 @@ class MailConnectionTests(unittest.TestCase):
         self.assertEqual(mechanism, 'XOAUTH2')
         self.assertEqual(callback(b''), b'user=demo@example.invalid\x01auth=Bearer SYNTHETIC_TOKEN\x01\x01')
         self.assertEqual(callback(b'error-challenge'), b'')
+    def test_managed_oauth_reloads_and_saves_rotated_bundle_before_auth(self):
+        client = Mock(capabilities=(b'AUTH=XOAUTH2',))
+        client.authenticate.return_value = ('OK', [])
+        client.capability.return_value = ('OK', [b'IMAP4rev1'])
+        client.select.return_value = ('OK', [b'0'])
+        persisted = []
+        config = {
+            'account': 'demo@gmail.com', 'mail_provider': 'gmail',
+            'host': 'imap.gmail.com', 'port': 993, 'security': 'ssl',
+            'mail_auth': 'oauth2', 'oauth_mode': 'managed',
+            'oauth_client_id': 'demo.apps.googleusercontent.com',
+            '_oauth_secret_provider': lambda: 'LATEST_BUNDLE',
+            '_oauth_secret_update': persisted.append,
+        }
+        with patch('mailbox_config.imaplib.IMAP4_SSL', return_value=client), \
+             patch('oauth_client.access_token', return_value=('NEW_ACCESS', {
+                 'schema': 1, 'provider': 'google', 'email': 'demo@gmail.com',
+                 'client_id': 'demo.apps.googleusercontent.com',
+                 'access_token': 'NEW_ACCESS', 'refresh_token': 'ROTATED_REFRESH',
+                 'expires_at': 9999999999,
+             })) as token:
+            connect(config, 'STALE_BUNDLE', Mock())
+        self.assertEqual(token.call_args.args[0], 'LATEST_BUNDLE')
+        self.assertEqual(json.loads(persisted[0])['refresh_token'], 'ROTATED_REFRESH')
+        mechanism, callback = client.authenticate.call_args.args
+        self.assertEqual(mechanism, 'XOAUTH2')
+        self.assertIn(b'Bearer NEW_ACCESS', callback(b''))

@@ -4,6 +4,12 @@
 <dict>
 	<key>BensonMailUpdateManifestURL</key>
 	<string>https://raw.githubusercontent.com/Benson-YiYan/benson-mail-assistant/main/distribution/manifest.json</string>
+	<key>BensonMailGoogleOAuthClientID</key>
+	<string></string>
+	<key>BensonMailGoogleOAuthClientSecret</key>
+	<string></string>
+	<key>BensonMailMicrosoftOAuthClientID</key>
+	<string>1e9563b1-fc17-450d-8221-12eed69e1980</string>
 	<key>CFBundleDisplayName</key>
 	<string>邮件小秘书</string>
 	<key>CFBundleExecutable</key>

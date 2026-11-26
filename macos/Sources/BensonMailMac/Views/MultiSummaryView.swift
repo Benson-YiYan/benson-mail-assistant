@@ -1,5 +1,7 @@
 import SwiftUI
 
+private typealias MultiSummaryState<Value> = SwiftUI.State<Value>
+
 enum MultiSummarySelection {
     static func toggled(_ path: String, in selection: [String]) -> [String] {
         if selection.contains(path) { return selection.filter { $0 != path } }
@@ -23,9 +25,9 @@ struct MultiSummaryView: View {
     @ObservedObject private var language = AppLanguage.shared
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var tools: AssistantTools
-    @State private var search = ""
-    @State private var selectedPaths: [String] = []
-    @State private var confirm = false
+    @MultiSummaryState private var search = ""
+    @MultiSummaryState private var selectedPaths: [String] = []
+    @MultiSummaryState private var confirm = false
 
     init(store: MailStore) {
         self.store = store

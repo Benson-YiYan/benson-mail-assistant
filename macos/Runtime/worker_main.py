@@ -162,6 +162,47 @@ def main():
         from outlook_token import main as token_main
         token_main()
         return
+    if operation == '--oauth-login':
+        # Contract for the native UI:
+        #   worker --home HOME --oauth-login PROVIDER EMAIL CLIENT_ID --tenant TENANT --private-input
+        # Private fields arrive as one bounded JSON object on stdin, never argv.
+        import argparse
+        from oauth_client import authorize
+        parser = argparse.ArgumentParser(prog='oauth-login')
+        parser.add_argument('provider', choices=('google', 'microsoft'))
+        parser.add_argument('email')
+        parser.add_argument('client_id')
+        parser.add_argument('--tenant', default='common')
+        parser.add_argument('--private-input', action='store_true')
+        values = parser.parse_args(args)
+        try:
+            if not values.private_input:
+                raise ValueError('Secure OAuth login input is required.')
+            raw = sys.stdin.buffer.read(8193)
+            if not raw or len(raw) > 8192:
+                raise ValueError('OAuth login input is invalid.')
+            private = json.loads(raw)
+            if not isinstance(private, dict) or set(private) != {'client_secret', 'mailbox_proxy'}:
+                raise ValueError('OAuth login input is invalid.')
+            client_secret = private.get('client_secret', '')
+            proxy = private.get('mailbox_proxy')
+            if not isinstance(client_secret, str) or not isinstance(proxy, dict) or set(proxy) != {
+                'proxy_mode', 'proxy_host', 'proxy_port'
+            }:
+                raise ValueError('OAuth login input is invalid.')
+            credential = authorize(
+                values.provider, values.email, values.client_id,
+                tenant=values.tenant, client_secret=client_secret, mailbox_proxy=proxy,
+            )
+            print(json.dumps(credential, ensure_ascii=False, separators=(',', ':')))
+        except Exception as error:
+            print(json.dumps({
+                'ok': False,
+                'error': str(error) if isinstance(error, (ValueError, RuntimeError))
+                else 'OAuth sign-in failed.',
+            }, ensure_ascii=False))
+            raise SystemExit(1)
+        return
     if operation == '--test-mail':
         from mail_connection_io import test
         test()

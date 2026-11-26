@@ -59,6 +59,9 @@ final class MailStore: ObservableObject {
         formatter.dateFormat = "yyyy-MM-dd"; return formatter
     }()
     func dayString(_ date: Date) -> String { Self.dayFormatter.string(from: date) }
+    static func shouldHoldReportsForMigration(isTest: Bool, home: URL) -> Bool {
+        !isTest && !ServiceInstaller.reportMigrationCompleted(home: home)
+    }
     func resetFilters() { filter = ReportFilter(); dateFilterEnabled = false; reconcileSelection() }
     func reconcileSelection() {
         let visible = filteredReports
@@ -109,7 +112,7 @@ final class MailStore: ObservableObject {
             do { try save() } catch { problem = "无法创建配置：\(error.localizedDescription)" }
         }
         // Load existing settings before migrating the new preference.
-        reportMigrationPending = !isTest
+        reportMigrationPending = Self.shouldHoldReportsForMigration(isTest: isTest, home: base)
         refresh()
         if settings.ui_language == nil && AppLanguage.shared.canPersistInitialLanguage {
             settings.ui_language = AppLanguage.shared.code
@@ -273,6 +276,8 @@ final class MailStore: ObservableObject {
         let switching = adding || (!mailAccount.isEmpty && previous.identity != next.identity)
         do { try MailCredentials.validate(address: address, code: code, existing: switching ? nil : mailAccount) }
         catch { completion(.failure(error)); return }
+        do { try MailOAuthLogin.validateCredential(code, connection: next, previous: switching ? nil : previous) }
+        catch { completion(.failure(error)); return }
         if settings.enabled || status.phase == "checking" || status.phase == "analyzing" || checkRequested {
             completion(.failure(MailCredentials.Failure("请先暂停全部监听，等当前邮件处理完成后再编辑或添加邮箱。"))); return
         }
@@ -376,7 +381,7 @@ final class MailStore: ObservableObject {
     func startWorker() {
         guard !isTest else { return }
         working = true
-        let migrate = !reportMigrationStarted
+        let migrate = !reportMigrationStarted && !ServiceInstaller.reportMigrationCompleted(home: base)
         if migrate { reportMigrationStarted = true }
         Task {
             let home = base

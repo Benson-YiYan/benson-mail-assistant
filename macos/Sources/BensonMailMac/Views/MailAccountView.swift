@@ -5,6 +5,28 @@ private typealias AccountState<Value> = SwiftUI.State<Value>
 
 // UI-only normalization. The persisted connection, identity and mail progress are unchanged.
 enum MailAccountDraft {
+    static func browserLoginConfigured(provider: String, appClientID: String, savedClientID: String) -> Bool {
+        ["gmail", "outlook"].contains(provider) &&
+            (!appClientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+             !savedClientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    static func normalizeLogin(_ connection: inout MailConnection, appClientID suppliedClientID: String? = nil) {
+        guard connection.offersBrowserLogin else {
+            connection.mail_auth = "password"
+            connection.oauth_mode = "manual"
+            connection.oauth_client_id = ""
+            connection.oauth_tenant = "common"
+            return
+        }
+        connection.mail_auth = "oauth2"
+        connection.oauth_mode = "managed"
+        let provider = connection.mail_provider == "gmail" ? "google" : "microsoft"
+        let appClientID = suppliedClientID ?? MailOAuthApplicationCredentials.clientID(for: provider)
+        if !appClientID.isEmpty { connection.oauth_client_id = appClientID }
+        connection.oauth_tenant = "common"
+    }
+
     private static func followsAddress(_ value: MailConnection) -> Bool {
         value.username.trimmingCharacters(in: .whitespacesAndNewlines)
             .caseInsensitiveCompare(value.account.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
@@ -13,6 +35,12 @@ enum MailAccountDraft {
         var value = saved
         if followsAddress(value) { value.username = "" }
         if let account { value.account = account }
+        if value.offersBrowserLogin {
+            value.mail_auth = "oauth2"
+            if !["manual", "managed"].contains(value.oauth_mode) { value.oauth_mode = "managed" }
+        } else {
+            normalizeLogin(&value)
+        }
         return value
     }
     static func changingAccount(_ saved: MailConnection, to account: String) -> MailConnection {
@@ -20,6 +48,78 @@ enum MailAccountDraft {
         if followsAddress(value) { value.username = "" }
         value.account = account
         return value
+    }
+    static func inferringProvider(_ saved: MailConnection, to address: String, explicit: Bool) -> MailConnection {
+        var value = changingAccount(saved, to: address)
+        guard !explicit else {
+            normalizeLogin(&value)
+            return value
+        }
+        let domain = address.trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: "@", omittingEmptySubsequences: false).last.map(String.init)?.lowercased() ?? ""
+        let detected: String?
+        switch domain {
+        case "gmail.com", "googlemail.com": detected = "gmail"
+        case "outlook.com", "hotmail.com", "live.com", "msn.com": detected = "outlook"
+        default: detected = nil
+        }
+        if let detected, detected == value.mail_provider { return value }
+        if explicit {
+            if value.offersBrowserLogin {
+                value.mail_auth = "oauth2"
+                if !["manual", "managed"].contains(value.oauth_mode) { value.oauth_mode = "managed" }
+            } else {
+                normalizeLogin(&value)
+            }
+            return value
+        }
+        if let detected, let preset = MailPreset.all.first(where: { $0.id == detected }) {
+            if value.mail_provider != detected { value.oauth_client_id = "" }
+            value.mail_provider = detected
+            value.host = preset.host
+            value.port = 993
+            value.security = "ssl"
+            normalizeLogin(&value)
+        } else if ["gmail", "outlook"].contains(value.mail_provider) {
+            value.mail_provider = "custom"
+            value.host = ""
+            normalizeLogin(&value)
+        }
+        return value
+    }
+}
+
+struct BrowserMailboxLoginFields: View {
+    let provider: String
+    let canSignIn: Bool
+    let configured: Bool
+    let signIn: () async throws -> Void
+    @AccountState private var busy = false
+    @AccountState private var message = ""
+    var body: some View {
+        HStack {
+            Button(busy ? T("正在等待网页登录…") : (provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"))) {
+                busy = true; message = ""
+                Task {
+                    defer { busy = false }
+                    do {
+                        try await signIn()
+                        message = "登录已完成；凭据将在点击保存后安全写入钥匙串。"
+                    } catch { message = error.localizedDescription }
+                }
+            }.disabled(!canSignIn || !configured || busy)
+                .accessibilityIdentifier("mail-oauth-login")
+            if busy { ProgressView().controlSize(.small) }
+        }
+        if !configured {
+            Text(T("浏览器登录功能暂未配置，请稍后再试。"))
+                .font(.caption).foregroundStyle(.secondary)
+                .accessibilityIdentifier("mail-oauth-not-configured")
+        }
+        Text(provider == "gmail" ? T("Gmail OAuth 会请求完整邮箱访问权限；本软件只用只读 IMAP 操作。")
+             : T("Microsoft IMAP 授权可能允许读写邮件；本软件只执行只读操作。"))
+            .font(.caption).foregroundStyle(.secondary)
+        if !message.isEmpty { Text(T(message)).font(.caption).textSelection(.enabled) }
     }
 }
 
@@ -36,6 +136,8 @@ struct MailAccountView: View {
     @AccountState private var error: String?
     @AccountState private var adding = false
     @AccountState private var removing = false
+    @AccountState private var providerExplicitlySelected = false
+    @AccountState private var draftID = UUID()
     private var fields: some View {
         VStack(alignment: .leading, spacing: 12) {
             if onboarding {
@@ -54,7 +156,7 @@ struct MailAccountView: View {
                     }
                 }
                 HStack {
-                    Button(T("添加邮箱")) { adding = true; draft = MailConnection(); port = "993"; proxyPort = "10808"; code = ""; saved = false }
+                    Button(T("添加邮箱")) { adding = true; draft = MailConnection(); port = "993"; proxyPort = "10808"; code = ""; saved = false; providerExplicitlySelected = false; draftID = UUID() }
                     if !adding, let profile = store.mailboxProfiles.first(where: { $0.id == draft.identity }) {
                         Button(profile.enabled ? T("暂停此邮箱") : T("启用此邮箱")) {
                             store.setMailboxEnabled(profile.id, enabled: !profile.enabled)
@@ -66,17 +168,30 @@ struct MailAccountView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Picker(T("邮箱服务商"), selection: Binding(get: { draft.mail_provider }, set: { selected in
+                guard selected != draft.mail_provider else { return }
+                code = ""
                 draft.mail_provider = selected
                 if let preset = MailPreset.all.first(where: { $0.id == selected }), preset.id != "custom" {
                     draft.host = preset.host; draft.port = 993; port = "993"
-                    draft.security = "ssl"; draft.mail_auth = preset.mail_auth ?? "password"
+                    draft.security = "ssl"
+                    draft.oauth_client_id = ""
+                } else if selected == "custom" {
+                    draft.host = ""
+                    draft.oauth_client_id = ""
                 }
+                MailAccountDraft.normalizeLogin(&draft)
+                providerExplicitlySelected = true
                 saved = false
             })) {
                 ForEach(MailPreset.all) { preset in Text(T(preset.name)).tag(preset.id) }
             }
             TextField(T("邮箱地址，例如 name@example.com"), text: Binding(get: { draft.account }, set: {
-                draft = MailAccountDraft.changingAccount(draft, to: $0)
+                if $0.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(draft.account) != .orderedSame {
+                    code = ""
+                }
+                let provider = draft.mail_provider
+                draft = MailAccountDraft.inferringProvider(draft, to: $0, explicit: providerExplicitlySelected)
+                if draft.mail_provider != provider { port = String(draft.port) }
             }))
                 .textContentType(.username).accessibilityLabel(T("邮箱地址"))
             TextField(T("IMAP 收件服务器，例如 imap.example.com"), text: $draft.host)
@@ -90,23 +205,35 @@ struct MailAccountView: View {
                     Text("STARTTLS").tag("starttls")
                 }
             }
-            SecureField(T("密码／授权码／OAuth2 访问令牌；未改连接时可留空"), text: $code)
-                .accessibilityLabel(T("邮箱密码或授权码"))
-            HStack {
+            if draft.offersBrowserLogin {
+                Picker(T("登录方式"), selection: Binding(get: { draft.oauth_mode }, set: { mode in
+                    guard mode != draft.oauth_mode else { return }
+                    code = ""
+                    draft.oauth_mode = mode
+                })) {
+                    Text(T("浏览器登录")).tag("managed")
+                    Text(T("手动访问令牌")).tag("manual")
+                }
+                if draft.oauth_mode == "managed" {
+                    BrowserMailboxLoginFields(provider: draft.mail_provider,
+                        canSignIn: !draft.account.isEmpty && !store.isTest,
+                        configured: MailAccountDraft.browserLoginConfigured(
+                            provider: draft.mail_provider,
+                            appClientID: MailOAuthApplicationCredentials.clientID(for: draft.mail_provider == "gmail" ? "google" : "microsoft"),
+                            savedClientID: draft.oauth_client_id),
+                        signIn: startOAuthLogin)
+                        .id(draft.mail_provider + draftID.uuidString)
+                } else {
+                    SecureField(T("OAuth2 访问令牌"), text: $code)
+                        .accessibilityLabel(T("OAuth2 访问令牌"))
+                }
+            } else {
+                SecureField(T("密码／客户端授权码"), text: $code)
+                    .accessibilityLabel(T("邮箱密码或授权码"))
                 Button(T("如何获取授权码？")) {
                     do { try MailAccountGuide.open() }
                     catch { self.error = error.localizedDescription }
                 }.accessibilityIdentifier("mail-account-guide")
-                if MailAccountGuide.offersToken(draft.mail_auth) {
-                    Button(T("获取微软 OAuth2 Token")) {
-                        do { try MailAccountGuide.openToken() }
-                        catch { self.error = error.localizedDescription }
-                    }.accessibilityIdentifier("mail-oauth-token")
-                }
-            }
-            if MailAccountGuide.offersToken(draft.mail_auth) {
-                Text(T("取令牌工具仅适用于 Outlook / Microsoft 365。"))
-                    .font(.caption).foregroundStyle(.secondary)
             }
             Picker(T("邮箱代理"), selection: $draft.proxy_mode) {
                 Text(T("直连（不使用代理）")).tag("direct")
@@ -147,21 +274,15 @@ struct MailAccountView: View {
                     Toggle(T("读取所有邮件文件夹"), isOn: $draft.read_all_mail)
                     Text(T("开启后会监视 IMAP 中所有可读取的文件夹，并分别保存进度；关闭时只读取上方设置的文件夹。"))
                         .font(.caption).foregroundStyle(.secondary)
-                    Picker(T("登录方式"), selection: $draft.mail_auth) {
-                        Text(T("密码／客户端授权码")).tag("password")
-                        Text(T("OAuth2 访问令牌")).tag("oauth2")
-                    }
                 }.padding(.top, 8)
             } label: {
                 Text(T("高级连接选项")).background {
                     if store.isTest { NativeTestAnchor(identifier: "mail-advanced-disclosure") }
                 }
             }
-            Text(T("请启用 IMAP，并按服务商要求填写客户端授权码或应用专用密码。所有预设都可修改服务器和端口。"))
-                .font(.caption).foregroundStyle(.secondary)
-            if draft.mail_auth == "oauth2" {
-                Text(T("请填写已获得的 OAuth2 访问令牌；过期后需手动更新。本版不自动进行 OAuth 登录或续期。"))
-                    .font(.caption).foregroundStyle(.orange)
+            if !draft.offersBrowserLogin {
+                Text(T("请启用 IMAP，并按服务商要求填写客户端授权码或应用专用密码。"))
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Text(T("凭据保存在系统钥匙串。更换账号、服务器、登录用户名或文件夹前，请先暂停监听；旧报告保留。"))
                 .font(.caption).foregroundStyle(.secondary)
@@ -218,7 +339,25 @@ struct MailAccountView: View {
         }
     }
     private func loadDraft() {
+        draftID = UUID()
         draft = MailAccountDraft.load(store.settings.mailbox ?? MailConnection(), account: store.mailAccount)
         port = String(draft.port); proxyPort = String(draft.proxy_port); code = ""; saved = false
+        providerExplicitlySelected = !store.mailAccount.isEmpty
+    }
+    private func startOAuthLogin() async throws {
+        error = nil
+        let started = draft, startedID = draftID, chosenPort = port, chosenProxyPort = proxyPort
+        guard let imapPort = Int(chosenPort) else { throw MailCredentials.Failure("请输入有效的 IMAP 端口。") }
+        var connection = started; connection.port = imapPort
+        if ["http", "socks5"].contains(connection.proxy_mode) {
+            guard let value = Int(chosenProxyPort) else { throw MailCredentials.Failure("请输入有效的代理端口（1–65535）。") }
+            connection.proxy_port = value
+        }
+        let bundle = try await MailOAuthLogin.credentialBundle(home: store.base, connection: connection)
+        guard draftID == startedID, draft == started, port == chosenPort, proxyPort == chosenProxyPort else {
+            throw MailCredentials.Failure("邮箱登录设置已改变，请重新登录。")
+        }
+        code = bundle
+        saved = false
     }
 }

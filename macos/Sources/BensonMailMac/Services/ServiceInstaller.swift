@@ -5,6 +5,14 @@ import Security
 /// Installs only this user's launch agents. State and credentials survive upgrades.
 enum ServiceInstaller {
     static let label = "com.benson.codex-mail-163"
+    static func reportMigrationCompleted(home: URL) -> Bool {
+        let journal = home.appendingPathComponent("report-layout-migration.json")
+        guard let bytes = try? Data(contentsOf: journal),
+              let value = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any],
+              value["schema_version"] as? Int == 1,
+              let moves = value["moves"] as? [[String: Any]] else { return false }
+        return moves.allSatisfy { $0["status"] as? String == "done" }
+    }
     static var worker: URL {
         Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/worker/MailWorker")
     }

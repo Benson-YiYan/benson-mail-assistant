@@ -47,7 +47,9 @@ struct StagedSettingsPage: View {
                     }
                 }
                 if let index = draft.accounts.firstIndex(where: { $0.id == draft.selected }) {
-                    StagedAccountFields(account: $draft.accounts[index])
+                    StagedAccountFields(account: $draft.accounts[index]) {
+                        try await draft.signInMailbox(id: draft.accounts[index].id)
+                    }
                 }
                 Text(T("凭据保存在系统钥匙串。更换账号、服务器、登录用户名或文件夹前，请先暂停监听；旧报告保留。"))
                     .font(.caption).foregroundStyle(.secondary)
@@ -203,29 +205,90 @@ struct StagedSettingsPage: View {
 
 private struct StagedAccountFields: View {
     @Binding var account: SettingsDraft.Account
+    let signIn: () async throws -> Void
+    @StagedState private var oauthLoggingIn = false
+    @StagedState private var oauthMessage = ""
+    private var usesBrowserLogin: Bool { account.connection.offersBrowserLogin }
+    private var browserLoginConfigured: Bool {
+        MailAccountDraft.browserLoginConfigured(
+            provider: account.connection.mail_provider,
+            appClientID: MailOAuthApplicationCredentials.clientID(
+                for: account.connection.mail_provider == "gmail" ? "google" : "microsoft"),
+            savedClientID: account.connection.oauth_client_id)
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle(T("启用此邮箱"), isOn: $account.enabled)
             Picker(T("邮箱服务商"), selection: Binding(get: { account.connection.mail_provider }, set: { id in
+                if id != account.connection.mail_provider { account.secret = "" }
                 account.connection.mail_provider = id
                 if let preset = MailPreset.all.first(where: { $0.id == id }), id != "custom" {
-                    account.connection.host = preset.host; account.connection.mail_auth = preset.mail_auth ?? "password"
+                    account.connection.host = preset.host
+                    account.connection.mail_auth = ["gmail", "outlook"].contains(id) ? "oauth2" : "password"
                     account.connection.security = "ssl"; account.port = "993"
+                    account.connection.oauth_mode = ["gmail", "outlook"].contains(id) ? "managed" : "manual"
+                    account.connection.oauth_client_id = ["gmail", "outlook"].contains(id)
+                        ? MailOAuthApplicationCredentials.clientID(for: id == "gmail" ? "google" : "microsoft") : ""
+                    account.connection.oauth_tenant = "common"
+                } else if id == "custom" {
+                    account.connection.host = ""
+                    account.connection.mail_auth = "password"
+                    account.connection.oauth_mode = "manual"
+                    account.connection.oauth_client_id = ""
+                    account.connection.oauth_tenant = "common"
                 }
+                account.providerSelectionIsExplicit = true
             })) { ForEach(MailPreset.all) { Text(T($0.name)).tag($0.id) } }
             TextField(T("邮箱地址，例如 name@example.com"), text: Binding(
                 get: { account.connection.account },
-                set: { account.connection = MailAccountDraft.changingAccount(account.connection, to: $0) }
+                set: {
+                    if $0.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(account.connection.account) != .orderedSame {
+                        account.secret = ""
+                    }
+                    account.connection = MailAccountDraft.inferringProvider(account.connection, to: $0, explicit: account.providerSelectionIsExplicit)
+                }
             )).accessibilityLabel(T("邮箱地址"))
             TextField(T("IMAP 收件服务器，例如 imap.example.com"), text: $account.connection.host)
             HStack {
                 TextField(T("端口"), text: $account.port).frame(width: 90)
                 Picker(T("加密"), selection: $account.connection.security) { Text("SSL/TLS").tag("ssl"); Text("STARTTLS").tag("starttls") }
             }
-            SecureField(T("密码／授权码／OAuth2 访问令牌；未改连接时可留空"), text: $account.secret)
-            HStack {
+            if usesBrowserLogin {
+                Picker(T("登录方式"), selection: Binding(
+                    get: { account.connection.oauth_mode },
+                    set: { mode in
+                        guard mode != account.connection.oauth_mode else { return }
+                        account.secret = ""
+                        account.connection.oauth_mode = mode
+                    })) {
+                    Text(T("浏览器登录")).tag("managed")
+                    Text(T("手动访问令牌")).tag("manual")
+                }
+                if account.connection.oauth_mode == "managed" {
+                    Button(oauthLoggingIn ? T("正在等待网页登录…") :
+                           (account.connection.mail_provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"))) {
+                        beginOAuthLogin()
+                    }
+                    .disabled(oauthLoggingIn || account.connection.account.isEmpty || !browserLoginConfigured)
+                    .accessibilityIdentifier("mail-oauth-login")
+                    if !browserLoginConfigured {
+                        Text(T("浏览器登录功能暂未配置，请稍后再试。"))
+                            .font(.caption).foregroundStyle(.secondary)
+                            .accessibilityIdentifier("mail-oauth-not-configured")
+                    }
+                    Text(account.connection.mail_provider == "gmail"
+                         ? T("Gmail OAuth 会请求完整邮箱访问权限；本软件只用只读 IMAP 操作。")
+                         : T("Microsoft IMAP 授权可能允许读写邮件；本软件只执行只读操作。"))
+                        .font(.caption).foregroundStyle(.secondary)
+                    if !oauthMessage.isEmpty {
+                        Text(T(oauthMessage)).font(.caption).textSelection(.enabled)
+                    }
+                } else {
+                    SecureField(T("OAuth2 访问令牌"), text: $account.secret)
+                }
+            } else {
+                SecureField(T("密码／客户端授权码"), text: $account.secret)
                 Button(T("如何获取授权码？")) { try? MailAccountGuide.open() }
-                if MailAccountGuide.offersToken(account.connection.mail_auth) { Button(T("获取微软 OAuth2 Token")) { try? MailAccountGuide.openToken() } }
             }
             Picker(T("邮箱代理"), selection: $account.connection.proxy_mode) {
                 Text(T("直连（不使用代理）")).tag("direct"); Text(T("使用系统代理")).tag("system"); Text("HTTP CONNECT").tag("http"); Text("SOCKS5").tag("socks5")
@@ -240,12 +303,27 @@ private struct StagedAccountFields: View {
                     Toggle(T("读取所有邮件文件夹"), isOn: $account.connection.read_all_mail)
                     Text(T("开启后会监视 IMAP 中所有可读取的文件夹，并分别保存进度；关闭时只读取上方设置的文件夹。"))
                         .font(.caption).foregroundStyle(.secondary)
-                    Picker(T("登录方式"), selection: $account.connection.mail_auth) { Text(T("密码／客户端授权码")).tag("password"); Text(T("OAuth2 访问令牌")).tag("oauth2") }
                 }.padding(.top, 8)
             } label: {
                 Text(T("高级连接选项")).background {
                     if CommandLine.arguments.contains("--self-test") { NativeTestAnchor(identifier: "mail-advanced-disclosure") }
                 }
+            }
+        }
+    }
+    private func beginOAuthLogin() {
+        oauthMessage = ""
+        oauthLoggingIn = true
+        Task {
+            do {
+                try await signIn()
+                account.connection.mail_auth = "oauth2"
+                account.connection.oauth_mode = "managed"
+                oauthMessage = "登录已完成；凭据将在点击保存后安全写入钥匙串。"
+                oauthLoggingIn = false
+            } catch {
+                oauthMessage = error.localizedDescription
+                oauthLoggingIn = false
             }
         }
     }

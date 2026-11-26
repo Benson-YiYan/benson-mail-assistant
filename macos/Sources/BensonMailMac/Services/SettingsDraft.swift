@@ -10,12 +10,14 @@ import CryptoKit
         var connection: MailConnection
         var original: MailConnection?
         var enabled = true
+        var providerSelectionIsExplicit = false
         var secret = ""
         var port: String
         var proxyPort: String
         init(_ c: MailConnection, enabled: Bool = true, existing: Bool = true) {
             connection = MailAccountDraft.load(c); original = existing ? c : nil
-            self.enabled = enabled; port = String(c.port); proxyPort = String(c.proxy_port)
+            self.enabled = enabled; providerSelectionIsExplicit = existing
+            port = String(c.port); proxyPort = String(c.proxy_port)
         }
     }
     unowned let store: MailStore
@@ -99,9 +101,47 @@ import CryptoKit
         if panel.runModal() == .OK, let url = panel.url { value.output_dir = url.path }
     }
     func addAccount() { let row = Account(MailConnection(), existing: false); accounts.append(row); selected = row.id }
+    func signInMailbox(id: String) async throws {
+        guard !store.isTest, let row = accounts.first(where: { $0.id == id }) else {
+            throw MailCredentials.Failure("模拟测试不会访问邮箱。")
+        }
+        let initial = generation
+        let originalConnection = row.connection
+        var connection = row.connection
+        let provider = connection.mail_provider == "gmail" ? "google" : "microsoft"
+        connection.mail_auth = "oauth2"
+        connection.oauth_mode = "managed"
+        let appClientID = MailOAuthApplicationCredentials.clientID(for: provider)
+        if !appClientID.isEmpty { connection.oauth_client_id = appClientID }
+        connection.oauth_tenant = "common"
+        connection.port = try parsedPort(row.port)
+        if ["http", "socks5"].contains(connection.proxy_mode) { connection.proxy_port = try parsedPort(row.proxyPort) }
+        let bundle = try await MailOAuthLogin.credentialBundle(home: store.base, connection: connection)
+        guard generation == initial, let index = accounts.firstIndex(where: { $0.id == id }),
+              accounts[index].connection == originalConnection, accounts[index].port == row.port,
+              accounts[index].proxyPort == row.proxyPort, accounts[index].secret == row.secret else {
+            throw MailCredentials.Failure("邮箱登录设置已改变，请重新登录。")
+        }
+        accounts[index].connection.mail_auth = "oauth2"
+        accounts[index].connection.oauth_mode = "managed"
+        accounts[index].connection.oauth_client_id = connection.oauth_client_id
+        accounts[index].connection.oauth_tenant = "common"
+        accounts[index].secret = bundle
+    }
+    private func parsedPort(_ text: String) throws -> Int {
+        guard let port = Int(text), (1...65535).contains(port) else {
+            throw MailCredentials.Failure("请输入有效的端口。")
+        }
+        return port
+    }
     func save(_ page: WorkspacePage) async {
         guard !saving else { return }; saving = true; message = ""; defer { saving = false }
         let old = store.settings
+        if page == .mailbox &&
+            (old.enabled || ["checking", "analyzing"].contains(store.status.phase) || store.checkRequested) {
+            store.problem = "请先暂停监听再保存。"
+            return
+        }
         var next = old
         // Each keychain mutation has an undo snapshot; plaintext is never persisted in the draft file.
         var undo: [(String, String, Data?)] = []
@@ -123,7 +163,12 @@ import CryptoKit
                     guard let port = Int(row.port), let proxy = Int(row.proxyPort) else { throw MailCredentials.Failure("请输入有效的端口。") }
                     c.port = port; c.proxy_port = proxy; c = try c.validated()
                     let secret = row.secret.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if row.original?.identity != c.identity && secret.isEmpty { throw MailCredentials.Failure("请填写密码、客户端授权码或 OAuth2 访问令牌。") }
+                    if row.original?.identity != c.identity && secret.isEmpty {
+                        throw MailCredentials.Failure(c.offersBrowserLogin
+                            ? "请先点击浏览器登录并完成授权。"
+                            : "请填写密码、客户端授权码。")
+                    }
+                    try MailOAuthLogin.validateCredential(secret, connection: c, previous: row.original)
                     guard !profiles.contains(where: { $0.id == c.identity }) else { throw MailCredentials.Failure("此邮箱连接已经添加，请从账号列表中选择。") }
                     if !secret.isEmpty { c.secret_service = "BensonMail-IMAP"; c.secret_account = c.identity + "-" + UUID().uuidString }
                     profiles.append(MailboxProfile(connection: c, enabled: row.enabled))

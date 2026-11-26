@@ -65,21 +65,22 @@ def language_pack_test(home):
     root.mkdir()
     (root / 'settings.json').write_text('{"ui_language":"en","account":"synthetic@example.invalid"}')
     original = (root / 'settings.json').read_bytes()
-    assert packs.status(root, 'macos')['available'] == []
+    bundled = ['chinglish'] if getattr(sys, 'frozen', False) else []
+    assert packs.status(root, 'macos')['available'] == bundled
     data = json.dumps({'schema_version': 1, 'language': 'es', 'platform': 'macos',
                        'exact': {'邮件小秘书': 'Asistente de correo electrónico'}, 'templates': [],
                        'guides': {'mail_account': 'Configuración del buzón', 'quick_start': 'Guía rápida'}}, ensure_ascii=False).encode()
     manifest = {'schema_version': 1, 'language_packs': {'macos-es': {
         'url': 'https://synthetic.example.invalid/es.json', 'size': len(data), 'sha256': hashlib.sha256(data).hexdigest()}}}
     packs.download(root, 'es', 'macos', manifest, lambda _: data)
-    assert packs.status(root, 'macos')['available'] == ['es']
+    assert packs.status(root, 'macos')['available'] == sorted([*bundled, 'es'], key=packs.CODES.index)
     assert (root / 'settings.json').read_bytes() == original
     if getattr(sys, 'frozen', False):
         command = [sys.executable, '--home', str(root), '--language-status']
     else:
         command = [sys.executable, str(Path(__file__).with_name('worker_main.py')), '--home', str(root), '--language-status']
     result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=True)
-    assert json.loads(result.stdout)['available'] == ['es']
+    assert json.loads(result.stdout)['available'] == sorted([*bundled, 'es'], key=packs.CODES.index)
 
 def conversation_test(home):
     import mail_chat

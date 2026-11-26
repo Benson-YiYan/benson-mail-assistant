@@ -4,13 +4,13 @@ import SwiftUI
 @MainActor enum SettingsDraftSelfTest {
     static func run(store: MailStore, output: URL) async throws -> [String] {
         guard store.isTest else { throw AppSelfTest.Failure("settings fixture must be isolated") }
-        let original = store.settings, originalPage = store.workspacePage, originalLogin = store.loginEnabled, originalMailAccount = store.mailAccount
+        let original = store.settings, originalPage = store.workspacePage, originalLogin = store.loginEnabled, originalMailAccount = store.mailAccount, originalProblem = store.problem
         let settingsBytes = try? Data(contentsOf: store.settingsURL)
         let ratesURL = store.base.appendingPathComponent("usage-rates.json")
         let ratesBytes = try? Data(contentsOf: ratesURL)
         let activeLanguage = AppLanguage.shared.code
         defer {
-            store.settings = original; store.workspacePage = originalPage; store.loginEnabled = originalLogin; store.mailAccount = originalMailAccount
+            store.settings = original; store.workspacePage = originalPage; store.loginEnabled = originalLogin; store.mailAccount = originalMailAccount; store.problem = originalProblem
             if let settingsBytes { try? settingsBytes.write(to: store.settingsURL, options: .atomic) }
             else { try? FileManager.default.removeItem(at: store.settingsURL) }
             if let ratesBytes { try? ratesBytes.write(to: ratesURL, options: .atomic) }
@@ -44,7 +44,13 @@ import SwiftUI
         try require(saveCount == 1 && !draft.dirty(.mailbox), "six settings did not share one Save: count=\(saveCount), dirty=\(draft.dirty(.mailbox)), message=\(draft.message), phase=\(store.status.phase), enabled=\(store.settings.enabled), requested=\(store.checkRequested)")
         try require(store.settings.interval_seconds == 120 && store.settings.mail_policy.skip_spam && store.settings.mailbox?.proxy_port == 10809, "mailbox Save lost staged values")
         try require(!String(decoding: try Data(contentsOf: store.settingsURL), as: UTF8.self).contains("synthetic-test-secret"), "credential leaked into settings")
-        draft.reload(); store.workspacePage = .ai
+        draft.interval = "121"; store.settings.enabled = true
+        await draft.save(.mailbox)
+        try require(saveCount == 1 && draft.dirty(.mailbox) && store.settings.interval_seconds == 120 &&
+                    store.problem == "请先暂停监听再保存。",
+                    "mailbox Save while monitoring did not show the pause notice and preserve the draft")
+        store.problem = nil; store.settings.enabled = false; draft.reload()
+        store.workspacePage = .ai
         draft.value.api_base = "https://example.com/other"; draft.value.api_model = "fixture-2"
         draft.apiKey = "synthetic-api-key"; draft.inputRate = "1.2"; draft.outputRate = "3.4"; draft.currency = "CNY"
         draft.value.chat_enter_to_send = true

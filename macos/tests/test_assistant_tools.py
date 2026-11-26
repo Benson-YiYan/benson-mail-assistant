@@ -82,6 +82,40 @@ class AssistantToolTests(unittest.TestCase):
                 tools.reply_send(self.root, request)
             selected.assert_not_called()
 
+    def test_managed_browser_oauth_can_send_after_smtp_scope_refresh(self):
+        draft_folder = self.root / 'reply_drafts'; draft_folder.mkdir()
+        draft_path = draft_folder / 'fixture.json'
+        draft_path.write_text(json.dumps({'draft': 'Reply body', 'recipient': 'person@example.invalid', 'subject': 'Re: Question', 'sent': False}))
+        request = {'confirmed': True, 'draft_path': str(draft_path), 'draft': 'Reply body',
+                   'recipient': 'person@example.invalid', 'subject': 'Re: Question', 'mailbox_id': 'selected-id'}
+        connection = {'account': 'owner@example.invalid', 'username': 'owner@example.invalid',
+                      'host': 'outlook.office365.com', 'mail_provider': 'outlook',
+                      'mail_auth': 'oauth2', 'oauth_mode': 'managed',
+                      '_oauth_secret_provider': lambda: '{"schema":1}',
+                      '_oauth_secret_update': lambda _value: None}
+        class FakeSMTP:
+            def __init__(self, *args, **kwargs): self.sent = []
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def ehlo(self): pass
+            def starttls(self, context=None): pass
+            def auth(self, mechanism, callback):
+                self.auth_mechanism = mechanism; self.auth_response = callback()
+            def send_message(self, message, from_addr=None, to_addrs=None):
+                self.sent.append((message, from_addr, to_addrs))
+        transport = FakeSMTP()
+        with patch.object(tools, '_selected_mailbox', return_value=(connection, '{"schema":1}')), \
+             patch.object(tools, '_proxy_smtp_classes', return_value=(lambda *a, **k: transport, lambda *a, **k: transport)), \
+             patch('mailbox_config.managed_oauth_token', return_value='outlook-smtp-access') as refresh, \
+             patch('mailbox_config.resolve_proxy', return_value=None):
+            result = tools.reply_send(self.root, request)
+        self.assertTrue(result['sent'])
+        refresh.assert_called_once()
+        self.assertTrue(refresh.call_args.kwargs['force_refresh'])
+        self.assertEqual(transport.auth_mechanism, 'XOAUTH2')
+        self.assertIn('Bearer outlook-smtp-access', transport.auth_response)
+        self.assertEqual(len(transport.sent), 1)
+
     def test_paused_mailbox_can_be_selected_without_exposing_keychain_values(self):
         if WINDOWS: self.skipTest('macOS Keychain lookup only')
         import mailbox_config

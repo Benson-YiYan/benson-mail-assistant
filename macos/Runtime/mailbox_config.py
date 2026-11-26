@@ -10,8 +10,11 @@ import json
 import urllib.parse
 import urllib.request
 import time
+import threading
 
 IMAP_ERROR = imaplib.IMAP4.error
+_OAUTH_REFRESH_LOCKS = {}
+_OAUTH_REFRESH_LOCKS_GUARD = threading.Lock()
 
 PRESETS = [
     {'id': '163', 'name': '网易163', 'host': 'imap.163.com'},
@@ -25,6 +28,42 @@ PRESETS = [
     {'id': 'yahoo', 'name': 'Yahoo', 'host': 'imap.mail.yahoo.com'},
     {'id': 'custom', 'name': '其他邮箱（自定义 IMAP）', 'host': ''},
 ]
+
+
+def managed_oauth_token(config, fallback_secret, *, force_refresh=False):
+    """Refresh one mailbox at a time and persist rotation before IMAP auth."""
+    value = normalize(config)
+    if value.get('oauth_mode') != 'managed':
+        raise ValueError('托管 OAuth 登录尚未配置。')
+    binding = str(config.get('secret_account') or value.get('account', '')).casefold()
+    with _OAUTH_REFRESH_LOCKS_GUARD:
+        lock = _OAUTH_REFRESH_LOCKS.setdefault(binding, threading.RLock())
+    with lock:
+        provider = config.get('_oauth_secret_provider')
+        secret = provider() if callable(provider) else fallback_secret
+        if not isinstance(secret, str) or not secret:
+            raise ValueError('OAuth 邮箱凭据不可用，请重新登录。')
+        from oauth_client import access_token
+        identity = {'gmail': 'google', 'outlook': 'microsoft'}.get(value.get('mail_provider'))
+        token, updated = access_token(secret, {
+            'provider': identity,
+            'client_id': value.get('oauth_client_id', ''),
+            'tenant': value.get('oauth_tenant', 'common'),
+            'email': value.get('account', ''),
+        }, force_refresh=force_refresh)
+        if updated is not None:
+            from oauth_client import credential_json
+            persist = config.get('_oauth_secret_update')
+            try:
+                if callable(persist):
+                    persist(credential_json(updated))
+                else:
+                    from mail_connection_io import save_managed_credential
+                    save_managed_credential(config, updated)
+            except Exception:
+                raise RuntimeError('OAuth 刷新凭据未能安全保存；已停止邮箱连接，请重新登录。') from None
+        return token
+
 
 def normalize(raw):
     value = raw.get('mailbox') or raw
@@ -53,9 +92,28 @@ def normalize(raw):
     folder = str(value.get('mail_folder') or 'INBOX').strip()
     if not username or any(ord(c) < 32 or ord(c) == 127 for c in username + folder):
         raise ValueError('登录用户名和邮件文件夹不能包含换行或控制字符。')
+    oauth_client_id = str(value.get('oauth_client_id', '') or '').strip()
+    oauth_tenant = str(value.get('oauth_tenant', 'common') or 'common').strip()
+    oauth_mode = str(value.get('oauth_mode', 'manual') or 'manual').strip()
+    if len(oauth_client_id) > 512 or any(ord(c) < 33 for c in oauth_client_id):
+        raise ValueError('OAuth 客户端 ID 无效。')
+    if len(oauth_tenant) > 255 or any(ord(c) < 33 for c in oauth_tenant):
+        raise ValueError('Microsoft 租户无效。')
+    if oauth_mode not in ('manual', 'managed'):
+        raise ValueError('OAuth 登录状态无效。')
+    mail_provider = str(value.get('mail_provider', 'custom'))
+    if oauth_mode == 'managed':
+        preset = next((item for item in PRESETS if item['id'] == mail_provider), None)
+        if auth != 'oauth2' or mail_provider not in ('gmail', 'outlook') or not oauth_client_id:
+            raise ValueError('托管 OAuth 登录需要 Gmail 或 Outlook、OAuth2 登录方式及客户端 ID。')
+        if (preset is None or host != preset['host'] or port != 993 or security != 'ssl' or
+                username.casefold() != account.casefold()):
+            raise ValueError('浏览器登录需使用服务商默认的 IMAP 服务器、993 端口、SSL/TLS 和完整邮箱地址。')
     return {'account': account, 'username': username, 'host': host, 'port': port,
             'security': security, 'mail_folder': folder, 'mail_auth': auth,
-            'mail_provider': str(value.get('mail_provider', 'custom')), **normalize_proxy(value)}
+            'mail_provider': mail_provider, 'oauth_client_id': oauth_client_id,
+            'oauth_tenant': oauth_tenant, 'oauth_mode': oauth_mode,
+            **normalize_proxy(value)}
 
 class ProxyConnectionError(OSError):
     """Proxy failures never contain server-supplied text or credentials."""
@@ -434,9 +492,20 @@ def connect(config, secret, context=None):
             require_ok(client.starttls(ssl_context=context), 'STARTTLS')
         if value['mail_auth'] == 'oauth2':
             stage = 'XOAUTH2 认证'
-            if any(c in secret for c in '\r\n\x01'):
+            if value.get('oauth_mode') == 'managed':
+                token = managed_oauth_token(config, secret)
+            else:
+                from oauth_client import access_token
+                provider = {'gmail': 'google', 'outlook': 'microsoft'}.get(value.get('mail_provider'))
+                token, _ = access_token(secret, {
+                    'provider': provider,
+                    'client_id': value.get('oauth_client_id', ''),
+                    'tenant': value.get('oauth_tenant', 'common'),
+                    'email': value.get('account', ''),
+                })
+            if any(c in token for c in '\r\n\x01'):
                 raise ValueError('OAuth2 访问令牌格式无效。')
-            token = f"user={value['username']}\x01auth=Bearer {secret}\x01\x01".encode()
+            token = f"user={value['username']}\x01auth=Bearer {token}\x01\x01".encode()
             require_ok(client.authenticate('XOAUTH2', lambda challenge: token if not challenge else b''), 'AUTHENTICATE')
         else:
             stage = 'LOGIN 认证'

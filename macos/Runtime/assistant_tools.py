@@ -430,6 +430,9 @@ def _selected_mailbox(root, config, identifier, controller=None):
     if WINDOWS:
         if controller is not None:
             secret = controller.mailbox_secret(profile)
+            if connection.get('oauth_mode') == 'managed':
+                connection['_oauth_secret_provider'] = controller.oauth_secret_provider_callback(profile)
+                connection['_oauth_secret_update'] = controller.oauth_secret_update_callback(profile)
         else:
             raise ValueError('Mailbox controller is required.')
     else:
@@ -448,6 +451,10 @@ def _selected_mailbox(root, config, identifier, controller=None):
     # excludes. Never return secret material in the connection mapping.
     connection['secret_service'] = raw_connection.get('secret_service', 'BensonMail-IMAP')
     connection['secret_account'] = raw_connection.get('secret_account', '')
+    if connection.get('oauth_mode') == 'managed':
+        from mail_connection_io import load_managed_credential, save_managed_credential
+        connection['_oauth_secret_provider'] = lambda: load_managed_credential(connection)
+        connection['_oauth_secret_update'] = lambda bundle: save_managed_credential(connection, bundle)
     return dict(connection), secret
 
 
@@ -492,8 +499,8 @@ def _smtp_auth(client, connection, secret, oauth2):
         return
     if any(c in secret for c in '\r\n\x01') or any(c in username for c in '\r\n\x01'):
         raise ValueError('OAuth2 access token or login name is invalid.')
-    response = f'user={username}\x01auth=Bearer {secret}\x01\x01'.encode('utf-8')
-    client.auth('XOAUTH2', lambda challenge: response)
+    response = f'user={username}\x01auth=Bearer {secret}\x01\x01'
+    client.auth('XOAUTH2', lambda challenge=None: response if challenge is None else '')
 
 
 def reply_send(root, request, controller=None):
@@ -532,8 +539,30 @@ def _reply_send_locked(root, request, controller, path, chat):
     # reads the already saved account credential directly from Keychain.
     connection, secret = _selected_mailbox(root, config, mailbox_id_value, controller)
     oauth2 = connection.get('mail_auth', 'password') == 'oauth2'
-    if oauth2 and connection.get('mail_provider') != 'outlook':
-        raise ValueError('This OAuth2 token is not configured for SMTP sending. Use a provider app password or mail app.')
+    if oauth2:
+        mail_provider = connection.get('mail_provider')
+        if mail_provider not in ('gmail', 'outlook'):
+            raise ValueError('This OAuth2 token is not configured for SMTP sending. Use a provider app password or mail app.')
+        if connection.get('oauth_mode') == 'managed':
+            if WINDOWS:
+                from .mailbox_config import managed_oauth_token
+            else:
+                from mailbox_config import managed_oauth_token
+            try:
+                secret = managed_oauth_token(connection, secret, force_refresh=True)
+            except Exception as error:
+                raise ValueError('无法取得 SMTP 发信授权，请重新进行浏览器登录并确认发信权限。' + str(error)) from None
+        else:
+            if WINDOWS:
+                from .oauth_client import access_token
+            else:
+                from oauth_client import access_token
+            secret, _ = access_token(secret, {
+                'provider': 'google' if mail_provider == 'gmail' else 'microsoft',
+                'client_id': connection.get('oauth_client_id', ''),
+                'tenant': connection.get('oauth_tenant', 'common'),
+                'email': connection.get('account', ''),
+            })
     server, port, security = smtp_endpoint(connection)
     if WINDOWS:
         from .mailbox_config import resolve_proxy
@@ -723,6 +752,9 @@ def _mailbox(root, config, identifier='', controller=None):
     if WINDOWS:
         from .ai_api import tls_context
         return mailbox_id(profile), connect(connection, secret, context=tls_context())
+    if connection.get('oauth_mode') == 'managed':
+        from mail_connection_io import load_managed_credential
+        connection['_oauth_secret_provider'] = lambda: load_managed_credential(connection)
     return mailbox_id(profile), connect(connection, secret)
 
 def history_preview(root, request, controller=None):

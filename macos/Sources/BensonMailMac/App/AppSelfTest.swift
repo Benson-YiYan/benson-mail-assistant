@@ -10,6 +10,7 @@ enum AppSelfTest {
         let output = URL(fileURLWithPath: args[index + 1])
         var checks: [String] = []
         do {
+            checks += try reportMigrationGateSelfTest()
             let store = MailStore.shared
             guard store.isTest, store.base.path.contains("BensonMail-UI-test") else { throw Failure("isolated fixture required") }
             if store.reports.count < 2 && attempt < 30 {
@@ -617,11 +618,25 @@ enum AppSelfTest {
             }
             try verifyHelp(["使用指南", "如何获取授权码？", "检查更新", "关于邮件小秘书"], heading: "帮助")
             checks.append("single native Help menu contains four connected actions; three language-pack quick-start guides")
-            guard MailAccountGuide.offersToken("oauth2"), !MailAccountGuide.offersToken("password"),
-                  let tokenTool = MailAccountGuide.tokenURL(), FileManager.default.isExecutableFile(atPath: tokenTool.path) else {
-                throw Failure("OAuth2 conditional token button or bundled helper missing")
+            var previousOAuth = MailConnection()
+            previousOAuth.mail_provider = "gmail"; previousOAuth.mail_auth = "oauth2"
+            previousOAuth.oauth_mode = "managed"; previousOAuth.oauth_client_id = "legacy.apps.googleusercontent.com"
+            MailAccountDraft.normalizeLogin(&previousOAuth, appClientID: "")
+            var passwordMailbox = MailConnection()
+            passwordMailbox.mail_provider = "163"; passwordMailbox.mail_auth = "oauth2"
+            passwordMailbox.oauth_mode = "managed"; passwordMailbox.oauth_client_id = "stale-client-id"
+            MailAccountDraft.normalizeLogin(&passwordMailbox, appClientID: "")
+            guard !MailAccountDraft.browserLoginConfigured(provider: "gmail", appClientID: "", savedClientID: ""),
+                  MailAccountDraft.browserLoginConfigured(provider: "gmail", appClientID: "", savedClientID: "legacy.apps.googleusercontent.com"),
+                  MailAccountDraft.browserLoginConfigured(provider: "outlook", appClientID: "app-owned-client", savedClientID: ""),
+                  !MailAccountDraft.browserLoginConfigured(provider: "163", appClientID: "app-owned-client", savedClientID: ""),
+                  previousOAuth.mail_auth == "oauth2", previousOAuth.oauth_mode == "managed",
+                  previousOAuth.oauth_client_id == "legacy.apps.googleusercontent.com",
+                  passwordMailbox.mail_auth == "password", passwordMailbox.oauth_mode == "manual",
+                  passwordMailbox.oauth_client_id.isEmpty else {
+                throw Failure("browser OAuth configuration fallback or password-only mailbox normalization failed")
             }
-            checks.append("OAuth2 token entry only offered for OAuth2 authentication; bundled executable command exists")
+            checks.append("Gmail/Outlook use browser sign-in only; empty app configuration is blocked with a hint, prior profile registration remains usable, and other providers use password/app-password only")
             let originalUpdateState = store.settings.enabled
             for enabled in [true, false] {
                 store.settings.enabled = enabled; try store.save()
@@ -845,10 +860,17 @@ enum AppSelfTest {
             let mixedCaseIdentity = mixedCaseDefault.identity
             var explicitCustom = MailConnection()
             explicitCustom.account = "old@example.invalid"; explicitCustom.username = "distinct-login"
+            let inferredGmail = MailAccountDraft.inferringProvider(MailConnection(), to: "benson@gmail.com", explicit: false)
+            let inferredOutlook = MailAccountDraft.inferringProvider(MailConnection(), to: "benson@hotmail.com", explicit: false)
+            var chosenOther = MailConnection(); chosenOther.mail_provider = "163"
+            let preservedChoice = MailAccountDraft.inferringProvider(chosenOther, to: "benson@gmail.com", explicit: true)
             guard MailAccountDraft.load(mixedCaseDefault).username.isEmpty,
                   MailAccountDraft.changingAccount(mixedCaseDefault, to: "next@example.invalid").login == "next@example.invalid",
                   mixedCaseDefault.identity == mixedCaseIdentity,
-                  MailAccountDraft.load(MailAccountDraft.changingAccount(explicitCustom, to: "next@example.invalid")).username == "distinct-login" else { throw Failure("trimmed case-insensitive default mapping changed persisted data or a distinct custom login") }
+                  MailAccountDraft.load(MailAccountDraft.changingAccount(explicitCustom, to: "next@example.invalid")).username == "distinct-login",
+                  inferredGmail.mail_provider == "gmail", inferredGmail.host == "imap.gmail.com", inferredGmail.mail_auth == "oauth2",
+                  inferredOutlook.mail_provider == "outlook", inferredOutlook.host == "outlook.office365.com",
+                  preservedChoice.mail_provider == "163" else { throw Failure("mailbox draft inference or login-name mapping changed unexpectedly") }
             let persistedIdentity = defaultLogin.identity
             try await finishLoginSetup(defaultLogin)
             guard !allFields(root).contains(where: { $0.placeholderString == T("登录用户名；留空使用邮箱地址") && !$0.isHiddenOrHasHiddenAncestor }) else { throw Failure("login username should stay inside collapsed advanced options") }
@@ -902,6 +924,35 @@ enum AppSelfTest {
         }
         NSApp.terminate(nil)
     }
+
+    private static func reportMigrationGateSelfTest() throws -> [String] {
+        let home = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BensonMail-migration-gate-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        guard !MailStore.shouldHoldReportsForMigration(isTest: true, home: home),
+              MailStore.shouldHoldReportsForMigration(isTest: false, home: home) else {
+            throw Failure("report migration gate does not distinguish test mode from a missing journal")
+        }
+        let journal = home.appendingPathComponent("report-layout-migration.json")
+        func write(status: String) throws {
+            let value: [String: Any] = [
+                "schema_version": 1,
+                "moves": [["source": "old.md", "target": "new.md", "account": "test@example.invalid", "status": status]]
+            ]
+            try JSONSerialization.data(withJSONObject: value).write(to: journal)
+        }
+        try write(status: "done")
+        guard !MailStore.shouldHoldReportsForMigration(isTest: false, home: home) else {
+            throw Failure("completed report migration still blocks report scanning")
+        }
+        try write(status: "pending")
+        guard MailStore.shouldHoldReportsForMigration(isTest: false, home: home) else {
+            throw Failure("unfinished report migration did not block report scanning")
+        }
+        return ["completed report migration no longer blocks report scanning; unfinished or missing journals remain pending"]
+    }
+
     static func capture(_ window: NSWindow, to output: URL) throws {
         guard let view = window.contentView,
               let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw Failure("native snapshot allocation failed") }
