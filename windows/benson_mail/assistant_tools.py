@@ -427,6 +427,9 @@ def _selected_mailbox(root, config, identifier, controller=None):
     secret = controller.mailbox_secret(profile)
     if not isinstance(secret, str) or not secret:
         raise ValueError('Mailbox credentials are unavailable.')
+    if connection.get('oauth_mode') == 'managed':
+        connection['_oauth_secret_update'] = controller.oauth_secret_update_callback(profile)
+        connection['_oauth_secret_provider'] = controller.oauth_secret_provider_callback(profile)
     return connection, secret
 
 
@@ -516,8 +519,24 @@ def _reply_send_locked(root, request, controller, path, chat):
     # reads the already saved account credential directly from Keychain.
     connection, secret = _selected_mailbox(root, config, mailbox_id_value, controller)
     oauth2 = connection.get('mail_auth', 'password') == 'oauth2'
-    if oauth2 and connection.get('mail_provider') != 'outlook':
-        raise ValueError('This OAuth2 token is not configured for SMTP sending. Use a provider app password or mail app.')
+    if oauth2:
+        mail_provider = connection.get('mail_provider')
+        if mail_provider not in ('gmail', 'outlook'):
+            raise ValueError('This OAuth2 token is not configured for SMTP sending. Use a provider app password or mail app.')
+        from .oauth_client import access_token
+        if connection.get('oauth_mode') == 'managed':
+            from .mailbox_config import managed_oauth_token
+            try:
+                secret = managed_oauth_token(connection, secret, force_refresh=True)
+            except Exception as error:
+                raise ValueError('无法取得 SMTP 发信授权，请重新进行浏览器登录并确认发信权限。' + str(error)) from None
+        else:
+            secret, _ = access_token(secret, {
+                'provider': 'google' if mail_provider == 'gmail' else 'microsoft',
+                'client_id': connection.get('oauth_client_id', ''),
+                'tenant': connection.get('oauth_tenant', 'common'),
+                'email': connection.get('account', ''),
+            })
     server, port, security = smtp_endpoint(connection)
     if WINDOWS:
         from .mailbox_config import resolve_proxy
@@ -711,6 +730,9 @@ def _mailbox(root, config, identifier='', controller=None):
     connection = {**profile, 'ui_language': config.get('ui_language', 'zh')}
     if WINDOWS:
         from .ai_api import tls_context
+        if connection.get('oauth_mode') == 'managed' and controller is not None:
+            connection['_oauth_secret_update'] = controller.oauth_secret_update_callback(profile)
+            connection['_oauth_secret_provider'] = controller.oauth_secret_provider_callback(profile)
         return mailbox_id(profile), connect(connection, secret, context=tls_context())
     return mailbox_id(profile), connect(connection, secret)
 

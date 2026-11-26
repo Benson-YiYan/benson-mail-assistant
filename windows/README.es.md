@@ -20,11 +20,11 @@ En Configuración general puedes cambiar el idioma. Si no está descargado, apar
 
 ## Configuración inicial
 
-1. Elige proveedor u Otro correo (IMAP personalizado), activa IMAP con tu proveedor e introduce dirección completa y contraseña de aplicación, código de autorización o token OAuth2 requerido. Otro correo necesita servidor, puerto y cifrado. Deja el usuario avanzado vacío salvo que tu proveedor lo requiera. Usa ¿Cómo obtengo un código de autorización?, guarda y prueba.
+1. Elige proveedor u Otro correo (IMAP personalizado) y activa IMAP con tu proveedor. Para Gmail y Outlook/Microsoft 365, pulsa el botón de inicio de sesión en el navegador y confirma en la página oficial; no tienes que registrar una aplicación OAuth ni introducir ID de cliente, secreto, inquilino o token. Otros proveedores pueden exigir contraseña de aplicación o código de autorización. Otro correo necesita servidor, puerto y cifrado. Usa ¿Cómo obtengo un código de autorización?, guarda y prueba.
 2. Elige y prueba la IA: API compatible con Chat Completions (URL base, clave y modelo), Codex instalado y con sesión iniciada, o DeepSeek Harness instalado y configurado con soporte `headless --json`. Harness no se incluye ni se descarga. El modo API acepta URL base `/v1` o URL completa `/chat/completions`. Probar la IA puede consumir saldo.
 3. Usa Examinar para elegir la carpeta de informes e inicia la supervisión.
 
-Preajustes: 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud y Yahoo. Se requiere autorización de cuenta. OAuth2 se introduce y renueva manualmente; la herramienta Microsoft requiere ID de cliente propio, aprobación en navegador y, a veces, administrador. No renueva tokens. Consulta la [guía completa del correo](docs/Mail-account-setup-es.txt).
+Preajustes: 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud y Yahoo. El inicio de sesión del navegador para Outlook/Microsoft 365 está configurado en esta versión y renueva los tokens automáticamente. Solicita permisos delegados de Exchange para recibir correo por IMAP y enviar respuestas por SMTP tras confirmarlas; la aplicación no usa el permiso POP. Las cuentas de trabajo/escuela pueden requerir aprobación administrativa. El inicio de sesión de Gmail aún no está configurado. No es necesario introducir ID de cliente, secretos, inquilino ni tokens. Consulta la [guía completa del correo](docs/Mail-account-setup-es.txt).
 
 ## Supervisión e informes
 

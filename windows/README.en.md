@@ -12,7 +12,7 @@ No Python or terminal setup is needed. API mode does not require Codex. Setup ch
 
 ## First setup
 
-1. **Email:** choose a provider or Other email (custom IMAP), enter the full address and the provider-required app password, authorization code or OAuth2 access token. Enable IMAP with the provider. Custom providers also need the host, port and encryption. Use **How do I get an authorization code?**, then save and test the connection.
+1. **Email:** choose a provider or Other email (custom IMAP), enter the address and enable IMAP. For Gmail and Outlook/Microsoft 365, click the browser sign-in button and approve on the provider’s official page; users do not register OAuth apps or enter client IDs, secrets, tenants or tokens. Other providers may require an app password or authorization code. Custom providers also need the host, port and encryption. Use **How do I get an authorization code?**, then save and test.
 2. **AI:** choose one of the options below, save it and test the connection.
 3. **Folder:** use Browse to choose the report folder, then start monitoring.
 
@@ -24,7 +24,7 @@ No Python or terminal setup is needed. API mode does not require Codex. Setup ch
 
 API mode accepts the provider's base URL, such as one ending in `/v1`, or the full `/chat/completions` URL. Harness is not bundled or downloaded. Testing AI sends a small message and may incur provider charges.
 Presets include 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud and Yahoo. Presets supply connection settings; account authorization is still required.
-OAuth2 tokens must currently be supplied and replaced manually. The Microsoft helper needs a usable client ID and browser authorization; administrator approval may also be required. It does not refresh tokens automatically.
+Outlook/Microsoft 365 browser sign-in is configured in this build and renews automatically. It requests Exchange delegated IMAP and SMTP permissions so the app can receive mail and send replies after confirmation; POP access is not used. Work/school accounts may require administrator approval. Gmail browser sign-in is not configured yet. Users do not enter client IDs, secrets, tenants or tokens.
 
 ## Monitoring and reports
 

@@ -322,8 +322,10 @@ class APIAnalyzer:
         return clean_internal_source_tags(answer)
 
 class Service:
-    def __init__(self,config,secret,root,callback,mailbox=None,analyzer=None,api_key=''):
+    def __init__(self,config,secret,root,callback,mailbox=None,analyzer=None,api_key='',
+                 secret_provider=None):
         self.config=dict(config); self.secret=secret; self.root=Path(root); self.mailbox=mailbox
+        self.secret_provider=secret_provider
         from .notification_policy import notification_callback
         self.callback=notification_callback(callback, self.root.parent / 'config.json', self.config)
         self.root.mkdir(parents=True,exist_ok=True)
@@ -347,6 +349,13 @@ class Service:
     def join(self,timeout=None):
         if self.thread: self.thread.join(timeout)
     def persist(self): save_json(self.state_path,self.state)
+    def current_secret(self):
+        """Load the newest protected mailbox credential when a provider exists."""
+        secret=self.secret_provider() if callable(self.secret_provider) else self.secret
+        if not isinstance(secret,str) or not secret:
+            raise ValueError('请先保存该邮箱的登录凭据。')
+        self.secret=secret
+        return secret
     def check_once(self):
         with self.activity:
             if self.cancel.is_set(): return
@@ -355,7 +364,8 @@ class Service:
     def _check_once(self):
         if self.config.get('read_all_mail') and not self.config.get('_all_folders_child'):
             from .mailbox_config import list_folders
-            folders = list_folders(self.config, self.secret)
+            secret = self.current_secret()
+            folders = list_folders(self.config, secret)
             if not folders:
                 raise RuntimeError(_t('IMAP 服务器没有返回可读取的邮件文件夹'))
             seen_message_ids = set()
@@ -364,7 +374,8 @@ class Service:
                 child_config = {**self.config, 'mail_folder': folder['name'], 'read_all_mail': False,
                                 '_all_folders_child': True, '_imap_folder_flags': folder['flags'],
                                 '_all_folders_seen_message_ids': seen_message_ids}
-                child = Service(child_config, self.secret, self.root, self.callback, analyzer=self.analyzer)
+                child = Service(child_config, secret, self.root, self.callback, analyzer=self.analyzer,
+                                secret_provider=self.secret_provider)
                 child.callback = self.callback
                 child.cancel = self.cancel
                 child._check_once()
@@ -381,7 +392,8 @@ class Service:
             except Exception as error:
                 update_record(policy_root, record['id'], 'error', error)
                 raise
-        owned=self.mailbox is None; box=self.mailbox or IMAPMailbox(self.config,self.secret)
+        owned=self.mailbox is None
+        box=self.mailbox or IMAPMailbox(self.config,self.current_secret())
         try:
             validity,uids=box.snapshot()
             if self.state.get('validity')!=validity:

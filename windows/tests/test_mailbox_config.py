@@ -89,6 +89,153 @@ class MailConnectionTests(unittest.TestCase):
         self.assertEqual(mechanism, 'XOAUTH2')
         self.assertEqual(callback(b''), b'user=demo@example.invalid\x01auth=Bearer SYNTHETIC_TOKEN\x01\x01')
         self.assertEqual(callback(b'error-challenge'), b'')
+    def test_managed_oauth_refresh_is_persisted_before_imap_auth(self):
+        client = Mock(capabilities=(b'AUTH=XOAUTH2',))
+        client.authenticate.return_value = ('OK', [])
+        client.capability.return_value = ('OK', [b'IMAP4rev1'])
+        client.select.return_value = ('OK', [b'0'])
+        old_secret = json.dumps({
+            'schema': 1, 'provider': 'google', 'email': 'demo@example.invalid',
+            'client_id': 'demo.apps.googleusercontent.com',
+            'access_token': 'EXPIRED_ACCESS', 'refresh_token': 'OLD_REFRESH',
+            'expires_at': 1,
+        })
+        updated = {
+            'schema': 1, 'provider': 'google', 'email': 'demo@example.invalid',
+            'client_id': 'demo.apps.googleusercontent.com',
+            'access_token': 'NEW_ACCESS', 'refresh_token': 'ROTATED_REFRESH',
+            'expires_at': 9999999999, 'scope': 'https://mail.google.com/',
+            'token_type': 'Bearer',
+        }
+        persisted = []
+        events = []
+        client.authenticate.side_effect = lambda mechanism, callback: (
+            events.append('authenticate'), ('OK', [callback(b'')])
+        )[1]
+        config = self.config(
+            host='imap.gmail.com', port=993, security='ssl',
+            mail_provider='gmail', mail_auth='oauth2', oauth_mode='managed',
+            oauth_client_id='demo.apps.googleusercontent.com',
+            _oauth_secret_update=lambda secret: (events.append('persist'), persisted.append(secret)),
+        )
+        with patch('benson_mail.mailbox_config.imaplib.IMAP4_SSL', return_value=client), \
+             patch('benson_mail.oauth_client.access_token', return_value=('NEW_ACCESS', updated)):
+            connect(config, old_secret, Mock())
+        self.assertEqual(events, ['persist', 'authenticate'])
+        self.assertEqual(json.loads(persisted[0]), updated)
+        mechanism, callback = client.authenticate.call_args.args
+        self.assertEqual(mechanism, 'XOAUTH2')
+        self.assertIn(b'Bearer NEW_ACCESS', callback(b''))
+        self.assertNotIn(b'ROTATED_REFRESH', callback(b''))
+
+    def test_legacy_oauth_token_is_not_rewritten(self):
+        client = Mock(capabilities=(b'AUTH=XOAUTH2',))
+        client.authenticate.return_value = ('OK', [])
+        client.capability.return_value = ('OK', [b'IMAP4rev1'])
+        client.select.return_value = ('OK', [b'0'])
+        persist = Mock()
+        with patch('benson_mail.mailbox_config.imaplib.IMAP4_SSL', return_value=client):
+            connect(self.config(mail_auth='oauth2', _oauth_secret_update=persist), 'LEGACY_ACCESS_TOKEN', Mock())
+        persist.assert_not_called()
+    def test_rotated_secret_storage_failure_stops_before_auth_and_redacts_error(self):
+        client = Mock(capabilities=(b'AUTH=XOAUTH2',))
+        persist = Mock(side_effect=OSError('ROTATED_REFRESH_PRIVATE'))
+        updated = {
+            'schema': 1, 'provider': 'google', 'email': 'demo@example.invalid',
+            'client_id': 'demo.apps.googleusercontent.com',
+            'access_token': 'NEW_ACCESS_PRIVATE', 'refresh_token': 'ROTATED_REFRESH_PRIVATE',
+            'expires_at': 9999999999,
+        }
+        with patch('benson_mail.mailbox_config.imaplib.IMAP4_SSL', return_value=client), \
+             patch('benson_mail.oauth_client.access_token', return_value=('NEW_ACCESS_PRIVATE', updated)), \
+             self.assertRaises(RuntimeError) as error:
+            connect(self.config(
+                host='imap.gmail.com', port=993, security='ssl',
+                mail_provider='gmail', mail_auth='oauth2', oauth_mode='managed',
+                oauth_client_id='demo.apps.googleusercontent.com',
+                _oauth_secret_update=persist,
+            ), 'SYNTHETIC_BUNDLE', Mock())
+        persist.assert_called_once()
+        client.authenticate.assert_not_called()
+        self.assertNotIn('ROTATED_REFRESH_PRIVATE', str(error.exception))
+        self.assertNotIn('NEW_ACCESS_PRIVATE', str(error.exception))
+
+    def test_managed_oauth_refresh_lock_reloads_rotated_bundle_for_concurrent_checks(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        import time
+        from benson_mail.mailbox_config import managed_oauth_token
+
+        updated = {
+            'schema': 1, 'provider': 'google', 'email': 'demo@example.invalid',
+            'client_id': 'demo.apps.googleusercontent.com',
+            'access_token': 'ACCESS_ONE', 'refresh_token': 'ROTATED_REFRESH',
+            'expires_at': 9999999999, 'token_type': 'Bearer',
+        }
+        state = {'secret': 'INITIAL_BUNDLE'}
+        observed = []
+        persisted = []
+        barrier = Barrier(3)
+
+        def access_token(secret, _options):
+            observed.append(secret)
+            if secret == 'INITIAL_BUNDLE':
+                time.sleep(0.03)
+                return 'ACCESS_ONE', updated
+            return 'ACCESS_TWO', None
+
+        def persist(secret):
+            persisted.append(secret)
+            state['secret'] = secret
+
+        config = self.config(
+            host='imap.gmail.com', port=993, security='ssl',
+            mail_provider='gmail', mail_auth='oauth2', oauth_mode='managed',
+            oauth_client_id='demo.apps.googleusercontent.com',
+            secret_binding='mailbox:concurrent-refresh-test',
+            _oauth_secret_provider=lambda: state['secret'],
+            _oauth_secret_update=persist,
+        )
+
+        def refresh():
+            barrier.wait()
+            return managed_oauth_token(config, 'STALE_FALLBACK')
+
+        with patch('benson_mail.oauth_client.access_token', side_effect=access_token):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(refresh) for _ in range(2)]
+                barrier.wait()
+                results = [future.result(timeout=5) for future in futures]
+
+        self.assertCountEqual(results, ['ACCESS_ONE', 'ACCESS_TWO'])
+        self.assertEqual(len(persisted), 1)
+        self.assertEqual(len(observed), 2)
+        self.assertEqual(observed[0], 'INITIAL_BUNDLE')
+        self.assertEqual(json.loads(observed[1])['refresh_token'], 'ROTATED_REFRESH')
+        self.assertEqual(state['secret'], persisted[0])
+
+    def test_managed_oauth_refresh_fails_closed_without_secure_writer(self):
+        from benson_mail.mailbox_config import managed_oauth_token
+
+        updated = {
+            'schema': 1, 'provider': 'google', 'email': 'demo@example.invalid',
+            'client_id': 'demo.apps.googleusercontent.com',
+            'access_token': 'ACCESS_PRIVATE', 'refresh_token': 'ROTATED_PRIVATE',
+            'expires_at': 9999999999,
+        }
+        config = self.config(
+            host='imap.gmail.com', port=993, security='ssl',
+            mail_provider='gmail', mail_auth='oauth2', oauth_mode='managed',
+            oauth_client_id='demo.apps.googleusercontent.com',
+            _oauth_secret_provider=lambda: 'INITIAL_BUNDLE',
+        )
+        with patch('benson_mail.oauth_client.access_token',
+                   return_value=('ACCESS_PRIVATE', updated)), self.assertRaisesRegex(
+                       RuntimeError, 'secure storage is unavailable'
+                   ) as error:
+            managed_oauth_token(config, 'STALE_FALLBACK')
+        self.assertNotIn('ROTATED_PRIVATE', str(error.exception))
+        self.assertNotIn('ACCESS_PRIVATE', str(error.exception))
 
 class MailSecretBindingTests(unittest.TestCase):
     def test_endpoint_change_requires_new_secret_and_keeps_previous_encrypted_file(self):

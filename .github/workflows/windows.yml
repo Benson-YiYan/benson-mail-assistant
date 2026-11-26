@@ -31,17 +31,23 @@ jobs:
           python ../script/build_language_packs.py --output evidence/test-language-packs
           if ($LASTEXITCODE -ne 0) { throw 'Language fixture generation failed' }
           "BENSON_MAIL_TEST_LANGUAGE_PACKS=$((Resolve-Path evidence/test-language-packs/windows).Path)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Parse PowerShell helpers without contacting services
+      - name: Parse installers and verify browser OAuth configuration without network
         run: |
           $tokens = $null
           $parseErrors = $null
-          foreach ($script in @('docs/Get-Outlook-Token.ps1', 'installer/prerequisites.ps1', 'script/check_prerequisites.ps1')) {
+          foreach ($script in @('installer/prerequisites.ps1', 'script/check_prerequisites.ps1')) {
             $ast = [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script), [ref]$tokens, [ref]$parseErrors)
             if ($parseErrors.Count -gt 0) { throw ($parseErrors | Out-String) }
           }
-          if (!(Test-Path 'docs/Get-Outlook-Token.bat')) { throw 'Missing OAuth2 BAT entry point' }
+          if ((Test-Path 'docs/Get-Outlook-Token.bat') -or (Test-Path 'docs/Get-Outlook-Token.ps1')) { throw 'Obsolete manual OAuth helper remains in the package source' }
+          $app = Get-Content native/Program.cs -Raw
+          $oauth = Get-Content benson_mail/oauth_client.py -Raw
+          if ($app -notmatch '1e9563b1-fc17-450d-8221-12eed69e1980') { throw 'Microsoft browser OAuth app ID is missing' }
+          foreach ($scope in @('IMAP.AccessAsUser.All', 'SMTP.Send')) {
+            if ($oauth -notmatch [regex]::Escape($scope)) { throw "Microsoft delegated scope missing: $scope" }
+          }
           New-Item -ItemType Directory -Force evidence | Out-Null
-          @{ ok = $true; parse_errors = $parseErrors.Count; network_requests = 0 } | ConvertTo-Json | Set-Content evidence/oauth-helper-parse.json
+          @{ ok = $true; parse_errors = $parseErrors.Count; network_requests = 0; microsoft_imap_smtp_scopes = $true } | ConvertTo-Json | Set-Content evidence/oauth-browser-login-config.json
       - name: Installer compiler preflight with a tiny payload
         run: |
           $ErrorActionPreference = 'Stop'

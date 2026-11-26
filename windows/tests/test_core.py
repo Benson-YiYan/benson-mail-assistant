@@ -94,6 +94,54 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(len(self.calls),1)
         self.assertEqual(len(list((self.root/'报告').rglob('*.md'))),1)
         self.assertTrue(all(boxes[folder].fetch.called for folder in folders))
+    def test_secret_provider_uses_rotated_bundle_on_next_monitor_check(self):
+        self.config['mail_folder'] = 'INBOX'
+        current = ['initial-managed-bundle']
+        box = Mailbox()
+        box.messages = {}
+        service = Service(
+            self.config, current[0], self.root/'state', lambda event: None,
+            analyzer=self.analyze, secret_provider=lambda: current[0],
+        )
+        used = []
+
+        def make_box(_config, secret):
+            used.append(secret)
+            return box
+
+        with patch('benson_mail.core.IMAPMailbox', side_effect=make_box):
+            service.check_once()
+            current[0] = 'rotated-managed-bundle'
+            service.check_once()
+        self.assertEqual(used, ['initial-managed-bundle', 'rotated-managed-bundle'])
+        self.assertEqual(service.secret, 'rotated-managed-bundle')
+    def test_read_all_folders_reuses_secret_provider_after_rotation(self):
+        self.config['read_all_mail'] = True
+        current = ['initial-managed-bundle']
+        box = Mailbox()
+        box.messages = {}
+        seen = []
+
+        def list_folders(_config, secret):
+            seen.append(('folders', secret))
+            current[0] = 'rotated-managed-bundle'
+            return [{'name': 'INBOX', 'flags': '\\HasNoChildren'}]
+
+        def make_box(_config, secret):
+            seen.append(('folder', secret))
+            return box
+
+        service = Service(
+            self.config, current[0], self.root/'state', lambda event: None,
+            analyzer=self.analyze, secret_provider=lambda: current[0],
+        )
+        with patch('benson_mail.mailbox_config.list_folders', side_effect=list_folders), \
+             patch('benson_mail.core.IMAPMailbox', side_effect=make_box):
+            service.check_once()
+        self.assertEqual(seen, [
+            ('folders', 'initial-managed-bundle'),
+            ('folder', 'rotated-managed-bundle'),
+        ])
     def test_filename_collision_and_date(self):
         message=extract_message(*mail('CON:/标题?'))
         p=export_report(self.root,message,'answer',1); q=export_report(self.root,message,'different',2)

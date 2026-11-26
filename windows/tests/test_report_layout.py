@@ -41,6 +41,21 @@ class ReportLayoutTests(unittest.TestCase):
         with patch.object(layout, "migrate_metadata", side_effect=AssertionError("must not touch default output")):
             self.assertEqual(layout.migrate_reports(self.root, {"account": "test@example.org"})["moved"], 0)
 
+    def test_completed_migration_does_not_rescan_report_tree(self):
+        journal = self.root / "report-layout-migration.json"
+        journal.write_text(json.dumps({
+            "schema_version": 1,
+            "moves": [{
+                "source": str(self.output / "2026-10-21/example-11-53.md"),
+                "target": str(self.expected()),
+                "account": "owner@example.com",
+                "status": "done",
+            }],
+        }))
+        with patch.object(layout, "migrate_metadata", side_effect=AssertionError("must not rescan")):
+            self.assertEqual(layout.migrate_reports(self.root, self.config, windows=True),
+                             {"moved": 0, "metadata_moved": 0, "skipped": 0, "errors": []})
+
     def tearDown(self):
         self.temp.cleanup()
 

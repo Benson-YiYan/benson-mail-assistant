@@ -44,6 +44,13 @@ class SettingsPageTests(unittest.TestCase):
         self.assertEqual(result,{'valid':True,'page':'mail'})
         self.assertNotIn('NEW_SECRET',json.dumps(result));secret.assert_not_called();registry.assert_not_called()
         self.assertEqual(self.controller.path.read_bytes(),self.before);self.assertFalse((self.root/'new-reports').exists())
+    def test_mail_page_save_while_monitoring_uses_short_pause_notice_without_mutating_draft(self):
+        self.controller.active = Mock(return_value=True)
+        with patch('benson_mail.settings_page.platform.save_secret') as secret:
+            with self.assertRaisesRegex(ValueError, '^请先暂停监听再保存。$'):
+                self.controller.command('save_settings_page', {'page':'mail','values':self.mail(seconds=180)})
+        secret.assert_not_called()
+        self.assertEqual(self.controller.path.read_bytes(), self.before)
     def test_complete_mail_page_commits_interval_policy_and_connection(self):
         def save_secret(path,binding,secret): path.write_bytes(b'encrypted-'+secret.encode())
         with patch('benson_mail.settings_page.platform.save_secret',side_effect=save_secret),patch('benson_mail.settings_page.platform.set_autostart') as registry:

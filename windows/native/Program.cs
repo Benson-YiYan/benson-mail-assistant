@@ -16,6 +16,16 @@ using Windows.Graphics;
 
 namespace BensonMail;
 
+internal static class OAuthApplicationCredentials
+{
+    // Provider client IDs are public app configuration, but are owned by Email
+    // Assistant. They are intentionally supplied by the application build,
+    // never requested from mailbox users.
+    internal static string ClientId(string provider) =>
+        provider == "outlook" ? "1e9563b1-fc17-450d-8221-12eed69e1980" : "";
+    internal static string ClientSecret(string provider) => "";
+}
+
 internal static class Program
 {
     internal static string[] Args = Array.Empty<string>();
@@ -236,13 +246,18 @@ sealed partial class MainWindow : Window
         FontSize = 12, Visibility = Visibility.Collapsed };
     readonly List<(string source, string error)> migrationProblems = new();
     readonly TextBox account = new() { Header = L.T("邮箱地址"), PlaceholderText = "name@example.com" };
-    readonly PasswordBox mailSecret = new() { Header = L.T("密码／授权码／OAuth2 访问令牌"), PlaceholderText = L.T("连接信息未变时可留空保留") };
+    readonly PasswordBox mailSecret = new() { Header = L.T("密码／客户端授权码"), PlaceholderText = L.T("连接信息未变时可留空保留") };
     readonly ComboBox mailProvider = new() { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly TextBox mailHost = new() { Header = L.T("IMAP 收件服务器"), Text = "imap.163.com" };
     readonly TextBox mailPort = new() { Header = L.T("端口"), Text = "993" };
     readonly ComboBox mailSecurity = new() { Header = L.T("连接加密"), HorizontalAlignment = HorizontalAlignment.Stretch };
-    Button oauthTokenButton = null!;
-    readonly ComboBox mailAuth = new() { Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
+    readonly ComboBox mailAuth = new() { Visibility = Visibility.Collapsed };
+    readonly TextBox oauthClientId = new() { Visibility = Visibility.Collapsed };
+    readonly TextBox oauthTenant = new() { Visibility = Visibility.Collapsed };
+    readonly ComboBox oauthModeChoice = new() { Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
+    Button oauthLoginButton = null!;
+    readonly TextBlock oauthPermissionNote = new() { Text = L.T("软件只以只读方式打开 IMAP 文件夹；但 IMAP OAuth 授权范围可能允许修改邮件，不等于严格只读。"), TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .75 };
+    readonly TextBlock oauthConfigurationNotice = Note(L.T("浏览器登录功能暂未配置，请稍后再试。"));
     readonly TextBox mailUsername = new() { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址") };
     readonly TextBlock mailLoginSummary = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Visibility = Visibility.Collapsed };
     readonly MailProxyControls mailProxy = new();
@@ -252,6 +267,11 @@ sealed partial class MainWindow : Window
     readonly ComboBox savedMailboxes = new() { Header = L.T("已添加的邮箱"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly List<JsonElement> mailboxProfiles = new();
     bool loadingMailboxes;
+    bool providerExplicitlySelected;
+    bool settingProviderProgrammatically;
+    string managedMailCredential = "";
+    bool mainOAuthSigningIn;
+    CancellationTokenSource? mainOAuthCancellation;
     readonly TextBox folder = new() { Header = L.T("报告保存文件夹") };
     readonly ToggleSwitch startup = new() { Header = L.T("登录 Windows 后自动启动"), OnContent = L.T("开启"), OffContent = L.T("关闭") };
     readonly ComboBox provider = new() { Header = L.T("分析方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -341,6 +361,13 @@ sealed partial class MainWindow : Window
             Language = L.Locale, UseLayoutRounding = true, IsTabStop = false,
             HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Stretch };
         BindMailLogin(account, mailUsername, mailLoginSummary);
+        account.TextChanged += (_, _) => {
+            if (loadingMailboxes || loadingSettingsDrafts) return;
+            CancelMainOAuthLogin();
+            InferMainProviderFromAddress();
+            UpdateOAuthControls();
+        };
+        mailProxy.Changed = CancelMainOAuthLogin;
         BuildLeft();
         Program.Trace("Left controls");
         BuildRight();
@@ -350,7 +377,7 @@ sealed partial class MainWindow : Window
             text.FontFamily = MailTypography.Font;
         foreach (var field in new Control[] { account, mailSecret, folder, provider, apiBase, model, summaryPrompt, harnessPath,
             apiKey, interval, search, sender, from, to, attachment, mailProvider, mailHost, mailPort,
-            mailSecurity, mailAuth, mailUsername, mailFolder, mailProxy.Mode, mailProxy.Host, mailProxy.Port })
+            mailSecurity, mailAuth, oauthClientId, oauthTenant, oauthModeChoice, mailUsername, mailFolder, mailProxy.Mode, mailProxy.Host, mailProxy.Port })
         {
             field.FontFamily = MailTypography.Font;
             field.CornerRadius = new CornerRadius(4);
@@ -550,15 +577,39 @@ sealed partial class MainWindow : Window
             harnessPath.Visibility = provider.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
         };
         mailSecurity.Items.Add("SSL/TLS"); mailSecurity.Items.Add("STARTTLS"); mailSecurity.SelectedIndex = 0;
-        mailAuth.Items.Add(L.T("密码／客户端授权码")); mailAuth.Items.Add(L.T("OAuth2 访问令牌")); mailAuth.SelectedIndex = 0;
+        mailAuth.Items.Add("password"); mailAuth.Items.Add("oauth2"); mailAuth.SelectedIndex = 0;
+        oauthModeChoice.Items.Add(L.T("浏览器登录")); oauthModeChoice.Items.Add(L.T("手动访问令牌"));
+        oauthModeChoice.SelectedIndex = 0;
+        oauthModeChoice.SelectionChanged += (_, _) => {
+            if (changingLanguage || loadingMailboxes || loadingSettingsDrafts) return;
+            CancelMainOAuthLogin();
+            managedMailCredential = "";
+            mailSecret.Password = "";
+            UpdateOAuthControls(); RefreshSettingsDirty();
+        };
         mailProvider.SelectionChanged += (_, _) =>
         {
+            CancelMainOAuthLogin();
             if (changingLanguage || loadingMailboxes || loadingSettingsDrafts || mailProvider.SelectedIndex < 0 || mailProvider.SelectedIndex >= mailPresets.Count) return;
+            if (!settingProviderProgrammatically) providerExplicitlySelected = true;
             var preset = mailPresets[mailProvider.SelectedIndex];
-            if (preset.GetProperty("id").GetString() == "custom") return;
-            mailHost.Text = preset.GetProperty("host").GetString() ?? "";
-            mailPort.Text = "993"; mailSecurity.SelectedIndex = 0;
-            mailAuth.SelectedIndex = preset.TryGetProperty("mail_auth", out var auth) && auth.GetString() == "oauth2" ? 1 : 0;
+            var presetId = JsonText(preset, "id");
+            loadingMailboxes = true;
+            try {
+                managedMailCredential = ""; mailSecret.Password = "";
+                oauthModeChoice.SelectedIndex = 0;
+                if (presetId != "custom") {
+                    mailHost.Text = JsonText(preset, "host");
+                    mailPort.Text = "993"; mailSecurity.SelectedIndex = 0;
+                    mailAuth.SelectedIndex = SupportsManagedOAuth(presetId) || JsonText(preset, "mail_auth") == "oauth2" ? 1 : 0;
+                } else if (settingProviderProgrammatically) {
+                    mailHost.Text = "";
+                    mailAuth.SelectedIndex = 0;
+                }
+                oauthClientId.Text = OAuthApplicationCredentials.ClientId(presetId); oauthTenant.Text = "common";
+            }
+            finally { loadingMailboxes = false; }
+            UpdateOAuthControls(); RefreshSettingsDirty();
         };
         updateButton = Action(L.T("检查更新"), () => CheckUpdates(true));
         updateFallbackButton = Action(L.T("前往 GitHub 下载最新版"), () => {
@@ -569,12 +620,14 @@ sealed partial class MainWindow : Window
         mailSaveButton = Action(L.T("保存邮箱设置"), SaveMail);
         aiSaveButton = Action(L.T("保存 AI 设置"), SaveAI);
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
-        oauthTokenButton = OAuthTokenButton(mailAuth);
+        oauthLoginButton = OAuthLoginButton(SignInMainMailbox);
+        UpdateOAuthControls();
         var advanced = Stack(mailUsername, mailLoginSummary, mailFolder, readAllMail,
             Note(L.T("关闭时只读取上方指定的文件夹；开启后动态读取此邮箱的所有可读取文件夹。仍遵守“不总结垃圾邮件”设置。")),
-            mailAuth, mailProxy.Panel); advanced.Visibility = Visibility.Collapsed;
+            mailProxy.Panel); advanced.Visibility = Visibility.Collapsed;
         savedMailboxes.SelectionChanged += (_, _) => {
             if (changingLanguage || loadingMailboxes || loadingSettingsDrafts || savedMailboxes.SelectedIndex < 0) return;
+            CancelMainOAuthLogin();
             var selected = savedMailboxes.SelectedIndex; StoreMailboxDraft(); ShowMailboxDraft(selected);
         };
         mailPage.Children.Add(SettingsPage(Stack(
@@ -584,10 +637,11 @@ sealed partial class MainWindow : Window
             BuildSenderPolicy(),
             HistoryBackfillCard(),
             DiagnosticsCard(),
-            Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity), mailSecret,
-                Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), oauthTokenButton),
+            Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity),
+                oauthModeChoice, mailSecret, Action(L.T("如何获取授权码？"), OpenAccountGuide),
+                oauthPermissionNote, oauthConfigurationNotice, oauthLoginButton,
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
-                Note(L.T("请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。")))),
+                Note(L.T("请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。")))),
             Card(Stack(Heading(L.T("检查频率")), interval, Action(L.T("打开运行记录"), ShowRuntimeLog)))),
             SettingsSaveBar("mail", mailSaveButton, Action(L.T("测试邮箱连接"), () => TestSavedSettings("mail")))));
         aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading(L.T("选择您喜欢的 AI")), provider, apiBase, model, apiKey, harnessPath,
@@ -805,23 +859,189 @@ sealed partial class MainWindow : Window
         finally { updateBusy = false; if (!exitRequested) updateButton.IsEnabled = true; }
         if (activeDownload != null && pendingUpdate != null) await ShowUpdateDownload(pendingUpdate);
     }
-    static string OAuthTokenPath => Path.Combine(AppContext.BaseDirectory, "Get-Outlook-Token.bat");
-    Button OAuthTokenButton(ComboBox authentication)
+    string SelectedMainProviderId() => mailProvider.SelectedIndex >= 0 && mailProvider.SelectedIndex < mailPresets.Count
+        ? JsonText(mailPresets[mailProvider.SelectedIndex], "id") : "custom";
+    static bool SupportsManagedOAuth(string provider) => provider is "gmail" or "outlook";
+    static string DetectOAuthMailboxProvider(string address)
     {
-        var button = Action(L.T("获取微软 OAuth2 Token"), OpenOAuthToken);
-        button.MaxWidth = 220;
-        button.Content = Stack(new TextBlock { Text = L.T("获取微软 OAuth2 Token"), MaxWidth = 180, TextWrapping = TextWrapping.Wrap },
-            new TextBlock { Text = L.T("仅适用于 Outlook / Microsoft 365"), MaxWidth = 180, TextWrapping = TextWrapping.Wrap, FontSize = 11, Opacity = .7 });
-        void Update() => button.Visibility = authentication.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
-        authentication.SelectionChanged += (_, _) => Update();
-        Update();
+        var text = address.Trim();
+        var at = text.LastIndexOf('@');
+        return at <= 0 ? "" : text[(at + 1)..].ToLowerInvariant() switch {
+            "gmail.com" or "googlemail.com" => "gmail",
+            "outlook.com" or "hotmail.com" or "live.com" or "msn.com" => "outlook",
+            _ => ""
+        };
+    }
+    sealed record OAuthMailboxBinding(string Provider, string Email, string ClientId, string Tenant)
+    {
+        internal string OAuthProvider => Provider == "gmail" ? "google" : "microsoft";
+    }
+    static string OAuthTenantName(string value) => string.IsNullOrWhiteSpace(value) ? "common" : value.Trim().ToLowerInvariant();
+    static OAuthMailboxBinding OAuthBinding(string provider, string email, string clientId, string tenant) =>
+        new(provider, email.Trim().ToLowerInvariant(), clientId.Trim(), provider == "outlook" ? OAuthTenantName(tenant) : "common");
+    OAuthMailboxBinding MainOAuthBinding() => OAuthBinding(SelectedMainProviderId(), account.Text,
+        OAuthApplicationCredentials.ClientId(SelectedMainProviderId()), "common");
+    bool MainManagedOAuth => SupportsManagedOAuth(SelectedMainProviderId()) && oauthModeChoice.SelectedIndex == 0;
+    void UpdateOAuthControls()
+    {
+        var providerId = SelectedMainProviderId();
+        var supportsOAuth = SupportsManagedOAuth(providerId);
+        var managed = supportsOAuth && oauthModeChoice.SelectedIndex == 0;
+        var wasLoading = loadingMailboxes;
+        loadingMailboxes = true;
+        try {
+            mailAuth.SelectedIndex = supportsOAuth ? 1 : 0;
+            oauthClientId.Text = OAuthApplicationCredentials.ClientId(providerId);
+            oauthTenant.Text = "common";
+        }
+        finally { loadingMailboxes = wasLoading; }
+        if (!managed || !IsManagedOAuthBundle(managedMailCredential, MainOAuthBinding())) managedMailCredential = "";
+        oauthModeChoice.Visibility = supportsOAuth ? Visibility.Visible : Visibility.Collapsed;
+        mailAuth.Visibility = Visibility.Collapsed;
+        oauthClientId.Visibility = oauthTenant.Visibility = Visibility.Collapsed;
+        mailSecret.Visibility = !supportsOAuth || !managed ? Visibility.Visible : Visibility.Collapsed;
+        mailSecret.Header = supportsOAuth && !managed ? L.T("OAuth2 访问令牌") : L.T("密码／客户端授权码");
+        oauthPermissionNote.Visibility = managed ? Visibility.Visible : Visibility.Collapsed;
+        var clientConfigured = !string.IsNullOrWhiteSpace(MainOAuthBinding().ClientId);
+        oauthConfigurationNotice.Visibility = managed && !clientConfigured ? Visibility.Visible : Visibility.Collapsed;
+        if (oauthLoginButton is not null) {
+            oauthLoginButton.Visibility = managed ? Visibility.Visible : Visibility.Collapsed;
+            oauthLoginButton.Content = mainOAuthSigningIn ? L.T("等待浏览器授权…")
+                : providerId == "gmail" ? L.T("使用 Google 登录") : L.T("使用 Microsoft 登录");
+            oauthLoginButton.IsEnabled = managed && clientConfigured && account.Text.Contains('@') && !mainOAuthSigningIn;
+        }
+    }
+    void InferMainProviderFromAddress()
+    {
+        if (providerExplicitlySelected || mailPresets.Count == 0) return;
+        var inferred = DetectOAuthMailboxProvider(account.Text);
+        if (inferred.Length == 0 && !SupportsManagedOAuth(SelectedMainProviderId())) return;
+        if (inferred.Length == 0) inferred = "custom";
+        var index = mailPresets.FindIndex(p => JsonText(p, "id") == inferred);
+        if (index < 0 || mailProvider.SelectedIndex == index) return;
+        settingProviderProgrammatically = true;
+        try { mailProvider.SelectedIndex = index; }
+        finally { settingProviderProgrammatically = false; }
+        UpdateOAuthControls();
+    }
+    Button OAuthLoginButton(Func<Task> login)
+    {
+        var button = Action(L.T("使用 OAuth 登录"), login);
+        button.Visibility = Visibility.Collapsed;
         return button;
     }
-    static Task OpenOAuthToken()
+    static async Task<string> RunOAuthSignIn(OAuthMailboxBinding binding,
+        OAuthMailboxProxy proxy, CancellationToken cancellationToken)
     {
-        if (!File.Exists(OAuthTokenPath)) throw new FileNotFoundException(L.T("无法打开 OAuth2 获取工具，请重新安装邮件小秘书。"));
-        Process.Start(new ProcessStartInfo(OAuthTokenPath) { UseShellExecute = true, Arguments = L.Code });
-        return Task.CompletedTask;
+        if (!SupportsManagedOAuth(binding.Provider)) throw new InvalidOperationException(L.T("请选择 Gmail 或 Outlook / Microsoft 365。"));
+        if (binding.Email.Length == 0) throw new InvalidOperationException(L.T("请输入邮箱地址。"));
+        if (binding.ClientId.Length == 0) throw new InvalidOperationException(L.T("浏览器登录功能暂未配置，请稍后再试。"));
+        cancellationToken.ThrowIfCancellationRequested();
+        var start = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "MailWorker.exe")) {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true,
+            RedirectStandardOutput = true, RedirectStandardError = true,
+            StandardInputEncoding = new UTF8Encoding(false), StandardOutputEncoding = Encoding.UTF8,
+            WorkingDirectory = AppContext.BaseDirectory
+        };
+        start.ArgumentList.Add("--oauth-login");
+        start.ArgumentList.Add(binding.OAuthProvider);
+        start.ArgumentList.Add(binding.Email);
+        start.ArgumentList.Add(binding.ClientId);
+        start.ArgumentList.Add("--tenant");
+        start.ArgumentList.Add(binding.Tenant);
+        start.ArgumentList.Add("--private-input");
+        using var process = new Process { StartInfo = start, EnableRaisingEvents = true };
+        try {
+            if (!process.Start()) throw new InvalidOperationException(L.T("无法启动 OAuth 登录工具，请重新安装完整应用。"));
+            using var registration = cancellationToken.Register(() => {
+                try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+            });
+            var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var stderr = process.StandardError.ReadToEndAsync(cancellationToken);
+            var privateInput = JsonSerializer.Serialize(new {
+                client_secret = binding.Provider == "gmail" ? OAuthApplicationCredentials.ClientSecret(binding.Provider) : "",
+                mailbox_proxy = new {
+                    proxy_mode = proxy.Mode, proxy_host = proxy.Host, proxy_port = proxy.Port
+                }
+            });
+            await process.StandardInput.WriteAsync(privateInput.AsMemory(), cancellationToken);
+            await process.StandardInput.FlushAsync(cancellationToken);
+            process.StandardInput.Close();
+            await process.WaitForExitAsync(cancellationToken);
+            _ = await stderr;
+            var output = await stdout;
+            if (output.Length > 65536) throw new InvalidOperationException(L.T("OAuth 登录工具返回的数据过大。"));
+            using var document = JsonDocument.Parse(output);
+            var response = document.RootElement;
+            if (process.ExitCode != 0) {
+                var message = JsonText(response, "error");
+                throw new InvalidOperationException(message.Length > 0 ? message : L.T("OAuth 登录失败。"));
+            }
+            if (!IsManagedOAuthBundle(response, binding))
+                throw new InvalidOperationException(L.T("OAuth 登录返回的邮箱与所填地址不一致；没有保存凭据。"));
+            return response.GetRawText();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+            try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+            throw;
+        }
+        catch (JsonException) {
+            throw new InvalidOperationException(L.T("OAuth 登录工具返回了无法识别的结果。"));
+        }
+        catch (InvalidOperationException) { throw; }
+        catch (Exception error) when (error is IOException or System.ComponentModel.Win32Exception or InvalidOperationException) {
+            throw new InvalidOperationException(L.T("无法启动或读取 OAuth 登录工具，请重新安装完整应用。"));
+        }
+    }
+    void CancelMainOAuthLogin()
+    {
+        if (mainOAuthSigningIn) mainOAuthCancellation?.Cancel();
+    }
+    void EnsureManagedOAuthBinding(string credential, OAuthMailboxBinding binding)
+    {
+        if (!IsManagedOAuthBundle(credential, binding))
+            throw new InvalidOperationException(L.T("OAuth 登录返回的邮箱与所填地址不一致；没有保存凭据。"));
+    }
+    static bool IsManagedOAuthBundle(JsonElement root, OAuthMailboxBinding binding) =>
+        root.ValueKind == JsonValueKind.Object && SupportsManagedOAuth(binding.Provider) &&
+        root.TryGetProperty("schema", out var schema) && schema.ValueKind == JsonValueKind.Number && schema.TryGetInt32(out var version) && version == 1 &&
+        JsonText(root, "provider") == binding.OAuthProvider &&
+        string.Equals(JsonText(root, "email"), binding.Email, StringComparison.OrdinalIgnoreCase) &&
+        JsonText(root, "client_id") == binding.ClientId &&
+        (binding.Provider != "outlook" || OAuthTenantName(JsonText(root, "tenant")) == binding.Tenant) &&
+        root.TryGetProperty("access_token", out var access) && access.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(access.GetString()) &&
+        root.TryGetProperty("refresh_token", out var refresh) && refresh.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(refresh.GetString());
+    static bool IsManagedOAuthBundle(string secret, OAuthMailboxBinding binding)
+    {
+        if (!secret.TrimStart().StartsWith("{", StringComparison.Ordinal)) return false;
+        try {
+            using var document = JsonDocument.Parse(secret);
+            return IsManagedOAuthBundle(document.RootElement, binding);
+        } catch (JsonException) { return false; }
+    }
+    async Task SignInMainMailbox()
+    {
+        if (!MainManagedOAuth)
+            throw new InvalidOperationException(L.T("请先选择网页登录并自动续期。"));
+        var draft = SelectedMailboxDraft ?? throw new InvalidOperationException(L.T("请先选择或添加邮箱。"));
+        var binding = MainOAuthBinding();
+        var proxy = mailProxy.OAuthSnapshot();
+        mainOAuthCancellation?.Dispose();
+        mainOAuthCancellation = new CancellationTokenSource();
+        var token = mainOAuthCancellation.Token;
+        bool IsCurrent() => !exitRequested && MainManagedOAuth && ReferenceEquals(draft, SelectedMailboxDraft)
+            && binding == MainOAuthBinding() && proxy == mailProxy.OAuthSnapshot();
+        mainOAuthSigningIn = true; UpdateOAuthControls();
+        try {
+            var credential = await RunOAuthSignIn(binding, proxy, token);
+            if (!IsCurrent()) return;
+            EnsureManagedOAuthBinding(credential, binding);
+            managedMailCredential = credential;
+            RefreshSettingsDirty();
+            detail.Text = L.T("授权完成；点击“保存邮箱设置”后生效。");
+        }
+        catch (OperationCanceledException) when (!IsCurrent()) { }
+        finally { mainOAuthSigningIn = false; UpdateOAuthControls(); }
     }
     static Task OpenQuickStartGuide()
     {
@@ -884,6 +1104,7 @@ sealed partial class MainWindow : Window
         RefreshMailLogin(address, username, summary);
     }
     // Per-mailbox proxy settings never change the mailbox's identity or progress.
+    sealed record OAuthMailboxProxy(string Mode, string Host, int Port);
     sealed class MailProxyControls
     {
         internal readonly ComboBox Mode = new() { Header = L.T("收信代理"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -926,6 +1147,8 @@ sealed partial class MainWindow : Window
         {
             Host.Text = source.Host.Text; Port.Text = source.Port.Text; Mode.SelectedIndex = source.Mode.SelectedIndex;
         }
+        internal OAuthMailboxProxy OAuthSnapshot() => Value is "http" or "socks5"
+            ? new(Value, Host.Text.Trim(), ValidPort()) : new(Value, "", 10808);
     }
     Task SaveMail() => SaveSettingsPage("mail");
     Task SaveAI() => SaveSettingsPage("ai");
@@ -1348,8 +1571,35 @@ sealed partial class MainWindow : Window
     async Task Onboard(bool testing = false)
     {
         var address = new TextBox { FontFamily = MailTypography.Font, Header = L.T("邮箱地址"), Text = account.Text };
-        var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = L.T("密码／授权码／OAuth2 访问令牌") };
+        var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = L.T("密码／客户端授权码") };
         var presetChoice = new ComboBox { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        var firstRunPermissionNote = Note(L.T("软件只以只读方式打开 IMAP 文件夹；但 IMAP OAuth 授权范围可能允许修改邮件，不等于严格只读。"));
+        var firstRunConfigurationNotice = Note(L.T("浏览器登录功能暂未配置，请稍后再试。"));
+        var firstRunProxy = new MailProxyControls(); firstRunProxy.CopyFrom(mailProxy);
+        var firstRunUsesBrowserLogin = true;
+        var firstRunOAuthModeChoice = new ComboBox {
+            Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        firstRunOAuthModeChoice.Items.Add(L.T("浏览器登录"));
+        firstRunOAuthModeChoice.Items.Add(L.T("手动访问令牌"));
+        firstRunOAuthModeChoice.SelectedIndex = 0;
+        firstRunOAuthModeChoice.SelectionChanged += (_, _) => {
+            CancelFirstRunOAuthLogin();
+            secret.Password = "";
+            UpdateFirstRunOAuth();
+        };
+        var firstRunManagedCredential = "";
+        var firstRunOAuthSigningIn = false;
+        var firstRunDialogOpen = true;
+        CancellationTokenSource? firstRunOAuthCancellation = null;
+        void CancelFirstRunOAuthLogin()
+        {
+            if (firstRunOAuthSigningIn) firstRunOAuthCancellation?.Cancel();
+        }
+        firstRunProxy.Changed = CancelFirstRunOAuthLogin;
+        var firstRunProviderExplicit = false;
+        var firstRunSettingProvider = false;
+        Button firstRunOAuthLogin = null!;
         var host = new TextBox { Header = L.T("IMAP 收件服务器"), Text = mailHost.Text };
         var port = new TextBox { Header = L.T("端口"), Text = mailPort.Text };
         var username = new TextBox { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址"), Text = OptionalMailUsername(address.Text, mailUsername.Text) };
@@ -1358,37 +1608,123 @@ sealed partial class MainWindow : Window
         var mailboxFolder = new TextBox { Header = L.T("邮件文件夹"), Text = mailFolder.Text };
         var encryption = new ComboBox { Header = L.T("连接加密"), HorizontalAlignment = HorizontalAlignment.Stretch };
         encryption.Items.Add("SSL/TLS"); encryption.Items.Add("STARTTLS"); encryption.SelectedIndex = mailSecurity.SelectedIndex;
-        var authentication = new ComboBox { Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
-        authentication.Items.Add(L.T("密码／客户端授权码")); authentication.Items.Add(L.T("OAuth2 访问令牌")); authentication.SelectedIndex = mailAuth.SelectedIndex;
         foreach (var preset in mailPresets) presetChoice.Items.Add(L.T(preset.GetProperty("name").GetString()));
         presetChoice.SelectedIndex = mailProvider.SelectedIndex;
+        string FirstRunProviderId() => presetChoice.SelectedIndex >= 0 && presetChoice.SelectedIndex < mailPresets.Count
+            ? JsonText(mailPresets[presetChoice.SelectedIndex], "id") : "custom";
+        void UpdateFirstRunOAuth()
+        {
+            var providerId = FirstRunProviderId();
+            var managed = SupportsManagedOAuth(providerId);
+            firstRunUsesBrowserLogin = managed && firstRunOAuthModeChoice.SelectedIndex == 0;
+            var binding = OAuthBinding(providerId, address.Text, OAuthApplicationCredentials.ClientId(providerId), "common");
+            if (!managed || !IsManagedOAuthBundle(firstRunManagedCredential, binding)) firstRunManagedCredential = "";
+            firstRunOAuthModeChoice.Visibility = managed ? Visibility.Visible : Visibility.Collapsed;
+            secret.Header = managed && !firstRunUsesBrowserLogin ? L.T("OAuth2 访问令牌") : L.T("密码／客户端授权码");
+            secret.Visibility = managed && firstRunUsesBrowserLogin ? Visibility.Collapsed : Visibility.Visible;
+            firstRunPermissionNote.Visibility = managed && firstRunUsesBrowserLogin ? Visibility.Visible : Visibility.Collapsed;
+            firstRunConfigurationNotice.Visibility = firstRunUsesBrowserLogin && string.IsNullOrWhiteSpace(binding.ClientId)
+                ? Visibility.Visible : Visibility.Collapsed;
+            if (firstRunOAuthLogin is not null) {
+                firstRunOAuthLogin.Visibility = firstRunUsesBrowserLogin ? Visibility.Visible : Visibility.Collapsed;
+                firstRunOAuthLogin.Content = firstRunOAuthSigningIn ? L.T("等待浏览器授权…")
+                    : providerId == "gmail" ? L.T("使用 Google 登录") : L.T("使用 Microsoft 登录");
+                firstRunOAuthLogin.IsEnabled = firstRunUsesBrowserLogin && !string.IsNullOrWhiteSpace(binding.ClientId)
+                    && address.Text.Contains('@') && !firstRunOAuthSigningIn;
+            }
+        }
+        void InferFirstRunProvider()
+        {
+            if (firstRunProviderExplicit || mailPresets.Count == 0) return;
+            var inferred = DetectOAuthMailboxProvider(address.Text);
+            if (inferred.Length == 0 && !SupportsManagedOAuth(FirstRunProviderId())) return;
+            if (inferred.Length == 0) inferred = "custom";
+            var index = mailPresets.FindIndex(p => JsonText(p, "id") == inferred);
+            if (index < 0 || presetChoice.SelectedIndex == index) return;
+            firstRunSettingProvider = true;
+            try { presetChoice.SelectedIndex = index; }
+            finally { firstRunSettingProvider = false; }
+            UpdateFirstRunOAuth();
+        }
+        address.TextChanged += (_, _) => {
+            CancelFirstRunOAuthLogin();
+            if (!firstRunSettingProvider) InferFirstRunProvider();
+            UpdateFirstRunOAuth();
+        };
         presetChoice.SelectionChanged += (_, _) =>
         {
+            CancelFirstRunOAuthLogin();
             if (presetChoice.SelectedIndex < 0) return;
+            if (!firstRunSettingProvider) firstRunProviderExplicit = true;
             var preset = mailPresets[presetChoice.SelectedIndex];
-            if (preset.GetProperty("id").GetString() == "custom") return;
+            var id = JsonText(preset, "id");
+            firstRunManagedCredential = ""; secret.Password = "";
+            if (id == "custom") { host.Text = ""; firstRunOAuthModeChoice.SelectedIndex = 0; UpdateFirstRunOAuth(); return; }
             host.Text = preset.GetProperty("host").GetString(); port.Text = "993"; encryption.SelectedIndex = 0;
-            authentication.SelectedIndex = preset.TryGetProperty("mail_auth", out var auth) && auth.GetString() == "oauth2" ? 1 : 0;
+            firstRunOAuthModeChoice.SelectedIndex = 0;
+            UpdateFirstRunOAuth();
         };
         var error = Note(""); error.IsTextSelectionEnabled = true;
-        var tokenButton = OAuthTokenButton(authentication);
-        var firstRunProxy = new MailProxyControls(); firstRunProxy.CopyFrom(mailProxy);
-        var advanced = Stack(username, loginSummary, mailboxFolder, authentication, firstRunProxy.Panel); advanced.Visibility = Visibility.Collapsed;
+        firstRunOAuthLogin = OAuthLoginButton(async () =>
+        {
+            var providerId = FirstRunProviderId();
+            var binding = OAuthBinding(providerId, address.Text, OAuthApplicationCredentials.ClientId(providerId), "common");
+            var proxy = firstRunProxy.OAuthSnapshot();
+            var clientSecret = OAuthApplicationCredentials.ClientSecret(providerId);
+            bool IsCurrent() => firstRunDialogOpen && SupportsManagedOAuth(FirstRunProviderId()) &&
+                binding == OAuthBinding(FirstRunProviderId(), address.Text, OAuthApplicationCredentials.ClientId(FirstRunProviderId()), "common") &&
+                proxy == firstRunProxy.OAuthSnapshot() &&
+                firstRunOAuthModeChoice.SelectedIndex == 0;
+            firstRunOAuthCancellation?.Dispose();
+            firstRunOAuthCancellation = new CancellationTokenSource();
+            var token = firstRunOAuthCancellation.Token;
+            firstRunOAuthSigningIn = true; UpdateFirstRunOAuth();
+            try {
+                var credential = await RunOAuthSignIn(binding, clientSecret, proxy, token);
+                if (!IsCurrent()) return;
+                EnsureManagedOAuthBinding(credential, binding);
+                firstRunManagedCredential = credential;
+                firstRunUsesBrowserLogin = true;
+                UpdateFirstRunOAuth();
+                error.Text = L.T("授权完成；点击“保存邮箱”后生效。");
+            }
+            catch (OperationCanceledException) when (!IsCurrent()) { }
+            finally {
+                firstRunOAuthSigningIn = false;
+                firstRunOAuthCancellation?.Dispose(); firstRunOAuthCancellation = null;
+                UpdateFirstRunOAuth();
+            }
+        });
+        UpdateFirstRunOAuth();
+        var advanced = Stack(username, loginSummary, mailboxFolder, firstRunProxy.Panel); advanced.Visibility = Visibility.Collapsed;
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T("欢迎使用邮件小秘书"),
             PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T("稍后填写"),
-            Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), secret,
-                Row(Action(L.T("如何获取授权码？"), OpenAccountGuide), tokenButton),
+            Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), firstRunOAuthModeChoice, secret,
+                Action(L.T("如何获取授权码？"), OpenAccountGuide),
+                firstRunPermissionNote,
+                firstRunOAuthLogin,
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
-                Note(L.T("启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 填访问令牌，过期后手动更新。")), error) } };
+                firstRunConfigurationNotice,
+                Note(L.T("请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。")), error) } };
+        dialog.Closed += (_, _) => { firstRunDialogOpen = false; firstRunOAuthCancellation?.Cancel(); };
         async Task SaveOnboarding()
         {
             if (mailboxDraftIndex < 0) await AddMailboxDraft();
-            mailProvider.SelectedIndex = presetChoice.SelectedIndex;
-            account.Text = address.Text; mailSecret.Password = secret.Password;
-            mailHost.Text = host.Text; mailPort.Text = port.Text; mailUsername.Text = username.Text;
-            mailFolder.Text = mailboxFolder.Text; mailSecurity.SelectedIndex = encryption.SelectedIndex;
-            mailAuth.SelectedIndex = authentication.SelectedIndex;
-            mailProxy.CopyFrom(firstRunProxy);
+            loadingMailboxes = true;
+            try {
+                mailProvider.SelectedIndex = presetChoice.SelectedIndex;
+                account.Text = address.Text;
+                mailAuth.SelectedIndex = SupportsManagedOAuth(FirstRunProviderId()) ? 1 : 0;
+                oauthModeChoice.SelectedIndex = firstRunUsesBrowserLogin ? 0 : 1;
+                mailSecret.Password = firstRunUsesBrowserLogin ? "" : secret.Password;
+                managedMailCredential = firstRunUsesBrowserLogin ? firstRunManagedCredential : "";
+                providerExplicitlySelected = firstRunProviderExplicit;
+                mailHost.Text = host.Text; mailPort.Text = port.Text; mailUsername.Text = username.Text;
+                mailFolder.Text = mailboxFolder.Text; mailSecurity.SelectedIndex = encryption.SelectedIndex;
+                mailProxy.CopyFrom(firstRunProxy);
+            }
+            finally { loadingMailboxes = false; }
+            UpdateOAuthControls();
             await SaveMail();
             RefreshMailLogin(address, username, loginSummary);
         }
@@ -1439,17 +1775,16 @@ sealed partial class MainWindow : Window
                 !ReferenceEquals(username.Parent, advanced) || !ReferenceEquals(loginSummary.Parent, advanced))
                 throw new InvalidOperationException("First-run save lost the custom login or moved it outside collapsed advanced options");
             Program.Trace("Passed: First-run edits and saves follow the default login and preserve custom login inside collapsed advanced options");
-            authentication.SelectedIndex = 0;
-            if (tokenButton.Visibility != Visibility.Collapsed) throw new InvalidOperationException("First-run token helper visible for password login");
-            authentication.SelectedIndex = 1;
-            if (tokenButton.Visibility != Visibility.Visible) throw new InvalidOperationException("First-run custom OAuth2 token helper missing");
             presetChoice.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "outlook");
-            if (authentication.SelectedIndex != 1 || tokenButton.Visibility != Visibility.Visible) throw new InvalidOperationException("First-run Outlook token helper missing");
+            if (firstRunOAuthLogin.Visibility != Visibility.Visible ||
+                firstRunConfigurationNotice.Visibility != Visibility.Collapsed || !firstRunOAuthLogin.IsEnabled ||
+                secret.Visibility != Visibility.Collapsed)
+                throw new InvalidOperationException("First-run Outlook must expose the configured browser login without manual-token controls");
             dialog.UpdateLayout();
-            var tokenPosition = tokenButton.TransformToVisual(dialog).TransformPoint(new Windows.Foundation.Point(0, 0));
-            if (tokenPosition.X < 0 || tokenPosition.X + tokenButton.ActualWidth > dialog.ActualWidth + 1)
-                throw new InvalidOperationException("First-run OAuth2 helper clipped horizontally");
-            Program.Trace("Passed: First-run password hides token tool; custom OAuth2 and Outlook expose token tool");
+            var loginPosition = firstRunOAuthLogin.TransformToVisual(dialog).TransformPoint(new Windows.Foundation.Point(0, 0));
+            if (loginPosition.X < 0 || loginPosition.X + firstRunOAuthLogin.ActualWidth > dialog.ActualWidth + 1)
+                throw new InvalidOperationException("First-run browser login button clipped horizontally");
+            Program.Trace("Passed: First-run Outlook uses the configured browser OAuth login and hides manual-token controls");
             Program.Trace("Passed: First-run provider picker includes custom IMAP and editable server/port");
             dialog.Hide();
         }
@@ -1476,17 +1811,18 @@ sealed partial class MainWindow : Window
             harnessPath.Text = Text("harness_path"); account.Text = Text("account"); mailSecret.Password = "";
             var preset = Text("mail_provider");
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == (preset.Length == 0 ? "163" : preset));
+            providerExplicitlySelected = selected >= 0;
             mailHost.Text = Text("host").Length == 0 ? "imap.163.com" : Text("host");
             mailPort.Text = config.TryGetProperty("port", out var port) ? port.ToString() : "993";
             mailUsername.Text = OptionalMailUsername(Text("account"), Text("username"));
             RefreshMailLogin(account, mailUsername, mailLoginSummary);
             mailFolder.Text = Text("mail_folder").Length == 0 ? "INBOX" : Text("mail_folder");
             mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
-            mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0;
             mailProxy.Load(config);
         }
         finally { loadingMailboxes = false; }
         ResetMailboxDrafts();
+        UpdateOAuthControls();
     }
     async Task<bool> EnsureLanguage(string code)
     {
@@ -1751,22 +2087,22 @@ sealed partial class MainWindow : Window
                 "Case-only default email logins are optional while distinct custom logins are preserved");
             navigation.SelectedIndex = 0; await Task.Delay(50);
             var savedPreset = mailProvider.SelectedIndex;
-            Check(File.Exists(OAuthTokenPath) && File.Exists(Path.Combine(AppContext.BaseDirectory, "Get-Outlook-Token.ps1")), "Interactive OAuth2 helper BAT and PowerShell script packaged without contacting Microsoft");
-            mailAuth.SelectedIndex = 0;
-            Check(oauthTokenButton.Visibility == Visibility.Collapsed, "Password login hides OAuth2 token helper");
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "outlook");
-            Check(mailAuth.SelectedIndex == 1 && oauthTokenButton.Visibility == Visibility.Visible, "Outlook preset exposes token helper");
+            Check(oauthLoginButton.Visibility == Visibility.Visible && mailSecret.Visibility == Visibility.Collapsed &&
+                oauthLoginButton.IsEnabled && oauthConfigurationNotice.Visibility == Visibility.Collapsed,
+                "Outlook exposes the configured browser login and hides manual-token controls");
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "qq");
             Check(mailHost.Text == "imap.qq.com" && mailPort.Text == "993", "QQ preset fills editable TLS server settings");
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => p.GetProperty("id").GetString() == "custom");
             mailHost.Text = "imap.example.invalid"; mailPort.Text = "1993";
             mailUsername.Text = "synthetic-login"; mailFolder.Text = "Archive";
-            mailSecurity.SelectedIndex = 1; mailAuth.SelectedIndex = 1;
-            Check(oauthTokenButton.Visibility == Visibility.Visible, "Custom OAuth2 connection exposes token helper");
+            mailSecurity.SelectedIndex = 1;
+            Check(oauthLoginButton.Visibility == Visibility.Collapsed && mailSecret.Visibility == Visibility.Visible,
+                "Custom mailbox hides provider browser login and keeps password authentication");
             Check(mailHost.Text == "imap.example.invalid" && mailPort.Text == "1993" && mailFolder.Text == "Archive",
                 "Custom host port encryption login username folder and OAuth2 controls accept configuration");
             mailProvider.SelectedIndex = savedPreset;
-            mailUsername.Text = ""; mailFolder.Text = "INBOX"; mailSecurity.SelectedIndex = 0; mailAuth.SelectedIndex = 0;
+            mailUsername.Text = ""; mailFolder.Text = "INBOX"; mailSecurity.SelectedIndex = 0;
             Check(pageTitle.FontFamily.Source == MailTypography.FontStack &&
                 preview.FontFamily.Source == MailTypography.FontStack && account.FontFamily.Source == MailTypography.FontStack,
                 "Windows UI font stack applied to headings, controls and report text");
@@ -1951,7 +2287,8 @@ sealed partial class MainWindow : Window
             Check(File.Exists(AccountGuidePath) && Path.GetFileName(AccountGuidePath) == "Mail-account-setup-zh.txt", "Chinese local account setup guide packaged and selected");
             await ChangeLanguage("en");
             Check(File.Exists(AccountGuidePath) && Path.GetFileName(AccountGuidePath) == "Mail-account-setup-en.txt", "English local account setup guide selected without opening editor");
-            Check(((TextBlock)((StackPanel)oauthTokenButton.Content).Children[0]).Text == "Get Microsoft OAuth2 Token", "OAuth2 helper label follows interface language");
+            Check(oauthLoginButton.Visibility == Visibility.Collapsed || oauthLoginButton.Content?.ToString() == "Sign in with Microsoft",
+                "Browser login label follows interface language");
             Check(Title == "Email Assistant" && account.Header?.ToString() == "Email address" && languageChoice.Header?.ToString() == "Interface language" && savedMailboxes.Header?.ToString() == L.T("已添加的邮箱"), "English labels applied immediately");
             Check(preview.Text == rawPreview && account.Text == rawAccount && mailHost.Text == rawHost && model.Text == rawModel && folder.Text == rawFolder && running == wasRunning, "Language change preserves report text, inputs and monitoring state");
             config = await bridge.Call("config");

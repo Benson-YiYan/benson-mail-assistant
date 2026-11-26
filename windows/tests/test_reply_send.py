@@ -90,6 +90,24 @@ class ReplySendTests(unittest.TestCase):
         tools._smtp_auth(transport,{'account':'owner@example.invalid'},'token',True)
         self.assertEqual(transport.docmd.call_args.args[0],'AUTH')
 
+    def test_managed_browser_oauth_can_send_after_smtp_scope_refresh(self):
+        self.profile.update(host='outlook.office365.com', mail_provider='outlook',
+                            mail_auth='oauth2', oauth_mode='managed',
+                            oauth_client_id='00000000-0000-0000-0000-000000000001',
+                            oauth_tenant='common')
+        self.configure()
+        self.request['mailbox_id']=mailbox_config.mailbox_id(self.profile)
+        self.controller.oauth_secret_provider_callback.return_value = lambda: 'managed-bundle'
+        self.controller.oauth_secret_update_callback.return_value = lambda _value: None
+        with patch('benson_mail.mailbox_config.managed_oauth_token', return_value='outlook-smtp-access') as refresh:
+            result = self.send()
+        self.assertTrue(result['sent'])
+        refresh.assert_called_once()
+        self.assertTrue(refresh.call_args.kwargs['force_refresh'])
+        self.transport.auth.assert_called_once()
+        self.assertIn('Bearer outlook-smtp-access', self.transport.auth.call_args.args[1]())
+        self.transport.send_message.assert_called_once()
+
     def test_dispatch_routes_send_without_extra_work(self):
         with patch.object(tools,'reply_send',return_value={'sent':True}) as send:
             self.assertTrue(tools.dispatch(self.root,{'action':'reply_send',**self.request},self.controller)['sent']);send.assert_called_once()

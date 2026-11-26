@@ -371,8 +371,22 @@ def migrate_reports(home, config, windows=False):
     if not output.is_dir():
         return {"moved": 0, "skipped": 0, "errors": []}
     with _migration_lock(home):
-        metadata_migration = migrate_metadata(home, output)
         journal = home / "report-layout-migration.json"
+        try:
+            previous = json.loads(journal.read_text(encoding="utf-8"))
+            moves = previous.get("moves")
+            complete = (previous.get("schema_version") == 1 and isinstance(moves, list) and bool(moves)
+                        and all(isinstance(item, dict) and item.get("status") == "done"
+                                and not item.get("error")
+                                and isinstance(item.get("target"), str)
+                                and Path(os.path.abspath(item["target"])).is_relative_to(output)
+                                for item in moves))
+        except (OSError, ValueError, TypeError, AttributeError):
+            complete = False
+        if complete:
+            return {"moved": 0, "metadata_moved": 0, "skipped": 0, "errors": []}
+
+        metadata_migration = migrate_metadata(home, output)
         try:
             state = json.loads(journal.read_text()) if journal.exists() else {"schema_version": 1, "moves": []}
             moves = state["moves"]

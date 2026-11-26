@@ -10,25 +10,37 @@ namespace BensonMail;
 sealed partial class MainWindow
 {
     readonly List<Dictionary<string, object?>> mailboxDrafts = new();
+    readonly HashSet<string> explicitDraftProviders = new();
     int mailboxDraftIndex = -1;
+    Dictionary<string, object?>? SelectedMailboxDraft =>
+        mailboxDraftIndex >= 0 && mailboxDraftIndex < mailboxDrafts.Count ? mailboxDrafts[mailboxDraftIndex] : null;
     static string DraftString(Dictionary<string, object?> draft, string key, string fallback = "") =>
         draft.TryGetValue(key, out var value) && value != null ? value.ToString() ?? fallback : fallback;
     void ResetMailboxDrafts()
     {
         mailboxDrafts.Clear();
+        explicitDraftProviders.Clear();
+        managedMailCredential = "";
         foreach (var profile in mailboxProfiles)
             mailboxDrafts.Add(JsonSerializer.Deserialize<Dictionary<string, object?>>(profile.GetRawText())!);
         mailboxDraftIndex = savedMailboxes.SelectedIndex;
     }
     void StoreMailboxDraft()
     {
-        if (mailboxDraftIndex < 0 || mailboxDraftIndex >= mailboxDrafts.Count || loadingMailboxes) return;
-        var draft = mailboxDrafts[mailboxDraftIndex];
-        draft["account"] = account.Text; draft["secret"] = mailSecret.Password;
-        draft["mail_provider"] = mailProvider.SelectedIndex >= 0 && mailProvider.SelectedIndex < mailPresets.Count ? JsonText(mailPresets[mailProvider.SelectedIndex], "id") : "custom";
+        if (SelectedMailboxDraft is not { } draft || loadingMailboxes) return;
+        var binding = MainOAuthBinding();
+        var managed = MainManagedOAuth;
+        draft["account"] = account.Text;
+        draft["secret"] = managed ? (IsManagedOAuthBundle(managedMailCredential, binding) ? managedMailCredential : "") : mailSecret.Password;
+        draft["mail_provider"] = binding.Provider;
         draft["host"] = mailHost.Text; draft["port"] = mailPort.Text; draft["security"] = mailSecurity.SelectedIndex == 1 ? "starttls" : "ssl";
         draft["proxy_mode"] = mailProxy.Value; draft["proxy_host"] = mailProxy.Host.Text; draft["proxy_port"] = mailProxy.Port.Text;
-        draft["username"] = mailUsername.Text; draft["mail_folder"] = mailFolder.Text; draft["mail_auth"] = mailAuth.SelectedIndex == 1 ? "oauth2" : "password";
+        draft["username"] = mailUsername.Text; draft["mail_folder"] = mailFolder.Text;
+        draft["mail_auth"] = SupportsManagedOAuth(binding.Provider) ? "oauth2" : "password";
+        draft["oauth_client_id"] = binding.ClientId; draft["oauth_tenant"] = "common";
+        draft["oauth_mode"] = SupportsManagedOAuth(binding.Provider)
+            ? (oauthModeChoice.SelectedIndex == 0 ? "managed" : "manual") : "manual";
+        if (providerExplicitlySelected && !draft.ContainsKey("id")) explicitDraftProviders.Add(SelectedMailboxDraftId);
         draft["read_all_mail"] = readAllMail.IsOn;
     }
     object MailboxDraftValues()
@@ -47,7 +59,7 @@ sealed partial class MainWindow
             var draft = mailboxDrafts[index];
             var connection = JsonSerializer.SerializeToElement(draft);
             string Text(string key, string fallback = "") => DraftString(draft, key, fallback);
-            account.Text = Text("account"); mailSecret.Password = Text("secret");
+            account.Text = Text("account");
             mailProvider.SelectedIndex = mailPresets.FindIndex(p => JsonText(p, "id") == Text("mail_provider", "custom"));
             mailHost.Text = Text("host", "imap.163.com"); mailPort.Text = Text("port", "993");
             mailUsername.Text = OptionalMailUsername(account.Text, Text("username"));
@@ -57,6 +69,17 @@ sealed partial class MainWindow
             mailFolder.Text = Text("mail_folder", "INBOX"); mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
             readAllMail.IsOn = Text("read_all_mail").Equals("true", StringComparison.OrdinalIgnoreCase);
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0; mailProxy.Load(connection);
+            var supportsOAuth = SupportsManagedOAuth(Text("mail_provider"));
+            var managed = supportsOAuth && Text("oauth_mode", "manual") == "managed";
+            oauthClientId.Text = OAuthApplicationCredentials.ClientId(Text("mail_provider"));
+            oauthTenant.Text = "common";
+            oauthModeChoice.SelectedIndex = managed ? 0 : 1;
+            if (!supportsOAuth) oauthModeChoice.SelectedIndex = 0;
+            managedMailCredential = managed ? Text("secret") : "";
+            mailSecret.Password = managed ? "" : Text("secret");
+            providerExplicitlySelected = draft.ContainsKey("id") || draft.ContainsKey("original_id") ||
+                explicitDraftProviders.Contains(SelectedMailboxDraftId);
+            UpdateOAuthControls();
             savedMailboxes.SelectedIndex = index;
         }
         finally { loadingMailboxes = false; }
@@ -81,7 +104,9 @@ sealed partial class MainWindow
         StoreMailboxDraft();
         mailboxDrafts.Add(new() { ["client_id"] = Guid.NewGuid().ToString("N"), ["account"] = "", ["host"] = "imap.163.com",
             ["port"] = "993", ["security"] = "ssl", ["mail_folder"] = "INBOX", ["mail_provider"] = "163", ["mail_auth"] = "password",
-            ["monitor_enabled"] = true, ["read_all_mail"] = false });
+            ["monitor_enabled"] = true, ["read_all_mail"] = false, ["oauth_mode"] = "manual",
+            ["oauth_client_id"] = "", ["oauth_tenant"] = "common" });
+        providerExplicitlySelected = false;
         mailboxDraftIndex = mailboxDrafts.Count - 1; RenderMailboxDraftNames(); ShowMailboxDraft(mailboxDraftIndex); return Task.CompletedTask;
     }
     Task ToggleMailboxDraft()
@@ -101,6 +126,11 @@ sealed partial class MainWindow
         mailboxDrafts.RemoveAt(mailboxDraftIndex); mailboxDraftIndex = mailboxDrafts.Count - 1;
         RenderMailboxDraftNames();
         if (mailboxDraftIndex >= 0) ShowMailboxDraft(mailboxDraftIndex);
-        else { loadingMailboxes = true; account.Text = mailSecret.Password = ""; loadingMailboxes = false; RefreshSettingsDirty(); }
+        else {
+            loadingMailboxes = true;
+            account.Text = mailSecret.Password = oauthClientId.Text = managedMailCredential = "";
+            oauthTenant.Text = "common"; oauthModeChoice.SelectedIndex = 0; providerExplicitlySelected = false;
+            loadingMailboxes = false; UpdateOAuthControls(); RefreshSettingsDirty();
+        }
     }
 }

@@ -62,7 +62,11 @@ def _mailbox_list(controller,config,profiles,data,plan,fields):
         if not isinstance(read_all_mail,bool):raise ValueError('read_all_mail must be a boolean.')
         secret=draft.get('secret','')
         if not isinstance(secret,str):raise ValueError('Invalid mailbox credential.')
-        changed=not old or identifier!=original_id
+        oauth_changed = bool(old) and any(
+            connection.get(key, default) != old.get(key, default)
+            for key, default in (('mail_provider', 'custom'), ('oauth_client_id', ''),
+                                 ('oauth_tenant', 'common'), ('oauth_mode', 'manual')))
+        changed=not old or identifier!=original_id or oauth_changed
         item={**connection,'monitor_enabled':enabled,'read_all_mail':read_all_mail}
         if secret:
             binding='mailbox:'+identifier;relative='mail-secrets/'+identifier+'.bin'
@@ -106,7 +110,7 @@ def _validate(controller, page, data):
     config = copy.deepcopy(controller.config)
     plan = {'page': page, 'config': config, 'secrets': [], 'output': None, 'policy': None, 'rates': None, 'autostart': None}
     if page == 'mail':
-        controller.paused()
+        controller.paused('请先暂停监听再保存。')
         profiles = config.get('mailboxes')
         if profiles is None:
             profiles = [{**{k:config[k] for k in MAIL_FIELDS if k in config}, 'monitor_enabled':True}] if config.get('account') else []
@@ -121,7 +125,11 @@ def _validate(controller, page, data):
                 raise ValueError('这个邮箱连接已存在，请从已添加邮箱中选择。')
             secret = data.get('secret', '')
             if not isinstance(secret, str): raise ValueError('Invalid mailbox credential.')
-            changed = previous_id != new_id
+            previous_connection = normalize(config) if previous_id else {}
+            changed = previous_id != new_id or any(
+                connection.get(key, default) != previous_connection.get(key, default)
+                for key, default in (('mail_provider', 'custom'), ('oauth_client_id', ''),
+                                     ('oauth_tenant', 'common'), ('oauth_mode', 'manual')))
             if not secret and (changed or not controller.secret()):
                 raise ValueError('新邮箱或连接设置变更后，请重新填写密码、授权码或 OAuth2 访问令牌。')
             if secret:

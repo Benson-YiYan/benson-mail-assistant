@@ -29,6 +29,7 @@ sealed partial class MainWindow
     bool loadingSettingsDrafts;
     bool navigatingSettings;
     Func<ContentDialog, Task<ContentDialogResult>>? settingsLeaveFixture;
+    Func<ContentDialog, Task<ContentDialogResult>>? mailboxSavePausedFixture;
     int currentPageIndex;
     bool appliedQuietEnabled;
     string appliedQuietStart = "22:00", appliedQuietEnd = "08:00";
@@ -84,9 +85,10 @@ sealed partial class MainWindow
         }
 
         foreach (var field in new[] { account, mailHost, mailPort, mailUsername, mailFolder, folder, interval, mailProxy.Host, mailProxy.Port,
-            apiBase, model, summaryPrompt, harnessPath, codexPath, inputRate, outputRate, rateCurrency, quietStart, quietEnd }) field.TextChanged += (_, _) => RefreshSettingsDirty();
+            oauthClientId, oauthTenant, apiBase, model, summaryPrompt, harnessPath, codexPath,
+            inputRate, outputRate, rateCurrency, quietStart, quietEnd }) field.TextChanged += (_, _) => RefreshSettingsDirty();
         mailSecret.PasswordChanged += (_, _) => RefreshSettingsDirty(); apiKey.PasswordChanged += (_, _) => RefreshSettingsDirty();
-        foreach (var combo in new[] { mailProvider, mailSecurity, mailAuth, mailProxy.Mode, provider, senderPolicyMode, languageChoice })
+        foreach (var combo in new[] { mailProvider, mailSecurity, mailAuth, oauthModeChoice, mailProxy.Mode, provider, senderPolicyMode, languageChoice })
             combo.SelectionChanged += (_, _) => RefreshSettingsDirty();
         foreach (var toggle in new[] { startup, notificationsSetting, quietEnabled, senderPolicySpam, chatEnterToSendSetting, readAllMail }) toggle.Toggled += (_, _) => RefreshSettingsDirty();
     }
@@ -133,6 +135,13 @@ sealed partial class MainWindow
             await LoadPageDraft(page);
             detail.Text = L.T("本页设置已保存。");
         }
+        catch (Exception error) when (page == "mail" && error.Message == "请先暂停监听再保存。") {
+            var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("邮件小秘书"),
+                Content = L.T("请先暂停监听再保存。"), CloseButtonText = L.T("知道了"),
+                DefaultButton = ContentDialogButton.Close };
+            if (mailboxSavePausedFixture == null) await dialog.ShowAsync();
+            else await mailboxSavePausedFixture(dialog);
+        }
         finally { host.IsEnabled = true; navigation.IsEnabled = true; }
     }
     async Task<bool> ConfirmLeaveSettings(string page)
@@ -161,7 +170,21 @@ sealed partial class MainWindow
         {
             // Use the complete in-memory page draft. Testing must not force a
             // save, overwrite credentials, or alter the live monitor.
-            await Call("test_mail_draft", new { values = SettingsValues("mail") });
+            var result = await Call("test_mail_draft", new { values = SettingsValues("mail") });
+            if (result.ValueKind == JsonValueKind.Object) {
+                if (result.TryGetProperty("status", out var status) && status.ValueKind == JsonValueKind.String)
+                    detail.Text = L.T(status.GetString() ?? "");
+                if (result.TryGetProperty("updated_secret", out var updated) && updated.ValueKind == JsonValueKind.String) {
+                    var bundle = updated.GetString() ?? "";
+                    mailSecret.Password = bundle;
+                    if (mailboxDraftIndex >= 0 && mailboxDraftIndex < mailboxDrafts.Count) {
+                        mailboxDrafts[mailboxDraftIndex]["secret"] = bundle;
+                        mailboxDrafts[mailboxDraftIndex]["oauth_mode"] = "managed";
+                        oauthModeChoice.SelectedIndex = 0;
+                    }
+                    RefreshSettingsDirty();
+                }
+            }
             return;
         }
         if (SettingsDirty(page)) throw new InvalidOperationException(L.T("请先保存此页设置，再测试连接。"));

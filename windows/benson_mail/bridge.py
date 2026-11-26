@@ -14,7 +14,7 @@ from .report_metadata import read_metadata, write_metadata
 from .mailbox_config import PRESETS, normalize, mailbox_id
 MAIL_FIELDS = ('account', 'username', 'host', 'port', 'security', 'mail_folder', 'mail_auth',
                'mail_provider', 'secret_binding', 'mail_secret_file', 'proxy_mode', 'proxy_host', 'proxy_port',
-               'read_all_mail')
+               'read_all_mail', 'oauth_client_id', 'oauth_tenant', 'oauth_mode')
 
 
 class Controller:
@@ -87,6 +87,39 @@ class Controller:
             raise ValueError('邮箱密钥路径无效。')
         return platform.load_secret(path, config.get('secret_binding') or config['account']) if path.exists() else ''
 
+    def oauth_secret_update_callback(self, profile):
+        """Return a DPAPI-backed refresh writer for a saved mailbox profile."""
+        relative = profile.get('mail_secret_file', 'secret.bin')
+        path = self.root / relative
+        if not path.resolve().is_relative_to(self.root.resolve()):
+            raise ValueError('邮箱密钥路径无效。')
+        binding = profile.get('secret_binding') or profile.get('account', '')
+        if not binding:
+            raise ValueError('邮箱凭据绑定无效。')
+        def save(updated_secret):
+            if not isinstance(updated_secret, str) or not updated_secret:
+                raise ValueError('刷新后的邮箱凭据无效。')
+            platform.save_secret(path, binding, updated_secret)
+        return save
+
+    def oauth_secret_provider_callback(self, profile):
+        """Reload the latest DPAPI-protected OAuth bundle for a saved mailbox."""
+        def load():
+            secret = self.mailbox_secret(profile)
+            if not secret:
+                raise ValueError('OAuth 邮箱凭据不可用，请重新登录。')
+            return secret
+        return load
+
+    @staticmethod
+    def _same_oauth_registration(left, right):
+        defaults = {'mail_provider': 'custom', 'oauth_mode': 'manual',
+                    'oauth_client_id': '', 'oauth_tenant': 'common'}
+        return all(
+            str(left.get(key, default) or default) == str(right.get(key, default) or default)
+            for key, default in defaults.items()
+        )
+
     def start_profile(self, profile, key):
         identifier = mailbox_id(profile)
         existing = self.services.get(identifier)
@@ -98,6 +131,14 @@ class Controller:
         secret = self.mailbox_secret(config)
         if not secret:
             raise ValueError('请先保存该邮箱的登录凭据。')
+        secret_provider = None
+        if config.get('oauth_mode') == 'managed':
+            persist_secret = self.oauth_secret_update_callback(profile)
+            def persist_oauth_refresh(updated):
+                # Persist under DPAPI before the next connection can reload it.
+                persist_secret(updated)
+            config['_oauth_secret_update'] = persist_oauth_refresh
+            secret_provider = self.oauth_secret_provider_callback(profile)
         def event(value):
             value = {**value, 'mailbox_id': identifier, 'account': profile['account']}
             if value.get('detail'):
@@ -107,14 +148,15 @@ class Controller:
                     for key, s in self.services.items()):
                 value['status'] = '运行中'
             self.emit({'event': value})
-        service = Service(config, secret, self.root / 'state', event, api_key=key)
+        service = Service(config, secret, self.root / 'state', event, api_key=key,
+                          secret_provider=secret_provider)
         self.services[identifier] = service
         self.service = service
         service.start()
 
-    def paused(self):
+    def paused(self, message='请先暂停监听，等当前邮件处理完成后再保存设置。'):
         if self.active():
-            raise ValueError('请先暂停监听，等当前邮件处理完成后再保存设置。')
+            raise ValueError(message)
 
     def key_path(self, base):
         return self.root / 'api-keys' / (hashlib.sha256(identity(base).encode()).hexdigest() + '.bin')
@@ -313,6 +355,38 @@ class Controller:
             from .settings_page import commit
             commit(self, 'mail', data)
             return '邮箱设置已保存。'
+        if name == 'oauth_sign_in':
+            provider = str(data.get('provider', '')).strip().lower()
+            if provider not in ('google', 'microsoft'):
+                raise ValueError('请选择 Gmail 或 Outlook / Microsoft 365。')
+            email = str(data.get('email', '')).strip()
+            client_id = str(data.get('client_id', '')).strip()
+            tenant = str(data.get('tenant', 'common') or 'common').strip()
+            if not email or not client_id:
+                raise ValueError('请填写邮箱地址和 OAuth 客户端 ID。')
+            client_secret = data.get('client_secret', '')
+            if (not isinstance(client_secret, str) or len(client_secret) > 4096 or
+                    any(ord(char) < 32 for char in client_secret)):
+                raise ValueError('Google OAuth 客户端密钥无效。')
+            if provider == 'microsoft' and client_secret:
+                raise ValueError('Microsoft 登录不需要客户端密钥。')
+            from .mailbox_config import normalize_proxy
+            mailbox_proxy = normalize_proxy({
+                'proxy_mode': data.get('proxy_mode', 'direct'),
+                'proxy_host': data.get('proxy_host', ''),
+                'proxy_port': data.get('proxy_port', 10808),
+            })
+            # The browser flow is intentionally blocking for this single bridge
+            # request; the UI awaits it while the provider consent page is open.
+            # The returned bundle is held only in the unsaved draft until the
+            # user presses Save, which then encrypts it with the existing DPAPI
+            # mailbox-secret path.
+            try:
+                from .oauth_client import authorize
+            except ImportError:
+                raise ValueError('当前版本缺少 OAuth 登录组件，请重新安装完整应用。') from None
+            return authorize(provider, email, client_id, tenant=tenant,
+                             client_secret=client_secret, mailbox_proxy=mailbox_proxy)
         if name == 'harness_detect':
             from .deepseek_harness_ai import discover
             return discover(data.get('path', ''))
@@ -343,7 +417,11 @@ class Controller:
             self.persist()
             return '已配置 Codex 命令行程序。'
         if name == 'test_mail':
-            mailbox = IMAPMailbox(self.config, self.secret())
+            config = dict(self.config)
+            if config.get('oauth_mode') == 'managed':
+                config['_oauth_secret_update'] = self.oauth_secret_update_callback(config)
+                config['_oauth_secret_provider'] = self.oauth_secret_provider_callback(config)
+            mailbox = IMAPMailbox(config, self.secret())
             try:
                 mailbox.snapshot()
             finally:
@@ -364,6 +442,7 @@ class Controller:
             from .mailbox_config import normalize
             connection = normalize({key: value for key, value in draft.items() if key in MAIL_FIELDS})
             secret = draft.get('secret', '')
+            loaded_saved_secret = False
             if not isinstance(secret, str):
                 raise ValueError('邮箱凭据无效。')
             secret = secret.strip()
@@ -380,10 +459,12 @@ class Controller:
                     saved_profiles = [{**{key: self.config[key] for key in MAIL_FIELDS if key in self.config},
                                        'monitor_enabled': True}] if self.config.get('account') else []
                 saved = next((profile for profile in saved_profiles
-                              if source_id and mailbox_id(profile) == source_id), None)
+                              if source_id and mailbox_id(profile) == source_id and
+                              self._same_oauth_registration(profile, connection)), None)
                 if saved is None:
-                    raise ValueError('新邮箱草稿请填写密码、授权码或 OAuth2 访问令牌。')
+                    raise ValueError('连接设置已变更；请重新登录 OAuth 邮箱或填写新的邮箱凭据。')
                 secret = self.mailbox_secret(saved)
+                loaded_saved_secret = True
             if not secret:
                 raise ValueError('无法读取该邮箱已保存的凭据；请填写密码、授权码或 OAuth2 访问令牌。')
             connection['ui_language'] = self.config.get('ui_language', 'zh')
@@ -391,11 +472,38 @@ class Controller:
                 # Fixture UI tests validate selection and staged parsing only;
                 # they never access a real network or mailbox.
                 return '模拟测试：邮箱草稿已验证，未连接真实邮箱。'
+            rotated = []
+            saved_profiles = self.config.get('mailboxes')
+            if saved_profiles is None:
+                saved_profiles = [{**{key: self.config[key] for key in MAIL_FIELDS if key in self.config},
+                                   'monitor_enabled': True}] if self.config.get('account') else []
+            saved = next((profile for profile in saved_profiles
+                          if mailbox_id(profile) == mailbox_id(connection) and
+                          self._same_oauth_registration(profile, connection)), None)
+            if saved is not None and not loaded_saved_secret:
+                # A native draft may carry a newly signed-in or manually replaced
+                # secret while its connection identity still matches an older
+                # saved mailbox. Never let its test overwrite that mailbox's
+                # protected credential behind the user's back.
+                loaded_saved_secret = self.mailbox_secret(saved) == secret
+            if connection.get('oauth_mode') == 'managed':
+                if saved is not None and loaded_saved_secret:
+                    callback = self.oauth_secret_update_callback(saved)
+                    connection['_oauth_secret_update'] = lambda value: (
+                        callback(value), rotated.append(value)
+                    )
+                    connection['_oauth_secret_provider'] = self.oauth_secret_provider_callback(saved)
+                else:
+                    # Drafts are not committed by a connection test. Return a
+                    # rotated bundle to the native draft editor instead.
+                    connection['_oauth_secret_update'] = rotated.append
             mailbox = IMAPMailbox(connection, secret)
             try:
                 mailbox.snapshot()
             finally:
                 mailbox.close()
+            if rotated:
+                return {'status': '邮箱连接正常。设置尚未保存。', 'updated_secret': rotated[-1]}
             return '邮箱连接正常。设置尚未保存。'
         if name == 'test_ai':
             if self.config.get('ai_provider') == 'deepseek_harness':

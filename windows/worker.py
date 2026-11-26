@@ -5,6 +5,34 @@ from pathlib import Path
 import sys
 
 
+def _private_oauth_input(stream, maximum=8192):
+    payload = stream.read(maximum + 1)
+    if not isinstance(payload, bytes) or len(payload) > maximum:
+        raise ValueError('OAuth private input is too large or invalid.')
+    try:
+        def unique_object(pairs):
+            value = {}
+            for key, item in pairs:
+                if key in value:
+                    raise ValueError('OAuth private input contains duplicate fields.')
+                value[key] = item
+            return value
+        value = json.loads(payload.decode('utf-8', errors='strict'), object_pairs_hook=unique_object)
+    except (UnicodeError, json.JSONDecodeError):
+        raise ValueError('OAuth private input is not valid UTF-8 JSON.') from None
+    if not isinstance(value, dict) or set(value) != {'client_secret', 'mailbox_proxy'}:
+        raise ValueError('OAuth private input has unexpected fields.')
+    client_secret = value['client_secret']
+    proxy = value['mailbox_proxy']
+    if not isinstance(client_secret, str) or not isinstance(proxy, dict) or set(proxy) != {
+        'proxy_mode', 'proxy_host', 'proxy_port'
+    }:
+        raise ValueError('OAuth private input has invalid fields.')
+    from benson_mail.mailbox_config import normalize_proxy
+    normalized = normalize_proxy(proxy)
+    return client_secret, normalized
+
+
 def main():
     if '--delete-installer' in sys.argv:
         from benson_mail.installer_cleanup import cli
@@ -16,6 +44,32 @@ def main():
         from benson_mail.harness_smoke import fixture
         fixture()
         return 0
+    if '--oauth-login' in sys.argv:
+        from benson_mail.oauth_client import authorize
+        index = sys.argv.index('--oauth-login')
+        parser = argparse.ArgumentParser(prog='oauth-login')
+        parser.add_argument('provider', choices=('google', 'microsoft'))
+        parser.add_argument('email')
+        parser.add_argument('client_id')
+        parser.add_argument('--tenant', default='common')
+        parser.add_argument('--private-input', action='store_true', required=True)
+        values = parser.parse_args(sys.argv[index + 1:])
+        try:
+            client_secret, mailbox_proxy = _private_oauth_input(sys.stdin.buffer)
+            credential = authorize(
+                values.provider, values.email, values.client_id,
+                tenant=values.tenant, client_secret=client_secret,
+                mailbox_proxy=mailbox_proxy,
+            )
+            print(json.dumps(credential, ensure_ascii=False, separators=(',', ':')))
+            return 0
+        except Exception as error:
+            message = str(error) if isinstance(error, (ValueError, RuntimeError)) else 'OAuth sign-in failed.'
+            print(json.dumps({
+                'ok': False,
+                'error': message,
+            }, ensure_ascii=False))
+            return 1
     if '--harness-self-test' in sys.argv:
         from benson_mail.harness_smoke import run
         Path(sys.argv[sys.argv.index('--harness-self-test') + 1]).write_text(json.dumps(run()), encoding='utf-8')

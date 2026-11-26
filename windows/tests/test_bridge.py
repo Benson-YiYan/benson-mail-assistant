@@ -236,6 +236,130 @@ class BridgeTests(unittest.TestCase):
         text = (self.root / 'config.json').read_text()
         self.assertNotIn('DUMMY', text)
 
+    def test_oauth_secret_refresh_uses_dpapi_file_and_existing_binding(self):
+        profile = {
+            'account': 'oauth@example.invalid',
+            'host': 'imap.gmail.com',
+            'secret_binding': 'mailbox:synthetic-id',
+            'mail_secret_file': 'mail-secrets/synthetic-id.bin',
+        }
+        updated = '{"schema":1,"provider":"google","refresh_token":"ROTATED"}'
+        callback = self.controller.oauth_secret_update_callback(profile)
+        with patch('benson_mail.bridge.platform.save_secret') as save:
+            callback(updated)
+        save.assert_called_once_with(
+            self.root / 'mail-secrets/synthetic-id.bin',
+            'mailbox:synthetic-id',
+            updated,
+        )
+
+    def test_oauth_secret_provider_reloads_dpapi_value_each_time(self):
+        profile = {
+            'account': 'oauth@example.invalid',
+            'secret_binding': 'mailbox:synthetic-id',
+            'mail_secret_file': 'mail-secrets/synthetic-id.bin',
+        }
+        secret_path = self.root / profile['mail_secret_file']
+        secret_path.parent.mkdir(parents=True, exist_ok=True)
+        secret_path.write_bytes(b'ENCRYPTED')
+        values = iter(('OLD_BUNDLE', 'ROTATED_BUNDLE'))
+        with patch('benson_mail.bridge.platform.load_secret', side_effect=lambda *args: next(values)) as load:
+            provider = self.controller.oauth_secret_provider_callback(profile)
+            self.assertEqual(provider(), 'OLD_BUNDLE')
+            self.assertEqual(provider(), 'ROTATED_BUNDLE')
+        self.assertEqual(load.call_count, 2)
+        expected = (
+            self.root / 'mail-secrets/synthetic-id.bin',
+            'mailbox:synthetic-id',
+        )
+        self.assertEqual(load.call_args_list[0].args, expected)
+        self.assertEqual(load.call_args_list[1].args, expected)
+
+    def test_background_mailbox_receives_dpapi_refresh_callback(self):
+        from benson_mail.mailbox_config import mailbox_id, normalize
+        profile = {
+            **normalize({
+                'account': 'oauth@example.invalid',
+                'host': 'imap.gmail.com',
+                'mail_provider': 'gmail',
+                'mail_auth': 'oauth2',
+                'oauth_mode': 'managed',
+                'oauth_client_id': 'demo.apps.googleusercontent.com',
+            }),
+            'monitor_enabled': True,
+            'secret_binding': 'mailbox:oauth-id',
+            'mail_secret_file': 'mail-secrets/oauth-id.bin',
+        }
+        identifier = mailbox_id(profile)
+        self.controller.config['mailboxes'] = [profile]
+        service = Mock()
+        updated = '{"schema":1,"provider":"google","refresh_token":"ROTATED"}'
+        secret_values = iter(('old-bundle', 'old-bundle', updated))
+        with patch.object(self.controller, 'mailbox_secret',
+                          side_effect=lambda _profile: next(secret_values)), \
+             patch('benson_mail.bridge.Service', return_value=service) as construct, \
+             patch('benson_mail.bridge.platform.save_secret') as save:
+            self.controller.start_profile(profile, '')
+            runtime_config = construct.call_args.args[0]
+            self.assertEqual(mailbox_id(runtime_config), identifier)
+            self.assertEqual(runtime_config['oauth_mode'], 'managed')
+            secret_provider = construct.call_args.kwargs['secret_provider']
+            self.assertEqual(secret_provider(), 'old-bundle')
+            runtime_config['_oauth_secret_update'](updated)
+            self.assertEqual(secret_provider(), updated)
+        service.start.assert_called_once()
+        save.assert_called_once_with(
+            self.root / 'mail-secrets/oauth-id.bin',
+            'mailbox:oauth-id',
+            updated,
+        )
+
+    def test_test_mail_draft_persists_rotated_managed_secret_with_dpapi(self):
+        from benson_mail.mailbox_config import mailbox_id, normalize
+        connection = normalize({
+            'account': 'oauth@example.invalid',
+            'host': 'imap.gmail.com',
+            'mail_provider': 'gmail',
+            'mail_auth': 'oauth2',
+            'oauth_mode': 'managed',
+            'oauth_client_id': 'demo.apps.googleusercontent.com',
+        })
+        identifier = mailbox_id(connection)
+        profile = {
+            **connection,
+            'id': identifier,
+            'monitor_enabled': True,
+            'mail_secret_file': 'mail-secrets/' + identifier + '.bin',
+            'secret_binding': 'mailbox:' + identifier,
+        }
+        self.controller.config['mailboxes'] = [profile]
+        self.controller.persist()
+        credential = '{"schema":1,"provider":"google","access_token":"old"}'
+        rotated = '{"schema":1,"provider":"google","access_token":"new","refresh_token":"ROTATED"}'
+
+        class Mailbox:
+            def __init__(self, config, _secret):
+                config['_oauth_secret_update'](rotated)
+            def snapshot(self): return ('1', [])
+            def close(self): pass
+
+        with patch.object(self.controller, 'mailbox_secret', return_value=credential), \
+             patch('benson_mail.bridge.platform.save_secret') as save, \
+             patch('benson_mail.bridge.IMAPMailbox', Mailbox):
+            result = self.controller.command('test_mail_draft', {
+                'values': {
+                    'mailboxes': [{**profile, 'secret': ''}],
+                    'selected_mailbox_id': identifier,
+                },
+            })
+        self.assertEqual(result['status'], '邮箱连接正常。设置尚未保存。')
+        self.assertEqual(result['updated_secret'], rotated)
+        save.assert_called_once_with(
+            self.root / profile['mail_secret_file'],
+            profile['secret_binding'],
+            rotated,
+        )
+
     def test_edited_address_default_and_custom_login_persist_without_network(self):
         with patch('benson_mail.bridge.platform.save_secret'), patch('benson_mail.bridge.platform.set_autostart'):
             base={'secret':'SYNTHETIC', 'output_dir':str(self.root/'reports'), 'host':'imap.example.invalid'}
