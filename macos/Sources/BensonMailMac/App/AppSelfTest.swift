@@ -853,6 +853,7 @@ enum AppSelfTest {
                 guard allFields(root).contains(where: { $0.placeholderString == T("登录用户名；留空使用邮箱地址") && !$0.isHiddenOrHasHiddenAncestor }) else { throw Failure("native mouse click did not expand advanced connection options: anchor=\(anchor.frame), point=\(point)") }
             }
             var defaultLogin = MailConnection()
+            MailAccountDraft.normalizeLogin(&defaultLogin)
             defaultLogin.account = "old-default@example.invalid"
             defaultLogin.username = defaultLogin.account
             var mixedCaseDefault = defaultLogin
