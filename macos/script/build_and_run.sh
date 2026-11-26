@@ -26,8 +26,8 @@ SWIFT_BUILD_ARGS=()
 if [[ "${MAILASSISTANT_NO_DEBUG_INFO:-0}" == "1" ]]; then
   SWIFT_BUILD_ARGS=(-Xswiftc -gnone)
 fi
-swift build -c release --arch "$TARGET_ARCH" --scratch-path "$SWIFT_BUILD_DIR" "${SWIFT_BUILD_ARGS[@]}"
-BUILD_BINARY="$(swift build -c release --arch "$TARGET_ARCH" --scratch-path "$SWIFT_BUILD_DIR" "${SWIFT_BUILD_ARGS[@]}" --show-bin-path)/$APP_NAME"
+swift build -c release --arch "$TARGET_ARCH" --scratch-path "$SWIFT_BUILD_DIR" ${SWIFT_BUILD_ARGS[@]+"${SWIFT_BUILD_ARGS[@]}"}
+BUILD_BINARY="$(swift build -c release --arch "$TARGET_ARCH" --scratch-path "$SWIFT_BUILD_DIR" ${SWIFT_BUILD_ARGS[@]+"${SWIFT_BUILD_ARGS[@]}"} --show-bin-path)/$APP_NAME"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 cp Resources/ui-en.json Resources/ui-es.json Resources/ui-chinglish.json "$APP_BUNDLE/Contents/Resources/"
