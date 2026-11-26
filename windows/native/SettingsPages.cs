@@ -29,7 +29,6 @@ sealed partial class MainWindow
     bool loadingSettingsDrafts;
     bool navigatingSettings;
     Func<ContentDialog, Task<ContentDialogResult>>? settingsLeaveFixture;
-    Func<ContentDialog, Task<ContentDialogResult>>? mailboxSavePausedFixture;
     int currentPageIndex;
     bool appliedQuietEnabled;
     string appliedQuietStart = "22:00", appliedQuietEnd = "08:00";
@@ -139,8 +138,7 @@ sealed partial class MainWindow
             var dialog = new ContentDialog { XamlRoot = layout.XamlRoot, Title = L.T("邮件小秘书"),
                 Content = L.T("请先暂停监听再保存。"), CloseButtonText = L.T("知道了"),
                 DefaultButton = ContentDialogButton.Close };
-            if (mailboxSavePausedFixture == null) await dialog.ShowAsync();
-            else await mailboxSavePausedFixture(dialog);
+            await dialog.ShowAsync();
         }
         finally { host.IsEnabled = true; navigation.IsEnabled = true; }
     }

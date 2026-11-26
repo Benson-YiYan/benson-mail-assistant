@@ -1111,6 +1111,7 @@ sealed partial class MainWindow : Window
         internal readonly TextBox Host = new() { Header = L.T("代理地址"), PlaceholderText = "127.0.0.1" };
         internal readonly TextBox Port = new() { Header = L.T("代理端口"), PlaceholderText = "10808" };
         internal readonly StackPanel Panel;
+        internal Action? Changed;
         readonly StackPanel custom;
         static readonly string[] modes = { "direct", "system", "http", "socks5" };
         internal string Value => Mode.SelectedIndex >= 0 && Mode.SelectedIndex < modes.Length ? modes[Mode.SelectedIndex] : "direct";
@@ -1125,7 +1126,10 @@ sealed partial class MainWindow : Window
                 custom.Visibility = explicitProxy ? Visibility.Visible : Visibility.Collapsed;
                 if (explicitProxy && Host.Text.Trim().Length == 0) Host.Text = "127.0.0.1";
                 if (explicitProxy && Port.Text.Trim().Length == 0) Port.Text = "10808";
+                Changed?.Invoke();
             };
+            Host.TextChanged += (_, _) => Changed?.Invoke();
+            Port.TextChanged += (_, _) => Changed?.Invoke();
             Mode.SelectedIndex = 0;
         }
         internal int ValidPort()
@@ -1577,6 +1581,16 @@ sealed partial class MainWindow : Window
         var firstRunConfigurationNotice = Note(L.T("浏览器登录功能暂未配置，请稍后再试。"));
         var firstRunProxy = new MailProxyControls(); firstRunProxy.CopyFrom(mailProxy);
         var firstRunUsesBrowserLogin = true;
+        var firstRunManagedCredential = "";
+        var firstRunOAuthSigningIn = false;
+        var firstRunDialogOpen = true;
+        CancellationTokenSource? firstRunOAuthCancellation = null;
+        Button firstRunOAuthLogin = null!;
+        void CancelFirstRunOAuthLogin()
+        {
+            if (firstRunOAuthSigningIn) firstRunOAuthCancellation?.Cancel();
+        }
+        firstRunProxy.Changed = CancelFirstRunOAuthLogin;
         var firstRunOAuthModeChoice = new ComboBox {
             Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch
         };
@@ -1588,18 +1602,8 @@ sealed partial class MainWindow : Window
             secret.Password = "";
             UpdateFirstRunOAuth();
         };
-        var firstRunManagedCredential = "";
-        var firstRunOAuthSigningIn = false;
-        var firstRunDialogOpen = true;
-        CancellationTokenSource? firstRunOAuthCancellation = null;
-        void CancelFirstRunOAuthLogin()
-        {
-            if (firstRunOAuthSigningIn) firstRunOAuthCancellation?.Cancel();
-        }
-        firstRunProxy.Changed = CancelFirstRunOAuthLogin;
         var firstRunProviderExplicit = false;
         var firstRunSettingProvider = false;
-        Button firstRunOAuthLogin = null!;
         var host = new TextBox { Header = L.T("IMAP 收件服务器"), Text = mailHost.Text };
         var port = new TextBox { Header = L.T("端口"), Text = mailPort.Text };
         var username = new TextBox { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址"), Text = OptionalMailUsername(address.Text, mailUsername.Text) };
@@ -1670,7 +1674,6 @@ sealed partial class MainWindow : Window
             var providerId = FirstRunProviderId();
             var binding = OAuthBinding(providerId, address.Text, OAuthApplicationCredentials.ClientId(providerId), "common");
             var proxy = firstRunProxy.OAuthSnapshot();
-            var clientSecret = OAuthApplicationCredentials.ClientSecret(providerId);
             bool IsCurrent() => firstRunDialogOpen && SupportsManagedOAuth(FirstRunProviderId()) &&
                 binding == OAuthBinding(FirstRunProviderId(), address.Text, OAuthApplicationCredentials.ClientId(FirstRunProviderId()), "common") &&
                 proxy == firstRunProxy.OAuthSnapshot() &&
@@ -1680,7 +1683,7 @@ sealed partial class MainWindow : Window
             var token = firstRunOAuthCancellation.Token;
             firstRunOAuthSigningIn = true; UpdateFirstRunOAuth();
             try {
-                var credential = await RunOAuthSignIn(binding, clientSecret, proxy, token);
+                var credential = await RunOAuthSignIn(binding, proxy, token);
                 if (!IsCurrent()) return;
                 EnsureManagedOAuthBinding(credential, binding);
                 firstRunManagedCredential = credential;
