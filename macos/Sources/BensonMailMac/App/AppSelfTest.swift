@@ -367,7 +367,7 @@ enum AppSelfTest {
             var connection = MailConnection()
             connection.account = "demo@example.invalid"; connection.host = "imap.example.invalid"
             connection.port = 1993; connection.security = "starttls"; connection.username = "login-user"
-            connection.mail_folder = "Archive"; connection.mail_auth = "oauth2"; connection.mail_provider = "custom"
+            connection.mail_folder = "Archive"; connection.mail_auth = "oauth2"; connection.mail_provider = "custom"; connection.oauth_mode = "manual"
             guard !connection.read_all_mail else { throw Failure("all-folder reading must default off") }
             connection = try connection.validated()
             guard connection.identity == "7c0447c91e4fa209f9a4a9cd5f4227df6a6a6b486906f780e32039e5f44f67f1" else {
