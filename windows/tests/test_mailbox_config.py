@@ -177,7 +177,7 @@ class MailConnectionTests(unittest.TestCase):
         persisted = []
         barrier = Barrier(3)
 
-        def access_token(secret, _options):
+        def access_token(secret, _options, *, force_refresh=False):
             observed.append(secret)
             if secret == 'INITIAL_BUNDLE':
                 time.sleep(0.03)
