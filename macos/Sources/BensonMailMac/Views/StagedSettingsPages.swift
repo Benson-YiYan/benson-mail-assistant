@@ -266,6 +266,9 @@ private struct StagedAccountFields: View {
                     Text(T("手动访问令牌")).tag("manual")
                 }
                 if account.connection.oauth_mode == "managed" {
+                    if MailOAuthLogin.isAuthorized(account.secret, connection: account.connection, previous: account.original) {
+                        Label(T("已授权"), systemImage: "checkmark.circle")
+                    } else {
                     Button(oauthLoggingIn ? T("正在等待网页登录…") :
                            (account.connection.mail_provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"))) {
                         beginOAuthLogin()
@@ -274,11 +277,6 @@ private struct StagedAccountFields: View {
                     .tint(.blue)
                     .disabled(oauthLoggingIn || account.connection.account.isEmpty || !browserLoginConfigured)
                     .accessibilityIdentifier("mail-oauth-login")
-                    .alert(account.connection.mail_provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"),
-                           isPresented: $oauthSucceeded) {
-                        Button(T("好"), role: .cancel) {}
-                    } message: {
-                        Text(T("登录已完成；凭据将在点击保存后安全写入钥匙串。"))
                     }
                     if !browserLoginConfigured {
                         Text(T("浏览器登录功能暂未配置，请稍后再试。"))
@@ -318,6 +316,12 @@ private struct StagedAccountFields: View {
                     if CommandLine.arguments.contains("--self-test") { NativeTestAnchor(identifier: "mail-advanced-disclosure") }
                 }
             }
+        }
+        .alert(account.connection.mail_provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"),
+               isPresented: $oauthSucceeded) {
+            Button(T("好"), role: .cancel) {}
+        } message: {
+            Text(T("登录已完成；凭据将在点击保存后安全写入钥匙串。"))
         }
     }
     private func beginOAuthLogin() {

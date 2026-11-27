@@ -910,10 +910,17 @@ sealed partial class MainWindow : Window
         var clientConfigured = !string.IsNullOrWhiteSpace(MainOAuthBinding().ClientId);
         oauthConfigurationNotice.Visibility = managed && !clientConfigured ? Visibility.Visible : Visibility.Collapsed;
         if (oauthLoginButton is not null) {
+            var binding = MainOAuthBinding();
+            var savedId = SelectedMailboxDraftId;
+            var authorized = managed && (managedMailCredential.Length > 0 ||
+                (savedId.Length > 0 && mailboxProfiles.Any(profile => JsonText(profile, "id") == savedId &&
+                    JsonText(profile, "oauth_mode") == "managed" &&
+                    OAuthBinding(JsonText(profile, "mail_provider"), JsonText(profile, "account"),
+                        JsonText(profile, "oauth_client_id"), JsonText(profile, "oauth_tenant")) == binding)));
             oauthLoginButton.Visibility = managed ? Visibility.Visible : Visibility.Collapsed;
-            oauthLoginButton.Content = mainOAuthSigningIn ? L.T("等待浏览器授权…")
+            oauthLoginButton.Content = authorized ? L.T("已授权") : mainOAuthSigningIn ? L.T("等待浏览器授权…")
                 : providerId == "gmail" ? L.T("使用 Google 登录") : L.T("使用 Microsoft 登录");
-            oauthLoginButton.IsEnabled = managed && clientConfigured && account.Text.Contains('@') && !mainOAuthSigningIn;
+            oauthLoginButton.IsEnabled = managed && !authorized && clientConfigured && account.Text.Contains('@') && !mainOAuthSigningIn;
         }
     }
     void InferMainProviderFromAddress()
@@ -1043,6 +1050,7 @@ sealed partial class MainWindow : Window
             if (!IsCurrent()) return;
             EnsureManagedOAuthBinding(credential, binding);
             managedMailCredential = credential;
+            UpdateOAuthControls();
             RefreshSettingsDirty();
             Desktop.Message(WinRT.Interop.WindowNative.GetWindowHandle(this),
                 L.T("授权完成；点击“保存邮箱设置”后生效。"));
@@ -1638,10 +1646,11 @@ sealed partial class MainWindow : Window
                 ? Visibility.Visible : Visibility.Collapsed;
             if (firstRunOAuthLogin is not null) {
                 firstRunOAuthLogin.Visibility = firstRunUsesBrowserLogin ? Visibility.Visible : Visibility.Collapsed;
-                firstRunOAuthLogin.Content = firstRunOAuthSigningIn ? L.T("等待浏览器授权…")
+                firstRunOAuthLogin.Content = firstRunManagedCredential.Length > 0 ? L.T("已授权") :
+                    firstRunOAuthSigningIn ? L.T("等待浏览器授权…")
                     : providerId == "gmail" ? L.T("使用 Google 登录") : L.T("使用 Microsoft 登录");
                 firstRunOAuthLogin.IsEnabled = firstRunUsesBrowserLogin && !string.IsNullOrWhiteSpace(binding.ClientId)
-                    && address.Text.Contains('@') && !firstRunOAuthSigningIn;
+                    && address.Text.Contains('@') && !firstRunOAuthSigningIn && firstRunManagedCredential.Length == 0;
             }
         }
         void InferFirstRunProvider()

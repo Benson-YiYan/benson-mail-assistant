@@ -93,12 +93,16 @@ struct BrowserMailboxLoginFields: View {
     let provider: String
     let canSignIn: Bool
     let configured: Bool
+    let authorized: Bool
     let signIn: () async throws -> Void
     @AccountState private var busy = false
     @AccountState private var message = ""
     @AccountState private var signInSucceeded = false
     var body: some View {
         HStack {
+            if authorized {
+                Label(T("已授权"), systemImage: "checkmark.circle")
+            } else {
             Button(busy ? T("正在等待网页登录…") : (provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"))) {
                 busy = true; message = ""
                 Task {
@@ -112,6 +116,7 @@ struct BrowserMailboxLoginFields: View {
                 .tint(.blue)
                 .disabled(!canSignIn || !configured || busy)
                 .accessibilityIdentifier("mail-oauth-login")
+            }
             if busy { ProgressView().controlSize(.small) }
         }
         .alert(provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"), isPresented: $signInSucceeded) {
@@ -229,6 +234,8 @@ struct MailAccountView: View {
                             provider: draft.mail_provider,
                             appClientID: MailOAuthApplicationCredentials.clientID(for: draft.mail_provider == "gmail" ? "google" : "microsoft"),
                             savedClientID: draft.oauth_client_id),
+                        authorized: MailOAuthLogin.isAuthorized(code, connection: draft,
+                            previous: adding ? nil : store.settings.mailbox),
                         signIn: startOAuthLogin)
                         .id(draft.mail_provider + draftID.uuidString)
                 } else {

@@ -105,4 +105,9 @@ enum MailOAuthLogin {
             throw MailCredentials.Failure("请填写密码、客户端授权码或 OAuth2 访问令牌。")
         }
     }
+
+    static func isAuthorized(_ secret: String, connection: MailConnection, previous: MailConnection?) -> Bool {
+        guard connection.oauth_mode == "managed" else { return false }
+        return (try? validateCredential(secret, connection: connection, previous: previous)) != nil
+    }
 }
