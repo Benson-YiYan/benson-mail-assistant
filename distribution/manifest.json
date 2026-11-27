@@ -2,120 +2,120 @@
   "schema_version": 1,
   "platforms": {
     "windows-x64": {
-      "version": "202611221720",
-      "sha256": "df99b399a1e3923debb367ec995cd5c80f3f82c3ea25884c6cbb1ae9ae2bf4dc",
-      "size": 24741676,
+      "version": "202611271351",
+      "sha256": "335bbeb54f94ed631b46ca6cd695b63d4bd9f3e4003accb394c27d51ba1362d6",
+      "size": 24840261,
       "notes": {
-        "zh": "修复重新总结、多选总结仍按60000字符拒绝的问题。使用上游公布的模型 Token 预算，未知窗口交由上游判断；保留原资料和已有报告，更新使用指南。",
-        "en": "Remove remaining 60,000-character checks from regenerated and multi-email summaries. Use advertised model-token budgets; unknown windows defer to the provider. Preserve original inputs and reports; update the guides.",
-        "es": "Elimina las comprobaciones restantes de 60.000 caracteres al regenerar y resumir varios correos. Usa el presupuesto publicado por el modelo; si no se conoce, decide el proveedor. Conserva originales e informes y actualiza las guías."
+        "zh": "新增 Gmail、Outlook 浏览器授权及自动续期，优化添加和移除邮箱、登录状态弹窗、高级连接设置及四语言指南。Google 权限验证待完成，仍可能有未验证提示与 OAuth 用户上限。",
+        "en": "Gmail and Outlook browser authorization with automatic renewal; simpler mailbox creation/removal, authorization dialogs and advanced settings. Updated four-language UI and guides. Google permission review is pending; OAuth warnings and user cap may apply.",
+        "es": "Autorización de Gmail y Outlook en el navegador con renovación automática; buzones, diálogos y opciones avanzadas mejorados. Cuatro idiomas y guías actualizados. La verificación de Google está pendiente y pueden aplicarse avisos y límites OAuth."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Windows-x64-Setup-202611221720.exe"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Windows-x64-Setup-202611271351.exe"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Windows-x64-Setup-202611221720.exe"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Windows-x64-Setup-202611271351.exe"
     },
     "macos-arm64": {
-      "version": "202611221721",
-      "sha256": "eef3d2daf2828673e62345294f0050cc11dfaee77677230f0a100fc6e1faa2a8",
-      "size": 22578832,
+      "version": "202611271353",
+      "sha256": "7ae38d336b38c596794b7fe883a12c0e3847368af0e1ffd1c62332b679dcfc76",
+      "size": 21492461,
       "notes": {
-        "zh": "修复重新总结、多选总结仍按60000字符拒绝的问题。使用上游公布的模型 Token 预算，未知窗口交由上游判断；保留原资料和已有报告，更新使用指南。",
-        "en": "Remove remaining 60,000-character checks from regenerated and multi-email summaries. Use advertised model-token budgets; unknown windows defer to the provider. Preserve original inputs and reports; update the guides.",
-        "es": "Elimina las comprobaciones restantes de 60.000 caracteres al regenerar y resumir varios correos. Usa el presupuesto publicado por el modelo; si no se conoce, decide el proveedor. Conserva originales e informes y actualiza las guías."
+        "zh": "新增 Gmail、Outlook 浏览器授权及自动续期，优化添加和移除邮箱、登录状态弹窗、高级连接设置及四语言指南。Google 权限验证待完成，仍可能有未验证提示与 OAuth 用户上限。",
+        "en": "Gmail and Outlook browser authorization with automatic renewal; simpler mailbox creation/removal, authorization dialogs and advanced settings. Updated four-language UI and guides. Google permission review is pending; OAuth warnings and user cap may apply.",
+        "es": "Autorización de Gmail y Outlook en el navegador con renovación automática; buzones, diálogos y opciones avanzadas mejorados. Cuatro idiomas y guías actualizados. La verificación de Google está pendiente y pueden aplicarse avisos y límites OAuth."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Mac-AppleSilicon-202611221721.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Mac-AppleSilicon-202611271353.dmg"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Mac-AppleSilicon-202611221721.dmg"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Mac-AppleSilicon-202611271353.dmg"
     },
     "macos-x86_64": {
-      "version": "202611221726",
-      "sha256": "f46d6f0745de73cc2b99ee9eabc2163ac6f5cbb9cc5604ddc1bcce7f90d54d45",
-      "size": 20772348,
+      "version": "202611271357",
+      "sha256": "cec4927fe9d0d5bc3b899108f03bdad0c5478b9af181bce2ff108f19277b0656",
+      "size": 20857971,
       "notes": {
-        "zh": "修复重新总结、多选总结仍按60000字符拒绝的问题。使用上游公布的模型 Token 预算，未知窗口交由上游判断；保留原资料和已有报告，更新使用指南。",
-        "en": "Remove remaining 60,000-character checks from regenerated and multi-email summaries. Use advertised model-token budgets; unknown windows defer to the provider. Preserve original inputs and reports; update the guides.",
-        "es": "Elimina las comprobaciones restantes de 60.000 caracteres al regenerar y resumir varios correos. Usa el presupuesto publicado por el modelo; si no se conoce, decide el proveedor. Conserva originales e informes y actualiza las guías."
+        "zh": "新增 Gmail、Outlook 浏览器授权及自动续期，优化添加和移除邮箱、登录状态弹窗、高级连接设置及四语言指南。Google 权限验证待完成，仍可能有未验证提示与 OAuth 用户上限。",
+        "en": "Gmail and Outlook browser authorization with automatic renewal; simpler mailbox creation/removal, authorization dialogs and advanced settings. Updated four-language UI and guides. Google permission review is pending; OAuth warnings and user cap may apply.",
+        "es": "Autorización de Gmail y Outlook en el navegador con renovación automática; buzones, diálogos y opciones avanzadas mejorados. Cuatro idiomas y guías actualizados. La verificación de Google está pendiente y pueden aplicarse avisos y límites OAuth."
       },
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Mac-Intel-202611221726.dmg"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Mac-Intel-202611271357.dmg"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Mac-Intel-202611221726.dmg"
+      "url": "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Mac-Intel-202611271357.dmg"
     }
   },
   "language_packs": {
     "windows-zh": {
-      "version": "202611221718",
-      "sha256": "20e90d74937ac8e6f51d591d0968e5930a158b5ff16390e7cf30114bd45dc302",
-      "size": 45210,
+      "version": "202611271350",
+      "sha256": "6c0abce14218422323e709d3d923c47ef06ef20bb25791f38e0d81652717e25b",
+      "size": 36292,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-windows-zh-202611221718.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Language-windows-zh-202611271350.json"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611221718.json"
+      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-windows-zh-202611271350.json"
     },
     "windows-en": {
-      "version": "202611221718",
-      "sha256": "82c9d20d90c329a5a92e75e436eacc7949125678e86f2abd64c1bb9ca2cd67a5",
-      "size": 154484,
+      "version": "202611271350",
+      "sha256": "c366d7a2a6b120478c9afc8fab08179d54ce2191bc4eae25f4d407f29b21a782",
+      "size": 148092,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-windows-en-202611221718.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Language-windows-en-202611271350.json"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611221718.json"
+      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-windows-en-202611271350.json"
     },
     "windows-es": {
-      "version": "202611221718",
-      "sha256": "593773e572110491e10bba69d105bb011cd5e37186d50626cee4ff01afeb5dc7",
-      "size": 168109,
+      "version": "202611271350",
+      "sha256": "c26532de8a5c14297f0262f72625a4a5207af93104838eb64c346f7a2a8d95bc",
+      "size": 163494,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-windows-es-202611221718.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Language-windows-es-202611271350.json"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611221718.json"
+      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-windows-es-202611271350.json"
     },
     "windows-chinglish": {
-      "version": "202611221718",
-      "sha256": "4da043b9769dc316a66ae92d00510089be1c394c993002f653af7805845c2f8f",
-      "size": 340750,
+      "version": "202611271350",
+      "sha256": "8bd72bc20883ad97e1ac340d538e0018b14c021a00e5df833fc20d7077aed395",
+      "size": 332510,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-windows-chinglish-202611221718.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Language-windows-chinglish-202611271350.json"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-windows-chinglish-202611221718.json"
+      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-windows-chinglish-202611271350.json"
     },
     "macos-zh": {
-      "version": "202611221718",
-      "sha256": "7905aeb41e138c7128257bf45b44950dc80a97ea35d163c4744ab76a01f4161a",
-      "size": 44951,
+      "version": "202611271350",
+      "sha256": "1c9913d50d78f0eb8534f1fe32383a38bd23c34878c8527246dd3833078c405d",
+      "size": 36225,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-macos-zh-202611221718.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Language-macos-zh-202611271350.json"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611221718.json"
+      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-macos-zh-202611271350.json"
     },
     "macos-en": {
-      "version": "202611221718",
-      "sha256": "b144ee26553876643c0591bc42b3ae69c9b9b59bb88ca8a84d5608176e033e36",
-      "size": 153065,
+      "version": "202611271350",
+      "sha256": "480c8bea9dc015a73dbc11729f77a0ff0df8e3b4aedefb987dafeb354e8dd11e",
+      "size": 145481,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-macos-en-202611221718.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Language-macos-en-202611271350.json"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611221718.json"
+      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-macos-en-202611271350.json"
     },
     "macos-es": {
-      "version": "202611221718",
-      "sha256": "8808cdbdfb6bbeca9eac578b5841155a8645ac8d7f83558241cf53090d59f0ea",
-      "size": 166757,
+      "version": "202611271350",
+      "sha256": "1b3f6dcec3647ee72f8b243def31e180bb75ce0aac5e9bdd83fce291d8358ab8",
+      "size": 160787,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-macos-es-202611221718.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Language-macos-es-202611271350.json"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611221718.json"
+      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-macos-es-202611271350.json"
     },
     "macos-chinglish": {
-      "version": "202611221718",
-      "sha256": "fcd5ff3872442ed8d97105632377845530b790562ac383eb777c603bc84e372d",
-      "size": 338228,
+      "version": "202611271350",
+      "sha256": "0884addc0efde9e5604b6b4d00eedcac6dc9c2ffbdfc8df6f997fd0a5ebd0f28",
+      "size": 326654,
       "mirrors": [
-        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261122.1/BensonMail-Language-macos-chinglish-202611221718.json"
+        "https://github.com/Benson-YiYan/benson-mail-assistant/releases/download/v20261127/BensonMail-Language-macos-chinglish-202611271350.json"
       ],
-      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-macos-chinglish-202611221718.json"
+      "url": "https://apparent-restaurants-apartment-participate.trycloudflare.com/downloads/BensonMail-Language-macos-chinglish-202611271350.json"
     }
   }
 }
