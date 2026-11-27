@@ -318,10 +318,6 @@ private struct StagedAccountFields: View {
                 }
             )).accessibilityLabel(T("邮箱地址"))
             TextField(T("IMAP 收件服务器，例如 imap.example.com"), text: $account.connection.host)
-            HStack {
-                TextField(T("端口"), text: $account.port).frame(width: 90)
-                Picker(T("加密"), selection: $account.connection.security) { Text("SSL/TLS").tag("ssl"); Text("STARTTLS").tag("starttls") }
-            }
             if usesBrowserLogin {
                 Picker(T("登录方式"), selection: Binding(
                     get: { account.connection.oauth_mode },
@@ -376,6 +372,10 @@ private struct StagedAccountFields: View {
             }
             DisclosureGroup {
                 VStack(spacing: 12) {
+                    HStack {
+                        TextField(T("端口"), text: $account.port).frame(width: 90)
+                        Picker(T("加密"), selection: $account.connection.security) { Text("SSL/TLS").tag("ssl"); Text("STARTTLS").tag("starttls") }
+                    }
                     TextField(T("登录用户名；留空使用邮箱地址"), text: $account.connection.username)
                     TextField(T("邮件文件夹"), text: $account.connection.mail_folder)
                     Toggle(T("读取所有邮件文件夹"), isOn: $account.connection.read_all_mail)

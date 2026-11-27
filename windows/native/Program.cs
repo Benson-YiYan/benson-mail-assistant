@@ -627,7 +627,7 @@ sealed partial class MainWindow : Window
         mailSaveButton.Style = aiSaveButton.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
         oauthLoginButton = OAuthLoginButton(SignInMainMailbox);
         UpdateOAuthControls();
-        var advanced = Stack(mailUsername, mailLoginSummary, mailFolder, readAllMail,
+        var advanced = Stack(Row(mailPort, mailSecurity), mailUsername, mailLoginSummary, mailFolder, readAllMail,
             Note(L.T("关闭时只读取上方指定的文件夹；开启后动态读取此邮箱的所有可读取文件夹。仍遵守“不总结垃圾邮件”设置。")),
             mailProxy.Panel); advanced.Visibility = Visibility.Collapsed;
         savedMailboxes.SelectionChanged += (_, _) => {
@@ -642,7 +642,7 @@ sealed partial class MainWindow : Window
             BuildSenderPolicy(),
             HistoryBackfillCard(),
             DiagnosticsCard(),
-            Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity),
+            Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost,
                 oauthModeChoice, mailSecret, CredentialHelp(SelectedMainProviderId),
                 oauthPermissionNote, oauthConfigurationNotice, oauthLoginButton,
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
@@ -1747,10 +1747,10 @@ sealed partial class MainWindow : Window
             }
         });
         UpdateFirstRunOAuth();
-        var advanced = Stack(username, loginSummary, mailboxFolder, firstRunProxy.Panel); advanced.Visibility = Visibility.Collapsed;
+        var advanced = Stack(Row(port, encryption), username, loginSummary, mailboxFolder, firstRunProxy.Panel); advanced.Visibility = Visibility.Collapsed;
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T(addingMailbox ? "添加邮箱" : "欢迎使用邮件小秘书"),
             PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T(addingMailbox ? "取消" : "稍后填写"),
-            Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), firstRunOAuthModeChoice, secret,
+            Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, firstRunOAuthModeChoice, secret,
                 CredentialHelp(FirstRunProviderId),
                 firstRunPermissionNote,
                 firstRunOAuthLogin,

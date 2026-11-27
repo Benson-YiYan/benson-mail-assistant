@@ -215,15 +215,6 @@ struct MailAccountView: View {
                 .textContentType(.username).accessibilityLabel(T("邮箱地址"))
             TextField(T("IMAP 收件服务器，例如 imap.example.com"), text: $draft.host)
                 .accessibilityLabel(T("IMAP 收件服务器"))
-            HStack {
-                TextField(T("端口"), text: $port).frame(width: 90).accessibilityLabel(T("IMAP 端口"))
-                Picker(T("加密"), selection: Binding(get: { draft.security }, set: { value in
-                    draft.security = value; port = value == "ssl" ? "993" : "143"
-                })) {
-                    Text("SSL/TLS").tag("ssl")
-                    Text("STARTTLS").tag("starttls")
-                }
-            }
             if draft.offersBrowserLogin {
                 Picker(T("登录方式"), selection: Binding(get: { draft.oauth_mode }, set: { mode in
                     guard mode != draft.oauth_mode else { return }
@@ -285,6 +276,15 @@ struct MailAccountView: View {
             }
             DisclosureGroup {
                 VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        TextField(T("端口"), text: $port).frame(width: 90).accessibilityLabel(T("IMAP 端口"))
+                        Picker(T("加密"), selection: Binding(get: { draft.security }, set: { value in
+                            draft.security = value; port = value == "ssl" ? "993" : "143"
+                        })) {
+                            Text("SSL/TLS").tag("ssl")
+                            Text("STARTTLS").tag("starttls")
+                        }
+                    }
                     TextField(T("登录用户名；留空使用邮箱地址"), text: $draft.username)
                         .accessibilityLabel(T("登录用户名"))
                     if draft.username.isEmpty {
