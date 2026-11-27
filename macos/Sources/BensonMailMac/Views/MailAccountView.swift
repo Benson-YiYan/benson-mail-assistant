@@ -96,6 +96,7 @@ struct BrowserMailboxLoginFields: View {
     let signIn: () async throws -> Void
     @AccountState private var busy = false
     @AccountState private var message = ""
+    @AccountState private var signInSucceeded = false
     var body: some View {
         HStack {
             Button(busy ? T("正在等待网页登录…") : (provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"))) {
@@ -104,12 +105,19 @@ struct BrowserMailboxLoginFields: View {
                     defer { busy = false }
                     do {
                         try await signIn()
-                        message = "登录已完成；凭据将在点击保存后安全写入钥匙串。"
+                        signInSucceeded = true
                     } catch { message = error.localizedDescription }
                 }
-            }.disabled(!canSignIn || !configured || busy)
+            }.buttonStyle(.borderedProminent)
+                .tint(.blue)
+                .disabled(!canSignIn || !configured || busy)
                 .accessibilityIdentifier("mail-oauth-login")
             if busy { ProgressView().controlSize(.small) }
+        }
+        .alert(provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"), isPresented: $signInSucceeded) {
+            Button(T("好"), role: .cancel) {}
+        } message: {
+            Text(T("登录已完成；凭据将在点击保存后安全写入钥匙串。"))
         }
         if !configured {
             Text(T("浏览器登录功能暂未配置，请稍后再试。"))

@@ -932,6 +932,7 @@ sealed partial class MainWindow : Window
     Button OAuthLoginButton(Func<Task> login)
     {
         var button = Action(L.T("使用 OAuth 登录"), login);
+        button.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
         button.Visibility = Visibility.Collapsed;
         return button;
     }
@@ -1043,7 +1044,8 @@ sealed partial class MainWindow : Window
             EnsureManagedOAuthBinding(credential, binding);
             managedMailCredential = credential;
             RefreshSettingsDirty();
-            detail.Text = L.T("授权完成；点击“保存邮箱设置”后生效。");
+            Desktop.Message(WinRT.Interop.WindowNative.GetWindowHandle(this),
+                L.T("授权完成；点击“保存邮箱设置”后生效。"));
         }
         catch (OperationCanceledException) when (!IsCurrent()) { }
         finally { mainOAuthSigningIn = false; UpdateOAuthControls(); }
@@ -1694,7 +1696,8 @@ sealed partial class MainWindow : Window
                 firstRunManagedCredential = credential;
                 firstRunUsesBrowserLogin = true;
                 UpdateFirstRunOAuth();
-                error.Text = L.T("授权完成；点击“保存邮箱”后生效。");
+                Desktop.Message(WinRT.Interop.WindowNative.GetWindowHandle(this),
+                    L.T("授权完成；点击“保存邮箱”后生效。"));
             }
             catch (OperationCanceledException) when (!IsCurrent()) { }
             finally {

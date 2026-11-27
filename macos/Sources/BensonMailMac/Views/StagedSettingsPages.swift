@@ -208,6 +208,7 @@ private struct StagedAccountFields: View {
     let signIn: () async throws -> Void
     @StagedState private var oauthLoggingIn = false
     @StagedState private var oauthMessage = ""
+    @StagedState private var oauthSucceeded = false
     private var usesBrowserLogin: Bool { account.connection.offersBrowserLogin }
     private var browserLoginConfigured: Bool {
         MailAccountDraft.browserLoginConfigured(
@@ -269,8 +270,16 @@ private struct StagedAccountFields: View {
                            (account.connection.mail_provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"))) {
                         beginOAuthLogin()
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
                     .disabled(oauthLoggingIn || account.connection.account.isEmpty || !browserLoginConfigured)
                     .accessibilityIdentifier("mail-oauth-login")
+                    .alert(account.connection.mail_provider == "gmail" ? T("登录 Google") : T("登录 Microsoft"),
+                           isPresented: $oauthSucceeded) {
+                        Button(T("好"), role: .cancel) {}
+                    } message: {
+                        Text(T("登录已完成；凭据将在点击保存后安全写入钥匙串。"))
+                    }
                     if !browserLoginConfigured {
                         Text(T("浏览器登录功能暂未配置，请稍后再试。"))
                             .font(.caption).foregroundStyle(.secondary)
@@ -319,8 +328,8 @@ private struct StagedAccountFields: View {
                 try await signIn()
                 account.connection.mail_auth = "oauth2"
                 account.connection.oauth_mode = "managed"
-                oauthMessage = "登录已完成；凭据将在点击保存后安全写入钥匙串。"
                 oauthLoggingIn = false
+                oauthSucceeded = true
             } catch {
                 oauthMessage = error.localizedDescription
                 oauthLoggingIn = false

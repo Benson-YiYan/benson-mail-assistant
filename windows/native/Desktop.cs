@@ -15,6 +15,8 @@ internal static class Desktop
     internal static bool HighContrast { get { var value = new HighContrastData { Size = (uint)Marshal.SizeOf<HighContrastData>() }; return SystemParametersInfoW(0x42, value.Size, ref value, 0) && (value.Flags & 1) != 0; } }
     internal static bool FontSmoothing => SystemParametersInfoBool(0x4A, 0, out var value, 0) && value != 0;
     internal static void Message(string text) => MessageBoxW(IntPtr.Zero, text, L.T("邮件小秘书"), 0);
+    internal static void Message(IntPtr owner, string text) =>
+        MessageBoxW(owner, text, L.T("使用 OAuth 登录"), 0x40);
 }
 
 internal sealed class NativeTray : IDisposable
