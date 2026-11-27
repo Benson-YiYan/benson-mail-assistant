@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Mail Assistant / 邮件小秘书隐私政策">
+  <title>Mail Assistant · Privacy Policy / 隐私政策</title>
+  <style>
+    :root { color-scheme: light dark; --bg: #f6f8fb; --card: #fff; --ink: #172033; --muted: #5c677d; --link: #1463d8; --line: #dfe5ef; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #10141c; --card: #181e29; --ink: #edf2fb; --muted: #aeb8ca; --link: #8ab8ff; --line: #303a4c; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.7 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { max-width: 900px; margin: 0 auto; padding: 32px 20px 64px; }
+    article { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 32px clamp(22px, 5vw, 56px); box-shadow: 0 8px 32px rgb(20 35 65 / 8%); }
+    h1, h2, h3 { line-height: 1.25; }
+    h1 { margin-top: 0; font-size: clamp(28px, 5vw, 42px); }
+    h2 { margin-top: 2.2em; border-top: 1px solid var(--line); padding-top: 1em; }
+    h3 { margin-top: 1.5em; }
+    a { color: var(--link); }
+    .meta, .note { color: var(--muted); }
+    .lang { font-size: 1.05em; }
+    li { margin: .45em 0; }
+    code { padding: .12em .35em; border-radius: 5px; background: color-mix(in srgb, var(--line) 55%, transparent); }
+    footer { margin-top: 24px; color: var(--muted); font-size: .92em; text-align: center; }
+  </style>
+</head>
+<body>
+  <main>
+    <article>
+      <h1>Mail Assistant<br><span class="lang">邮件小秘书 · Privacy Policy / 隐私政策</span></h1>
+      <p class="meta"><strong>Effective date / 生效日期:</strong> November 27, 2026 / 2026 年 11 月 27 日</p>
+      <p>
+        This policy describes the macOS and Windows versions of Mail Assistant.
+        本政策适用于 Mail Assistant（邮件小秘书）的 macOS 和 Windows 版本。
+      </p>
+      <p>
+        Project repository / 项目仓库：
+        <a href="https://github.com/Benson-YiYan/benson-mail-assistant">Benson-YiYan/benson-mail-assistant</a>
+      </p>
+
+      <h2>1. Data the app processes / 软件处理的数据</h2>
+      <ul>
+        <li><strong>Mailbox data / 邮箱数据:</strong> after the user adds a mailbox and enables monitoring, the app reads the IMAP folders selected by the user. If “read all mail folders” is enabled, it reads folders that the server exposes. This can include subjects, senders, recipients, dates, headers, message bodies, attachments and extractable attachment text.
+        <br>用户添加邮箱并启用监听后，软件会读取用户选择的 IMAP 文件夹；开启“读取所有邮件”后，会读取服务器开放的可读取文件夹。内容可能包括主题、发件人、收件人、时间、邮件头、正文、附件及其可提取文字。</li>
+        <li><strong>AI requests and chats / AI 请求和聊天:</strong> when the user requests a summary, historical summary, regeneration, multi-mail summary, mail question, or reply draft, the relevant mail content, readable attachment text, question, context and custom prompt are included in the request. Chats, original-mail cache, attachments, reports, drafts and usage records are stored locally by default.
+        <br>用户主动执行总结、历史邮件补总结、重新总结、多选总结、对邮件提问或生成回复草稿时，相关邮件内容、可读取附件文字、问题、上下文和自定义提示词会组成请求；聊天记录、原邮件缓存、附件、报告、草稿和用量记录默认保存在本机。</li>
+        <li><strong>Credentials / 凭据:</strong> passwords, app passwords, authorization codes, OAuth access tokens and refresh tokens are stored in macOS Keychain or Windows protected credential storage. They are not written to public reports, diagnostic packages or this repository.
+        <br>密码、应用专用密码、授权码、OAuth 访问令牌和刷新令牌保存在 macOS 钥匙串或 Windows 受保护凭据存储中，不会写入公开报告、诊断包或本仓库。</li>
+        <li><strong>Local runtime information / 本地运行信息:</strong> the app records necessary local state, error categories and AI usage metadata such as timestamps, provider, model, token counts and cost source. It does not build an advertising or behavior-analysis profile.
+        <br>软件会在本机记录必要状态、错误分类和 AI 用量信息，例如时间、服务商、模型、Token 数量及费用来源，不建立广告或行为分析画像。</li>
+      </ul>
+
+      <h2>2. Where data is sent / 数据发送到哪里</h2>
+      <ul>
+        <li><strong>Mail providers / 邮箱服务商:</strong> receiving uses the user-selected IMAP service. The app submits a message through supported SMTP only after the user confirms the recipient, subject and complete reply. It does not automatically send replies.
+        <br>收信使用用户选择的 IMAP 服务；只有用户确认收件人、主题和完整正文后，软件才通过支持的 SMTP 提交邮件，不会自动发送回复。</li>
+        <li><strong>User-configured AI / 用户配置的 AI:</strong> mail content is sent to the API, Codex or DeepSeek Harness selected by the user only when an AI feature is executed. The API request goes to the address entered by the user. Codex and DeepSeek Harness are local tools whose cloud processing, retention and training rules are governed by their providers. Mail Assistant does not operate an AI backend and does not send mail content to the project maintainer.
+        <br>只有执行 AI 功能时，邮件内容才会发送给用户配置的 API、Codex 或 DeepSeek Harness。Mail Assistant 不运营自己的 AI 后台，也不会把邮件内容发送给项目维护者。</li>
+        <li><strong>OAuth and updates / 登录和更新:</strong> Gmail and Outlook browser sign-in opens the corresponding provider's OAuth page. Update manifests, installers and optional language packs may be downloaded from GitHub. These requests do not include message bodies, attachments or mailbox passwords.
+        <br>Gmail 和 Outlook 浏览器登录会访问相应服务商的 OAuth 页面；更新清单、安装包和可选语言包可能从 GitHub 下载，这些请求不包含邮件正文、附件或邮箱密码。</li>
+        <li><strong>User-shared content / 用户主动分享:</strong> if the user sends a report, screenshot, mail or log to an Issue or another service, the user chooses what to disclose and that service's policy applies.
+        <br>用户自行把报告、截图、邮件或日志发送到 Issue 或其他服务时，由用户决定公开范围，并适用相应平台政策。</li>
+      </ul>
+
+      <h2>3. Gmail data / Gmail 数据</h2>
+      <p>
+        For Gmail data obtained through Google OAuth, Mail Assistant uses the data only for user-requested mailbox features: reading authorized mail, organizing reports, answering questions about mail, generating reply drafts, and sending a reply after explicit confirmation. It does not sell Gmail data, use it for advertising, credit, insurance, employment or other eligibility decisions, or train general AI models. Mail content is sent to a user-configured AI provider only when the user runs the relevant feature; that provider's retention and processing are governed by its own policy.
+      </p>
+      <p>
+        对于通过 Google OAuth 取得的 Gmail 数据，Mail Assistant 只将其用于用户请求的邮箱功能：读取授权范围内的邮件、整理报告、回答邮件问题、生成回复草稿，以及在用户明确确认后发送回复。不出售 Gmail 数据，不用于广告、信用、保险、就业或其他资格评估，也不用于训练通用 AI 模型。邮件内容只会在用户执行相应功能时发送给用户配置的 AI 服务，该服务的保留和处理方式以其政策为准。
+      </p>
+
+      <h2>4. Local storage, deletion and retention / 本地保存、删除和保留</h2>
+      <p>
+        Mail originals, attachment cache, reports, chats, drafts, settings and usage records are stored on the user's computer and are not automatically synchronized to the project maintainer. Users can delete local records, report folders or the application. The uninstaller's choices determine whether configuration and reports are retained. Deleting local files does not delete the original mail on the mail server.
+      </p>
+      <p>
+        邮件原文、附件缓存、报告、聊天记录、草稿、设置和用量记录保存在用户自己的电脑上，不会自动同步到项目维护者。用户可以删除本地记录、报告目录或应用；卸载器中的选项决定是否保留配置和报告。删除本地文件不会删除邮箱服务器中的原邮件。
+      </p>
+
+      <h2>5. Security and limitations / 安全措施与限制</h2>
+      <p>
+        Mail and HTTPS connections use TLS where supported, and credentials use operating-system protected storage. The app does not execute macros, programs or links from attachments. No local application can guarantee security if the device, operating system or a configured third-party service is compromised. Users should protect their computer account, mailbox account, OAuth sessions and AI keys.
+      </p>
+      <p>
+        邮箱和 HTTPS 连接在支持时使用 TLS，凭据使用操作系统安全存储。软件不会执行附件中的宏、程序或链接。若设备、操作系统或用户配置的第三方服务已被入侵，任何本地应用都不能保证绝对安全；请保护电脑账户、邮箱账户、OAuth 会话和 AI 密钥。
+      </p>
+
+      <h2>6. Changes and contact / 政策变更和联系</h2>
+      <p>
+        Changes to this policy are recorded with the project source and README. For privacy questions, use the
+        <a href="https://github.com/Benson-YiYan/benson-mail-assistant/issues">GitHub Issues</a>.
+        Please do not post passwords, authorization codes, tokens, complete emails or unredacted attachments.
+      </p>
+      <p>
+        本政策的修改会随项目源码和 README 一起记录。隐私问题请通过
+        <a href="https://github.com/Benson-YiYan/benson-mail-assistant/issues">GitHub Issues</a> 反馈；请勿粘贴密码、授权码、令牌、完整邮件或未脱敏附件。
+      </p>
+    </article>
+    <footer>
+      <a href="https://github.com/Benson-YiYan/benson-mail-assistant">Back to the repository / 返回项目仓库</a>
+    </footer>
+  </main>
+</body>
+</html>
