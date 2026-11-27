@@ -251,7 +251,7 @@ sealed partial class MainWindow : Window
         FontSize = 12, Visibility = Visibility.Collapsed };
     readonly List<(string source, string error)> migrationProblems = new();
     readonly TextBox account = new() { Header = L.T("邮箱地址"), PlaceholderText = "name@example.com" };
-    readonly PasswordBox mailSecret = new() { Header = L.T("密码／客户端授权码"), PlaceholderText = L.T("连接信息未变时可留空保留") };
+    readonly PasswordBox mailSecret = new() { Header = L.T("应用专用密码/授权码（不是登录密码）"), PlaceholderText = L.T("连接信息未变时可留空保留") };
     readonly ComboBox mailProvider = new() { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };
     readonly TextBox mailHost = new() { Header = L.T("IMAP 收件服务器"), Text = "imap.163.com" };
     readonly TextBox mailPort = new() { Header = L.T("端口"), Text = "993" };
@@ -911,7 +911,7 @@ sealed partial class MainWindow : Window
         mailAuth.Visibility = Visibility.Collapsed;
         oauthClientId.Visibility = oauthTenant.Visibility = Visibility.Collapsed;
         mailSecret.Visibility = !supportsOAuth || !managed ? Visibility.Visible : Visibility.Collapsed;
-        mailSecret.Header = supportsOAuth && !managed ? L.T("OAuth2 访问令牌") : L.T("密码／客户端授权码");
+        mailSecret.Header = supportsOAuth && !managed ? L.T("OAuth2 访问令牌") : L.T("应用专用密码/授权码（不是登录密码）");
         oauthPermissionNote.Visibility = managed ? Visibility.Visible : Visibility.Collapsed;
         var clientConfigured = !string.IsNullOrWhiteSpace(MainOAuthBinding().ClientId);
         oauthConfigurationNotice.Visibility = managed && !clientConfigured ? Visibility.Visible : Visibility.Collapsed;
@@ -1621,7 +1621,7 @@ sealed partial class MainWindow : Window
     async Task Onboard(bool testing = false, bool addingMailbox = false)
     {
         var address = new TextBox { FontFamily = MailTypography.Font, Header = L.T("邮箱地址"), Text = account.Text };
-        var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = L.T("密码／客户端授权码") };
+        var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = L.T("应用专用密码/授权码（不是登录密码）") };
         var presetChoice = new ComboBox { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };
         var firstRunPermissionNote = Note(L.T("软件只以只读方式打开 IMAP 文件夹；但 IMAP OAuth 授权范围可能允许修改邮件，不等于严格只读。"));
         var firstRunConfigurationNotice = Note(L.T("浏览器登录功能暂未配置，请稍后再试。"));
@@ -1670,7 +1670,7 @@ sealed partial class MainWindow : Window
             var binding = OAuthBinding(providerId, address.Text, OAuthApplicationCredentials.ClientId(providerId), "common");
             if (!managed || !IsManagedOAuthBundle(firstRunManagedCredential, binding)) firstRunManagedCredential = "";
             firstRunOAuthModeChoice.Visibility = managed ? Visibility.Visible : Visibility.Collapsed;
-            secret.Header = managed && !firstRunUsesBrowserLogin ? L.T("OAuth2 访问令牌") : L.T("密码／客户端授权码");
+            secret.Header = managed && !firstRunUsesBrowserLogin ? L.T("OAuth2 访问令牌") : L.T("应用专用密码/授权码（不是登录密码）");
             secret.Visibility = managed && firstRunUsesBrowserLogin ? Visibility.Collapsed : Visibility.Visible;
             firstRunPermissionNote.Visibility = managed && firstRunUsesBrowserLogin ? Visibility.Visible : Visibility.Collapsed;
             firstRunConfigurationNotice.Visibility = firstRunUsesBrowserLogin && string.IsNullOrWhiteSpace(binding.ClientId)

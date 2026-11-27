@@ -240,8 +240,8 @@ struct MailAccountView: View {
                         .accessibilityLabel(T("OAuth2 访问令牌"))
                 }
             } else {
-                SecureField(T("密码／客户端授权码"), text: $code)
-                    .accessibilityLabel(T("邮箱密码或授权码"))
+                SecureField(T("应用专用密码/授权码（不是登录密码）"), text: $code)
+                    .accessibilityLabel(T("应用专用密码/授权码（不是登录密码）"))
                 Button(T("如何获取授权码？")) {
                     do { try MailAccountGuide.open() }
                     catch { self.error = error.localizedDescription }

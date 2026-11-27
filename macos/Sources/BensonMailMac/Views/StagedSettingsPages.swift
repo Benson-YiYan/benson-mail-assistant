@@ -358,7 +358,7 @@ private struct StagedAccountFields: View {
                     SecureField(T("OAuth2 访问令牌"), text: $account.secret)
                 }
             } else {
-                SecureField(T("密码／客户端授权码"), text: $account.secret)
+                SecureField(T("应用专用密码/授权码（不是登录密码）"), text: $account.secret)
                 Button(T("如何获取授权码？")) { try? MailAccountGuide.open() }
                 if let url = MailAccountGuide.credentialPage(for: account.connection.mail_provider) {
                     Link(T("打开邮箱服务商网站"), destination: url)
