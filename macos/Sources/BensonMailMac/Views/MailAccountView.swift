@@ -61,6 +61,12 @@ enum MailAccountDraft {
         switch domain {
         case "gmail.com", "googlemail.com": detected = "gmail"
         case "outlook.com", "hotmail.com", "live.com", "msn.com": detected = "outlook"
+        case "163.com": detected = "163"
+        case "126.com": detected = "126"
+        case "yeah.net": detected = "yeah"
+        case "qq.com", "foxmail.com": detected = "qq"
+        case "icloud.com", "me.com", "mac.com": detected = "icloud"
+        case "yahoo.com", "ymail.com", "rocketmail.com": detected = "yahoo"
         default: detected = nil
         }
         if let detected, detected == value.mail_provider { return value }
@@ -249,6 +255,9 @@ struct MailAccountView: View {
                     do { try MailAccountGuide.open() }
                     catch { self.error = error.localizedDescription }
                 }.accessibilityIdentifier("mail-account-guide")
+                if let url = MailAccountGuide.credentialPage(for: draft.mail_provider) {
+                    Link(T("打开邮箱服务商网站"), destination: url)
+                }
             }
             Picker(T("邮箱代理"), selection: $draft.proxy_mode) {
                 Text(T("直连（不使用代理）")).tag("direct")

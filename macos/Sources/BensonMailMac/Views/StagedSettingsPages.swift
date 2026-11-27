@@ -296,6 +296,9 @@ private struct StagedAccountFields: View {
             } else {
                 SecureField(T("密码／客户端授权码"), text: $account.secret)
                 Button(T("如何获取授权码？")) { try? MailAccountGuide.open() }
+                if let url = MailAccountGuide.credentialPage(for: account.connection.mail_provider) {
+                    Link(T("打开邮箱服务商网站"), destination: url)
+                }
             }
             Picker(T("邮箱代理"), selection: $account.connection.proxy_mode) {
                 Text(T("直连（不使用代理）")).tag("direct"); Text(T("使用系统代理")).tag("system"); Text("HTTP CONNECT").tag("http"); Text("SOCKS5").tag("socks5")

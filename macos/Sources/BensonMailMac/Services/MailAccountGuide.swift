@@ -3,6 +3,20 @@ import Foundation
 
 /// Guide text is part of the selected downloaded language pack; reading it never sends account data.
 enum MailAccountGuide {
+    static func credentialPage(for provider: String) -> URL? {
+        let address: String
+        switch provider {
+        case "163": address = "https://mail.163.com/"
+        case "126": address = "https://mail.126.com/"
+        case "yeah": address = "https://www.yeah.net/"
+        case "qq": address = "https://mail.qq.com/"
+        case "exmail": address = "https://exmail.qq.com/"
+        case "icloud": address = "https://account.apple.com/"
+        case "yahoo": address = "https://login.yahoo.com/account/security"
+        default: return nil
+        }
+        return URL(string: address)
+    }
     static func url(language: String = AppLanguage.shared.code) -> URL? {
         AppLanguage.shared.guideURL("mail_account", language: language)
     }

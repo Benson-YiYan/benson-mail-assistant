@@ -643,7 +643,7 @@ sealed partial class MainWindow : Window
             HistoryBackfillCard(),
             DiagnosticsCard(),
             Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost, Row(mailPort, mailSecurity),
-                oauthModeChoice, mailSecret, Action(L.T("如何获取授权码？"), OpenAccountGuide),
+                oauthModeChoice, mailSecret, CredentialHelp(SelectedMainProviderId),
                 oauthPermissionNote, oauthConfigurationNotice, oauthLoginButton,
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 Note(L.T("请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。")))),
@@ -874,6 +874,12 @@ sealed partial class MainWindow : Window
         return at <= 0 ? "" : text[(at + 1)..].ToLowerInvariant() switch {
             "gmail.com" or "googlemail.com" => "gmail",
             "outlook.com" or "hotmail.com" or "live.com" or "msn.com" => "outlook",
+            "163.com" => "163",
+            "126.com" => "126",
+            "yeah.net" => "yeah",
+            "qq.com" or "foxmail.com" => "qq",
+            "icloud.com" or "me.com" or "mac.com" => "icloud",
+            "yahoo.com" or "ymail.com" or "rocketmail.com" => "yahoo",
             _ => ""
         };
     }
@@ -1071,6 +1077,31 @@ sealed partial class MainWindow : Window
         if (!File.Exists(path)) path = Path.Combine(AppContext.BaseDirectory, "Mail-account-setup-zh.txt");
         if (!File.Exists(path)) throw new FileNotFoundException(L.T("无法打开邮箱设置教程，请重新安装邮件小秘书。"));
         Open(path);
+        return Task.CompletedTask;
+    }
+    StackPanel CredentialHelp(Func<string> provider)
+    {
+        var guide = Action(L.T("如何获取授权码？"), OpenAccountGuide);
+        var site = Action(L.T("打开邮箱服务商网站"), () =>
+        {
+            var address = provider() switch
+            {
+                "163" => "https://mail.163.com/",
+                "126" => "https://mail.126.com/",
+                "yeah" => "https://www.yeah.net/",
+                "qq" => "https://mail.qq.com/",
+                "exmail" => "https://exmail.qq.com/",
+                "icloud" => "https://account.apple.com/",
+                "yahoo" => "https://login.yahoo.com/account/security",
+                _ => "",
+            };
+            return address.Length == 0 ? OpenAccountGuide() : OpenCredentialPage(address);
+        });
+        return Row(guide, site);
+    }
+    static Task OpenCredentialPage(string address)
+    {
+        Open(address);
         return Task.CompletedTask;
     }
     static void Open(string path) => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
@@ -1720,7 +1751,7 @@ sealed partial class MainWindow : Window
         var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T("欢迎使用邮件小秘书"),
             PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T("稍后填写"),
             Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), firstRunOAuthModeChoice, secret,
-                Action(L.T("如何获取授权码？"), OpenAccountGuide),
+                CredentialHelp(FirstRunProviderId),
                 firstRunPermissionNote,
                 firstRunOAuthLogin,
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
