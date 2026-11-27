@@ -7,6 +7,7 @@ struct StagedSettingsPage: View {
     @StagedState private var showUsage = false
     @StagedState private var showHistory = false
     @StagedState private var newMailbox: SettingsDraft?
+    @StagedState private var removingMailboxID: String?
     @ObservedObject var store: MailStore
     @ObservedObject var draft: SettingsDraft
     @ObservedObject private var language = AppLanguage.shared
@@ -34,6 +35,17 @@ struct StagedSettingsPage: View {
             }.padding(18)
         }.textFieldStyle(.roundedBorder).disabled(draft.saving)
         .sheet(isPresented: $showUsage) { UsageSettingsView(store: store) }
+        .alert(T("移除此邮箱？历史报告会保留。"),
+               isPresented: Binding(get: { removingMailboxID != nil }, set: { if !$0 { removingMailboxID = nil } })) {
+            Button(T("取消"), role: .cancel) { removingMailboxID = nil }
+            Button(T("移除"), role: .destructive) {
+                if let id = removingMailboxID {
+                    draft.accounts.removeAll { $0.id == id }
+                    if draft.selected == id { draft.selected = draft.accounts.first?.id ?? "" }
+                }
+                removingMailboxID = nil
+            }
+        }
         .sheet(isPresented: Binding(get: { newMailbox != nil }, set: { if !$0 { newMailbox = nil } })) {
             if let isolated = newMailbox {
             NewMailboxSheet(store: store, isolated: isolated) { row in
@@ -58,7 +70,7 @@ struct StagedSettingsPage: View {
                         newMailbox = isolated
                     }
                     if let index = draft.accounts.firstIndex(where: { $0.id == draft.selected }) {
-                        Button(T("移除此邮箱"), role: .destructive) { draft.accounts.remove(at: index); draft.selected = draft.accounts.first?.id ?? "" }
+                        Button(T("移除此邮箱"), role: .destructive) { removingMailboxID = draft.accounts[index].id }
                     }
                 }
                 if let index = draft.accounts.firstIndex(where: { $0.id == draft.selected }) {
