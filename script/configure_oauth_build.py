@@ -13,6 +13,8 @@ def main():
     targets.add_argument('--macos', type=Path)
     args = parser.parse_args()
     secret = os.environ.get('MAILASSISTANT_GOOGLE_CLIENT_SECRET', '').strip()
+    if os.environ.get('GITHUB_ACTIONS') == 'true' and not secret:
+        raise SystemExit('Google desktop OAuth build credential is missing from Actions secrets')
     if args.windows:
         # Always replace the file so a subsequent unconfigured build cannot
         # accidentally reuse credentials from a previous build.
