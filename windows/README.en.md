@@ -24,7 +24,7 @@ No Python or terminal setup is needed. API mode does not require Codex. Setup ch
 
 API mode accepts the provider's base URL, such as one ending in `/v1`, or the full `/chat/completions` URL. Harness is not bundled or downloaded. Testing AI sends a small message and may incur provider charges.
 Presets include 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud and Yahoo. Presets supply connection settings; account authorization is still required.
-Outlook/Microsoft 365 browser sign-in is configured in this build and renews automatically. It requests Exchange delegated IMAP and SMTP permissions so the app can receive mail and send replies after confirmation; POP access is not used. Work/school accounts may require administrator approval. Gmail browser sign-in is not configured yet. Users do not enter client IDs, secrets, tenants or tokens.
+Outlook/Microsoft 365 browser sign-in is configured in this build and renews automatically. It requests Exchange delegated IMAP and SMTP permissions so the app can receive mail and send replies after confirmation; POP access is not used. Work/school accounts may require administrator approval. Gmail browser authorization is configured. Google permission verification is pending; an unverified-app warning and the current OAuth user cap may apply. Users do not enter client IDs, secrets, tenants or tokens.
 
 ## Monitoring and reports
 

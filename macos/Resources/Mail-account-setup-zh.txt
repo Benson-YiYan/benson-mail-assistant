@@ -57,7 +57,7 @@
 官网：https://mail.google.com/ 。Google 官方说明：https://developers.google.com/identity/protocols/oauth2/native-app 。
 
 邮件小秘书对 Gmail 只提供浏览器登录。用户不需要创建 Google OAuth 应用，也不用填写客户端 ID、客户端密钥、租户或访问令牌。
-客户端信息由软件方配置；当前仓库尚未配置 Google 应用 ID，因此当前构建会提示“浏览器登录功能暂未配置”。
+Gmail 浏览器授权现已配置；Google 尚未完成权限验证，可能显示未验证提示，并受当前 OAuth 用户上限限制。
 1. 先在 Gmail 网页确认账号可以正常登录；按需要确认 IMAP 已开启。
 2. 在邮件小秘书选择 Gmail 预设，填写完整 Gmail 地址，点击“登录 Google”。
 3. 浏览器会打开 Google 官方登录与授权页面。登录要接入的账号，核对应用名称、登录账号和权限后再同意。登录的账号必须与软件填写的地址一致。
@@ -85,7 +85,7 @@
 个人邮箱：https://outlook.live.com/mail/ 。工作／学校邮箱：https://outlook.office.com/mail/ 。微软 IMAP OAuth 说明：https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth 。
 
 邮件小秘书对 Outlook／Microsoft 365 只提供浏览器登录。用户不需要注册 Microsoft 应用，也不用填写客户端 ID、客户端密钥、租户或访问令牌。
-客户端信息由软件方配置；当前仓库尚未配置 Microsoft 应用 ID，因此当前构建会提示“浏览器登录功能暂未配置”。
+Gmail 浏览器授权现已配置；Google 尚未完成权限验证，可能显示未验证提示，并受当前 OAuth 用户上限限制。
 1. Outlook.com 个人邮箱先在网页设置中打开 IMAP：设置 > 邮件 > 转发和 IMAP > 允许设备和应用使用 IMAP。工作／学校邮箱若没有此选项，请联系管理员确认 IMAP 和组织策略。
 2. 在邮件小秘书选择 Outlook／Microsoft 365 预设，填写完整邮箱地址，点击“登录 Microsoft”。
 3. 浏览器会打开 Microsoft 官方登录与授权页面。登录目标邮箱，核对应用名称和权限后同意；登录邮箱必须与软件填写的地址一致。

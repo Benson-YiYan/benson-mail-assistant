@@ -25,7 +25,7 @@ Windows and Mac packages in one release may have different version numbers. Veri
 
 ## Get started
 
-1. **Connect a mailbox.** Choose a preset or custom IMAP settings, enable IMAP with your provider, and enter the required app password, authorization code or OAuth2 token. A setup guide is available in the app.
+1. **Connect a mailbox.** Choose a preset or custom IMAP settings and enable IMAP with your provider. For Gmail and Outlook/Microsoft 365, click the matching browser sign-in button and approve on the provider’s official page; users do not register OAuth apps or enter client IDs, secrets, tenants or tokens. Other providers may require an app password or authorization code. A setup guide is available in the app.
 2. **Choose AI.** Configure a Chat Completions-compatible API base URL, key and model, or use your installed and configured Codex / DeepSeek Harness. Harness is not bundled, and no free AI service is included. API mode does not require Codex.
 3. **Choose a report folder and start monitoring.** Checks default to 60 seconds and can be customized. Empty checks do not call AI.
 
@@ -74,7 +74,7 @@ Screenshots show synthetic test messages, not real user mail.
 
 Your selected AI service receives message text and readable attachment text. Choose a service suitable for that data. Credentials use operating system protection; never include credentials or private messages in issues. AI connection tests may use provider credits.
 
-OAuth2 access tokens must currently be supplied and renewed manually. Windows installer/update flows were tested on a GitHub Windows runner. Intel Mac tests ran under Rosetta, not on physical Intel hardware.
+Gmail and Outlook/Microsoft 365 use browser OAuth sign-in with automatic renewal; users do not enter tokens or OAuth app details. IMAP OAuth permissions can be broader than read-only, although the app opens and reads folders in read-only mode. Microsoft work/school accounts may require administrator approval. Windows installer/update flows were tested on a GitHub Windows runner. Intel Mac tests ran under Rosetta, not on physical Intel hardware. Gmail browser authorization is configured. Google permission verification is pending; an unverified-app warning and the current OAuth user cap may apply.
 
 ## Guides and development
 

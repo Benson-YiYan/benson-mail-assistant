@@ -18,7 +18,7 @@ The app is not Developer ID-signed or Apple-notarized. Check the file's source i
 3. In General settings, use Browse to select the report folder, then start monitoring.
 
 API mode needs a Chat Completions-compatible base URL, API key and model name. Codex needs an existing signed-in installation with a working command-line component. Harness needs an existing configured installation supporting `headless --json`; it is not bundled or downloaded. AI connection tests send a small message and may incur provider charges.
-Presets include 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud and Yahoo. Gmail and Outlook/Microsoft 365 use browser OAuth sign-in with automatic renewal; users do not enter OAuth app details or access tokens. IMAP OAuth permissions can be broader than read-only, although the app opens folders in read-only mode. Microsoft work/school policies may restrict access. OAuth app details are configured by the software provider. This repository does not yet contain registered Google/Microsoft app IDs, so the current build reports that browser sign-in is not configured.
+Presets include 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud and Yahoo. Gmail and Outlook/Microsoft 365 use browser OAuth sign-in with automatic renewal; users do not enter OAuth app details or access tokens. IMAP OAuth permissions can be broader than read-only, although the app opens folders in read-only mode. Microsoft work/school policies may restrict access. Gmail browser authorization is configured. Google permission verification is pending; an unverified-app warning and the current OAuth user cap may apply.
 
 ## Navigation
 

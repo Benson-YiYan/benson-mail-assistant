@@ -14,8 +14,8 @@
 
 2. “邮箱地址”填完整地址；“IMAP 收件服务器”只填域名，不加 https://、端口或路径。下列常见预设均用端口 993、SSL/TLS；自定义邮箱按官方说明填写。
 3. “登录用户名”通常留空，软件使用完整邮箱地址；服务商另有要求才填。文件夹通常为 INBOX。
-4. “密码／客户端授权码”与“OAuth2 访问令牌”是两种登录方式。没有通用的“IMAP码”。授权码／应用专用密码由邮箱网站生成，不是短信验证码；OAuth2 要填 access_token，不是 refresh_token、id_token 或授权码。
-5. 把凭据填进软件的密码／授权码／OAuth2 访问令牌框，点“保存邮箱设置”（首次使用可能显示“保存并开始使用”），再点“测试邮箱连接”。更换连接信息前先暂停监听。
+4. Gmail 和 Outlook／Microsoft 365 使用浏览器登录，用户不用填写 OAuth 令牌或应用注册资料。其他邮箱可能要求服务商生成的应用专用密码或客户端授权码；它们不是短信验证码。若服务商只支持 OAuth2，而软件没有该服务商的浏览器登录，则暂时无法连接。
+5. Gmail 和 Outlook／Microsoft 365 点浏览器登录按钮并按官网完成授权；其他邮箱填写服务商要求的凭据，点击“保存邮箱设置”（首次使用可能显示“保存并开始使用”），再点“测试邮箱连接”。更换连接信息前先暂停监听。
 6. 邮箱凭据与 AI API Key 是不同的东西。不要把密码、授权码、令牌贴到聊天或发给陌生人。收到新邮件需要另外配置 AI；没有新邮件不会调用 AI。
 
 如果你已经有AI软件，就让它们帮你获得授权码。
@@ -54,12 +54,17 @@
 4. 保存并测试；企业禁用了 IMAP、第三方客户端或密码登录时，需管理员处理，反复更换密码不能绕过企业策略。
 
 五、Gmail
-官网：https://mail.google.com/ 。应用密码官方说明：https://support.google.com/accounts/answer/185833?hl=zh-Hans 。账户安全页：https://myaccount.google.com/security 。
-1. 登录 Google 账号，进入“安全性”，启用“两步验证”。
-2. 打开 https://myaccount.google.com/apppasswords ，按提示再次登录，为“邮件小秘书”创建应用密码。
-3. 将生成的 16 位应用密码填到软件；不要填 Google 常用登录密码。选 Gmail，填完整地址，imap.gmail.com，993，SSL/TLS，“密码／客户端授权码”，保存并测试。
-4. 只有安全密钥的两步验证、Google 高级保护计划、工作／学校账号的管理员限制等情况可能看不到应用密码。软件目前没有 Google 网页 OAuth 登录流程；没有应用密码时不要关闭账号安全保护硬凑连接，应咨询管理员或换可用账号。
-5. 改 Google 账号密码会撤销应用密码，届时需重新生成并更新软件。
+官网：https://mail.google.com/ 。Google 官方说明：https://developers.google.com/identity/protocols/oauth2/native-app 。
+
+邮件小秘书对 Gmail 只提供浏览器登录。用户不需要创建 Google OAuth 应用，也不用填写客户端 ID、客户端密钥、租户或访问令牌。
+Gmail 浏览器授权现已配置；Google 尚未完成权限验证，可能显示未验证提示，并受当前 OAuth 用户上限限制。
+1. 先在 Gmail 网页确认账号可以正常登录；按需要确认 IMAP 已开启。
+2. 在邮件小秘书选择 Gmail 预设，填写完整 Gmail 地址，点击“登录 Google”。
+3. 浏览器会打开 Google 官方登录与授权页面。登录要接入的账号，核对应用名称、登录账号和权限后再同意。登录的账号必须与软件填写的地址一致。
+4. Gmail IMAP 使用 `https://mail.google.com/` 权限。这个权限范围比严格只读更宽，但邮件小秘书只用 IMAP 读取操作，不会自动发送、修改或删除邮件。
+5. 授权成功后回到邮件小秘书，点击“保存邮箱设置”，再点击“测试邮箱连接”。凭据会安全保存在系统钥匙串或 Windows 受保护的凭据存储中，并在需要时自动续期。
+
+如果 Google 显示未验证应用或权限提示与预期不符，不要直接同意；先核对应用名称、账号和权限。撤销授权、Google 政策变化或组织限制可能要求重新登录。
 
 六、iCloud 邮箱
 官网：https://www.icloud.com/mail/ 。官方应用专用密码说明：https://support.apple.com/102654 。服务器说明：https://support.apple.com/102525 。
@@ -76,93 +81,28 @@
 3. 软件选 Yahoo，完整邮箱地址，imap.mail.yahoo.com，993，SSL/TLS，“密码／客户端授权码”。填生成的应用密码，保存并测试。
 4. 若账户暂时不能生成应用密码，按 Yahoo 官网提示处理或联系其支持；不能保证所有账号都有该入口，也不要用短信验证码代替应用密码。
 
-八、Outlook.com / Hotmail / Microsoft 365（OAuth2 完整步骤）
-添加Outlook/Microsoft 365邮箱极其困难，强烈不推荐，如果你爱折腾，下面有完整步骤：
+八、Outlook.com / Hotmail / Microsoft 365（浏览器登录）
+个人邮箱：https://outlook.live.com/mail/ 。工作／学校邮箱：https://outlook.office.com/mail/ 。微软 IMAP OAuth 说明：https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth 。
 
-官网与入口：
-个人邮箱：https://outlook.live.com/mail/
-工作／学校邮箱：https://outlook.office.com/mail/
-Microsoft Entra 管理中心：https://entra.microsoft.com/
-Azure 账户注册：https://azure.microsoft.com/pricing/purchase-options/azure-account
+邮件小秘书对 Outlook／Microsoft 365 只提供浏览器登录。用户不需要注册 Microsoft 应用，也不用填写客户端 ID、客户端密钥、租户或访问令牌。
+Gmail 浏览器授权现已配置；Google 尚未完成权限验证，可能显示未验证提示，并受当前 OAuth 用户上限限制。
+1. Outlook.com 个人邮箱先在网页设置中打开 IMAP：设置 > 邮件 > 转发和 IMAP > 允许设备和应用使用 IMAP。工作／学校邮箱若没有此选项，请联系管理员确认 IMAP 和组织策略。
+2. 在邮件小秘书选择 Outlook／Microsoft 365 预设，填写完整邮箱地址，点击“登录 Microsoft”。
+3. 浏览器会打开 Microsoft 官方登录与授权页面。登录目标邮箱，核对应用名称和权限后同意；登录邮箱必须与软件填写的地址一致。
+4. 确认服务器为 `outlook.office365.com`、端口 `993`、SSL/TLS，点击“保存邮箱设置”并测试连接。凭据会安全保存并在需要时自动续期。
+5. Microsoft 的 IMAP 权限可能允许读、写或删除邮件；邮件小秘书只执行读取操作，不会自动发送邮件。工作／学校邮箱可能需要管理员批准或受组织访问策略限制。
 
-先了解：邮件小秘书目前让你使用自己注册的应用和手动取得的 OAuth2 access_token，没有内置微软网页登录或自动续期。令牌会过期，之后还要重新登录取令牌。普通邮箱密码、应用密码、应用 ID、租户 ID 和访问令牌是不同的东西，不能互相代填；Microsoft Graph / Graph Explorer 的令牌也不能拿来登录 IMAP。
-如果只想统一看邮件，支持微软登录的邮箱客户端通常更省事，但邮件小秘书不能直接读取其他客户端里的账号或邮件。若想让小秘书继续分析，可在 Outlook 网页设置自动转发到已经接入小秘书的邮箱，勾选保留副本，并发信测试是否送达。组织可能禁止转发；附件是否完整也要实测。接收方不要再自动转发回 Outlook，以免形成循环。
-
-A. 检查邮箱是否允许 IMAP
-1. 在浏览器登录要接入的邮箱。个人 Outlook 打开右上角齿轮“设置 > 邮件 > 转发和 IMAP”，启用允许设备和应用使用 IMAP 的选项，保存。若菜单不同，在设置里搜索“IMAP”。
-2. Microsoft 365 工作／学校邮箱，请管理员确认这个邮箱已启用 IMAP，并允许后面的应用、用户授权及设备代码登录。没有该权限时不能靠反复取令牌解决。
-
-B. 准备能注册应用的目录（你可能卡在这里）
-3. 打开 Microsoft Entra 管理中心，登录准备用来管理应用的账号。已有组织目录时，从右上角账号菜单的“切换目录”选择你有权限的目录。管理应用的账号与实际收邮件的账号可以不同，但应用必须支持收邮件账号的类型。
-4. 如果个人 Outlook 账号登录后报 AADSTS50020、“用户帐户在租户 Microsoft Services 中不存在”，说明当前账号不能进入该目录；截图中的 ADIbizaUX／74658136-14ec-4630-ad9b-26e160ff0fc6 是微软门户的应用 ID，不能填进邮件小秘书。重复登录和改 Cookie 都不能给你增加目录权限。请使用自己有权限的目录，或请组织管理员提供合适的应用注册权限。
-5. 如果你没有可用目录，可以打开上面的 Azure 账户注册页面，查看自己是否符合“免费账户”的注册条件。仅仅拥有 Outlook 邮箱或登录 Entra，不等于已经完成 Azure 注册。
-   注册顺序：选择“免费账户／免费开始” > 登录你的微软账号 > 按官网表单填写账户资料并验证手机 > 在微软官方页面完成银行卡验证 > 核对当前免费条款后提交。若出现购买、付费升级或与你预期不同的条件，先停止并确认，不要直接开通。
-   普通 Azure 免费账户注册通常要求手机和符合要求的信用卡／借记卡进行身份验证，可能有临时预授权。不要把银行卡信息、验证码发给 AI 或写进本软件。免费账户与“按量付费”是不同选项，按官网当时展示的条款选择；不要为了本教程直接升级付费。
-   完成首次 Azure 账户注册后，回到 Entra，重新登录并从右上角账号菜单“切换目录”，选择注册时生成的目录（常见名称为 Default Directory／默认目录）；使用这个目录注册应用，不需要另建租户。目录创建有资格限制，免费／试用账号不能在 Entra 管理中心新建额外的 Workforce 目录。若首次注册没有提供可用目录，或“新注册”被禁止，先停下来请管理员协助，或使用前面的转发方案。
-6. 进入自己可用的目录后，打开“Entra ID（旧界面可能叫‘标识’）> 应用注册”。若无“新注册”按钮、按钮灰色或提示无权限，需要管理员授予注册权限。不要把门户首页的“租户 ID”当成“应用 ID”。
-
-C. 一次性注册应用并配置 IMAP 权限
-7. 点击“应用注册 > 新注册”。名称填“Email Assistant”；支持的账户类型按收邮件账号选择：
-   - 个人 Outlook／Hotmail：选“仅个人 Microsoft 账户”，或同时包含组织目录与个人 Microsoft 账户的选项。
-   - 仅本单位 Microsoft 365：可选“仅此组织目录中的账户（单租户）”。
-   - 需要同时支持个人和不同组织：选包含任意组织目录及个人 Microsoft 账户的选项；组织仍可能要求管理员批准。
-   本工具使用设备代码流程，“重定向 URI”留空即可，然后点击“注册”。
-8. 注册完成后进入这个应用的“概述”。复制“应用程序（客户端）ID”（形如 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx）。这是终端里要填的应用 ID。工作／学校邮箱还要记下对应的“目录（租户）ID”。不要复制“对象 ID”，也不要复制其他应用的 ID。
-9. 在这个应用的“身份验证 > 高级设置”（界面也可能显示为“设置／高级设置”）中，将“允许公共客户端流”设为“是”，点击“保存”。本工具不需要创建客户端密码或证书，不要在终端填邮箱密码或客户端密码。
-10. 打开“API 权限 > 添加权限 > 我的组织使用的 API”，搜索“Office 365 Exchange Online”，选择它，再选择“委托的权限”，展开 IMAP 并勾选“IMAP.AccessAsUser.All”，点击“添加权限”。不要选 Microsoft Graph 的 Mail.Read，也不要选应用程序权限或 IMAP.AccessAsApp。
-    随软件附带的工具会自动请求 https://outlook.office.com/IMAP.AccessAsUser.All offline_access，不需要你修改脚本或复制 PowerShell 代码。
-11. 若目录要求管理员同意，请管理员审查后批准。没有管理员按钮或不能点击时不要勉强；个人账号通常在后面的登录授权页同意。组织禁止该应用或设备代码流程时，需要管理员处理。
-
-D. 用随软件附带的工具取得访问令牌
-工具用途：向微软申请设备代码登录，显示官方网址和一次性代码；你在浏览器确认授权后，它把 access_token 复制到剪贴板。不显示令牌全文，不写入令牌文件，也不需要你在工具里输入邮箱密码。163、QQ 等不需要微软 OAuth2 的邮箱跳过本节。
-12. 回邮件小秘书，选 Outlook／Microsoft 365 预设及“OAuth2 访问令牌”。点击“如何获取授权码？”旁的“获取 OAuth2 Token”按钮。
-    Windows：按钮运行安装目录中的 Get-Outlook-Token.bat，它会调用旁边的 PowerShell 脚本；保持两个文件在一起，不用手动粘贴代码。
-    Mac：按钮打开随软件附带的 Get-Outlook-Token.command 和内置取令牌工具，不需要另装 PowerShell。
-13. 工具询问“应用程序（客户端）ID”时，粘贴第 8 步复制的 ID，按回车。不能填邮箱地址、租户 ID、普通密码或 AI API Key。
-14. 工具询问“租户”时：
-    - 个人 Outlook／Hotmail：直接回车，使用默认 consumers。
-    - 工作／学校邮箱：输入收邮件账号所在组织的目录（租户）ID，并确保该应用支持该组织。
-15. 浏览器打开工具显示的微软官方登录网址（通常是 https://microsoft.com/devicelogin ），输入本次工具显示的一次性代码；此代码不是邮箱密码，也不是访问令牌。登录要监听的邮箱，核对应用名称和权限，再同意。不要将别人发来的代码用于这一步。
-16. 保持终端窗口开启，等它显示“访问令牌已复制”。如果代码或登录超时，重新运行工具，从头取得新代码。
-
-E. 把令牌填回邮件小秘书并测试
-17. 邮箱地址：填写刚才授权的完整邮箱地址。
-    IMAP 服务器：outlook.office365.com
-    端口：993
-    加密：SSL/TLS
-    登录方式：OAuth2 访问令牌
-    凭据框：粘贴刚复制的 access_token。
-    “高级连接选项 > 登录用户名”通常留空，默认跟随邮箱地址；管理员有明确要求时再填写。
-18. 点击保存，再点击“测试邮箱连接”。成功后开始监听。首次检查只记录起点，之后的新邮件才生成报告；可以另发一封新邮件验证。
-19. 保存后复制一段普通文字覆盖剪贴板；不要把完整令牌贴到聊天、截图或教程中。
-20. 访问令牌会过期，常见默认有效期为 60～90 分钟，实际以微软返回值及组织策略为准。即使申请了 offline_access，当前工具也不会保存或使用刷新令牌；需要重新点击取令牌按钮、重新授权，并更新软件里的凭据。因此当前微软邮箱直连方式不适合希望长期无人值守的用户。
-
-F. 常见卡点（按错误处理，不要只反复重试）
-- AADSTS50020／Microsoft Services：回第 3～6 步检查目录及权限。你不能自行把账号加入微软拥有的 Microsoft Services 租户；换一个自己有权访问的目录。若错误发生在取令牌登录阶段，也检查第 7、14 步的账户类型和租户是否匹配。
-- AADSTS50058／“需要交互”：先点“重新登录”，主动选择账号。仍重复时检查浏览器会话、Cookie 或拦截扩展；必要时换一个已正常登录的浏览器。Safari 若临时关闭“防止跨站跟踪”排查，完成后恢复。这个操作无法解决 AADSTS50020 的目录权限问题。
-- 找不到应用 ID：打开你自己注册的那个应用的“概述”，找“应用程序（客户端）ID”；不是租户 ID、对象 ID，也不是网页错误里的门户应用 ID。
-- invalid_client／unauthorized_client：核对应用 ID、账户类型和“允许公共客户端流”，确认已保存。
-- consent_required／需要管理员批准／access_denied：检查委托权限及组织策略；请管理员审查，不要改用普通密码。
-- 取令牌成功但 IMAP 认证失败：核对邮箱是否已开 IMAP、令牌是否对应同一邮箱且尚未过期，以及申请的是 Exchange Online 的 IMAP scope，而不是 Microsoft Graph 的令牌。组织策略仍可能阻止登录。
-
-微软官方资料（界面及注册资格可能变化，以官网为准）：
-应用注册：https://learn.microsoft.com/entra/identity-platform/quickstart-register-app
-目录创建资格：https://learn.microsoft.com/entra/fundamentals/create-new-tenant
-Azure 免费账户：https://azure.microsoft.com/free/free-account-faq/
-IMAP OAuth：https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth
-设备代码流程：https://learn.microsoft.com/entra/identity-platform/v2-oauth2-device-code
-访问令牌有效期：https://learn.microsoft.com/entra/identity-platform/access-tokens
-Outlook IMAP 设置：https://support.microsoft.com/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040
+不要把 Microsoft Graph 或 Graph Explorer 的令牌粘贴到邮件小秘书；本软件的 Outlook 登录由浏览器授权完成。
 
 九、其他邮箱（最简单的顺序）
 1. 进这个邮箱服务商自己的官方网页版邮箱，登录。
 2. 在官网设置或官方帮助中找 IMAP／第三方客户端，开通 IMAP；没有入口就联系该邮箱客服或单位管理员。不同服务商菜单不同，没有统一的开通按钮。
-3. 按官网要求取得客户端授权码／应用专用密码；如果必须 OAuth2，请向管理员取得适用于该 IMAP 服务的 access_token。本软件没有通用 OAuth 登录或自动续期功能。
+3. 按官网要求取得应用专用密码或客户端授权码。如果服务商只提供 OAuth2，且软件没有对应的浏览器登录方式，目前无法连接。
 4. 回软件选“其他邮箱／自定义 IMAP”，填完整邮箱地址、官方提供的 IMAP 域名、端口、加密方式与登录凭据；“高级连接选项”按需填登录用户名和邮件文件夹。不要猜服务器名，也不要把 SMTP 发件服务器填到 IMAP 中。
 5. 保存好，点“测试邮箱连接”；成功后开始监听。官网要求 STARTTLS 就选 STARTTLS 并用官方端口，不要套用别家的 993。服务商只提供 POP3、要求本软件尚不支持的登录方式或禁止第三方客户端时，当前不能连接。
 
 十、连接不通先看这里
 域名／端口错误：回官网核对 IMAP，不要填网页 URL。
-认证失败：检查登录方式、完整账号、授权码是否撤销、OAuth 令牌是否过期。
+认证失败：检查完整邮箱地址、服务商要求的密码／应用专用密码或客户端授权码是否有效，并确认是否需要重新完成浏览器授权。
 组织策略拒绝：联系管理员；软件不能解除限制。
 测试成功但没有旧邮件报告：首次检查只记录已有邮件，之后的新邮件才生成报告。

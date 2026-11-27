@@ -2,3 +2,5 @@
 .codex/
 __pycache__/
 *.py[cod]
+
+windows/native/oauth-build.json

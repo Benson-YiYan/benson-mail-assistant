@@ -24,7 +24,7 @@ Los paquetes de una misma publicación pueden tener números de versión distint
 
 ## Primeros pasos
 
-1. **Conecta un buzón.** Elige un proveedor o IMAP personalizado. Activa IMAP en el proveedor e introduce la contraseña de aplicación, código de autorización o token OAuth2 requerido. La aplicación incluye una guía paso a paso.
+1. **Conecta un buzón.** Elige un preajuste o IMAP personalizado y activa IMAP con tu proveedor. Para Gmail y Outlook/Microsoft 365, pulsa el botón de inicio de sesión en el navegador y confirma en la página oficial; no tienes que registrar una aplicación OAuth ni introducir ID de cliente, secreto, inquilino o token. Otros proveedores pueden requerir contraseña de aplicación o código de autorización. La aplicación incluye una guía paso a paso. La autorización de Gmail en el navegador está configurada. La verificación de permisos de Google está pendiente; pueden aparecer avisos y aplicarse el límite actual de usuarios OAuth.
 2. **Elige la IA.** Configura URL base, clave y modelo de una API compatible con Chat Completions, o usa Codex / DeepSeek Harness ya instalados y configurados. Harness no se incluye ni se descarga. No se incluye un servicio de IA gratuito. El modo API no requiere Codex.
 3. **Elige la carpeta de informes e inicia la supervisión.** El intervalo predeterminado es de 60 segundos, ajustable entre 10 y 86400. Una comprobación sin novedades no llama a la IA.
 
@@ -85,7 +85,7 @@ Son mensajes de prueba sintéticos, no correo de usuarios reales.
 
 El servicio de IA elegido recibe el texto de los mensajes y el contenido legible de los adjuntos. Elige un servicio adecuado. Las credenciales usan la protección del sistema operativo; no publiques claves, tokens ni correo privado en incidencias. Probar la IA puede consumir saldo del proveedor. Los borradores deben revisarse antes de usarlos.
 
-Los tokens OAuth2 se introducen y renuevan manualmente. Las pruebas de Windows se realizan en un ejecutor de GitHub; Intel Mac se verifica mediante Rosetta, no en un Mac Intel físico.
+Gmail y Outlook/Microsoft 365 usan inicio de sesión OAuth en el navegador con renovación automática; no se introducen tokens ni datos de aplicaciones OAuth. Los permisos OAuth para IMAP pueden superar el acceso de solo lectura, aunque la aplicación abre las carpetas en modo de solo lectura. Las cuentas Microsoft de trabajo/escuela pueden requerir aprobación administrativa. Las pruebas de Windows se realizan en un ejecutor de GitHub; Intel Mac se verifica mediante Rosetta, no en un Mac Intel físico.
 
 ## Guías y desarrollo
 
@@ -94,7 +94,7 @@ Los tokens OAuth2 se introducen y renuevan manualmente. Las pruebas de Windows s
 | Windows | [Español](windows/README.es.md) / [English](windows/README.en.md) / [中文](windows/README.md) | [Compilación y pruebas](windows/docs/DEVELOPMENT.md) |
 | macOS | [Español](macos/README.es.md) / [English](macos/README.en.md) / [中文](macos/README.md) | [Compilación y pruebas](macos/docs/DEVELOPMENT.md) |
 
-Guías del correo: [Windows](windows/docs/Mail-account-setup-es.txt) y [Mac](macos/Resources/Mail-account-setup-es.txt), con instrucciones completas para cada proveedor, proxy y los 20 pasos OAuth2 de Microsoft.
+Guías del correo: [Windows](windows/docs/Mail-account-setup-es.txt) y [Mac](macos/Resources/Mail-account-setup-es.txt), con pasos por proveedor, configuración de proxy y permisos OAuth de Google y Microsoft.
 
 El código está en `windows/` y `macos/`. Código, documentación, paquetes de idioma e instaladores se mantienen en este repositorio: [Benson-YiYan/benson-mail-assistant](https://github.com/Benson-YiYan/benson-mail-assistant). Manifiesto estable: [`distribution/manifest.json`](distribution/manifest.json). Las publicaciones indican las versiones y el alcance de las verificaciones de cada paquete.
 

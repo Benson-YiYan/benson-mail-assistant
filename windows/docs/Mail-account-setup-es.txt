@@ -51,7 +51,7 @@ Inicio oficial: https://exmail.qq.com/ . Configuración oficial: https://hiflow.
 Correo web oficial: https://mail.google.com/ . Información OAuth de Google: https://developers.google.com/identity/protocols/oauth2/native-app .
 
 Asistente de correo electrónico ofrece inicio de sesión mediante navegador para Gmail. El usuario no crea una aplicación OAuth de Google ni introduce ID de cliente, secreto, inquilino o token de acceso.
-El proveedor del software configura la aplicación OAuth. Este repositorio aún no contiene un ID de aplicación Google registrado, por lo que la versión actual indica que el inicio en el navegador no está configurado.
+La autorización de Gmail en el navegador está configurada. La verificación de permisos de Google está pendiente; pueden aparecer avisos y aplicarse el límite actual de usuarios OAuth.
 1) Inicia sesión primero en Gmail desde la web y comprueba que la cuenta funciona. Activa IMAP si tu cuenta lo requiere.
 2) En Asistente de correo electrónico, elige el preajuste Gmail, introduce la dirección completa y pulsa **Iniciar sesión con Google**.
 3) El navegador abrirá la página oficial de inicio y consentimiento de Google. Inicia sesión, revisa el nombre de la aplicación, la cuenta y los permisos, y acepta solo si coinciden con lo esperado. La cuenta debe coincidir con la dirección escrita en la aplicación.

@@ -28,7 +28,14 @@ internal static class OAuthApplicationCredentials
             "outlook" => "1e9563b1-fc17-450d-8221-12eed69e1980",
             _ => "",
         };
-    internal static string ClientSecret(string provider) => "";
+    internal static string ClientSecret(string provider)
+    {
+        if (provider != "gmail") return "";
+        using var stream = typeof(OAuthApplicationCredentials).Assembly.GetManifestResourceStream("BensonMail.oauth-build.json");
+        if (stream is null) return "";
+        using var configuration = JsonDocument.Parse(stream);
+        return configuration.RootElement.GetProperty("google_client_secret").GetString() ?? "";
+    }
 }
 
 internal static class Program

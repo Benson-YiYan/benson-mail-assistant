@@ -55,7 +55,7 @@ Official sign-in: https://exmail.qq.com/ . Official client configuration: https:
 Official webmail: https://mail.google.com/ . Google OAuth information: https://developers.google.com/identity/protocols/oauth2/native-app .
 
 Email Assistant provides browser sign-in for Gmail. Users do not create a Google OAuth app or enter a client ID, client secret, tenant or access token.
-The software provider configures the OAuth app. This repository does not yet contain a registered Google app ID, so the current build says browser sign-in is not configured.
+Gmail browser authorization is configured. Google permission verification is pending; an unverified-app warning and the current OAuth user cap may apply.
 1) Sign in to Gmail on the web first and make sure the account works. Enable IMAP if your account requires it.
 2) In Email Assistant, choose the Gmail preset, enter the complete Gmail address and click **Sign in with Google**.
 3) The browser opens Google’s official sign-in and consent page. Sign in to the mailbox, review the app name, account and permissions, and approve only when they match your expectations. The signed-in account must match the address in the app.

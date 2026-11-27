@@ -47,6 +47,7 @@ swiftc -O -target "${TARGET_ARCH}-apple-macosx14.0" RuntimeSupport/SaveKeychainS
   -framework Security -o "$APP_BUNDLE/Contents/Resources/SaveKeychainSecret"
 codesign --force --sign - "$APP_BUNDLE/Contents/Resources/SaveKeychainSecret"
 cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
+python3 ../script/configure_oauth_build.py --macos "$APP_BUNDLE/Contents/Info.plist"
 if [[ ! -x "${PYTHON_RUN[${#PYTHON_RUN[@]}-1]}" ]]; then
   echo "Build environment missing for $TARGET_ARCH. Install requirements-build.txt in its packaging venv." >&2
   exit 1

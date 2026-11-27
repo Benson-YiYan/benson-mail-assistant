@@ -10,6 +10,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Icon generation failed' }
 foreach ($output in @('dist/native', 'dist/BensonMail')) {
     if (Test-Path $output) { Remove-Item -LiteralPath $output -Recurse -Force }
 }
+python ../script/configure_oauth_build.py --windows native/oauth-build.json
+if ($LASTEXITCODE -ne 0) { throw 'OAuth build configuration failed' }
 dotnet publish native/BensonMail.csproj -c Release -r win-x64 --self-contained false -o dist/native -p:Platform=x64 -p:WindowsAppSDKSelfContained=false
 if ($LASTEXITCODE -ne 0) { throw 'WinUI publish failed' }
 python -m PyInstaller --noconfirm --clean --onedir --console --hide-console hide-early --name MailWorker --icon assets/mail.ico --hidden-import win32timezone --hidden-import benson_mail.assistant_tools --hidden-import benson_mail.upstream_billing --hidden-import benson_mail.attachment_reader --hidden-import benson_mail.notification_policy --hidden-import benson_mail.oauth_client --collect-all pypdf --collect-all certifi --collect-all truststore --exclude-module tkinter --exclude-module _tkinter --exclude-module PIL --exclude-module pystray --exclude-module benson_mail.ui --exclude-module benson_mail.app_icon worker.py

@@ -10,6 +10,8 @@ permissions:
   contents: read
 jobs:
   windows:
+    env:
+      MAILASSISTANT_GOOGLE_CLIENT_SECRET: ${{ secrets.MAILASSISTANT_GOOGLE_CLIENT_SECRET }}
     runs-on: windows-2022
     timeout-minutes: 25
     defaults:

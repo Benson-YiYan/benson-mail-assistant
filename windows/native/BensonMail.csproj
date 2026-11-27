@@ -27,6 +27,7 @@
     <!-- Small label fallbacks keep newly added controls translated with older downloaded packs.
          Language selection and the account guides still use the user's installed packs. -->
     <EmbeddedResource Include="ui-en.json" />
+    <EmbeddedResource Include="oauth-build.json" Condition="Exists('oauth-build.json')" />
     <EmbeddedResource Include="ui-es.json" />
     <EmbeddedResource Include="ui-chinglish.json" />
     <!-- Scope the patch requirement to .NET; a global RuntimeFrameworkVersion
