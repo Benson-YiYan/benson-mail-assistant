@@ -1,6 +1,6 @@
 # 邮件小秘书 · Email Assistant
 
-[English](README.en.md) · [Español](README.es.md) · [下载安装包](https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest)
+[English](README.en.md) · [Español](README.es.md) · [下载安装包](https://github.com/Benson-YiYan/benson-mail-assistant/releases/latest) · [隐私政策](https://benson-yiyan.github.io/benson-mail-assistant/privacy.html)
 
 新邮件来了，自动整理成六项：**新邮件提醒、谁发的、说了啥、我要做什么、附件内容、怎么回复**。
 
