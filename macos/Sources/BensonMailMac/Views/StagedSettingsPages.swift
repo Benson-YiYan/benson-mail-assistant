@@ -6,6 +6,7 @@ private typealias StagedState<Value> = SwiftUI.State<Value>
 struct StagedSettingsPage: View {
     @StagedState private var showUsage = false
     @StagedState private var showHistory = false
+    @StagedState private var newMailbox: SettingsDraft?
     @ObservedObject var store: MailStore
     @ObservedObject var draft: SettingsDraft
     @ObservedObject private var language = AppLanguage.shared
@@ -33,6 +34,15 @@ struct StagedSettingsPage: View {
             }.padding(18)
         }.textFieldStyle(.roundedBorder).disabled(draft.saving)
         .sheet(isPresented: $showUsage) { UsageSettingsView(store: store) }
+        .sheet(isPresented: Binding(get: { newMailbox != nil }, set: { if !$0 { newMailbox = nil } })) {
+            if let isolated = newMailbox {
+            NewMailboxSheet(store: store, isolated: isolated) { row in
+                draft.accounts.append(row)
+                draft.selected = row.id
+                newMailbox = nil
+            }
+            }
+        }
     }
     private var mailbox: some View {
         Group {
@@ -41,7 +51,12 @@ struct StagedSettingsPage: View {
                     ForEach(draft.accounts) { account in Text(account.connection.account.isEmpty ? T("正在添加新邮箱") : account.connection.account).tag(account.id) }
                 }
                 HStack {
-                    Button(T("添加邮箱")) { draft.addAccount() }
+                    Button(T("添加邮箱")) {
+                        let isolated = SettingsDraft(store: store)
+                        isolated.accounts = []
+                        isolated.addAccount()
+                        newMailbox = isolated
+                    }
                     if let index = draft.accounts.firstIndex(where: { $0.id == draft.selected }) {
                         Button(T("移除此邮箱"), role: .destructive) { draft.accounts.remove(at: index); draft.selected = draft.accounts.first?.id ?? "" }
                     }
@@ -200,6 +215,47 @@ struct StagedSettingsPage: View {
                 Button(T("卸载邮件小秘书……"), role: .destructive) { if !store.isTest { ServiceInstaller.uninstall(base: store.base) } }
             }
         }
+    }
+}
+
+private struct NewMailboxSheet: View {
+    let store: MailStore
+    @ObservedObject var isolated: SettingsDraft
+    let confirm: (SettingsDraft.Account) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var error = ""
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(T("添加邮箱")).font(.title2)
+            ScrollView {
+                if !isolated.accounts.isEmpty {
+                    StagedAccountFields(account: $isolated.accounts[0]) {
+                        try await isolated.signInMailbox(id: isolated.accounts[0].id)
+                    }
+                }
+            }
+            if !error.isEmpty { Text(T(error)).foregroundStyle(.red) }
+            HStack {
+                Button(T("取消")) { dismiss() }
+                Spacer()
+                Button(T("添加邮箱")) {
+                    do {
+                        var row = isolated.accounts[0]
+                        guard let port = Int(row.port), let proxy = Int(row.proxyPort) else {
+                            throw MailCredentials.Failure("请输入有效的端口。")
+                        }
+                        row.connection.port = port
+                        row.connection.proxy_port = proxy
+                        row.connection = try row.connection.validated()
+                        guard !row.secret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                            throw MailCredentials.Failure("请填写密码、客户端授权码。")
+                        }
+                        try MailOAuthLogin.validateCredential(row.secret, connection: row.connection, previous: nil)
+                        confirm(row)
+                    } catch { self.error = error.localizedDescription }
+                }.buttonStyle(.borderedProminent)
+            }
+        }.padding(20).frame(width: 560, height: 600)
     }
 }
 

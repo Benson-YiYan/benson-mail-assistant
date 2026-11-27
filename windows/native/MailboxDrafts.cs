@@ -99,7 +99,12 @@ sealed partial class MainWindow
         }
         finally { loadingMailboxes = false; }
     }
-    Task AddMailboxDraft()
+    async Task AddMailboxDraft()
+    {
+        StoreMailboxDraft();
+        await Onboard(addingMailbox: true);
+    }
+    Task CreateMailboxDraft()
     {
         StoreMailboxDraft();
         mailboxDrafts.Add(new() { ["client_id"] = Guid.NewGuid().ToString("N"), ["account"] = "", ["host"] = "imap.163.com",

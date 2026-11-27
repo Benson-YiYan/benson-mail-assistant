@@ -1618,7 +1618,7 @@ sealed partial class MainWindow : Window
             if (testResult != null) { File.WriteAllText(testResult, JsonSerializer.Serialize(new { ok = false, error = e.ToString() })); await Exit(); }
         }
     }
-    async Task Onboard(bool testing = false)
+    async Task Onboard(bool testing = false, bool addingMailbox = false)
     {
         var address = new TextBox { FontFamily = MailTypography.Font, Header = L.T("邮箱地址"), Text = account.Text };
         var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = L.T("密码／客户端授权码") };
@@ -1748,8 +1748,8 @@ sealed partial class MainWindow : Window
         });
         UpdateFirstRunOAuth();
         var advanced = Stack(username, loginSummary, mailboxFolder, firstRunProxy.Panel); advanced.Visibility = Visibility.Collapsed;
-        var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T("欢迎使用邮件小秘书"),
-            PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T("稍后填写"),
+        var dialog = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot, Title = L.T(addingMailbox ? "添加邮箱" : "欢迎使用邮件小秘书"),
+            PrimaryButtonText = L.T("保存邮箱"), CloseButtonText = L.T(addingMailbox ? "取消" : "稍后填写"),
             Content = new ScrollViewer { MaxHeight = 400, Content = Stack(presetChoice, address, host, Row(port, encryption), firstRunOAuthModeChoice, secret,
                 CredentialHelp(FirstRunProviderId),
                 firstRunPermissionNote,
@@ -1760,7 +1760,15 @@ sealed partial class MainWindow : Window
         dialog.Closed += (_, _) => { firstRunDialogOpen = false; firstRunOAuthCancellation?.Cancel(); };
         async Task SaveOnboarding()
         {
-            if (mailboxDraftIndex < 0) await AddMailboxDraft();
+            if (!System.Net.Mail.MailAddress.TryCreate(address.Text.Trim(), out var parsedAddress) ||
+                parsedAddress.Address != address.Text.Trim())
+                throw new InvalidOperationException(L.T("请输入邮箱地址。"));
+            if (string.IsNullOrWhiteSpace(host.Text) || !int.TryParse(port.Text, out var parsedPort) ||
+                parsedPort < 1 || parsedPort > 65535)
+                throw new InvalidOperationException(L.T("请输入有效的 IMAP 端口。"));
+            if (firstRunUsesBrowserLogin ? firstRunManagedCredential.Length == 0 : secret.Password.Length == 0)
+                throw new InvalidOperationException(L.T("请填写密码、客户端授权码或 OAuth2 访问令牌。"));
+            if (addingMailbox || mailboxDraftIndex < 0) await CreateMailboxDraft();
             loadingMailboxes = true;
             try {
                 mailProvider.SelectedIndex = presetChoice.SelectedIndex;
@@ -1776,7 +1784,11 @@ sealed partial class MainWindow : Window
             }
             finally { loadingMailboxes = false; }
             UpdateOAuthControls();
-            await SaveMail();
+            if (addingMailbox) {
+                StoreMailboxDraft();
+                RenderMailboxDraftNames();
+                RefreshSettingsDirty();
+            } else await SaveMail();
             RefreshMailLogin(address, username, loginSummary);
         }
         dialog.PrimaryButtonClick += async (_, e) =>

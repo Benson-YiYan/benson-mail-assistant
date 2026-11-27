@@ -215,7 +215,7 @@ sealed partial class MainWindow
                   senderPolicySpamFolderEnabled.Contains("Spam"),
                 "Restoring the spam-folder checkbox clears the unsaved state");
         } else check(false, "Spam-folder checkbox is mounted beside the per-row Remove button");
-        if (mailboxDrafts.Count == 0) await AddMailboxDraft();
+        if (mailboxDrafts.Count == 0) await CreateMailboxDraft();
         var before = await bridge.Call("config");
         var configPath = System.IO.Path.Combine(fixture!, "config.json");
         var savedBytes = System.IO.File.ReadAllBytes(configPath);
@@ -256,7 +256,7 @@ sealed partial class MainWindow
         check(!SettingsDirty("mail") && pageDirtyLabels["mail"].Visibility == Visibility.Collapsed,
             "Queued native field-change events keep the freshly saved mailbox page clean");
         var savedCount = saved.GetProperty("mailboxes").GetArrayLength();
-        await AddMailboxDraft(); await RemoveMailboxDraftForFixture();
+        await CreateMailboxDraft(); await RemoveMailboxDraftForFixture();
         check((await bridge.Call("config")).GetProperty("mailboxes").GetArrayLength() == savedCount,
             "Mailbox list draft changes never invoke immediate select/add/remove/enable persistence");
         await LoadPageDraft("mail");
