@@ -22,7 +22,12 @@ internal static class OAuthApplicationCredentials
     // Assistant. They are intentionally supplied by the application build,
     // never requested from mailbox users.
     internal static string ClientId(string provider) =>
-        provider == "outlook" ? "1e9563b1-fc17-450d-8221-12eed69e1980" : "";
+        provider switch
+        {
+            "gmail" => "640358589822-03flkackm9gfur52kqvqoh9s70rudon1.apps.googleusercontent.com",
+            "outlook" => "1e9563b1-fc17-450d-8221-12eed69e1980",
+            _ => "",
+        };
     internal static string ClientSecret(string provider) => "";
 }
 

@@ -5,7 +5,7 @@
 	<key>BensonMailUpdateManifestURL</key>
 	<string>https://raw.githubusercontent.com/Benson-YiYan/benson-mail-assistant/main/distribution/manifest.json</string>
 	<key>BensonMailGoogleOAuthClientID</key>
-	<string></string>
+	<string>640358589822-03flkackm9gfur52kqvqoh9s70rudon1.apps.googleusercontent.com</string>
 	<key>BensonMailGoogleOAuthClientSecret</key>
 	<string></string>
 	<key>BensonMailMicrosoftOAuthClientID</key>
