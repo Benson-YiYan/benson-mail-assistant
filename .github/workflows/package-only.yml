@@ -1,0 +1,59 @@
+name: Package applications only
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      MAILASSISTANT_GOOGLE_CLIENT_SECRET: ${{ secrets.MAILASSISTANT_GOOGLE_CLIENT_SECRET }}
+    defaults:
+      run:
+        working-directory: macos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install packaging dependencies
+        run: |
+          python3 -m venv .package-venv
+          .package-venv/bin/python -m pip install --upgrade pip
+          .package-venv/bin/python -m pip install -r requirements-build.txt
+      - name: Build application
+        run: ./script/build_and_run.sh --build-only arm64
+      - name: Package DMG
+        run: python3 script/package_release.py dist dist/邮件小秘书.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BensonMail-Mac-arm64
+          path: macos/dist/BensonMail-Mac-*.dmg
+          if-no-files-found: error
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    env:
+      MAILASSISTANT_GOOGLE_CLIENT_SECRET: ${{ secrets.MAILASSISTANT_GOOGLE_CLIENT_SECRET }}
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          global-json-file: windows/global.json
+      - name: Install packaging dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Build installer
+        run: ./build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BensonMail-Windows-x64
+          path: windows/dist/BensonMail-Windows-x64-Setup-*.exe
+          if-no-files-found: error

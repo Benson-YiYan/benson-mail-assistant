@@ -287,6 +287,12 @@ def multi_summary(root, request):
             'original_mail': original,
         })
 
+    if WINDOWS:
+        from .gmail_policy import require_gmail_ai_consent
+    else:
+        from gmail_policy import require_gmail_ai_consent
+    require_gmail_ai_consent(config, *[item['original_mail'] for item in selected])
+
     from .core import analysis_prompt
     system_prompt = analysis_prompt(config.get('ui_language'), config.get('summary_prompt', ''))
     user_content = json.dumps({'selected_emails': selected}, ensure_ascii=False)
@@ -354,6 +360,11 @@ def multi_summary(root, request):
 def reply_draft(root, request):
     chat = _chat(); config = chat._config(root); report = chat._report(root, request['path'], config)
     original = chat._mail_context(root, report, config, require_original=True)['original_mail']
+    if WINDOWS:
+        from .gmail_policy import require_gmail_ai_consent
+    else:
+        from gmail_policy import require_gmail_ai_consent
+    require_gmail_ai_consent(config, original)
     tone = request.get('tone', 'formal')
     if tone not in ('formal', 'friendly', 'brief'): raise ValueError('Choose formal, friendly or brief.')
     language = request.get('language', 'auto')
@@ -519,40 +530,45 @@ def _reply_send_locked(root, request, controller, path, chat):
     # reads the already saved account credential directly from Keychain.
     connection, secret = _selected_mailbox(root, config, mailbox_id_value, controller)
     oauth2 = connection.get('mail_auth', 'password') == 'oauth2'
+    gmail_api_send = oauth2 and connection.get('mail_provider') == 'gmail'
     if oauth2:
         mail_provider = connection.get('mail_provider')
         if mail_provider not in ('gmail', 'outlook'):
-            raise ValueError('This OAuth2 token is not configured for SMTP sending. Use a provider app password or mail app.')
+            raise ValueError('This OAuth2 token is not configured for sending. Use a provider app password or mail app.')
         from .oauth_client import access_token
         if connection.get('oauth_mode') == 'managed':
             from .mailbox_config import managed_oauth_token
             try:
                 secret = managed_oauth_token(connection, secret, force_refresh=True)
             except Exception as error:
-                raise ValueError('无法取得 SMTP 发信授权，请重新进行浏览器登录并确认发信权限。' + str(error)) from None
+                raise ValueError('无法取得邮箱发信授权，请重新进行浏览器登录并确认发信权限。' + str(error)) from None
         else:
             secret, _ = access_token(secret, {
                 'provider': 'google' if mail_provider == 'gmail' else 'microsoft',
                 'client_id': connection.get('oauth_client_id', ''),
                 'tenant': connection.get('oauth_tenant', 'common'),
                 'email': connection.get('account', ''),
+                'proxy_mode': connection.get('proxy_mode', 'direct'),
+                'proxy_host': connection.get('proxy_host', ''),
+                'proxy_port': connection.get('proxy_port', 10808),
             })
-    server, port, security = smtp_endpoint(connection)
-    if WINDOWS:
-        from .mailbox_config import resolve_proxy
-        from .ai_api import tls_context
-        context = tls_context()
-    else:
-        from mailbox_config import resolve_proxy
-        context = ssl.create_default_context()
-    proxy = resolve_proxy(connection)
-    SMTP, SMTP_SSL = _proxy_smtp_classes(proxy, context)
-    message = EmailMessage()
-    message['From'] = connection.get('account', '')
-    message['To'] = recipient
-    message['Subject'] = request['subject']
-    message['Auto-Submitted'] = 'auto-generated'
-    message.set_content(request['draft'])
+    if not gmail_api_send:
+        server, port, security = smtp_endpoint(connection)
+        if WINDOWS:
+            from .mailbox_config import resolve_proxy
+            from .ai_api import tls_context
+            context = tls_context()
+        else:
+            from mailbox_config import resolve_proxy
+            context = ssl.create_default_context()
+        proxy = resolve_proxy(connection)
+        SMTP, SMTP_SSL = _proxy_smtp_classes(proxy, context)
+        message = EmailMessage()
+        message['From'] = connection.get('account', '')
+        message['To'] = recipient
+        message['Subject'] = request['subject']
+        message['Auto-Submitted'] = 'auto-generated'
+        message.set_content(request['draft'])
     existing_draft['draft'] = request['draft']
     existing_draft['recipient'] = recipient
     existing_draft['subject'] = request['subject']
@@ -561,7 +577,20 @@ def _reply_send_locked(root, request, controller, path, chat):
     chat._atomic(path, json.dumps(existing_draft, ensure_ascii=False))
     submitting = False
     try:
-        if security == 'ssl':
+        if gmail_api_send:
+            if WINDOWS:
+                from .gmail_api import send_message
+                from .mailbox_config import resolve_proxy
+                from .ai_api import tls_context
+                api_context = tls_context()
+            else:
+                from gmail_api import send_message
+                from mailbox_config import resolve_proxy
+                api_context = ssl.create_default_context()
+            submitting = True
+            send_message(secret, connection.get('account', ''), recipient, request['subject'], request['draft'],
+                         proxy=resolve_proxy(connection), context=api_context)
+        elif security == 'ssl':
             with SMTP_SSL(server, port, timeout=30, context=context) as client:
                 _smtp_auth(client, connection, secret, oauth2)
                 submitting = True
@@ -577,7 +606,9 @@ def _reply_send_locked(root, request, controller, path, chat):
     except Exception as error:
         # Do not surface server text: a provider could echo addresses, body text,
         # or credential material in a diagnostic response.
-        if isinstance(error, smtplib.SMTPAuthenticationError):
+        if gmail_api_send:
+            detail = 'Gmail API send failed. Check Google authorization, Gmail API access, network and proxy settings. [GMAIL_API_SEND]'
+        elif isinstance(error, smtplib.SMTPAuthenticationError):
             detail = 'SMTP authentication failed. Check the mailbox password/app password and whether SMTP is enabled. [SMTP_AUTH]'
         elif isinstance(error, (TimeoutError, socket.timeout)):
             detail = 'SMTP operation timed out. The provider may have accepted the message; check Sent mail before retrying. [SMTP_TIMEOUT]'
@@ -591,7 +622,10 @@ def _reply_send_locked(root, request, controller, path, chat):
             detail = 'SMTP send failed. Check SMTP availability, network and proxy settings. [SMTP_CONNECTION]'
         else:
             detail = 'SMTP send failed because of an unexpected error. [SMTP_UNEXPECTED]'
-        if submitting and not isinstance(error, (smtplib.SMTPRecipientsRefused, smtplib.SMTPDataError)):
+        rejected_before_acceptance = isinstance(error, (smtplib.SMTPRecipientsRefused, smtplib.SMTPDataError))
+        if gmail_api_send and isinstance(getattr(error, 'status', None), int) and 400 <= error.status < 500:
+            rejected_before_acceptance = True
+        if submitting and not rejected_before_acceptance:
             existing_draft['send_state'] = 'unknown'
             existing_draft['send_error'] = 'submission_result_uncertain'
         else:

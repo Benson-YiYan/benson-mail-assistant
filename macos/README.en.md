@@ -13,12 +13,12 @@ The app is not Developer ID-signed or Apple-notarized. Check the file's source i
 
 ## First setup
 
-1. Choose an email provider or Other email (custom IMAP), enter the address and enable IMAP. For Gmail and Outlook/Microsoft 365, click the browser sign-in button and approve on the provider’s official page; users do not register OAuth apps or enter client IDs, secrets, tenants or tokens. Other providers may require an app password or authorization code. Custom providers also need the host, port and encryption. Use the bundled setup guide, then save and test.
+1. Choose an email provider or Other email (custom IMAP), then enter the address. Gmail uses browser sign-in with the Gmail API: reading is read-only and sending happens only after you review and explicitly confirm. Automatic summaries, email questions and reply drafts send this Gmail account's message bodies and readable attachment text to your selected AI; enable consent separately for each Gmail account in mailbox settings. Other providers may require an app password or authorization code. Custom providers also need the host, port and encryption. Save and test.
 2. In AI service, choose an API, Codex or DeepSeek Harness, save and test it.
 3. In General settings, use Browse to select the report folder, then start monitoring.
 
 API mode needs a Chat Completions-compatible base URL, API key and model name. Codex needs an existing signed-in installation with a working command-line component. Harness needs an existing configured installation supporting `headless --json`; it is not bundled or downloaded. AI connection tests send a small message and may incur provider charges.
-Presets include 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud and Yahoo. Gmail and Outlook/Microsoft 365 use browser OAuth sign-in with automatic renewal; users do not enter OAuth app details or access tokens. IMAP OAuth permissions can be broader than read-only, although the app opens folders in read-only mode. Microsoft work/school policies may restrict access. Gmail browser authorization is configured. Google permission verification is pending; an unverified-app warning and the current OAuth user cap may apply.
+Presets include 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud and Yahoo. Gmail uses browser OAuth with the Gmail API; Outlook/Microsoft 365 uses browser OAuth with IMAP. Microsoft IMAP OAuth permissions can be broader than read-only, although the app opens folders in read-only mode. Work/school policies may restrict access.
 
 ## Navigation
 

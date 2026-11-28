@@ -268,8 +268,10 @@ sealed partial class MainWindow : Window
     readonly TextBox oauthTenant = new() { Visibility = Visibility.Collapsed };
     readonly ComboBox oauthModeChoice = new() { Header = L.T("登录方式"), HorizontalAlignment = HorizontalAlignment.Stretch };
     Button oauthLoginButton = null!;
-    readonly TextBlock oauthPermissionNote = new() { Text = L.T("软件只以只读方式打开 IMAP 文件夹；但 IMAP OAuth 授权范围可能允许修改邮件，不等于严格只读。"), TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .75 };
+    readonly TextBlock oauthPermissionNote = new() { Text = L.T("Gmail 浏览器登录使用 Gmail API 只读读取邮件，并在你确认后通过 Gmail API 发信；Outlook 浏览器登录使用 IMAP 收信和 SMTP 发信。"), TextWrapping = TextWrapping.Wrap, FontSize = 12, Opacity = .75 };
     readonly TextBlock oauthConfigurationNotice = Note(L.T("浏览器登录功能暂未配置，请稍后再试。"));
+    readonly ToggleSwitch gmailAiConsent = new() { Header = L.T("允许将 Gmail 邮件内容发送给已配置的 AI"), OnContent = L.T("允许"), OffContent = L.T("不允许") };
+    readonly TextBlock gmailAiConsentNote = Note(L.T("开启后，自动总结和你主动使用的邮件问答、回复草稿会把正文及可读取的附件文字发送给你配置的 AI；可随时关闭，关闭后停止后续发送。"));
     readonly TextBox mailUsername = new() { Header = L.T("登录用户名（可选）"), PlaceholderText = L.T("留空使用邮箱地址") };
     readonly TextBlock mailLoginSummary = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Visibility = Visibility.Collapsed };
     readonly MailProxyControls mailProxy = new();
@@ -651,9 +653,9 @@ sealed partial class MainWindow : Window
             DiagnosticsCard(),
             Card(Stack(Heading(L.T("邮箱连接")), mailProvider, account, mailHost,
                 oauthModeChoice, mailSecret, CredentialHelp(SelectedMainProviderId),
-                oauthPermissionNote, oauthConfigurationNotice, oauthLoginButton,
+                oauthPermissionNote, oauthConfigurationNotice, oauthLoginButton, gmailAiConsent, gmailAiConsentNote,
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
-                Note(L.T("请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。")))),
+                Note(L.T("Gmail 浏览器登录无需开启 IMAP；Outlook／Microsoft 365 浏览器登录需要开启 IMAP。其他邮箱按服务商要求使用密码或客户端授权码。")))),
             Card(Stack(Heading(L.T("检查频率")), interval, Action(L.T("打开运行记录"), ShowRuntimeLog)))),
             SettingsSaveBar("mail", mailSaveButton, Action(L.T("测试邮箱连接"), () => TestSavedSettings("mail")))));
         aiPage.Children.Add(SettingsPage(Stack(Card(Stack(Heading(L.T("选择您喜欢的 AI")), provider, apiBase, model, apiKey, harnessPath,
@@ -920,6 +922,8 @@ sealed partial class MainWindow : Window
         mailSecret.Visibility = !supportsOAuth || !managed ? Visibility.Visible : Visibility.Collapsed;
         mailSecret.Header = supportsOAuth && !managed ? L.T("OAuth2 访问令牌") : L.T("应用专用密码/授权码（不是登录密码）");
         oauthPermissionNote.Visibility = managed ? Visibility.Visible : Visibility.Collapsed;
+        gmailAiConsent.Visibility = providerId == "gmail" ? Visibility.Visible : Visibility.Collapsed;
+        gmailAiConsentNote.Visibility = providerId == "gmail" ? Visibility.Visible : Visibility.Collapsed;
         var clientConfigured = !string.IsNullOrWhiteSpace(MainOAuthBinding().ClientId);
         oauthConfigurationNotice.Visibility = managed && !clientConfigured ? Visibility.Visible : Visibility.Collapsed;
         if (oauthLoginButton is not null) {
@@ -1630,7 +1634,7 @@ sealed partial class MainWindow : Window
         var address = new TextBox { FontFamily = MailTypography.Font, Header = L.T("邮箱地址"), Text = account.Text };
         var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = L.T("应用专用密码/授权码（不是登录密码）") };
         var presetChoice = new ComboBox { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };
-        var firstRunPermissionNote = Note(L.T("软件只以只读方式打开 IMAP 文件夹；但 IMAP OAuth 授权范围可能允许修改邮件，不等于严格只读。"));
+        var firstRunPermissionNote = Note(L.T("Gmail 浏览器登录使用 Gmail API 只读读取邮件，并在你确认后通过 Gmail API 发信；Outlook 浏览器登录使用 IMAP 收信和 SMTP 发信。"));
         var firstRunConfigurationNotice = Note(L.T("浏览器登录功能暂未配置，请稍后再试。"));
         var firstRunProxy = new MailProxyControls(); firstRunProxy.CopyFrom(mailProxy);
         var firstRunUsesBrowserLogin = true;
@@ -1763,7 +1767,7 @@ sealed partial class MainWindow : Window
                 firstRunOAuthLogin,
                 Action(L.T("高级连接与代理选项"), () => { advanced.Visibility = advanced.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return Task.CompletedTask; }), advanced,
                 firstRunConfigurationNotice,
-                Note(L.T("请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。")), error) } };
+                Note(L.T("Gmail 浏览器登录无需开启 IMAP；Outlook／Microsoft 365 浏览器登录需要开启 IMAP。其他邮箱按服务商要求使用密码或客户端授权码。")), error) } };
         dialog.Closed += (_, _) => { firstRunDialogOpen = false; firstRunOAuthCancellation?.Cancel(); };
         async Task SaveOnboarding()
         {

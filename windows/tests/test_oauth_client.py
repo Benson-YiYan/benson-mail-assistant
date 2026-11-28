@@ -26,11 +26,14 @@ class OAuthClientTests(unittest.TestCase):
         )
         self.assertEqual(challenge, expected)
 
-    def test_imap_scopes_are_provider_specific(self):
+    def test_google_api_and_outlook_imap_scopes_are_provider_specific(self):
         google = oauth_client._provider_config("google")
         microsoft = oauth_client._provider_config("microsoft", "consumers")
-        self.assertIn("https://mail.google.com/", google["scope"])
-        self.assertEqual(google["required_scope"], "https://mail.google.com/")
+        self.assertIn(oauth_client.GOOGLE_READ_SCOPE, google["scope"])
+        self.assertIn(oauth_client.GOOGLE_SEND_SCOPE, google["scope"])
+        self.assertNotIn("https://mail.google.com/", google["scope"])
+        self.assertEqual(google["required_scope"], oauth_client.GOOGLE_READ_SCOPE)
+        self.assertEqual(google["required_scopes"], oauth_client.GOOGLE_REQUIRED_SCOPES)
         self.assertIn("https://outlook.office.com/IMAP.AccessAsUser.All", microsoft["scope"])
         self.assertIn("https://outlook.office.com/SMTP.Send", microsoft["scope"])
         self.assertIn("offline_access", microsoft["scope"])

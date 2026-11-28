@@ -17,7 +17,7 @@ Proxy connections (for example, Gmail from mainland China)
 3) Try System proxy to read the actual system/environment proxy. An unavailable system proxy produces an error; it never silently switches to Direct.
 4) Alternatively choose HTTP proxy or SOCKS5 proxy to match your proxy app. The host is usually 127.0.0.1. Check the actual local listening port in your proxy app; do not copy an example blindly. 10808 is only a common example.
 5) Save email settings, then Test email connection, and resume monitoring after success. Each account has separate proxy settings. A custom proxy does not require TUN mode.
-6) This feature proxies IMAP email connections only; it does not change AI API networking. PAC scripts and proxies requiring a username/password are not supported. Proxy failure produces an error instead of falling back to a direct connection.
+6) Mailbox proxy settings apply to Gmail API, OAuth requests, and other providers’ IMAP/SMTP connections; they do not change AI API networking. PAC scripts and proxies requiring a username/password are not supported. Proxy failure produces an error instead of falling back to a direct connection.
 
 
 Languages and language packs
@@ -56,13 +56,15 @@ Official webmail: https://mail.google.com/ . Google OAuth information: https://d
 
 Email Assistant provides browser sign-in for Gmail. Users do not create a Google OAuth app or enter a client ID, client secret, tenant or access token.
 Gmail browser authorization is configured. Google permission verification is pending; an unverified-app warning and the current OAuth user cap may apply.
-1) Sign in to Gmail on the web first and make sure the account works. Enable IMAP if your account requires it.
+1) Sign in to Gmail on the web first and make sure the account works. Gmail browser sign-in does not require IMAP.
 2) In Email Assistant, choose the Gmail preset, enter the complete Gmail address and click **Sign in with Google**.
 3) The browser opens Google’s official sign-in and consent page. Sign in to the mailbox, review the app name, account and permissions, and approve only when they match your expectations. The signed-in account must match the address in the app.
-4) Gmail IMAP uses `https://mail.google.com/`. This scope is broader than strict read-only access, although Email Assistant only performs read operations and does not automatically send, modify or delete mail.
+4) Gmail browser authorization uses the Gmail API: `gmail.readonly` reads mail, and `gmail.send` sends replies only after you confirm. The app does not request full mailbox access for permanent deletion. Google OAuth permission verification is still pending; public use may still show Google warnings or be subject to a user cap.
 5) Return to Email Assistant, click **Save email settings**, then **Test email connection**. Credentials are stored in the macOS Keychain or Windows protected credential storage and renewed when needed.
 
-If Google shows an unverified-app warning or unexpected permissions, do not approve immediately; check the app name, account and scope. Revoked consent, Google policy changes or organization restrictions may require sign-in again.
+Automatic summaries, email questions and reply drafts send message bodies and readable attachment text to your configured AI service. Before using Gmail with AI features, explicitly enable “Allow this Gmail content to be used in AI features” in mailbox settings. Turning it off blocks future Gmail content from being sent to AI.
+
+If Google shows an unverified-app warning or unexpected permissions, do not approve immediately; check the app name, account and permissions. Revoked consent, Google policy changes or organization restrictions may require sign-in again.
 
 6. iCloud Mail
 Official webmail: https://www.icloud.com/mail/ . App-password help: https://support.apple.com/102654 . Server settings: https://support.apple.com/102525 .

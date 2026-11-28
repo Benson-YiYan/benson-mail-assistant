@@ -113,6 +113,7 @@ try:
             metadata = spam_metadata(msg, fetched[0].decode('utf-8', errors='replace'),
                                      connection.get('mail_folder', 'INBOX'), connection.get('spam_folders'))
             messages.append({**metadata, 'uidvalidity': validity, 'uid': uid, 'mailbox_key': identity, 'mailbox_account': connection['account'],
+                'mail_provider': connection.get('mail_provider', ''),
                 'read_all_mail': bool(connection.get('read_all_mail')), 'historical': uid in set(state.get('historical_pending', [])),
                 'apply_mail_policy': bool(state.get('historical_apply_policy', {}).get(str(uid), False)),
                 'message_id': str(msg.get('Message-ID', '') or '').strip()[:1000],

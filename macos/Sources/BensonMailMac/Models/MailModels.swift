@@ -96,6 +96,8 @@ struct ServiceStatus: Decodable {
     var heartbeat: String?
     var error: String?
     var current_subject: String?
+    var consent_required: Bool?
+    var consent_account: String?
     var pending: [Int]?
 }
 
@@ -116,7 +118,8 @@ struct MailSettings: Codable {
     var quiet_hours = QuietHours()
     var chat_enter_to_send = false
     var summary_prompt = ""
-    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, codex_path, harness_path, mailbox, mailboxes, mail_policy, notifications_enabled, quiet_hours, chat_enter_to_send, summary_prompt }
+    var active_mailbox_id: String? = nil
+    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, codex_path, harness_path, mailbox, mailboxes, mail_policy, notifications_enabled, quiet_hours, chat_enter_to_send, summary_prompt, active_mailbox_id }
     init() {}
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -136,6 +139,7 @@ struct MailSettings: Codable {
         quiet_hours = try values.decodeIfPresent(QuietHours.self, forKey: .quiet_hours) ?? QuietHours()
         chat_enter_to_send = try values.decodeIfPresent(Bool.self, forKey: .chat_enter_to_send) ?? false
         summary_prompt = try values.decodeIfPresent(String.self, forKey: .summary_prompt) ?? ""
+        active_mailbox_id = try values.decodeIfPresent(String.self, forKey: .active_mailbox_id)
     }
 }
 

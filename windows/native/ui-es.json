@@ -102,7 +102,6 @@
     "使用 Google 登录": "Iniciar sesión con Google",
     "使用 Microsoft 登录": "Iniciar sesión con Microsoft",
     "使用 OAuth 登录": "Iniciar sesión con OAuth",
-    "软件只以只读方式打开 IMAP 文件夹；但 IMAP OAuth 授权范围可能允许修改邮件，不等于严格只读。": "La aplicación abre las carpetas IMAP en modo de solo lectura, pero el permiso OAuth de IMAP puede permitir modificar el correo; no es estrictamente de solo lectura.",
     "请选择 Gmail 或 Outlook / Microsoft 365。": "Elige Gmail o Outlook / Microsoft 365.",
     "请输入邮箱地址。": "Introduce una dirección de correo.",
     "OAuth 登录返回的邮箱与所填地址不一致；没有保存凭据。": "El correo devuelto por OAuth no coincide con la dirección indicada. No se guardaron las credenciales.",
@@ -116,7 +115,7 @@
     "无法启动或读取 OAuth 登录工具，请重新安装完整应用。": "No se pudo iniciar ni leer la herramienta de inicio de sesión OAuth. Reinstala la aplicación completa.",
     "等待浏览器授权…": "Esperando la autorización en el navegador…",
     "请先选择或添加邮箱。": "Primero selecciona o añade un buzón.",
-    "请启用邮箱的 IMAP 服务。Gmail 和 Outlook 支持浏览器登录；也可按服务商要求填写访问令牌、授权码或应用专用密码。": "Activa IMAP para tu buzón. Gmail y Outlook admiten el inicio de sesión en el navegador; también puedes introducir el token, código de autorización o contraseña de aplicación que requiera tu proveedor.",
+    "请启用邮箱的 IMAP 服务。Gmail 和 Outlook 支持浏览器登录；也可按服务商要求填写访问令牌、授权码或应用专用密码。": "Activa IMAP para Outlook y otros proveedores IMAP. Gmail usa el inicio de sesión en el navegador sin IMAP. Para otros proveedores, introduce las credenciales que requieran.",
     "请启用 IMAP，并按服务商要求填写客户端授权码或应用专用密码。所有预设都可修改服务器和端口。": "Activa IMAP y utiliza una contraseña de aplicación si tu proveedor la requiere. Puedes editar el servidor y el puerto de cualquier preajuste.",
     "请填写已获得的 OAuth2 访问令牌；过期后需手动更新。本版不自动进行 OAuth 登录或续期。": "Introduce un token de acceso OAuth2 existente y actualízalo manualmente cuando caduque. No se admiten el inicio de sesión ni la renovación automáticos de OAuth.",
     "启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 可手动填写访问令牌，也可使用上方浏览器授权。": "Activa IMAP e introduce el código de autorización o la contraseña de aplicación que requiera tu proveedor. Para OAuth2, introduce un token manualmente o usa el inicio de sesión del navegador de arriba.",
@@ -284,7 +283,7 @@
     "停止此邮箱监听并移出列表，已生成的报告保留。": "Detener la supervisión y quitar esta cuenta de la lista. Se conservarán los informes generados.",
     "可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。": "Supervisa varias cuentas a la vez. La IA, la carpeta de informes y el intervalo se comparten. Pausa toda la supervisión antes de editar conexiones.",
     "邮箱连接": "Conexión del correo",
-    "请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。": "Activa IMAP y utiliza la contraseña de aplicación que requiera tu proveedor. Gmail y Outlook usan inicio de sesión en el navegador.",
+    "请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。": "Activa IMAP para Outlook y otros proveedores IMAP; Gmail usa el inicio en el navegador sin IMAP. Usa la contraseña de aplicación que requieran otros proveedores.",
     "报告与后台运行": "Informes y supervisión en segundo plano",
     "请填写整数秒数。": "Introduce un número entero de segundos.",
     "选择您喜欢的 AI": "Elige tu IA",
@@ -1098,7 +1097,12 @@
     "手动访问令牌": "Token de acceso manual",
     "浏览器登录功能暂未配置，请稍后再试。": "El inicio de sesión en el navegador aún no está configurado. Inténtalo más tarde.",
     "请启用 IMAP，并按服务商要求填写客户端授权码或应用专用密码。": "Activa IMAP e introduce la contraseña de aplicación o el código de autorización que requiera tu proveedor. Gmail y Outlook usan el navegador.",
-    "请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。": "Activa IMAP para tu buzón. Gmail y Outlook solo usan el inicio de sesión en el navegador; otros proveedores pueden requerir una contraseña o contraseña de aplicación."
+    "Gmail 浏览器登录使用 Gmail API 只读读取邮件，并在你确认后通过 Gmail API 发信；Outlook 浏览器登录使用 IMAP 收信和 SMTP 发信。": "El inicio de sesión de Gmail en el navegador usa la API de Gmail para leer correo y, tras tu confirmación, enviar mensajes. El inicio de sesión de Outlook usa IMAP para recibir y SMTP para enviar.",
+    "Gmail 浏览器登录无需开启 IMAP；Outlook／Microsoft 365 浏览器登录需要开启 IMAP。其他邮箱按服务商要求使用密码或客户端授权码。": "El inicio de sesión de Gmail en el navegador no requiere IMAP. Outlook / Microsoft 365 sí requiere IMAP. Para otros proveedores, usa la contraseña o contraseña de aplicación que exijan.",
+    "允许在 AI 功能中使用此 Gmail 邮件内容": "Permitir el uso de este contenido de Gmail en funciones de IA",
+    "开启后，自动总结和你主动使用的邮件问答、回复草稿会把正文及可读取的附件文字发送给你配置的 AI；可随时关闭，关闭后停止后续发送。": "Al activarlo, los resúmenes automáticos, las preguntas sobre correo, los informes regenerados y los borradores de respuesta envían a tu servicio de IA configurado el cuerpo del mensaje y el texto legible de los adjuntos. Puedes desactivarlo cuando quieras para detener los envíos posteriores.",
+    "允许": "Permitir",
+    "不允许": "No permitir"
   },
   "templates": [
     {

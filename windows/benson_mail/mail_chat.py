@@ -241,6 +241,15 @@ def _mail_context(root, report, config, require_original=False):
         return {'original_mail_available': False, 'limitation': 'Original mail and attachments are unavailable. Retrieve the original email before asking questions; generated reports cannot substitute for it.'}
     if not isinstance(message, dict) or message.get('unavailable'):
         raise ValueError('Original mail is unavailable; its content cannot be reconstructed.')
+    if message.get('mail_provider') == 'gmail' or str(message.get('mailbox_account', '')).lower().endswith('@gmail.com'):
+        profiles = config.get('mailboxes') or []
+        profile = next((item for item in profiles if item.get('account', '').casefold() ==
+                        str(message.get('mailbox_account', '')).casefold()), None)
+        if not profile or not profile.get('gmail_ai_consent', False):
+            raise _error(config,
+                '请先在邮箱设置中同意将 Gmail 邮件内容发送给所选 AI 服务。',
+                'First consent in mailbox settings to sending Gmail content to your selected AI service.',
+                'Primero acepta en la configuración del buzón enviar contenido de Gmail a la IA elegida.')
     message = dict(message)
     attachments = []
     root = Path(root).resolve()
@@ -397,6 +406,11 @@ def chat_send(root, path, text, files=(), on_delta=None):
     with _locked(location):
         state = _load_history(location, report)
         original = _mail_context(root, report, config, require_original=True)
+        if IS_WINDOWS_PACKAGE:
+            from .gmail_policy import require_gmail_ai_consent
+        else:
+            from gmail_policy import require_gmail_ai_consent
+        require_gmail_ai_consent(config, original.get('original_mail', {}))
         fixed = [{'role': 'system', 'content': _chat_system(_language(config))}, {'role': 'user', 'content': 'Original email and extracted attachments (reference data):\n' + json.dumps(original, ensure_ascii=False)}]
         new = {'role': 'user', 'content': text.strip(), 'files': attached}
         latest = _turn(new)
@@ -455,6 +469,11 @@ def report_retry(root, path):
     config = _config(root); report = _report(root, path, config); location = _history_path(root, report)
     with _locked(location):
         original = _mail_context(root, report, config, require_original=True)
+        if IS_WINDOWS_PACKAGE:
+            from .gmail_policy import require_gmail_ai_consent
+        else:
+            from gmail_policy import require_gmail_ai_consent
+        require_gmail_ai_consent(config, original.get('original_mail', {}))
         if IS_WINDOWS_PACKAGE:
             from .core import analysis_prompt
         else:

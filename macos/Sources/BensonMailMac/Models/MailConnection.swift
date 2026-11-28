@@ -6,6 +6,13 @@ struct MailboxProfile: Codable, Equatable, Identifiable {
     var connection: MailConnection
     var enabled = true
     var id: String { connection.identity }
+    init(connection: MailConnection, enabled: Bool = true) { self.connection = connection; self.enabled = enabled }
+    enum CodingKeys: String, CodingKey { case connection, enabled }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        connection = try values.decode(MailConnection.self, forKey: .connection)
+        enabled = try values.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+    }
 }
 
 struct MailPreset: Decodable, Identifiable {
@@ -37,6 +44,7 @@ struct MailConnection: Codable, Equatable {
     var oauth_mode = "managed"
     var oauth_client_id = ""
     var oauth_tenant = "common"
+    var gmail_ai_consent = false
     var secret_service = "Codex-Mail-163"
     var secret_account = ""
     var proxy_mode = "direct"
@@ -46,7 +54,7 @@ struct MailConnection: Codable, Equatable {
     init() {}
     enum CodingKeys: String, CodingKey {
         case mail_provider, account, username, host, port, security, mail_folder, read_all_mail, mail_auth
-        case oauth_mode, oauth_client_id, oauth_tenant
+        case oauth_mode, oauth_client_id, oauth_tenant, gmail_ai_consent
         case secret_service, secret_account, proxy_mode, proxy_host, proxy_port
     }
     init(from decoder: Decoder) throws {
@@ -63,6 +71,7 @@ struct MailConnection: Codable, Equatable {
         oauth_mode = try values.decodeIfPresent(String.self, forKey: .oauth_mode) ?? "manual"
         oauth_client_id = try values.decodeIfPresent(String.self, forKey: .oauth_client_id) ?? ""
         oauth_tenant = try values.decodeIfPresent(String.self, forKey: .oauth_tenant) ?? "common"
+        gmail_ai_consent = try values.decodeIfPresent(Bool.self, forKey: .gmail_ai_consent) ?? false
         secret_service = try values.decodeIfPresent(String.self, forKey: .secret_service) ?? "Codex-Mail-163"
         secret_account = try values.decodeIfPresent(String.self, forKey: .secret_account) ?? ""
         proxy_mode = try values.decodeIfPresent(String.self, forKey: .proxy_mode) ?? "direct"

@@ -41,7 +41,8 @@ import CryptoKit
     private func fingerprint(_ page: WorkspacePage) -> Data {
         let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
         switch page {
-        case .mailbox: return (try? encoder.encode(accounts)) ?? Data()
+        case .mailbox:
+            return (try? encoder.encode(accounts)) ?? Data()
         case .ai: return Data([value.ai_provider, value.api_base, value.api_model, value.harness_path, value.codex_path, apiKey, inputRate, outputRate, currency, String(value.chat_enter_to_send), value.summary_prompt].joined(separator: "\u{0}").utf8)
         case .general:
             struct General: Encodable { let output: String; let language: String?; let notifications: Bool; let quiet: QuietHours }
@@ -176,6 +177,14 @@ import CryptoKit
                 let original = store.mailboxProfiles.map { MailboxProfile(connection: MailAccountDraft.load($0.connection), enabled: $0.enabled) }
                 if profiles != original && (old.enabled || ["checking", "analyzing"].contains(store.status.phase) || store.checkRequested) { throw MailCredentials.Failure("请先暂停全部监听，等当前邮件处理完成后再编辑或添加邮箱。") }
                 next.mailboxes = profiles
+                if var mailboxes = next.mailboxes {
+                    for index in mailboxes.indices {
+                        if let row = accounts.first(where: { $0.id == mailboxes[index].id }) {
+                            mailboxes[index].connection.gmail_ai_consent = row.connection.gmail_ai_consent
+                        }
+                    }
+                    next.mailboxes = mailboxes
+                }
                 if let index = accounts.firstIndex(where: { $0.original?.identity == old.mailbox?.identity }), profiles.indices.contains(index) { next.mailbox = profiles[index].connection }
                 else { next.mailbox = profiles.first?.connection }
                 next.interval_seconds = seconds; next.mail_policy = value.mail_policy

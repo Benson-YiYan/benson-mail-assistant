@@ -60,6 +60,8 @@ def _mailbox_list(controller,config,profiles,data,plan,fields):
         if not isinstance(enabled,bool):raise ValueError('Mailbox enabled must be a boolean.')
         read_all_mail=draft.get('read_all_mail',old.get('read_all_mail',False))
         if not isinstance(read_all_mail,bool):raise ValueError('read_all_mail must be a boolean.')
+        gmail_ai_consent=draft.get('gmail_ai_consent',old.get('gmail_ai_consent',False))
+        if not isinstance(gmail_ai_consent,bool):raise ValueError('gmail_ai_consent must be a boolean.')
         secret=draft.get('secret','')
         if not isinstance(secret,str):raise ValueError('Invalid mailbox credential.')
         oauth_changed = bool(old) and any(
@@ -67,7 +69,8 @@ def _mailbox_list(controller,config,profiles,data,plan,fields):
             for key, default in (('mail_provider', 'custom'), ('oauth_client_id', ''),
                                  ('oauth_tenant', 'common'), ('oauth_mode', 'manual')))
         changed=not old or identifier!=original_id or oauth_changed
-        item={**connection,'monitor_enabled':enabled,'read_all_mail':read_all_mail}
+        item={**connection,'monitor_enabled':enabled,'read_all_mail':read_all_mail,
+              'gmail_ai_consent':gmail_ai_consent}
         if secret:
             binding='mailbox:'+identifier;relative='mail-secrets/'+identifier+'.bin'
             plan['secrets'].append((controller.root/relative,binding,secret))
@@ -138,6 +141,8 @@ def _validate(controller, page, data):
                 plan['secrets'].append((controller.root / relative, binding, secret))
                 config.update(secret_binding=binding, mail_secret_file=relative)
             config.update(connection)
+            config['gmail_ai_consent'] = data.get('gmail_ai_consent', config.get('gmail_ai_consent', False))
+            if not isinstance(config['gmail_ai_consent'], bool): raise ValueError('gmail_ai_consent must be a boolean.')
             enabled = next((profile.get('monitor_enabled',True) for profile in profiles if mailbox_id(profile)==previous_id), True)
             config['mailboxes'] = [profile for profile in profiles if mailbox_id(profile)!=previous_id] + [{**{k:config[k] for k in MAIL_FIELDS if k in config}, 'monitor_enabled':enabled}]
         if 'output_dir' in data:

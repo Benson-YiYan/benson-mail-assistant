@@ -1,4 +1,4 @@
-"""OAuth authorization-code + PKCE for Gmail/Outlook IMAP OAuth.
+"""OAuth authorization-code + PKCE for Gmail API and Outlook IMAP OAuth.
 
 The returned credential bundle is deliberately plain data so the platform
 frontends can store it in Keychain/DPAPI.  This module never writes, prints, or
@@ -8,6 +8,8 @@ import base64
 import hashlib
 import hmac
 import http.server
+import http.client
+import io
 import json
 import re
 import secrets
@@ -18,15 +20,16 @@ import urllib.request
 import webbrowser
 
 
-# IMAP is retained as the mailbox transport so folder selection, UID progress,
-# all-folder reads, spam flags, history preview, and report deduplication keep
-# their existing behavior.  These scopes are broader than Gmail API
-# ``gmail.readonly``/Graph ``Mail.Read`` and are shown accurately by the UI.
-GOOGLE_SCOPE = "openid email https://mail.google.com/"
+# Gmail uses the official API so access can be limited to read-only mail
+# retrieval and user-confirmed sending. Other providers keep their transports.
+GOOGLE_READ_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+GOOGLE_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send"
+GOOGLE_SCOPE = f"openid email {GOOGLE_READ_SCOPE} {GOOGLE_SEND_SCOPE}"
 MICROSOFT_IMAP_SCOPE = "https://outlook.office.com/IMAP.AccessAsUser.All"
 MICROSOFT_SMTP_SCOPE = "https://outlook.office.com/SMTP.Send"
 MICROSOFT_SCOPE = f"offline_access {MICROSOFT_IMAP_SCOPE} {MICROSOFT_SMTP_SCOPE}"
-GOOGLE_REQUIRED_SCOPE = "https://mail.google.com/"
+GOOGLE_REQUIRED_SCOPE = GOOGLE_READ_SCOPE
+GOOGLE_REQUIRED_SCOPES = (GOOGLE_READ_SCOPE, GOOGLE_SEND_SCOPE)
 # Keep the single-scope metadata field for older callers; token validation
 # requires both delegated permissions via MICROSOFT_REQUIRED_SCOPES.
 MICROSOFT_REQUIRED_SCOPE = MICROSOFT_IMAP_SCOPE
@@ -43,6 +46,7 @@ MICROSOFT_IMAP_HOST = "outlook.office365.com"
 CALLBACK_PATH = "/oauth/callback"
 CALLBACK_TIMEOUT = 300
 REFRESH_SKEW_SECONDS = 120
+
 
 _SAFE_ERRORS = {
     "access_denied", "authorization_declined", "invalid_client",
@@ -106,6 +110,7 @@ def _provider_config(provider, tenant="common"):
             "token": GOOGLE_TOKEN,
             "scope": GOOGLE_SCOPE,
             "required_scope": GOOGLE_REQUIRED_SCOPE,
+            "required_scopes": GOOGLE_REQUIRED_SCOPES,
             "redirect_host": "127.0.0.1",
         }
     if provider == "microsoft":
@@ -131,11 +136,42 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _open_credentials_request(request, timeout):
-    return urllib.request.build_opener(_NoRedirect()).open(request, timeout=timeout)
+def _open_credentials_request(request, timeout, proxy=None):
+    if not proxy:
+        return urllib.request.build_opener(_NoRedirect()).open(request, timeout=timeout)
+    import ssl
+    import io
+    if __package__:
+        from .mailbox_config import proxy_socket
+    else:
+        from mailbox_config import proxy_socket
+    parsed = urllib.parse.urlsplit(request.full_url)
+    sock = proxy_socket(proxy, parsed.hostname, parsed.port or 443, timeout=timeout)
+    with ssl.create_default_context().wrap_socket(sock, server_hostname=parsed.hostname) as secure:
+        secure.settimeout(timeout)
+        body = request.data or b''
+        method = request.get_method().encode('ascii')
+        target = (parsed.path or '/') + (('?' + parsed.query) if parsed.query else '')
+        secure.sendall(method + b' ' + target.encode('ascii') + b' HTTP/1.1\r\n')
+        headers = {key: value for key, value in request.header_items()}
+        headers['Host'] = parsed.hostname
+        headers['Connection'] = 'close'
+        if body or method in (b'POST', b'PUT', b'PATCH'):
+            headers['Content-Length'] = str(len(body))
+        for key, value in headers.items(): secure.sendall(f'{key}: {value}\r\n'.encode('latin-1'))
+        secure.sendall(b'\r\n' + body)
+        received = bytearray()
+        while True:
+            chunk = secure.recv(65536)
+            if not chunk: break
+            received.extend(chunk)
+    response = http.client.HTTPResponse(_OAuthBytesSocket(bytes(received))); response.begin()
+    if response.status >= 400:
+        raise urllib.error.HTTPError(request.full_url, response.status, 'OAuth error', response.headers, None)
+    return response
 
 
-def _post_json(url, values, timeout=30):
+def _post_json(url, values, timeout=30, proxy=None):
     request = urllib.request.Request(
         url,
         data=urllib.parse.urlencode(values).encode("ascii"),
@@ -143,7 +179,7 @@ def _post_json(url, values, timeout=30):
         method="POST",
     )
     try:
-        with _open_credentials_request(request, timeout) as response:
+        with _open_credentials_request(request, timeout, proxy=proxy) as response:
             value = json.load(response)
     except urllib.error.HTTPError as error:
         status = error.code
@@ -171,12 +207,12 @@ def _post_json(url, values, timeout=30):
     return value
 
 
-def _get_json(url, access_token, timeout=30):
+def _get_json(url, access_token, timeout=30, proxy=None):
     request = urllib.request.Request(
         url, headers={"Authorization": "Bearer " + access_token},
     )
     try:
-        with _open_credentials_request(request, timeout) as response:
+        with _open_credentials_request(request, timeout, proxy=proxy) as response:
             value = json.load(response)
     except urllib.error.HTTPError as error:
         raise RuntimeError(f"OAuth identity verification failed (HTTP {error.code}).") from None
@@ -311,7 +347,7 @@ def _validate_scopes(provider, token_response, config):
         granted_folded = {scope.casefold() for scope in granted}
         valid = all(any(alias in granted_folded for alias in aliases) for aliases in _MICROSOFT_SCOPE_ALIASES)
     else:
-        valid = config["required_scope"] in granted
+        valid = all(scope in granted for scope in config.get("required_scopes", (config["required_scope"],)))
     if not valid:
         raise RuntimeError("The provider did not grant the required mail access permission.")
 
@@ -330,8 +366,19 @@ def authorize(provider, email, client_id, *, tenant="common", client_secret="", 
     if mailbox_proxy is not None and not isinstance(mailbox_proxy, dict):
         raise ValueError("Mailbox proxy settings are invalid.")
     mailbox_proxy = mailbox_proxy or {}
-    post_json = post_json or _post_json
-    get_json = get_json or _get_json
+    try:
+        if __package__:
+            from .mailbox_config import resolve_proxy
+        else:
+            from mailbox_config import resolve_proxy
+        resolved_proxy = resolve_proxy(mailbox_proxy)
+    except Exception:
+        raise ValueError("Mailbox proxy settings are invalid or unavailable.") from None
+    mailbox_proxy = {**mailbox_proxy, 'resolved_proxy': resolved_proxy}
+    post_json = post_json or (lambda url, payload, timeout=30: _post_json(
+        url, payload, timeout, proxy=resolved_proxy))
+    get_json = get_json or (lambda url, token, timeout=30: _get_json(
+        url, token, timeout, proxy=resolved_proxy))
     open_browser = open_browser or webbrowser.open
     verifier, challenge = create_pkce_pair()
     state = _b64url(secrets.token_bytes(32))
@@ -408,7 +455,7 @@ def _valid_token(value):
     return isinstance(value, str) and bool(value) and all(33 <= ord(char) <= 126 for char in value)
 
 
-def refresh(provider, credentials, client_id, *, tenant="common", post_json=None):
+def refresh(provider, credentials, client_id, *, tenant="common", post_json=None, proxy=None):
     """Refresh an expired access token, preserving a non-rotated refresh token."""
     client_id = _validate_client_id(provider, client_id)
     config = _provider_config(provider, tenant)
@@ -417,7 +464,8 @@ def refresh(provider, credentials, client_id, *, tenant="common", post_json=None
     refresh_token = credentials.get("refresh_token")
     if not _valid_token(refresh_token):
         raise ValueError("OAuth refresh token is missing; sign in again.")
-    post_json = post_json or _post_json
+    post_json = post_json or (lambda url, payload, timeout=30: _post_json(
+        url, payload, timeout, proxy=proxy))
     request = {
         "grant_type": "refresh_token",
         "client_id": client_id,
@@ -510,7 +558,8 @@ def access_token(secret, config=None, *, now=None, post_json=None, force_refresh
         if not _valid_token(bundle["access_token"]):
             raise ValueError("OAuth access token is missing or invalid.")
         return str(bundle["access_token"]), None
-    updated = refresh(provider, bundle, client_id, tenant=tenant, post_json=post_json)
+    proxy = config.get('proxy')
+    updated = refresh(provider, bundle, client_id, tenant=tenant, post_json=post_json, proxy=proxy)
     updated["client_id"] = client_id
     if provider == "microsoft":
         updated["tenant"] = tenant

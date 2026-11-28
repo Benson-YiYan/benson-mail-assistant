@@ -42,6 +42,7 @@ sealed partial class MainWindow
             ? (oauthModeChoice.SelectedIndex == 0 ? "managed" : "manual") : "manual";
         if (providerExplicitlySelected && !draft.ContainsKey("id")) explicitDraftProviders.Add(SelectedMailboxDraftId);
         draft["read_all_mail"] = readAllMail.IsOn;
+        draft["gmail_ai_consent"] = gmailAiConsent.IsOn;
     }
     object MailboxDraftValues()
     {
@@ -68,6 +69,7 @@ sealed partial class MainWindow
             RefreshMailLogin(account, mailUsername, mailLoginSummary);
             mailFolder.Text = Text("mail_folder", "INBOX"); mailSecurity.SelectedIndex = Text("security") == "starttls" ? 1 : 0;
             readAllMail.IsOn = Text("read_all_mail").Equals("true", StringComparison.OrdinalIgnoreCase);
+            gmailAiConsent.IsOn = Text("gmail_ai_consent").Equals("true", StringComparison.OrdinalIgnoreCase);
             mailAuth.SelectedIndex = Text("mail_auth") == "oauth2" ? 1 : 0; mailProxy.Load(connection);
             var supportsOAuth = SupportsManagedOAuth(Text("mail_provider"));
             var managed = supportsOAuth && Text("oauth_mode", "manual") == "managed";
@@ -109,7 +111,7 @@ sealed partial class MainWindow
         StoreMailboxDraft();
         mailboxDrafts.Add(new() { ["client_id"] = Guid.NewGuid().ToString("N"), ["account"] = "", ["host"] = "imap.163.com",
             ["port"] = "993", ["security"] = "ssl", ["mail_folder"] = "INBOX", ["mail_provider"] = "163", ["mail_auth"] = "password",
-            ["monitor_enabled"] = true, ["read_all_mail"] = false, ["oauth_mode"] = "manual",
+            ["monitor_enabled"] = true, ["read_all_mail"] = false, ["gmail_ai_consent"] = false, ["oauth_mode"] = "manual",
             ["oauth_client_id"] = "", ["oauth_tenant"] = "common" });
         providerExplicitlySelected = false;
         mailboxDraftIndex = mailboxDrafts.Count - 1; RenderMailboxDraftNames(); ShowMailboxDraft(mailboxDraftIndex); return Task.CompletedTask;

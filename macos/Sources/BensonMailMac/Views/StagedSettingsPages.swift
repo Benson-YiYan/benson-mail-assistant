@@ -77,6 +77,11 @@ struct StagedSettingsPage: View {
                     StagedAccountFields(account: $draft.accounts[index]) {
                         try await draft.signInMailbox(id: draft.accounts[index].id)
                     }
+                    if draft.accounts[index].connection.mail_provider == "gmail" {
+                        Toggle(T("我同意将 Gmail 邮件正文及可读取的附件文字发送给我选择的 AI 服务，用于自动总结、手动提问和生成回复草稿；我可以随时取消此同意。"), isOn: $draft.accounts[index].connection.gmail_ai_consent)
+                            .font(.callout)
+                            .accessibilityIdentifier("gmail-ai-sharing-consent")
+                    }
                 }
                 Text(T("凭据保存在系统钥匙串。更换账号、服务器、登录用户名或文件夹前，请先暂停监听；旧报告保留。"))
                     .font(.caption).foregroundStyle(.secondary)
@@ -348,7 +353,7 @@ private struct StagedAccountFields: View {
                             .accessibilityIdentifier("mail-oauth-not-configured")
                     }
                     Text(account.connection.mail_provider == "gmail"
-                         ? T("Gmail OAuth 会请求完整邮箱访问权限；本软件只用只读 IMAP 操作。")
+                         ? T("Gmail 通过 Gmail API 只读获取邮件；发送邮件仅在你明确确认后进行。")
                          : T("Microsoft IMAP 授权可能允许读写邮件；本软件只执行只读操作。"))
                         .font(.caption).foregroundStyle(.secondary)
                     if !oauthMessage.isEmpty {

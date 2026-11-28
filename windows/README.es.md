@@ -20,16 +20,16 @@ En Configuración general puedes cambiar el idioma. Si no está descargado, apar
 
 ## Configuración inicial
 
-1. Elige proveedor u Otro correo (IMAP personalizado) y activa IMAP con tu proveedor. Para Gmail y Outlook/Microsoft 365, pulsa el botón de inicio de sesión en el navegador y confirma en la página oficial; no tienes que registrar una aplicación OAuth ni introducir ID de cliente, secreto, inquilino o token. Otros proveedores pueden exigir contraseña de aplicación o código de autorización. Otro correo necesita servidor, puerto y cifrado. Usa ¿Cómo obtengo un código de autorización?, guarda y prueba.
+1. Elige el proveedor, introduce la dirección e inicia sesión en la página oficial. Gmail en el navegador usa Gmail API y no requiere IMAP. Outlook/Microsoft 365 y otros proveedores IMAP requieren activar IMAP. No tienes que registrar una aplicación OAuth ni introducir ID de cliente, secreto, inquilino o token. Otros proveedores pueden exigir contraseña de aplicación o código de autorización. Otro correo necesita servidor, puerto y cifrado. Usa ¿Cómo obtengo un código de autorización?, guarda y prueba.
 2. Elige y prueba la IA: API compatible con Chat Completions (URL base, clave y modelo), Codex instalado y con sesión iniciada, o DeepSeek Harness instalado y configurado con soporte `headless --json`. Harness no se incluye ni se descarga. El modo API acepta URL base `/v1` o URL completa `/chat/completions`. Probar la IA puede consumir saldo.
 3. Usa Examinar para elegir la carpeta de informes e inicia la supervisión.
 
-Preajustes: 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud y Yahoo. El inicio de sesión del navegador para Outlook/Microsoft 365 está configurado en esta versión y renueva los tokens automáticamente. Solicita permisos delegados de Exchange para recibir correo por IMAP y enviar respuestas por SMTP tras confirmarlas; la aplicación no usa el permiso POP. Las cuentas de trabajo/escuela pueden requerir aprobación administrativa. La autorización de Gmail en el navegador está configurada. La verificación de permisos de Google está pendiente; pueden aparecer avisos y aplicarse el límite actual de usuarios OAuth. No es necesario introducir ID de cliente, secretos, inquilino ni tokens. Consulta la [guía completa del correo](docs/Mail-account-setup-es.txt).
+Preajustes: 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud y Yahoo. El inicio de sesión del navegador para Outlook/Microsoft 365 está configurado en esta versión y renueva los tokens automáticamente. Solicita permisos delegados de Exchange para recibir correo por IMAP y enviar respuestas por SMTP tras confirmarlas; la aplicación no usa el permiso POP. Las cuentas de trabajo/escuela pueden requerir aprobación administrativa. La autorización de Gmail usa `gmail.readonly` para leer correo y `gmail.send` para enviar respuestas solo después de confirmarlas. La verificación de permisos de Google sigue pendiente; pueden aparecer avisos y aplicarse el límite actual de usuarios OAuth. No es necesario introducir ID de cliente, secretos, inquilino ni tokens. El contenido de Gmail no se envía a la IA de forma predeterminada. Antes de usar funciones de IA con Gmail, activa el consentimiento de esa cuenta; al desactivarlo se bloquean los envíos posteriores. Consulta la [guía completa del correo](docs/Mail-account-setup-es.txt).
 
 ## Supervisión e informes
 
 - Predeterminado: 60 segundos; configurable entre 10 y 86400.
-- La primera comprobación registra el punto de partida del buzón; no analiza todos los mensajes antiguos. Los ajustes conservan la carpeta elegida y permiten activar Leer todas las carpetas de correo disponibles que expone IMAP.
+- La primera comprobación registra el punto de partida del buzón; no analiza todos los mensajes antiguos. Los ajustes conservan la carpeta elegida y permiten activar Leer todas las carpetas disponibles que expone el proveedor.
 - Con progreso guardado, al reanudar se comprueban los recibidos durante pausas o apagados que permanezcan en la carpeta. Pausa y espera al fin de tareas antes de editar conexiones.
 - Activa **Árbol de informes** para recorrer buzón → fecha → remitente → informe; **Subir un nivel** vuelve atrás y desactivarlo restaura la lista plana. La búsqueda y los filtros funcionan en ambas vistas. Nuevos informes: `carpeta/cuenta-receptora/fecha/From dirección-remitente/asunto-hora-de-recepción.md`, con hora de Pekín y nombres sin colisiones. Los informes y respuestas de IA a preguntas sobre correos muestran Markdown: títulos, párrafos, listas anidadas, citas, tablas, bloques de código, enlaces y formatos en línea habituales. El HTML no se ejecuta. Los TXT antiguos siguen disponibles.
 
@@ -39,7 +39,7 @@ Las carpetas de informes solo contienen documentos. Los índices del correo orig
 
 ## Proxy
 
-En Opciones avanzadas de conexión y proxy de cada cuenta elige Directa, Sistema, HTTP CONNECT o SOCKS5. Inicia v2rayN u otro cliente y usa dirección, puerto y protocolo reales. 10808 es solo un ejemplo. Guarda y prueba antes de reanudar. Un fallo no cambia silenciosamente a conexión directa. No necesitas TUN para un proxy explícito. Solo afecta a IMAP, no a la API de IA. No se admiten PAC ni proxies con usuario y contraseña.
+En Opciones avanzadas de conexión y proxy de cada cuenta elige Directa, Sistema, HTTP CONNECT o SOCKS5. Inicia v2rayN u otro cliente y usa dirección, puerto y protocolo reales. 10808 es solo un ejemplo. Guarda y prueba antes de reanudar. Un fallo no cambia silenciosamente a conexión directa. No necesitas TUN para un proxy explícito. La opción cubre Gmail API, las solicitudes OAuth y las conexiones IMAP/SMTP de otros proveedores; no afecta a la API de IA. No se admiten PAC ni proxies con usuario y contraseña.
 
 ## Actualizaciones y desinstalación
 
@@ -53,7 +53,7 @@ Desinstala desde su acceso directo o Aplicaciones instaladas de Windows. Si est�
 
 Prueba la conexión y consulta fase, tipo de excepción y respuesta del servidor. Para autenticación revisa cuenta y credenciales; para IMAP desactivado, correo web/administrador; para Unsafe Login, avisos de seguridad; para DNS, tiempo de espera o TLS, servidor, puerto, red, hora y proxy. El antiguo mensaje genérico «La operación falló. Revisa configuración y permisos» no demuestra un problema de permisos: actualiza para obtener detalles.
 
-Claves y credenciales se cifran para el usuario actual de Windows. Texto de mensajes y adjuntos legibles se envían a la IA elegida. IMAP es de solo lectura y no se envían respuestas automáticamente. Escaneos, imágenes, documentos cifrados y formatos no admitidos tienen límites; revisa el original.
+Claves y credenciales se cifran para el usuario actual de Windows. El cuerpo de los mensajes y el texto legible de los adjuntos se envían al servicio de IA elegido solo cuando una función de IA se ejecuta con consentimiento. Gmail requiere activar el consentimiento por cuenta. Las respuestas nunca se envían automáticamente. Escaneos, imágenes, documentos cifrados y formatos no admitidos tienen límites; revisa el original.
 
 ## Desarrollo
 

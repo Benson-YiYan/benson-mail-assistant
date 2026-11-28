@@ -182,6 +182,8 @@ def atomic(path, text):
 def run_reader(*args):
     command = child_command('mail_watch', *args) if getattr(sys, 'frozen', False) else [PYTHON, str(READER), *args]
     environment = {**os.environ, 'BENSON_MAIL_HOME': str(ACTIVE_HOME)}
+    if ACTIVE_CONNECTION:
+        environment['BENSON_MAIL_ACCOUNT'] = str(ACTIVE_CONNECTION.get('account', ''))
     result = subprocess.run(command, capture_output=True, text=True, timeout=180, env=environment)
     try:
         value = json.loads(result.stdout)
@@ -226,6 +228,23 @@ def analyze(message):
             atomic(folder / 'mail.json', json.dumps(message, ensure_ascii=False))
         else:
             current_settings = settings()
+            profiles = current_settings.get('mailboxes') or []
+            gmail_profile = next((item for item in profiles
+                                  if item.get('connection', {}).get('mail_provider') == 'gmail'
+                                  and item.get('connection', {}).get('account', '').casefold() ==
+                                  str(message.get('mailbox_account', '')).casefold()), None)
+            if message.get('mail_provider') == 'gmail' or gmail_profile:
+                if not gmail_profile or not gmail_profile.get('connection', {}).get('gmail_ai_consent', False):
+                    atomic(STATUS, json.dumps({'running': True, 'mode': 'automatic-txt',
+                        'phase': 'consent_required', 'consent_required': True,
+                        'consent_account': message.get('mailbox_account', ''),
+                        'heartbeat': datetime.datetime.now().astimezone().isoformat(),
+                        'account': message.get('mailbox_account', ''), 'subject': message.get('subject', ''),
+                        'detail': runtime_text(
+                            '此 Gmail 账号尚未同意将邮件内容发送给所选 AI；请到该账号邮箱设置中开启。',
+                            'This Gmail account has not consented to sending message content to the selected AI; enable it in this account’s mailbox settings.',
+                            'Esta cuenta de Gmail no ha aceptado enviar el contenido de sus mensajes a la IA elegida; actívalo en la configuración de esta cuenta.')}, ensure_ascii=False))
+                    raise RuntimeError('Gmail AI sharing consent is required before analysis.')
             prompt = analysis_prompt(current_settings.get('ui_language'), current_settings.get('summary_prompt'))
             temp = folder / 'answer.generated.txt'
             temp.unlink(missing_ok=True)

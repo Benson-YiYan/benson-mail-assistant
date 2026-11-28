@@ -102,7 +102,6 @@
     "使用 Google 登录": "Sign in with Google",
     "使用 Microsoft 登录": "Sign in with Microsoft",
     "使用 OAuth 登录": "Sign in with OAuth",
-    "软件只以只读方式打开 IMAP 文件夹；但 IMAP OAuth 授权范围可能允许修改邮件，不等于严格只读。": "The app opens IMAP folders in read-only mode, but the IMAP OAuth permission may allow mail changes; it is not strictly read-only.",
     "请选择 Gmail 或 Outlook / Microsoft 365。": "Choose Gmail or Outlook / Microsoft 365.",
     "请输入邮箱地址。": "Enter an email address.",
     "OAuth 登录返回的邮箱与所填地址不一致；没有保存凭据。": "The email returned by OAuth does not match the address entered. No credentials were saved.",
@@ -116,7 +115,7 @@
     "无法启动或读取 OAuth 登录工具，请重新安装完整应用。": "Could not start or read the OAuth sign-in tool. Reinstall the complete app.",
     "等待浏览器授权…": "Waiting for browser authorization…",
     "请先选择或添加邮箱。": "Select or add a mailbox first.",
-    "请启用邮箱的 IMAP 服务。Gmail 和 Outlook 支持浏览器登录；也可按服务商要求填写访问令牌、授权码或应用专用密码。": "Enable IMAP for your mailbox. Gmail and Outlook support browser sign-in; you can also enter an access token, authorization code, or app password as required by your provider.",
+    "请启用邮箱的 IMAP 服务。Gmail 和 Outlook 支持浏览器登录；也可按服务商要求填写访问令牌、授权码或应用专用密码。": "Enable IMAP for Outlook and other IMAP providers. Gmail uses browser sign-in without IMAP. For other providers, enter the credentials they require.",
     "请启用 IMAP，并按服务商要求填写客户端授权码或应用专用密码。所有预设都可修改服务器和端口。": "Enable IMAP and use an app password if your provider requires one. Server and port can be edited for every preset.",
     "请填写已获得的 OAuth2 访问令牌；过期后需手动更新。本版不自动进行 OAuth 登录或续期。": "Enter an existing OAuth2 access token and update it manually when it expires. Automatic OAuth login and renewal are not supported.",
     "启用 IMAP，填写服务商要求的授权码或应用专用密码。OAuth2 可手动填写访问令牌，也可使用上方浏览器授权。": "Enable IMAP and enter the authorization code or app password required by your provider. For OAuth2, enter an access token manually or use browser sign-in above.",
@@ -284,7 +283,7 @@
     "停止此邮箱监听并移出列表，已生成的报告保留。": "Stop monitoring and remove this account from the list. Generated reports are retained.",
     "可同时监听多个邮箱；AI、报告目录和检查间隔共用。编辑连接前请先暂停全部监听。": "Monitor multiple accounts at once. AI, report folder, and interval settings are shared. Pause all monitoring before editing connections.",
     "邮箱连接": "Email connection",
-    "请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。": "Enable IMAP and use the app password required by your provider. Gmail and Outlook use browser sign-in.",
+    "请启用邮箱的 IMAP 服务。按服务商要求使用客户端授权码或应用专用密码。OAuth2 需填写访问令牌，过期后手动更新；暂不自动登录和续期。": "Enable IMAP for Outlook and other IMAP providers; Gmail uses browser sign-in without IMAP. Use the app password required by other providers.",
     "报告与后台运行": "Reports and background monitoring",
     "请填写整数秒数。": "Enter a whole number of seconds.",
     "选择您喜欢的 AI": "Choose your AI",
@@ -1098,7 +1097,12 @@
     "手动访问令牌": "Manual access token",
     "浏览器登录功能暂未配置，请稍后再试。": "Browser sign-in is not configured yet. Please try again later.",
     "请启用 IMAP，并按服务商要求填写客户端授权码或应用专用密码。": "Enable IMAP and enter the app password or authorization code required by your provider. Gmail and Outlook use browser sign-in.",
-    "请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。": "Enable IMAP for your mailbox. Gmail and Outlook use browser sign-in only; other providers may require a password or app password."
+    "Gmail 浏览器登录使用 Gmail API 只读读取邮件，并在你确认后通过 Gmail API 发信；Outlook 浏览器登录使用 IMAP 收信和 SMTP 发信。": "Gmail browser sign-in uses the Gmail API to read mail only and, after your confirmation, send mail through the Gmail API. Outlook browser sign-in uses IMAP to receive mail and SMTP to send it.",
+    "Gmail 浏览器登录无需开启 IMAP；Outlook／Microsoft 365 浏览器登录需要开启 IMAP。其他邮箱按服务商要求使用密码或客户端授权码。": "Gmail browser sign-in does not require IMAP. Outlook / Microsoft 365 browser sign-in requires IMAP. For other providers, use the password or app password they require.",
+    "允许在 AI 功能中使用此 Gmail 邮件内容": "Allow this Gmail content to be used in AI features",
+    "开启后，自动总结和你主动使用的邮件问答、回复草稿会把正文及可读取的附件文字发送给你配置的 AI；可随时关闭，关闭后停止后续发送。": "When enabled, automatic summaries, email questions, regenerated reports and reply drafts send message bodies and readable attachment text to your configured AI service. You can turn this off at any time to stop future transfers.",
+    "允许": "Allow",
+    "不允许": "Do not allow"
   },
   "templates": [
     {

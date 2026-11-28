@@ -24,7 +24,7 @@ Los paquetes de una misma publicación pueden tener números de versión distint
 
 ## Primeros pasos
 
-1. **Conecta un buzón.** Elige un preajuste o IMAP personalizado y activa IMAP con tu proveedor. Para Gmail y Outlook/Microsoft 365, pulsa el botón de inicio de sesión en el navegador y confirma en la página oficial; no tienes que registrar una aplicación OAuth ni introducir ID de cliente, secreto, inquilino o token. Otros proveedores pueden requerir contraseña de aplicación o código de autorización. La aplicación incluye una guía paso a paso. La autorización de Gmail en el navegador está configurada. La verificación de permisos de Google está pendiente; pueden aparecer avisos y aplicarse el límite actual de usuarios OAuth.
+1. **Conecta un buzón.** Elige un preajuste e inicia sesión en la página oficial. Gmail en el navegador usa Gmail API y no requiere IMAP. Outlook/Microsoft 365 y otros proveedores IMAP requieren activar IMAP. No tienes que registrar una aplicación OAuth ni introducir ID de cliente, secreto, inquilino o token. Otros proveedores pueden requerir contraseña de aplicación o código de autorización. La aplicación incluye una guía paso a paso.
 2. **Elige la IA.** Configura URL base, clave y modelo de una API compatible con Chat Completions, o usa Codex / DeepSeek Harness ya instalados y configurados. Harness no se incluye ni se descarga. No se incluye un servicio de IA gratuito. El modo API no requiere Codex.
 3. **Elige la carpeta de informes e inicia la supervisión.** El intervalo predeterminado es de 60 segundos, ajustable entre 10 y 86400. Una comprobación sin novedades no llama a la IA.
 
@@ -69,9 +69,9 @@ Las carpetas de informes solo contienen informes. Los mensajes originales y los 
 
 ## Proxy del correo
 
-Cada buzón admite Directa, Proxy del sistema, HTTP CONNECT o SOCKS5. En los ajustes del buzón, abre Opciones avanzadas de conexión y proxy. Inicia v2rayN o tu aplicación de proxy e indica su dirección, puerto y protocolo reales; guarda y prueba. 10808 es solo un ejemplo. Un proxy explícito no requiere TUN.
+Cada buzón admite Directa, Proxy del sistema, HTTP CONNECT o SOCKS5. En los ajustes del buzón, abre Opciones avanzadas de conexión y proxy. Inicia v2rayN o tu aplicación de proxy e indica su dirección, puerto y protocolo reales; guarda y prueba. 10808 es solo un ejemplo. Un proxy explícito no requiere TUN. La opción cubre Gmail API, las solicitudes OAuth y las conexiones IMAP/SMTP de otros proveedores.
 
-Si falla el proxy, no se cambia silenciosamente a conexión directa. La opción se aplica a las pruebas IMAP y la recepción, no al tráfico de la API de IA. No se admiten PAC ni proxies con usuario y contraseña.
+Si falla el proxy, no se cambia silenciosamente a conexión directa. No afecta al tráfico de la API de IA. No se admiten PAC ni proxies con usuario y contraseña.
 
 ## Capturas
 
@@ -85,7 +85,7 @@ Son mensajes de prueba sintéticos, no correo de usuarios reales.
 
 El servicio de IA elegido recibe el texto de los mensajes y el contenido legible de los adjuntos. Elige un servicio adecuado. Las credenciales usan la protección del sistema operativo; no publiques claves, tokens ni correo privado en incidencias. Probar la IA puede consumir saldo del proveedor. Los borradores deben revisarse antes de usarlos.
 
-Gmail y Outlook/Microsoft 365 usan inicio de sesión OAuth en el navegador con renovación automática; no se introducen tokens ni datos de aplicaciones OAuth. Los permisos OAuth para IMAP pueden superar el acceso de solo lectura, aunque la aplicación abre las carpetas en modo de solo lectura. Las cuentas Microsoft de trabajo/escuela pueden requerir aprobación administrativa. Las pruebas de Windows se realizan en un ejecutor de GitHub; Intel Mac se verifica mediante Rosetta, no en un Mac Intel físico.
+Gmail y Outlook/Microsoft 365 usan inicio de sesión OAuth en el navegador con renovación automática; no se introducen tokens ni datos de aplicaciones OAuth. Gmail usa `gmail.readonly` para leer correo y `gmail.send` para enviar respuestas solo después de confirmarlas. Outlook usa IMAP para recibir y SMTP para enviar; las cuentas Microsoft de trabajo/escuela pueden requerir aprobación administrativa. Las pruebas de Windows se realizan en un ejecutor de GitHub; Intel Mac se verifica mediante Rosetta, no en un Mac Intel físico. El contenido de Gmail no se envía a la IA de forma predeterminada. Antes de usar funciones de IA con Gmail, activa el consentimiento de esa cuenta; al desactivarlo se bloquean los envíos posteriores.
 
 ## Guías y desarrollo
 

@@ -54,12 +54,12 @@ Official sign-in: https://exmail.qq.com/ . Official client configuration: https:
 5. Gmail
 Official webmail: https://mail.google.com/ . Google OAuth information: https://developers.google.com/identity/protocols/oauth2/native-app .
 
-Email Assistant provides browser sign-in for Gmail. Users do not create a Google OAuth app or enter a client ID, client secret, tenant or access token.
-Gmail browser authorization is configured. Google permission verification is pending; an unverified-app warning and the current OAuth user cap may apply.
-1) Sign in to Gmail on the web first and make sure the account works. Enable IMAP if your account requires it.
+Email Assistant uses browser sign-in with the Gmail API. Users do not create a Google OAuth app or enter a client ID, client secret, tenant or access token. Mail retrieval uses read-only access; sending uses a separate permission and happens only after you review and explicitly confirm a message.
+Automatic summaries, manual email questions and reply drafts send this Gmail account's message bodies and readable attachment text to the AI service you selected. Each Gmail account has its own consent switch in mailbox settings. Without consent, its message content is not sent to AI. You can turn consent off at any time to stop future transfers.
+1) Sign in to Gmail on the web first and make sure the account works.
 2) In Email Assistant, choose the Gmail preset, enter the complete Gmail address and click **Sign in with Google**.
 3) The browser opens Google’s official sign-in and consent page. Sign in to the mailbox, review the app name, account and permissions, and approve only when they match your expectations. The signed-in account must match the address in the app.
-4) Gmail IMAP uses `https://mail.google.com/`. This scope is broader than strict read-only access, although Email Assistant only performs read operations and does not automatically send, modify or delete mail.
+4) Google shows separate read-only mail and send permissions. Review them before approval. The app does not use the Gmail API to modify or delete mail.
 5) Return to Email Assistant, click **Save email settings**, then **Test email connection**. Credentials are stored in the macOS Keychain or Windows protected credential storage and renewed when needed.
 
 If Google shows an unverified-app warning or unexpected permissions, do not approve immediately; check the app name, account and scope. Revoked consent, Google policy changes or organization restrictions may require sign-in again.
@@ -83,7 +83,6 @@ Official webmail: https://mail.yahoo.com/ . App-password help: https://help.yaho
 Personal webmail: https://outlook.live.com/mail/ . Work/school webmail: https://outlook.office.com/mail/ . Microsoft IMAP OAuth information: https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth .
 
 Email Assistant provides browser sign-in for Outlook/Microsoft 365. Users do not register a Microsoft app or enter a client ID, client secret, tenant or access token.
-Gmail browser authorization is configured. Google permission verification is pending; an unverified-app warning and the current OAuth user cap may apply.
 1) For a personal Outlook.com mailbox, enable IMAP in webmail: Settings > Mail > Forwarding and IMAP > Let devices and apps use IMAP. For work/school mailboxes, contact the administrator if the option is missing and confirm IMAP and organization policies.
 2) In Email Assistant, choose the Outlook/Microsoft 365 preset, enter the complete address and click **Sign in with Microsoft**.
 3) The browser opens Microsoft’s official sign-in and consent page. Sign in to the target mailbox and review the app name and permissions before approving. The signed-in mailbox must match the address in the app.
