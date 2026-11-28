@@ -500,6 +500,7 @@ def connect(config, secret, context=None):
             # sign-ins are validated as refreshable bundles by the helper above.
             client = GmailMailbox(token, value['mail_folder'], proxy=proxy, context=context or ssl.create_default_context())
             client.verify()
+            require_ok(client.select(value["mail_folder"], readonly=True), "Gmail label")
             return client
         except Exception as error:
             if isinstance(error, MailConnectionError):

@@ -114,8 +114,6 @@ def test(mailbox_identity=None):
         client = connect(value, secret)
         try:
             if value.get('mail_provider') == 'gmail' and value.get('mail_auth') == 'oauth2':
-                from mailbox_config import require_ok
-                require_ok(client.select(value['mail_folder'], readonly=True), 'Gmail label')
                 client.verify_messages()
         finally:
             client.logout()
