@@ -89,7 +89,7 @@ sealed partial class MainWindow
         mailSecret.PasswordChanged += (_, _) => RefreshSettingsDirty(); apiKey.PasswordChanged += (_, _) => RefreshSettingsDirty();
         foreach (var combo in new[] { mailProvider, mailSecurity, mailAuth, oauthModeChoice, mailProxy.Mode, provider, senderPolicyMode, languageChoice })
             combo.SelectionChanged += (_, _) => RefreshSettingsDirty();
-        foreach (var toggle in new[] { startup, notificationsSetting, quietEnabled, senderPolicySpam, chatEnterToSendSetting, readAllMail }) toggle.Toggled += (_, _) => RefreshSettingsDirty();
+        foreach (var toggle in new[] { startup, notificationsSetting, quietEnabled, senderPolicySpam, chatEnterToSendSetting, readAllMail, gmailAiConsent }) toggle.Toggled += (_, _) => RefreshSettingsDirty();
     }
     async Task LoadPageDraft(string page)
     {

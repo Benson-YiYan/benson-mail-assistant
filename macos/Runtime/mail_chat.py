@@ -236,6 +236,11 @@ def _mail_context(root, report, config, require_original=False):
         return {'original_mail_available': False, 'limitation': 'Original mail and attachments are unavailable. Retrieve the original email before asking questions; generated reports cannot substitute for it.'}
     if not isinstance(message, dict) or message.get('unavailable'):
         raise ValueError('Original mail is unavailable; its content cannot be reconstructed.')
+    if IS_WINDOWS_PACKAGE:
+        from .gmail_policy import require_gmail_ai_consent
+    else:
+        from gmail_policy import require_gmail_ai_consent
+    require_gmail_ai_consent(config, message)
     message = dict(message)
     attachments = []
     root = Path(root).resolve()

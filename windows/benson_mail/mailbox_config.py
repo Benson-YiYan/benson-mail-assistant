@@ -44,6 +44,9 @@ def managed_oauth_token(config, fallback_secret, *, force_refresh=False):
             'client_id': value.get('oauth_client_id', ''),
             'tenant': value.get('oauth_tenant', 'common'),
             'email': value.get('account', ''),
+            'proxy_mode': config.get('proxy_mode', 'direct'),
+            'proxy_host': config.get('proxy_host', ''),
+            'proxy_port': config.get('proxy_port', 10808),
         }, force_refresh=force_refresh)
         if updated is not None:
             persist = config.get('_oauth_secret_update')
@@ -497,6 +500,27 @@ def require_ok(result, operation):
 
 def connect(config, secret, context=None, select_folder=True):
     value = normalize(config)
+    if value.get('mail_provider') == 'gmail' and value.get('mail_auth') == 'oauth2':
+        from .gmail_api import GmailMailbox
+        try:
+            proxy = resolve_proxy(value)
+            if value.get('oauth_mode') == 'managed':
+                token = managed_oauth_token(config, secret)
+            else:
+                from .oauth_client import access_token
+                token, _ = access_token(secret, {
+                    'provider': 'google', 'client_id': value.get('oauth_client_id', ''),
+                    'email': value['account'], 'proxy_mode': value['proxy_mode'],
+                    'proxy_host': value['proxy_host'], 'proxy_port': value['proxy_port'],
+                })
+            from .ai_api import tls_context
+            client = GmailMailbox(token, value['mail_folder'], proxy=proxy, context=context or tls_context())
+            client.verify()
+            return client
+        except Exception:
+            raise MailConnectionError(
+                'Gmail API connection failed; check OAuth permissions, account access, network and proxy settings.'
+            ) from None
     context = context or ssl.create_default_context()
     client = None
     stage = 'SSL/TLS 连接' if value['security'] == 'ssl' else 'TCP 连接'

@@ -1,4 +1,4 @@
-"""OAuth authorization-code + PKCE for Gmail/Outlook IMAP OAuth.
+"""OAuth authorization-code + PKCE for Gmail API and Outlook IMAP OAuth.
 
 The returned credential bundle is deliberately plain data so the platform
 frontends can store it in Keychain/DPAPI.  This module never writes, prints, or
@@ -7,6 +7,7 @@ copies tokens.  Legacy raw access tokens remain accepted by ``access_token``.
 import base64
 import hashlib
 import hmac
+import http.client
 import http.server
 import json
 import re
@@ -18,15 +19,16 @@ import urllib.request
 import webbrowser
 
 
-# IMAP is retained as the mailbox transport so folder selection, UID progress,
-# all-folder reads, spam flags, history preview, and report deduplication keep
-# their existing behavior.  These scopes are broader than Gmail API
-# ``gmail.readonly``/Graph ``Mail.Read`` and are shown accurately by the UI.
-GOOGLE_SCOPE = "openid email https://mail.google.com/"
+# Gmail uses the official API with separate read and user-confirmed send
+# permissions. Other providers keep their existing transports.
+GOOGLE_READ_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+GOOGLE_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send"
+GOOGLE_SCOPE = f"openid email {GOOGLE_READ_SCOPE} {GOOGLE_SEND_SCOPE}"
 MICROSOFT_IMAP_SCOPE = "https://outlook.office.com/IMAP.AccessAsUser.All"
 MICROSOFT_SMTP_SCOPE = "https://outlook.office.com/SMTP.Send"
 MICROSOFT_SCOPE = f"offline_access {MICROSOFT_IMAP_SCOPE} {MICROSOFT_SMTP_SCOPE}"
-GOOGLE_REQUIRED_SCOPE = "https://mail.google.com/"
+GOOGLE_REQUIRED_SCOPE = GOOGLE_READ_SCOPE
+GOOGLE_REQUIRED_SCOPES = (GOOGLE_READ_SCOPE, GOOGLE_SEND_SCOPE)
 # Keep the single-scope metadata field for older callers; token validation
 # requires both delegated permissions via MICROSOFT_REQUIRED_SCOPES.
 MICROSOFT_REQUIRED_SCOPE = MICROSOFT_IMAP_SCOPE
@@ -106,6 +108,7 @@ def _provider_config(provider, tenant="common"):
             "token": GOOGLE_TOKEN,
             "scope": GOOGLE_SCOPE,
             "required_scope": GOOGLE_REQUIRED_SCOPE,
+            "required_scopes": GOOGLE_REQUIRED_SCOPES,
             "redirect_host": "127.0.0.1",
         }
     if provider == "microsoft":
@@ -131,11 +134,51 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _open_credentials_request(request, timeout):
-    return urllib.request.build_opener(_NoRedirect()).open(request, timeout=timeout)
+class _ProxyHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, host, *, proxy, **kwargs):
+        super().__init__(host, **kwargs)
+        self.proxy = proxy
+
+    def connect(self):
+        from .mailbox_config import proxy_socket
+        raw = proxy_socket(self.proxy, self.host, self.port, self.timeout)
+        self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
 
 
-def _post_json(url, values, timeout=30):
+class _ProxyHTTPSHandler(urllib.request.HTTPSHandler):
+    def __init__(self, proxy):
+        super().__init__()
+        self.proxy = proxy
+
+    def https_open(self, request):
+        return self.do_open(
+            lambda host, **kwargs: _ProxyHTTPSConnection(host, proxy=self.proxy, **kwargs),
+            request,
+        )
+
+
+def _resolve_mailbox_proxy(settings):
+    if settings is None:
+        return None
+    if isinstance(settings, tuple) and len(settings) == 3:
+        return settings
+    if not isinstance(settings, dict):
+        raise ValueError('Mailbox proxy settings are invalid.')
+    from .mailbox_config import resolve_proxy
+    return resolve_proxy(settings)
+
+
+def _open_credentials_request(request, timeout, proxy=None):
+    handlers = [_NoRedirect()]
+    if proxy:
+        handlers.extend((urllib.request.ProxyHandler({}), _ProxyHTTPSHandler(proxy)))
+    else:
+        # A per-mailbox Direct setting must not silently inherit a system proxy.
+        handlers.append(urllib.request.ProxyHandler({}))
+    return urllib.request.build_opener(*handlers).open(request, timeout=timeout)
+
+
+def _post_json(url, values, timeout=30, *, proxy=None):
     request = urllib.request.Request(
         url,
         data=urllib.parse.urlencode(values).encode("ascii"),
@@ -143,7 +186,7 @@ def _post_json(url, values, timeout=30):
         method="POST",
     )
     try:
-        with _open_credentials_request(request, timeout) as response:
+        with _open_credentials_request(request, timeout, proxy) as response:
             value = json.load(response)
     except urllib.error.HTTPError as error:
         status = error.code
@@ -171,12 +214,12 @@ def _post_json(url, values, timeout=30):
     return value
 
 
-def _get_json(url, access_token, timeout=30):
+def _get_json(url, access_token, timeout=30, *, proxy=None):
     request = urllib.request.Request(
         url, headers={"Authorization": "Bearer " + access_token},
     )
     try:
-        with _open_credentials_request(request, timeout) as response:
+        with _open_credentials_request(request, timeout, proxy) as response:
             value = json.load(response)
     except urllib.error.HTTPError as error:
         raise RuntimeError(f"OAuth identity verification failed (HTTP {error.code}).") from None
@@ -311,7 +354,7 @@ def _validate_scopes(provider, token_response, config):
         granted_folded = {scope.casefold() for scope in granted}
         valid = all(any(alias in granted_folded for alias in aliases) for aliases in _MICROSOFT_SCOPE_ALIASES)
     else:
-        valid = config["required_scope"] in granted
+        valid = all(scope in granted for scope in config.get("required_scopes", (config["required_scope"],)))
     if not valid:
         raise RuntimeError("The provider did not grant the required mail access permission.")
 
@@ -329,9 +372,13 @@ def authorize(provider, email, client_id, *, tenant="common", client_secret="", 
     google_secret = _validate_client_secret(client_secret) if provider == "google" else ""
     if mailbox_proxy is not None and not isinstance(mailbox_proxy, dict):
         raise ValueError("Mailbox proxy settings are invalid.")
+    has_mailbox_proxy = mailbox_proxy is not None
     mailbox_proxy = mailbox_proxy or {}
-    post_json = post_json or _post_json
-    get_json = get_json or _get_json
+    proxy = _resolve_mailbox_proxy(mailbox_proxy)
+    if post_json is None:
+        post_json = _post_json if not has_mailbox_proxy else lambda url, values: _post_json(url, values, proxy=proxy)
+    if get_json is None:
+        get_json = _get_json if not has_mailbox_proxy else lambda url, token: _get_json(url, token, proxy=proxy)
     open_browser = open_browser or webbrowser.open
     verifier, challenge = create_pkce_pair()
     state = _b64url(secrets.token_bytes(32))
@@ -510,6 +557,10 @@ def access_token(secret, config=None, *, now=None, post_json=None, force_refresh
         if not _valid_token(bundle["access_token"]):
             raise ValueError("OAuth access token is missing or invalid.")
         return str(bundle["access_token"]), None
+    proxy_settings = config if any(key in config for key in ('proxy_mode', 'proxy_host', 'proxy_port')) else None
+    proxy = _resolve_mailbox_proxy(proxy_settings)
+    if post_json is None and proxy_settings is not None:
+        post_json = lambda url, values: _post_json(url, values, proxy=proxy)
     updated = refresh(provider, bundle, client_id, tenant=tenant, post_json=post_json)
     updated["client_id"] = client_id
     if provider == "microsoft":

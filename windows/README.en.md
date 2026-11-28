@@ -12,7 +12,7 @@ No Python or terminal setup is needed. API mode does not require Codex. Setup ch
 
 ## First setup
 
-1. **Email:** choose a provider or Other email (custom IMAP), enter the address and enable IMAP. For Gmail and Outlook/Microsoft 365, click the browser sign-in button and approve on the provider’s official page; users do not register OAuth apps or enter client IDs, secrets, tenants or tokens. Other providers may require an app password or authorization code. Custom providers also need the host, port and encryption. Use **How do I get an authorization code?**, then save and test.
+1. **Email:** choose a provider, enter the address, and sign in on the provider’s official page. Gmail browser sign-in uses the Gmail API and does not require IMAP. Outlook/Microsoft 365 and other IMAP providers need IMAP enabled. Users do not register OAuth apps or enter client IDs, secrets, tenants or tokens. Other providers may require an app password or authorization code. Custom providers also need the host, port and encryption. Use **How do I get an authorization code?**, then save and test.
 2. **AI:** choose one of the options below, save it and test the connection.
 3. **Folder:** use Browse to choose the report folder, then start monitoring.
 
@@ -24,12 +24,12 @@ No Python or terminal setup is needed. API mode does not require Codex. Setup ch
 
 API mode accepts the provider's base URL, such as one ending in `/v1`, or the full `/chat/completions` URL. Harness is not bundled or downloaded. Testing AI sends a small message and may incur provider charges.
 Presets include 163, 126, Yeah, QQ/Foxmail, Tencent Exmail, Gmail, Outlook/Microsoft 365, iCloud and Yahoo. Presets supply connection settings; account authorization is still required.
-Outlook/Microsoft 365 browser sign-in is configured in this build and renews automatically. It requests Exchange delegated IMAP and SMTP permissions so the app can receive mail and send replies after confirmation; POP access is not used. Work/school accounts may require administrator approval. Gmail browser authorization is configured. Google permission verification is pending; an unverified-app warning and the current OAuth user cap may apply. Users do not enter client IDs, secrets, tenants or tokens.
+Outlook/Microsoft 365 browser sign-in is configured in this build and renews automatically. It requests Exchange delegated IMAP and SMTP permissions so the app can receive mail and send replies after confirmation; POP access is not used. Work/school accounts may require administrator approval. Gmail browser authorization uses `gmail.readonly` to read mail and `gmail.send` to send replies only after confirmation. Google permission verification is pending; an unverified-app warning and the current OAuth user cap may apply. Users do not enter client IDs, secrets, tenants or tokens. Gmail content is not sent to AI by default. Before using AI features with Gmail, enable the per-mailbox consent switch; turning it off blocks future transfers.
 
 ## Monitoring and reports
 
 - Checks default to 60 seconds; choose any interval from 10 to 86400 seconds.
-- **The first check of a newly added mailbox records its current position. It does not analyze the entire existing inbox.** Mailbox settings retain the selected mail folder and offer a Read all mail folders switch for every selectable folder exposed by IMAP.
+- **The first check of a newly added mailbox records its current position. It does not analyze the entire existing inbox.** Mailbox settings retain the selected mail folder and offer a Read all mail folders switch for selectable folders exposed by the provider.
 - With saved progress, messages received while paused or offline are checked on resume if still within the reading scope. Pause and wait for current work before editing connection settings.
 - Enable **Report tree** to browse mailbox → date → sender → report; use **Up one level** to go back, or switch it off for the flat list. Search and filters apply in both views. New reports use `selected-folder/receiving-account/date/From sender-address/subject-received-time.md`, with dates and times in Beijing time. Collisions are avoided.
 
@@ -66,7 +66,7 @@ Only installed language packs can be used. Choosing a missing language asks “Y
 
 ## Mailbox proxies
 
-Each mailbox can use Direct, System proxy, HTTP CONNECT or SOCKS5. In mailbox settings, open Advanced connection and proxy options; start v2rayN or your proxy app and use its actual listening host, port and protocol. Save and test before resuming monitoring. A failed proxy never silently switches to Direct. The setting covers IMAP tests and monitoring, not AI API traffic. PAC scripts and authenticated proxies are not supported.
+Each mailbox can use Direct, System proxy, HTTP CONNECT or SOCKS5. In mailbox settings, open Advanced connection and proxy options; start v2rayN or your proxy app and use its actual listening host, port and protocol. Save and test before resuming monitoring. A failed proxy never silently switches to Direct. The setting covers Gmail API, OAuth requests, and other providers’ IMAP/SMTP connections, not AI API traffic. PAC scripts and authenticated proxies are not supported.
 
 ## Summarize again and ask about an email
 

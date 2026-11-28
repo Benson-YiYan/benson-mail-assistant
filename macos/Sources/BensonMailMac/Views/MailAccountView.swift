@@ -135,7 +135,7 @@ struct BrowserMailboxLoginFields: View {
                 .font(.caption).foregroundStyle(.secondary)
                 .accessibilityIdentifier("mail-oauth-not-configured")
         }
-        Text(provider == "gmail" ? T("Gmail OAuth 会请求完整邮箱访问权限；本软件只用只读 IMAP 操作。")
+        Text(provider == "gmail" ? T("Gmail 通过 Gmail API 只读获取邮件；发送邮件仅在你明确确认后进行。")
              : T("Microsoft IMAP 授权可能允许读写邮件；本软件只执行只读操作。"))
             .font(.caption).foregroundStyle(.secondary)
         if !message.isEmpty { Text(T(message)).font(.caption).textSelection(.enabled) }

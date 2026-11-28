@@ -74,6 +74,7 @@ final class MailStore: ObservableObject {
         switch status.phase {
         case "analyzing": return "正在分析新邮件"
         case "checking": return "正在检查邮箱"
+        case "consent_required": return "Gmail 需要 AI 内容授权"
         case "error": return "需要检查连接"
         default: return "正在监听"
         }
@@ -237,6 +238,7 @@ final class MailStore: ObservableObject {
         guard let profile = mailboxProfiles.first(where: { $0.id == id }) else { return }
         let old = settings
         settings.mailbox = profile.connection
+        settings.active_mailbox_id = profile.connection.account
         do { try save(); mailAccount = profile.connection.account }
         catch { settings = old; problem = error.localizedDescription }
     }

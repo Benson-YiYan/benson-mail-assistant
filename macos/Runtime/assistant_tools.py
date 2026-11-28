@@ -283,6 +283,12 @@ def multi_summary(root, request):
         })
 
     if WINDOWS:
+        from .gmail_policy import require_gmail_ai_consent
+    else:
+        from gmail_policy import require_gmail_ai_consent
+    require_gmail_ai_consent(config, *selected)
+
+    if WINDOWS:
         from .core import analysis_prompt
     else:
         from mail_prompt import analysis_prompt
@@ -551,7 +557,7 @@ def _reply_send_locked(root, request, controller, path, chat):
             try:
                 secret = managed_oauth_token(connection, secret, force_refresh=True)
             except Exception as error:
-                raise ValueError('无法取得 SMTP 发信授权，请重新进行浏览器登录并确认发信权限。' + str(error)) from None
+                raise ValueError('无法取得发信授权，请重新进行浏览器登录并确认发信权限。' + str(error)) from None
         else:
             if WINDOWS:
                 from .oauth_client import access_token
@@ -563,7 +569,8 @@ def _reply_send_locked(root, request, controller, path, chat):
                 'tenant': connection.get('oauth_tenant', 'common'),
                 'email': connection.get('account', ''),
             })
-    server, port, security = smtp_endpoint(connection)
+    gmail_api = oauth2 and connection.get('mail_provider') == 'gmail'
+    server, port, security = (None, None, None) if gmail_api else smtp_endpoint(connection)
     if WINDOWS:
         from .mailbox_config import resolve_proxy
         from .ai_api import tls_context
@@ -572,7 +579,8 @@ def _reply_send_locked(root, request, controller, path, chat):
         from mailbox_config import resolve_proxy
         context = ssl.create_default_context()
     proxy = resolve_proxy(connection)
-    SMTP, SMTP_SSL = _proxy_smtp_classes(proxy, context)
+    if not gmail_api:
+        SMTP, SMTP_SSL = _proxy_smtp_classes(proxy, context)
     message = EmailMessage()
     message['From'] = connection.get('account', '')
     message['To'] = recipient
@@ -587,7 +595,14 @@ def _reply_send_locked(root, request, controller, path, chat):
     chat._atomic(path, json.dumps(existing_draft, ensure_ascii=False))
     submitting = False
     try:
-        if security == 'ssl':
+        if gmail_api:
+            if WINDOWS:
+                from .gmail_api import send_message
+            else:
+                from gmail_api import send_message
+            submitting = True
+            send_message(secret, connection.get('account', ''), recipient, request['subject'], request['draft'], proxy=proxy, context=context)
+        elif security == 'ssl':
             with SMTP_SSL(server, port, timeout=30, context=context) as client:
                 _smtp_auth(client, connection, secret, oauth2)
                 submitting = True
@@ -603,7 +618,9 @@ def _reply_send_locked(root, request, controller, path, chat):
     except Exception as error:
         # Do not surface server text: a provider could echo addresses, body text,
         # or credential material in a diagnostic response.
-        if isinstance(error, smtplib.SMTPAuthenticationError):
+        if gmail_api:
+            detail = 'Gmail API send failed. The message may have been accepted; check Sent mail before retrying.'
+        elif isinstance(error, smtplib.SMTPAuthenticationError):
             detail = 'SMTP authentication failed. Check the mailbox password/app password and whether SMTP is enabled.'
         elif isinstance(error, (TimeoutError, socket.timeout)):
             detail = 'SMTP operation timed out. The provider may have accepted the message; check Sent mail before retrying.'

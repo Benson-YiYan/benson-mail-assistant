@@ -9,6 +9,7 @@ import socket
 import json
 import urllib.parse
 import urllib.request
+import ssl
 import time
 import threading
 
@@ -44,12 +45,17 @@ def managed_oauth_token(config, fallback_secret, *, force_refresh=False):
         if not isinstance(secret, str) or not secret:
             raise ValueError('OAuth 邮箱凭据不可用，请重新登录。')
         from oauth_client import access_token
+        try:
+            proxy = resolve_proxy(value)
+        except NameError:
+            proxy = None
         identity = {'gmail': 'google', 'outlook': 'microsoft'}.get(value.get('mail_provider'))
         token, updated = access_token(secret, {
             'provider': identity,
             'client_id': value.get('oauth_client_id', ''),
             'tenant': value.get('oauth_tenant', 'common'),
             'email': value.get('account', ''),
+            'proxy': proxy,
         }, force_refresh=force_refresh)
         if updated is not None:
             from oauth_client import credential_json
@@ -456,6 +462,10 @@ def decode_folder_name(value):
 
 def selectable_folders(client):
     """Return unique selectable folder names from an authenticated IMAP LIST."""
+    if client.__class__.__name__ == 'GmailMailbox':
+        rows = require_ok(client.list(), 'LIST')
+        return [re.sub(r'\\([\\"])', r'\1', row[0].decode('utf-8', 'replace').split('"')[-2])
+                for row in rows if isinstance(row, tuple) and row and isinstance(row[0], bytes)]
     rows = require_ok(client.list(), 'LIST')
     folders = []
     for row in rows or []:
@@ -477,6 +487,24 @@ def selectable_folders(client):
 
 def connect(config, secret, context=None):
     value = normalize(config)
+    if value.get('mail_provider') == 'gmail' and value.get('mail_auth') == 'oauth2':
+        from gmail_api import GmailMailbox
+        try:
+            proxy = resolve_proxy(value)
+            if value.get('oauth_mode') == 'managed':
+                token, _ = managed_oauth_token(config, secret)
+            else:
+                from oauth_client import access_token
+                token, _ = access_token(secret, {'provider': 'google', 'client_id': value.get('oauth_client_id', ''), 'email': value['account'], 'proxy': proxy})
+            # Raw legacy access tokens remain supported by access_token; new
+            # sign-ins are validated as refreshable bundles by the helper above.
+            client = GmailMailbox(token, value['mail_folder'], proxy=proxy, context=context or ssl.create_default_context())
+            client.verify()
+            return client
+        except Exception as error:
+            if isinstance(error, MailConnectionError):
+                raise
+            raise MailConnectionError('Gmail API connection failed; check OAuth permissions, account access, network and proxy settings.') from None
     context = context or ssl.create_default_context()
     client = None
     stage = 'SSL/TLS 连接' if value['security'] == 'ssl' else 'TCP 连接'
@@ -502,6 +530,7 @@ def connect(config, secret, context=None):
                     'client_id': value.get('oauth_client_id', ''),
                     'tenant': value.get('oauth_tenant', 'common'),
                     'email': value.get('account', ''),
+                    'proxy': resolve_proxy(value),
                 })
             if any(c in token for c in '\r\n\x01'):
                 raise ValueError('OAuth2 访问令牌格式无效。')

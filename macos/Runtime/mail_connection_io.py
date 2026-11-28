@@ -27,7 +27,15 @@ def load(home=None):
     path = Path(home or data_home()) / 'settings.json'
     settings = json.loads(path.read_text()) if path.exists() else {}
     mailbox = settings.get('mailbox')
-    if mailbox:
+    selected = mailbox
+    if not selected and settings.get('mailboxes'):
+        active_id = str(os.environ.get('BENSON_MAIL_ACCOUNT') or settings.get('active_mailbox_id') or '').casefold()
+        selected = next((item.get('connection') for item in settings['mailboxes']
+                         if item.get('connection', {}).get('account', '').casefold() == active_id), None)
+        if selected is None:
+            selected = settings['mailboxes'][0].get('connection')
+    if selected:
+        mailbox = selected
         connection = normalize(mailbox)
         service = mailbox.get('secret_service', 'BensonMail-IMAP')
         key_account = mailbox.get('secret_account', '')
@@ -53,6 +61,9 @@ def load(home=None):
     from mail_policy import validate_policy
     mail_policy = validate_policy(settings.get('mail_policy', {}))
     return {**keychain_config,
+            'mailboxes': settings.get('mailboxes') or [],
+            'active_mailbox_id': settings.get('active_mailbox_id', ''),
+            'mailbox': mailbox,
             'read_all_mail': bool(mailbox.get('read_all_mail', False)) if mailbox else False,
             'spam_folders': mail_policy['spam_folders'],
             'ui_language': settings.get('ui_language', 'zh')}, result.stdout.rstrip('\n')

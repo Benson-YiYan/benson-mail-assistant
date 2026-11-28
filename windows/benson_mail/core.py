@@ -471,6 +471,8 @@ class Service:
             job['new_notified']=True; self._persist_job(job, manual)
             self.callback({'notification':{'id':f'{self.identity}:{validity}:{key}:new','title':_t('收到新邮件'),'message':job['message']['subject']+_t('\n正在整理中文报告。')}})
         if 'answer' not in job:
+            from .gmail_policy import require_gmail_ai_consent
+            require_gmail_ai_consent(self.config, job['message'])
             self.callback({'status':'正在分析','detail':job['message']['subject']})
             answer=self.analyzer(job['message'],self.cancel)
             if self.cancel.is_set(): return

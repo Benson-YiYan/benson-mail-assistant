@@ -14,7 +14,7 @@ from .report_metadata import read_metadata, write_metadata
 from .mailbox_config import PRESETS, normalize, mailbox_id
 MAIL_FIELDS = ('account', 'username', 'host', 'port', 'security', 'mail_folder', 'mail_auth',
                'mail_provider', 'secret_binding', 'mail_secret_file', 'proxy_mode', 'proxy_host', 'proxy_port',
-               'read_all_mail', 'oauth_client_id', 'oauth_tenant', 'oauth_mode')
+               'read_all_mail', 'gmail_ai_consent', 'oauth_client_id', 'oauth_tenant', 'oauth_mode')
 
 
 class Controller:

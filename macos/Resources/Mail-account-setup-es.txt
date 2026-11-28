@@ -50,12 +50,12 @@ Inicio oficial: https://exmail.qq.com/ . Configuración oficial: https://hiflow.
 5. Gmail
 Correo web oficial: https://mail.google.com/ . Información OAuth de Google: https://developers.google.com/identity/protocols/oauth2/native-app .
 
-Asistente de correo electrónico ofrece inicio de sesión mediante navegador para Gmail. El usuario no crea una aplicación OAuth de Google ni introduce ID de cliente, secreto, inquilino o token de acceso.
-La autorización de Gmail en el navegador está configurada. La verificación de permisos de Google está pendiente; pueden aparecer avisos y aplicarse el límite actual de usuarios OAuth.
-1) Inicia sesión primero en Gmail desde la web y comprueba que la cuenta funciona. Activa IMAP si tu cuenta lo requiere.
+Asistente de correo electrónico usa el inicio de sesión en el navegador con la API de Gmail. No es necesario crear una aplicación OAuth ni introducir ID de cliente, secreto, inquilino o token. La lectura utiliza acceso de solo lectura; el envío tiene un permiso separado y solo ocurre después de revisar y confirmar expresamente cada mensaje.
+Los resúmenes automáticos, las preguntas sobre el correo y los borradores de respuesta envían a la IA elegida el cuerpo de los mensajes y el texto legible de los adjuntos de esta cuenta. Cada cuenta de Gmail tiene su propia opción de consentimiento en la configuración del buzón. Sin consentimiento, su contenido no se envía a la IA. Puedes desactivarlo para detener futuras transferencias.
+1) Inicia sesión primero en Gmail desde la web y comprueba que la cuenta funciona.
 2) En Asistente de correo electrónico, elige el preajuste Gmail, introduce la dirección completa y pulsa **Iniciar sesión con Google**.
 3) El navegador abrirá la página oficial de inicio y consentimiento de Google. Inicia sesión, revisa el nombre de la aplicación, la cuenta y los permisos, y acepta solo si coinciden con lo esperado. La cuenta debe coincidir con la dirección escrita en la aplicación.
-4) Gmail IMAP usa `https://mail.google.com/`. El alcance es más amplio que el acceso estrictamente de lectura, aunque Asistente de correo electrónico solo realiza operaciones de lectura y no envía, modifica ni elimina correo automáticamente.
+4) Google muestra permisos separados para leer y enviar. Revísalos antes de aceptarlos. La aplicación no usa la API de Gmail para modificar ni eliminar mensajes.
 5) Vuelve a la aplicación, pulsa **Guardar configuración del correo** y después **Probar conexión del correo**. Las credenciales se guardan en el Llavero de macOS o en el almacenamiento protegido de Windows y se renuevan cuando hace falta.
 
 Si Google muestra una advertencia de aplicación no verificada o permisos inesperados, no aceptes de inmediato; comprueba el nombre, la cuenta y el alcance. Revocar el consentimiento, cambiar las políticas de Google o aplicar restricciones de la organización puede exigir otro inicio de sesión.
@@ -79,7 +79,6 @@ Correo web: https://mail.yahoo.com/ . Contraseñas: https://help.yahoo.com/kb/SL
 Correo personal: https://outlook.live.com/mail/ . Correo de trabajo/escuela: https://outlook.office.com/mail/ . Información OAuth IMAP de Microsoft: https://learn.microsoft.com/exchange/client-developer/legacy-protocols/how-to-authenticate-an-imap-pop-smtp-application-by-using-oauth .
 
 Asistente de correo electrónico ofrece inicio de sesión mediante navegador para Outlook/Microsoft 365. El usuario no registra una aplicación Microsoft ni introduce ID de cliente, secreto, inquilino o token de acceso.
-La autorización de Gmail en el navegador está configurada. La verificación de permisos de Google está pendiente; pueden aparecer avisos y aplicarse el límite actual de usuarios OAuth.
 1) En un buzón personal de Outlook.com, activa IMAP en la web: Configuración > Correo > Reenvío e IMAP > Permitir que los dispositivos y las aplicaciones usen IMAP. Para cuentas de trabajo/escuela, contacta al administrador si no aparece la opción y confirma IMAP y las políticas de la organización.
 2) En Asistente de correo electrónico, elige el preajuste Outlook/Microsoft 365, introduce la dirección completa y pulsa **Iniciar sesión con Microsoft**.
 3) El navegador abrirá la página oficial de inicio y consentimiento de Microsoft. Inicia sesión en el buzón, revisa el nombre de la aplicación y los permisos antes de aceptar. El buzón debe coincidir con la dirección escrita en la aplicación.

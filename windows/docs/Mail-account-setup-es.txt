@@ -4,7 +4,7 @@ Los nombres de las páginas pueden cambiar. Sigue la página oficial actual y la
 
 1. Empieza aquí
 En el primer inicio, usa Conectar el correo. Después, abre Configuración > Correo en Mac o Correo y comprobaciones en Windows. Para otra cuenta, elige Añadir cuenta de correo.
-Introduce tu dirección completa. Escribe solo el nombre del servidor IMAP, sin https://, puerto ni ruta. Los preajustes siguientes usan el puerto 993 con SSL/TLS. Deja Nombre de usuario en blanco para usar la dirección completa, salvo que el proveedor indique otra cosa. La carpeta habitual es INBOX.
+Introduce la dirección completa. Gmail en el navegador usa Gmail API y no necesita servidor IMAP. Outlook / Microsoft 365 y otros buzones IMAP sí requieren ese servidor. Los preajustes IMAP habituales usan el puerto 993 con SSL/TLS. Deja Nombre de usuario en blanco para usar la dirección completa, salvo que el proveedor indique otra cosa. La carpeta habitual es INBOX.
 Gmail y Outlook/Microsoft 365 usan inicio de sesión en el navegador; los usuarios no introducen tokens OAuth ni datos de registro de aplicaciones. Otros proveedores pueden exigir una contraseña de aplicación o un código de autorización de cliente generado por el proveedor; no son códigos SMS. Si un proveedor solo admite OAuth2 y la aplicación no ofrece el inicio en navegador para ese servicio, no se puede conectar por ahora.
 Para Gmail y Outlook/Microsoft 365, pulsa el botón de inicio en el navegador y acepta la página oficial. Para otros proveedores, introduce la credencial que exijan, guarda y pulsa Probar conexión del correo. Pausa la supervisión antes de cambiar los datos de conexión.
 La credencial del correo es distinta de tu clave API de IA. Nunca publiques ninguna en un chat. También debes configurar la IA; sin mensajes nuevos no se llama a la IA.
@@ -21,7 +21,7 @@ Conexiones mediante proxy (por ejemplo, Gmail desde China continental)
 3) Prueba Proxy del sistema para leer la configuración real del sistema o del entorno. Si no está disponible, se muestra un error; nunca se cambia silenciosamente a conexión directa.
 4) También puedes elegir HTTP o SOCKS5 según tu aplicación de proxy. La dirección suele ser 127.0.0.1. Revisa el puerto local real de tu aplicación; no copies un ejemplo a ciegas. 10808 es solo un ejemplo común.
 5) Guarda la configuración, prueba la conexión del correo y reanuda la supervisión si funciona. Cada cuenta tiene su propio proxy. Un proxy explícito no requiere TUN.
-6) Esta función solo aplica el proxy a IMAP; no cambia la conexión de la API de IA. No se admiten scripts PAC ni proxies con usuario y contraseña. Un fallo del proxy muestra un error en lugar de usar una conexión directa.
+6) El proxy del buzón se aplica a Gmail API, las solicitudes OAuth y las conexiones IMAP/SMTP de otros proveedores; no cambia la conexión de la API de IA. No se admiten scripts PAC ni proxies con usuario y contraseña. Si falla, se muestra un error en vez de usar una conexión directa.
 
 2. NetEase 163, 126 y Yeah
 Webs oficiales: https://mail.163.com/ , https://mail.126.com/ , https://www.yeah.net/ . Ayuda oficial: https://help.mail.163.com/ .
@@ -52,13 +52,15 @@ Correo web oficial: https://mail.google.com/ . Información OAuth de Google: htt
 
 Asistente de correo electrónico ofrece inicio de sesión mediante navegador para Gmail. El usuario no crea una aplicación OAuth de Google ni introduce ID de cliente, secreto, inquilino o token de acceso.
 La autorización de Gmail en el navegador está configurada. La verificación de permisos de Google está pendiente; pueden aparecer avisos y aplicarse el límite actual de usuarios OAuth.
-1) Inicia sesión primero en Gmail desde la web y comprueba que la cuenta funciona. Activa IMAP si tu cuenta lo requiere.
+1) Inicia sesión en Gmail desde la web y comprueba que la cuenta funciona. El inicio de Gmail en el navegador no requiere IMAP.
 2) En Asistente de correo electrónico, elige el preajuste Gmail, introduce la dirección completa y pulsa **Iniciar sesión con Google**.
 3) El navegador abrirá la página oficial de inicio y consentimiento de Google. Inicia sesión, revisa el nombre de la aplicación, la cuenta y los permisos, y acepta solo si coinciden con lo esperado. La cuenta debe coincidir con la dirección escrita en la aplicación.
-4) Gmail IMAP usa `https://mail.google.com/`. El alcance es más amplio que el acceso estrictamente de lectura, aunque Asistente de correo electrónico solo realiza operaciones de lectura y no envía, modifica ni elimina correo automáticamente.
+4) La autorización de Gmail usa Gmail API: `gmail.readonly` permite leer correo y `gmail.send` enviar respuestas solo después de tu confirmación. La aplicación no solicita acceso completo para eliminar mensajes permanentemente. La verificación de permisos OAuth de Google sigue pendiente; el uso público aún puede mostrar avisos o estar sujeto a un límite de usuarios.
 5) Vuelve a la aplicación, pulsa **Guardar configuración del correo** y después **Probar conexión del correo**. Las credenciales se guardan en el Llavero de macOS o en el almacenamiento protegido de Windows y se renuevan cuando hace falta.
 
-Si Google muestra una advertencia de aplicación no verificada o permisos inesperados, no aceptes de inmediato; comprueba el nombre, la cuenta y el alcance. Revocar el consentimiento, cambiar las políticas de Google o aplicar restricciones de la organización puede exigir otro inicio de sesión.
+Los resúmenes automáticos, las preguntas sobre correo y los borradores de respuesta envían a tu servicio de IA configurado el cuerpo del mensaje y el texto legible de los adjuntos. Antes de usar Gmail con funciones de IA, activa expresamente «Permitir el uso de este contenido de Gmail en funciones de IA» en la configuración del buzón. Al desactivarlo se bloquean los envíos posteriores de contenido de Gmail a la IA.
+
+Si Google muestra una advertencia de aplicación no verificada o permisos inesperados, no aceptes de inmediato; comprueba el nombre, la cuenta y los permisos. Revocar el consentimiento, cambiar las políticas de Google o aplicar restricciones de la organización puede exigir otro inicio de sesión.
 
 6. iCloud Mail
 Correo web: https://www.icloud.com/mail/ . Contraseñas: https://support.apple.com/102654 . Servidores: https://support.apple.com/102525 .
