@@ -1,6 +1,10 @@
 """Fail-closed checks for sending Gmail content to a configured AI service."""
 
 
+class GmailConsentRequired(PermissionError, ValueError):
+    """User-actionable consent denial, safe to display without private data."""
+
+
 def require_gmail_ai_consent(config, *sources):
     profiles = config.get('mailboxes') or []
     if not profiles and config.get('mailbox'):
@@ -31,12 +35,12 @@ def require_gmail_ai_consent(config, *sources):
             if connection.get('mail_provider') == 'gmail':
                 targets.append(connection)
         elif account.endswith('@gmail.com'):
-            raise PermissionError(_denied(config))
+            raise GmailConsentRequired(_denied(config))
     if not records:
         targets = [item.get('connection', item) for item in profiles
                    if item.get('connection', item).get('mail_provider') == 'gmail']
     if any(item.get('gmail_ai_consent') is not True for item in targets):
-        raise PermissionError(_denied(config))
+        raise GmailConsentRequired(_denied(config))
 
 
 def _denied(config):
