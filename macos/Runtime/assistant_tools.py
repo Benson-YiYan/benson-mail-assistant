@@ -446,13 +446,8 @@ def _selected_mailbox(root, config, identifier, controller=None):
         service = raw_connection.get('secret_service', 'BensonMail-IMAP')
         if service not in ('Codex-Mail-163', 'BensonMail-IMAP'):
             raise ValueError('Invalid credential service.')
-        args = ['/usr/bin/security', 'find-generic-password', '-s', service]
-        if raw_connection.get('secret_account'):
-            args += ['-a', raw_connection['secret_account']]
-        result = subprocess.run(args + ['-w'], capture_output=True, text=True, timeout=30)
-        if result.returncode or not result.stdout:
-            raise ValueError('Mailbox credentials are unavailable.')
-        secret = result.stdout.rstrip('\n')
+        from mail_connection_io import read_mailbox_credential
+        secret = read_mailbox_credential(service, raw_connection.get('secret_account', ''))
     # Preserve only the two transport selectors that normalization purposely
     # excludes. Never return secret material in the connection mapping.
     connection['secret_service'] = raw_connection.get('secret_service', 'BensonMail-IMAP')
@@ -760,11 +755,8 @@ def _mailbox(root, config, identifier='', controller=None):
         import subprocess
         service = profile.get('secret_service', 'BensonMail-IMAP')
         if service not in ('Codex-Mail-163', 'BensonMail-IMAP'): raise ValueError('Invalid credential service.')
-        args = ['/usr/bin/security', 'find-generic-password', '-s', service]
-        if profile.get('secret_account'): args += ['-a', profile['secret_account']]
-        result = subprocess.run(args + ['-w'], capture_output=True, text=True, timeout=30)
-        if result.returncode: raise ValueError('Mailbox credentials are unavailable.')
-        secret = result.stdout.rstrip('\n')
+        from mail_connection_io import read_mailbox_credential
+        secret = read_mailbox_credential(service, profile.get('secret_account', ''))
     connection = {**profile, 'ui_language': config.get('ui_language', 'zh')}
     if WINDOWS:
         from .ai_api import tls_context

@@ -14,12 +14,19 @@ def load_managed_credential(config):
     account = str(config.get('secret_account', ''))
     if service not in ('Codex-Mail-163', 'BensonMail-IMAP') or not account:
         raise ValueError('OAuth 邮箱没有有效的钥匙串绑定，请重新登录。')
-    result = subprocess.run(
-        ['/usr/bin/security', 'find-generic-password', '-s', service, '-a', account, '-w'],
-        capture_output=True, text=True, timeout=20,
-    )
+    return read_mailbox_credential(service, account)
+
+
+def read_mailbox_credential(service, account):
+    helper = _keychain_helper()
+    if helper is None:
+        raise RuntimeError('缺少钥匙串组件，请重新安装完整应用。')
+    background = os.environ.get('BENSON_MAIL_BACKGROUND') == '1'
+    mode = '--read-background' if background else '--read'
+    result = subprocess.run([str(helper), mode, service, account],
+                            capture_output=True, text=True, timeout=25)
     if result.returncode or not result.stdout.strip():
-        raise ValueError('OAuth 邮箱凭据不可用，请重新登录。')
+        raise MailConnectionError('无法读取邮箱凭据。请打开「邮箱与检查」，选中该邮箱并测试连接，在钥匙串提示中授权。')
     return result.stdout.rstrip('\n')
 
 
@@ -50,11 +57,7 @@ def load(home=None):
         connection = normalize({'account': key_account, 'host': 'imap.163.com'})
     if service not in ('Codex-Mail-163', 'BensonMail-IMAP'):
         raise ValueError('邮箱凭据来源无效，请重新保存邮箱设置。')
-    command = ['/usr/bin/security', 'find-generic-password', '-s', service]
-    if key_account: command.extend(['-a', key_account])
-    result = subprocess.run(command + ['-w'], capture_output=True, text=True, timeout=20)
-    if result.returncode or not result.stdout.strip():
-        raise ValueError('无法读取该邮箱的钥匙串凭据，请在设置中重新保存。')
+    secret = read_mailbox_credential(service, key_account)
     keychain_config = {**connection, 'secret_service': service, 'secret_account': key_account}
     if connection.get('oauth_mode') == 'managed':
         keychain_config['_oauth_secret_provider'] = lambda: load_managed_credential(keychain_config)
@@ -66,7 +69,7 @@ def load(home=None):
             'mailbox': mailbox,
             'read_all_mail': bool(mailbox.get('read_all_mail', False)) if mailbox else False,
             'spam_folders': mail_policy['spam_folders'],
-            'ui_language': settings.get('ui_language', 'zh')}, result.stdout.rstrip('\n')
+            'ui_language': settings.get('ui_language', 'zh')}, secret
 
 
 def _keychain_helper():
@@ -90,7 +93,8 @@ def save_managed_credential(config, bundle):
     helper = _keychain_helper()
     if helper is None:
         raise RuntimeError('The secure Keychain refresh helper is missing. Reinstall the complete app.')
-    result = subprocess.run([str(helper), service, account], input=payload, capture_output=True,
+    mode = ['--write-background'] if os.environ.get('BENSON_MAIL_BACKGROUND') == '1' else []
+    result = subprocess.run([str(helper), *mode, service, account], input=payload, capture_output=True,
                             text=True, timeout=20)
     if result.returncode:
         raise RuntimeError('OAuth token renewal succeeded, but the refreshed credential could not be saved to Keychain.')

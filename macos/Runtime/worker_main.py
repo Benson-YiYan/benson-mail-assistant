@@ -23,6 +23,7 @@ def main():
     home.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.umask(0o077)
     if operation == '--daemon':
+        os.environ['BENSON_MAIL_BACKGROUND'] = '1'
         _trim_daemon_logs(home)
     # Bundle a trusted CA store and also honor the user's macOS trust store.
     import certifi

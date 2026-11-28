@@ -2,19 +2,38 @@ import Foundation
 import Security
 import Darwin
 
-guard CommandLine.arguments.count == 3 else {
-    fputs("Invalid arguments.\n", stderr)
-    exit(2)
-}
-
-let service = CommandLine.arguments[1]
-let account = CommandLine.arguments[2]
+let args = Array(CommandLine.arguments.dropFirst())
+let reading = args.first == "--read"
+let background = args.first == "--read-background" || args.first == "--write-background"
+let credentials = (reading || background) ? Array(args.dropFirst()) : args
+guard credentials.count == 2 else { exit(2) }
+let service = credentials[0]
+let account = credentials[1]
 guard ["Codex-Mail-163", "BensonMail-IMAP"].contains(service),
-      !account.isEmpty, account.utf8.count <= 512,
-      !account.contains("\n"), !account.contains("\r") else {
-    fputs("Invalid Keychain item.\n", stderr)
-    exit(2)
+      account.utf8.count <= 512, !account.contains("\n"), !account.contains("\r"),
+      !account.isEmpty || service == "Codex-Mail-163" else { exit(2) }
+
+if background {
+    guard SecKeychainSetUserInteractionAllowed(false) == errSecSuccess else { exit(1) }
 }
+var item: [String: Any] = [
+    kSecClass as String: kSecClassGenericPassword,
+    kSecAttrService as String: service
+]
+if !account.isEmpty { item[kSecAttrAccount as String] = account }
+if reading || args.first == "--read-background" {
+    item[kSecReturnData as String] = true
+    item[kSecMatchLimit as String] = kSecMatchLimitOne
+    var result: CFTypeRef?
+    let status = SecItemCopyMatching(item as CFDictionary, &result)
+    guard status == errSecSuccess, let data = result as? Data else {
+        fputs("Keychain read failed (\(status)).\n", stderr)
+        exit(1)
+    }
+    FileHandle.standardOutput.write(data)
+    exit(0)
+}
+guard !account.isEmpty else { exit(2) }
 
 let data = FileHandle.standardInput.readDataToEndOfFile()
 guard !data.isEmpty, data.count <= 1_000_000,
@@ -29,11 +48,6 @@ guard !data.isEmpty, data.count <= 1_000_000,
     exit(2)
 }
 
-let item: [String: Any] = [
-    kSecClass as String: kSecClassGenericPassword,
-    kSecAttrService as String: service,
-    kSecAttrAccount as String: account
-]
 let attributes: [String: Any] = [kSecValueData as String: data]
 var status = SecItemUpdate(item as CFDictionary, attributes as CFDictionary)
 if status == errSecItemNotFound {
