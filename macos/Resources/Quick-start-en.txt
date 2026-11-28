@@ -32,7 +32,7 @@ Use Summary prompt on this page to add custom guidance. It supplements the built
 
 5. Monitoring, interval, startup and quitting
 Start/Pause monitoring controls automatic mailbox checks. Check now requests one immediate check; repeated clicks are unnecessary. The first check of a new account records a starting point rather than analyzing the whole inbox. Resuming catches up on messages received while paused, offline or powered off if they remain in the configured folder. Moved or deleted messages may be unavailable.
-Enter a whole number of seconds from 10 to 86400 and apply the custom interval; default 60 seconds. Empty checks make no AI call, but pending failures can retry. Pausing lets current operations finish safely.
+Enter a whole number of seconds from 10 to 86400 and apply the custom interval; default 60 seconds. Empty checks make no AI call. After a check fails, the service keeps running but does not immediately retry failed mail; fix the connection or AI settings and choose Check now, or wait for the next scheduled check. Pausing lets current operations finish safely.
 In General settings → Startup and monitoring, optionally show the menu-bar icon at Mac login. Closing the window keeps monitoring. Quitting through the Dock, app menu or Command-Q stops monitoring and saves the paused state. Reopen and choose Start monitoring to resume.
 
 6. System notifications and quiet hours

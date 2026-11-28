@@ -31,7 +31,7 @@ Save AI settings and test. Testing sends a short message and may consume credit.
 
 5. Monitoring, interval, startup and quitting
 Start/Pause monitoring controls automatic mailbox checks. Check now requests one immediate check; repeated clicks are unnecessary. The first check of a new account records a starting point rather than analyzing the whole inbox. Resuming catches up on messages received while paused, offline or powered off if they remain in the configured folder. Moved or deleted messages may be unavailable.
-Enter a whole number of seconds from 10 to 86400 and save the mailbox settings page once; default 60 seconds. Empty checks make no AI call, but pending failures can retry. Pausing lets current operations finish safely.
+Enter a whole number of seconds from 10 to 86400 and save the mailbox settings page once; default 60 seconds. Empty checks make no AI call. After a check fails, the service keeps running but does not immediately retry failed mail; fix the connection or AI settings and choose Check now, or wait for the next scheduled check. Pausing lets current operations finish safely.
 Configure startup at Windows login under General settings. Closing the window keeps monitoring in the system tray. Click the envelope to restore it; Exit from the tray ends the process.
 
 6. System notifications and quiet hours

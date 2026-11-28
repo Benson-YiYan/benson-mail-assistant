@@ -32,7 +32,7 @@ Usa Indicaciones de resumen en esta página para añadir instrucciones personali
 
 5. Supervisión, intervalo, inicio y salida
 Iniciar/Pausar supervisión controla las comprobaciones automáticas. Comprobar ahora solicita una comprobación inmediata, sin necesidad de pulsar varias veces. La primera de una cuenta nueva registra el punto de partida, no analiza toda la bandeja antigua. Al reanudar se recuperan mensajes recibidos durante pausas, desconexión o apagado si siguen en la carpeta elegida. Los movidos o eliminados pueden no estar disponibles.
-Indica un número entero de segundos entre 10 y 86400 y aplica el intervalo; por defecto 60 segundos. Una comprobación vacía no llama a la IA, aunque un trabajo fallido pendiente puede reintentarse. La pausa deja terminar de forma segura las operaciones actuales.
+Indica un número entero de segundos entre 10 y 86400 y aplica el intervalo; por defecto 60 segundos. Una comprobación vacía no llama a la IA. Si falla una comprobación, el servicio sigue activo, pero no reintenta de inmediato el correo fallido; corrige la conexión o la configuración de IA y pulsa Comprobar ahora, o espera a la siguiente comprobación programada. Al pausar, las operaciones actuales terminan de forma segura.
 En Ajustes generales → Inicio y supervisión puedes mostrar el icono al iniciar sesión en Mac. Cerrar la ventana mantiene la supervisión. Salir desde Dock, menú de la app o Comando-Q la detiene y guarda la pausa. Vuelve a abrir e inicia la supervisión para reanudar.
 
 6. Notificaciones y horario de silencio

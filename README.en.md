@@ -4,7 +4,7 @@
 
 Turn each new email into six sections: **notice, sender, summary, actions, attachment contents and a suggested reply**.
 
-Native Windows and Mac interfaces, multiple mailboxes and your choice of AI. **Checks without new mail or pending retries do not call AI. Replies are never sent automatically.**
+Native Windows and Mac interfaces, multiple mailboxes and your choice of AI. **Checks without new mail do not call AI. After a check fails, the service keeps running; choose Check now or wait for the next scheduled check to retry. Replies are never sent automatically.**
 
 ## Download
 
