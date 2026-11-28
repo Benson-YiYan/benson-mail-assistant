@@ -101,6 +101,10 @@ class GmailMailbox:
     def verify(self):
         _request(self.token, '/profile', proxy=self.proxy, context=self.context)
 
+    def verify_messages(self):
+        _request(self.token, '/messages', {'q': 'labelId:' + self.selected, 'maxResults': 1},
+                 proxy=self.proxy, context=self.context)
+
     def list(self):
         labels = _request(self.token, '/labels', proxy=self.proxy, context=self.context).get('labels', [])
         rows = []

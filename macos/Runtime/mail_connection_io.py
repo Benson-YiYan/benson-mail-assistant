@@ -112,7 +112,13 @@ def test(mailbox_identity=None):
     try:
         value, secret = load(mailbox_identity=mailbox_identity)
         client = connect(value, secret)
-        client.logout()
+        try:
+            if value.get('mail_provider') == 'gmail' and value.get('mail_auth') == 'oauth2':
+                from mailbox_config import require_ok
+                require_ok(client.select(value['mail_folder'], readonly=True), 'Gmail label')
+                client.verify_messages()
+        finally:
+            client.logout()
         print('邮箱连接正常（只读连接，不修改邮件）。')
     except MailConnectionError as error:
         print(str(error))

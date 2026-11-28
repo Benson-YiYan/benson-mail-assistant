@@ -492,7 +492,7 @@ def connect(config, secret, context=None):
         try:
             proxy = resolve_proxy(value)
             if value.get('oauth_mode') == 'managed':
-                token, _ = managed_oauth_token(config, secret)
+                token = managed_oauth_token(config, secret)
             else:
                 from oauth_client import access_token
                 token, _ = access_token(secret, {'provider': 'google', 'client_id': value.get('oauth_client_id', ''), 'email': value['account'], 'proxy': proxy})

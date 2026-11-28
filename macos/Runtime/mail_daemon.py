@@ -424,6 +424,15 @@ def monitor():
     except (OSError, ValueError, RuntimeError):
         log('Report layout migration unavailable; existing reports retained')
     last_error = None
+    last_error_notice = float('-inf')
+
+    def notify_check_error(detail):
+        nonlocal last_error_notice
+        now = time.monotonic()
+        if now - last_error_notice >= 30 * 60:
+            notify(detail, runtime_text('邮件小秘书需要检查', 'Email Assistant needs attention', 'Asistente de correo electrónico necesita atención'))
+            last_error_notice = now
+
     log('automatic Markdown monitor started; empty checks never invoke AI')
     next_check = 0
     last_started = None
@@ -460,16 +469,17 @@ def monitor():
                     error=detail, current_subject=None, current_account=None, mailbox_count=count)
             if detail and detail != last_error:
                 log(detail)
-                notify(detail, runtime_text('邮件小秘书需要检查', 'Email Assistant needs attention', 'Asistente de correo electrónico necesita atención'))
+                notify_check_error(detail)
             last_error = detail
-            log('mailbox check succeeded')
+            if not failures:
+                log('mailbox check succeeded')
             next_check = started + interval
         except Exception as error:
             detail = str(error)
             publish('error', error=detail, current_subject=None)
             log(detail)
             if detail != last_error:
-                notify(detail, runtime_text('邮件小秘书需要检查', 'Email Assistant needs attention', 'Asistente de correo electrónico necesita atención'))
+                notify_check_error(detail)
             last_error = detail
             # Keep the daemon responsive after a failed mailbox check. The loop
             # polls the durable manual request while waiting for the next retry.
