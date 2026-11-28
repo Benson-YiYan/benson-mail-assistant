@@ -212,7 +212,7 @@ final class MailStore: ObservableObject {
             completion(apiTestResult)
         }
     }
-    func testMailbox() {
+    func testMailbox(identity: String? = nil) {
         guard !isTest, !testingMailbox else { return }
         testingMailbox = true; mailboxTestResult = "正在连接已保存的邮箱…"
         let executable = ServiceInstaller.worker
@@ -221,7 +221,7 @@ final class MailStore: ObservableObject {
             let result = await Task.detached { () -> String in
                 let process = Process()
                 process.executableURL = executable
-                process.arguments = ["--home", home, "--test-mail"]
+                process.arguments = ["--home", home, "--test-mail"] + (identity.map { [$0] } ?? [])
                 let output = Pipe(); process.standardOutput = output; process.standardError = FileHandle.nullDevice
                 do {
                     try process.run()

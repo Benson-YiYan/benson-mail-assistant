@@ -30,11 +30,18 @@ def read_mailbox_credential(service, account):
     return result.stdout.rstrip('\n')
 
 
-def load(home=None):
+def load(home=None, *, mailbox_identity=None):
     path = Path(home or data_home()) / 'settings.json'
     settings = json.loads(path.read_text()) if path.exists() else {}
     mailbox = settings.get('mailbox')
     selected = mailbox
+    if mailbox_identity:
+        from mailbox_config import mailbox_id
+        saved = [item['connection'] for item in settings.get('mailboxes') or []]
+        selected = next((item for item in (saved or ([mailbox] if mailbox else []))
+                         if mailbox_id(item) == mailbox_identity), None)
+        if selected is None:
+            raise ValueError('找不到所选邮箱，请先保存邮箱设置。')
     if not selected and settings.get('mailboxes'):
         active_id = str(os.environ.get('BENSON_MAIL_ACCOUNT') or settings.get('active_mailbox_id') or '').casefold()
         selected = next((item.get('connection') for item in settings['mailboxes']
@@ -100,10 +107,10 @@ def save_managed_credential(config, bundle):
         raise RuntimeError('OAuth token renewal succeeded, but the refreshed credential could not be saved to Keychain.')
     return payload
 
-def test():
+def test(mailbox_identity=None):
     value, secret = None, ''
     try:
-        value, secret = load()
+        value, secret = load(mailbox_identity=mailbox_identity)
         client = connect(value, secret)
         client.logout()
         print('邮箱连接正常（只读连接，不修改邮件）。')

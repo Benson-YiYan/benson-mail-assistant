@@ -208,7 +208,7 @@ def main():
         return
     if operation == '--test-mail':
         from mail_connection_io import test
-        test()
+        test(args[0] if args else None)
         return
     if operation not in modules:
         raise SystemExit('Unknown worker operation')

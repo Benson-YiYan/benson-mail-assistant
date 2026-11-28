@@ -86,7 +86,9 @@ struct StagedSettingsPage: View {
                 Text(T("凭据保存在系统钥匙串。更换账号、服务器、登录用户名或文件夹前，请先暂停监听；旧报告保留。"))
                     .font(.caption).foregroundStyle(.secondary)
                 if store.testingMailbox { ProgressView().controlSize(.small) }
-                Button(store.testingMailbox ? T("正在测试…") : T("测试邮箱连接")) { store.testMailbox() }
+                Button(store.testingMailbox ? T("正在测试…") : T("测试邮箱连接")) {
+                    store.testMailbox(identity: draft.accounts.first(where: { $0.id == draft.selected })?.connection.identity)
+                }
                     .disabled(draft.dirty(.mailbox) || store.testingMailbox || store.mailAccount.isEmpty)
                     .accessibilityIdentifier("settings-test-mailbox")
                 if !store.mailboxTestResult.isEmpty { Text(T(store.mailboxTestResult)).textSelection(.enabled).font(.caption) }
