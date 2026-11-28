@@ -9,7 +9,6 @@ import hashlib
 import hmac
 import http.server
 import http.client
-import io
 import json
 import re
 import secrets
@@ -136,39 +135,37 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _open_credentials_request(request, timeout, proxy=None):
-    if not proxy:
-        return urllib.request.build_opener(_NoRedirect()).open(request, timeout=timeout)
-    import ssl
-    import io
-    if __package__:
-        from .mailbox_config import proxy_socket
-    else:
+class _ProxyHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, host, *, proxy, **kwargs):
+        super().__init__(host, **kwargs)
+        self.proxy = proxy
+
+    def connect(self):
         from mailbox_config import proxy_socket
-    parsed = urllib.parse.urlsplit(request.full_url)
-    sock = proxy_socket(proxy, parsed.hostname, parsed.port or 443, timeout=timeout)
-    with ssl.create_default_context().wrap_socket(sock, server_hostname=parsed.hostname) as secure:
-        secure.settimeout(timeout)
-        body = request.data or b''
-        method = request.get_method().encode('ascii')
-        target = (parsed.path or '/') + (('?' + parsed.query) if parsed.query else '')
-        secure.sendall(method + b' ' + target.encode('ascii') + b' HTTP/1.1\r\n')
-        headers = {key: value for key, value in request.header_items()}
-        headers['Host'] = parsed.hostname
-        headers['Connection'] = 'close'
-        if body or method in (b'POST', b'PUT', b'PATCH'):
-            headers['Content-Length'] = str(len(body))
-        for key, value in headers.items(): secure.sendall(f'{key}: {value}\r\n'.encode('latin-1'))
-        secure.sendall(b'\r\n' + body)
-        received = bytearray()
-        while True:
-            chunk = secure.recv(65536)
-            if not chunk: break
-            received.extend(chunk)
-    response = http.client.HTTPResponse(_OAuthBytesSocket(bytes(received))); response.begin()
-    if response.status >= 400:
-        raise urllib.error.HTTPError(request.full_url, response.status, 'OAuth error', response.headers, None)
-    return response
+        raw = proxy_socket(self.proxy, self.host, self.port, self.timeout)
+        self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
+
+
+class _ProxyHTTPSHandler(urllib.request.HTTPSHandler):
+    def __init__(self, proxy):
+        super().__init__()
+        self.proxy = proxy
+
+    def https_open(self, request):
+        return self.do_open(
+            lambda host, **kwargs: _ProxyHTTPSConnection(host, proxy=self.proxy, **kwargs),
+            request,
+        )
+
+
+def _open_credentials_request(request, timeout, proxy=None):
+    handlers = [_NoRedirect()]
+    if proxy:
+        handlers.extend((urllib.request.ProxyHandler({}), _ProxyHTTPSHandler(proxy)))
+    else:
+        # A per-mailbox Direct setting must not silently inherit a system proxy.
+        handlers.append(urllib.request.ProxyHandler({}))
+    return urllib.request.build_opener(*handlers).open(request, timeout=timeout)
 
 
 def _post_json(url, values, timeout=30, proxy=None):
