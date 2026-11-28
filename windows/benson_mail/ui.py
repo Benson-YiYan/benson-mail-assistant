@@ -285,6 +285,7 @@ class Application:
             if 'command' in event: self.command=event['command'] or []; self.codex_label.set('Codex：'+('已找到命令行程序' if self.command else '未找到，请点击选择 Codex 程序'))
             if 'status' in event: self.status.set(event['status'])
             if event.get('status') in ('正在检查','正在分析'): self.check_button.configure(state='disabled',text='检查中…')
+            if event.get('status')=='需要检查': self.check_button.configure(state='normal',text='立即检查')
             if event.get('check_done') or event.get('status')=='已暂停': self.check_button.configure(state='normal',text='立即检查')
             if 'detail' in event: self.detail.set(event['detail'])
             if 'ai_detail' in event: self.ai_detail.set(event['ai_detail'])

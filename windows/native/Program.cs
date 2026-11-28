@@ -1546,6 +1546,7 @@ sealed partial class MainWindow : Window
             status.Text = L.T(rawStatus);
             if (rawStatus == "已暂停") { running = false; toggle.Content = L.T("开始监听"); check.IsEnabled = true; }
             else if (rawStatus is "正在检查" or "正在分析") check.IsEnabled = false;
+            else if (rawStatus == "需要检查") check.IsEnabled = true;
         }
         if (ev.TryGetProperty("detail", out var text)) {
             var raw = text.GetString() ?? "";

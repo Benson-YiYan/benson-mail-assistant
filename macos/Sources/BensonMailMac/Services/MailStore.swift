@@ -141,6 +141,11 @@ final class MailStore: ObservableObject {
                 requestTime = nil
             } else if status.phase == "checking" { checkFeedback = "正在检查邮箱…" }
             else if status.phase == "analyzing" { checkFeedback = "发现新邮件，正在分析…" }
+            else if status.phase == "error", status.last_check == requestedAfterCheck {
+                checkRequested = false
+                requestTime = nil
+                checkFeedback = "检查遇到问题，请查看运行记录后重试"
+            }
             else if let requestTime, Date().timeIntervalSince(requestTime) > 200 {
                 checkRequested = false; checkFeedback = "检查超时，请查看运行记录"
                 self.requestTime = nil

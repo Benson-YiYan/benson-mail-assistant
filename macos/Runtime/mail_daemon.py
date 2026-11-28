@@ -471,8 +471,9 @@ def monitor():
             if detail != last_error:
                 notify(detail, runtime_text('邮件小秘书需要检查', 'Email Assistant needs attention', 'Asistente de correo electrónico necesita atención'))
             last_error = detail
+            # Keep the daemon responsive after a failed mailbox check. The loop
+            # polls the durable manual request while waiting for the next retry.
             next_check = time.monotonic() + check_interval()
-            time.sleep(1)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == '--export-one':

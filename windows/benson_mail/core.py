@@ -334,15 +334,17 @@ class Service:
         self.state_path=self.root/(identity+'.json'); self.state=json.loads(self.state_path.read_text(encoding='utf-8')) if self.state_path.exists() else {}
         self.analyzer=analyzer or (APIAnalyzer(config,api_key) if config.get('ai_provider','codex') in ('api','deepseek_harness') else CodexAnalyzer(config.get('codex_command',[]),self.root,config))
         self.cancel=threading.Event(); self.thread=None
-        self.wake=threading.Event(); self.check_requested=False
+        self.wake=threading.Event(); self.check_requested=False; self.request_lock=threading.Lock()
         self.activity=threading.Lock()
     def start(self):
         if self.thread and self.thread.is_alive(): return
         self.cancel.clear(); self.thread=threading.Thread(target=self.run,daemon=True); self.thread.start()
     def stop(self): self.cancel.set(); self.wake.set()
     def request_check(self):
-        if self.check_requested: return
-        self.check_requested=True; self.wake.set()
+        with self.request_lock:
+            if self.check_requested: return
+            self.check_requested=True
+            self.wake.set()
     def set_interval(self,seconds):
         self.config['interval']=seconds
         self.wake.set()
@@ -496,7 +498,9 @@ class Service:
         self.callback(event)
     def run(self):
         while not self.cancel.is_set():
-            self.wake.clear()
+            with self.request_lock:
+                self.wake.clear()
+                self.check_requested=False
             try:
                 self.callback({'status':'正在检查','detail':_t('正在连接邮箱…', self.config.get('ui_language', 'zh'))})
                 self.check_once()
@@ -508,7 +512,6 @@ class Service:
                 # Connection errors are sanitized at the credential boundary; other errors retain the safe fallback.
                 detail = str(error) if isinstance(error, MailConnectionError) else _t('连接或分析失败。请测试连接；未完成邮件会自动重试。', self.config.get('ui_language', 'zh'))
                 self.callback({'status':'需要检查','detail':detail,'check_done':True})
-            self.check_requested=False
             if self.cancel.is_set(): break
             self.wake.wait(self.config.get('interval',60))
         self.callback({'status':'已暂停','detail':_t('下次开始时会补查暂停期间的新邮件', self.config.get('ui_language', 'zh'))})
