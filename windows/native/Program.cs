@@ -1659,7 +1659,7 @@ sealed partial class MainWindow : Window
             var consentResult = await legal.ShowAsync();
             if (consentResult != ContentDialogResult.Primary) { exiting = true; exitRequested = true; lifetime.Dispose(); tray.Visible = false; tray.Dispose(); bridge.Dispose(); Application.Current.Exit(); return; }
             try { SaveLegalDocumentAcceptance(); }
-            catch (Exception error) { throw new InvalidOperationException(L.T("无法保存同意记录：") + L.T(error.Message)); }
+            catch (Exception consentError) { throw new InvalidOperationException(L.T("无法保存同意记录：") + L.T(consentError.Message)); }
         }
         var address = new TextBox { FontFamily = MailTypography.Font, Header = L.T("邮箱地址"), Text = account.Text };
         var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = L.T("应用专用密码/授权码（不是登录密码）") };
