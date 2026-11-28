@@ -22,6 +22,8 @@ def main():
     home = data_home()
     home.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.umask(0o077)
+    if operation == '--daemon':
+        _trim_daemon_logs(home)
     # Bundle a trusted CA store and also honor the user's macOS trust store.
     import certifi
     import truststore
@@ -211,6 +213,33 @@ def main():
         raise SystemExit('Unknown worker operation')
     sys.argv = [modules[operation], *args]
     runpy.run_module(modules[operation], run_name='__main__')
+
+
+def _trim_daemon_logs(home, limit=500):
+    """Keep the newest 500 lines from launchd stdout and stderr logs."""
+    for name in ('daemon.log', 'daemon-error.log'):
+        path = home / name
+        try:
+            if not path.is_file():
+                continue
+            with path.open('rb') as stream:
+                stream.seek(0, os.SEEK_END)
+                size = stream.tell()
+                # Read a bounded tail window; if lines are unusually huge, the
+                # fallback below still limits the number of retained records.
+                stream.seek(max(0, size - 1024 * 1024))
+                tail = stream.read()
+            lines = tail.splitlines()[-limit:]
+            temporary = path.with_name(path.name + '.trim')
+            temporary.write_bytes(b'\n'.join(lines) + (b'\n' if lines else b''))
+            os.chmod(temporary, 0o600)
+            os.replace(temporary, path)
+        except OSError:
+            # Log cleanup must never prevent the mail service from starting.
+            try:
+                path.with_name(path.name + '.trim').unlink(missing_ok=True)
+            except OSError:
+                pass
 
 if __name__ == '__main__':
     main()
