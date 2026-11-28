@@ -119,7 +119,8 @@ struct MailSettings: Codable {
     var chat_enter_to_send = false
     var summary_prompt = ""
     var active_mailbox_id: String? = nil
-    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, codex_path, harness_path, mailbox, mailboxes, mail_policy, notifications_enabled, quiet_hours, chat_enter_to_send, summary_prompt, active_mailbox_id }
+    var legal_documents_accepted = false
+    enum CodingKeys: String, CodingKey { case enabled, output_dir, interval_seconds, ai_provider, api_base, api_model, ui_language, codex_path, harness_path, mailbox, mailboxes, mail_policy, notifications_enabled, quiet_hours, chat_enter_to_send, summary_prompt, active_mailbox_id, legal_documents_accepted }
     init() {}
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -140,6 +141,7 @@ struct MailSettings: Codable {
         chat_enter_to_send = try values.decodeIfPresent(Bool.self, forKey: .chat_enter_to_send) ?? false
         summary_prompt = try values.decodeIfPresent(String.self, forKey: .summary_prompt) ?? ""
         active_mailbox_id = try values.decodeIfPresent(String.self, forKey: .active_mailbox_id)
+        legal_documents_accepted = try values.decodeIfPresent(Bool.self, forKey: .legal_documents_accepted) ?? false
     }
 }
 

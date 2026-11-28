@@ -335,6 +335,21 @@ sealed partial class MainWindow : Window
     UpdateDownloadView? activeDownload;
     readonly TextBlock updateStatus = new() { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true };
     readonly UpdateClient updates = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail", "update-state.json"), UpdateClient.InstalledVersion);
+    static string UserDataDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BensonMail");
+    static string LegalConsentPath => Path.Combine(UserDataDirectory, "legal-consent.json");
+    static bool HasAcceptedLegalDocuments()
+    {
+        try {
+            using var document = JsonDocument.Parse(File.ReadAllText(LegalConsentPath));
+            return document.RootElement.TryGetProperty("accepted", out var accepted) && accepted.ValueKind == JsonValueKind.True &&
+                document.RootElement.TryGetProperty("version", out var version) && version.GetString() == "2026-11-28";
+        } catch { return false; }
+    }
+    static void SaveLegalDocumentAcceptance()
+    {
+        Directory.CreateDirectory(UserDataDirectory);
+        File.WriteAllText(LegalConsentPath, JsonSerializer.Serialize(new { accepted = true, version = "2026-11-28", accepted_utc = DateTimeOffset.UtcNow }));
+    }
     readonly Microsoft.UI.Dispatching.DispatcherQueueTimer updateTimer;
     Flyout filters = null!;
     bool initialized, running, exiting, exitRequested, detailIsUserSubject;
@@ -1631,6 +1646,21 @@ sealed partial class MainWindow : Window
     }
     async Task Onboard(bool testing = false, bool addingMailbox = false)
     {
+        if (!testing && !addingMailbox && !HasAcceptedLegalDocuments())
+        {
+            var accepted = new CheckBox { Content = L.T("我已阅读并同意隐私政策和服务条款。"), FontFamily = MailTypography.Font };
+            var policy = new HyperlinkButton { Content = L.T("阅读隐私政策"), NavigateUri = new Uri("https://benson-yiyan.github.io/benson-mail-assistant/privacy.html"), FontFamily = MailTypography.Font };
+            var terms = new HyperlinkButton { Content = L.T("阅读服务条款"), NavigateUri = new Uri("https://benson-yiyan.github.io/benson-mail-assistant/terms.html"), FontFamily = MailTypography.Font };
+            var notice = Note(L.T("请先阅读隐私政策和服务条款。使用 AI 功能时，相关邮件内容会发送给你配置的 AI 服务；邮箱授权和 AI 数据使用由你分别控制。"));
+            var legal = new ContentDialog { FontFamily = MailTypography.Font, XamlRoot = layout.XamlRoot,
+                Title = L.T("开始前请阅读"), Content = Stack(notice, policy, terms, accepted),
+                PrimaryButtonText = L.T("同意并继续配置"), CloseButtonText = L.T("退出"), DefaultButton = ContentDialogButton.Primary };
+            legal.PrimaryButtonClick += (_, e) => { if (accepted.IsChecked != true) e.Cancel = true; };
+            var consentResult = await legal.ShowAsync();
+            if (consentResult != ContentDialogResult.Primary) { exiting = true; exitRequested = true; lifetime.Dispose(); tray.Visible = false; tray.Dispose(); bridge.Dispose(); Application.Current.Exit(); return; }
+            try { SaveLegalDocumentAcceptance(); }
+            catch (Exception error) { throw new InvalidOperationException(L.T("无法保存同意记录：") + L.T(error.Message)); }
+        }
         var address = new TextBox { FontFamily = MailTypography.Font, Header = L.T("邮箱地址"), Text = account.Text };
         var secret = new PasswordBox { FontFamily = MailTypography.Font, Header = L.T("应用专用密码/授权码（不是登录密码）") };
         var presetChoice = new ComboBox { Header = L.T("邮箱服务商"), HorizontalAlignment = HorizontalAlignment.Stretch };

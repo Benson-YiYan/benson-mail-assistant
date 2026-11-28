@@ -2045,7 +2045,14 @@
     "Browser sign-in": "布饶泽·赛恩-因",
     "Manual access token": "麦恩优阿尔·诶克塞斯·托肯",
     "Browser sign-in is not configured yet. Please try again later.": "布饶泽·赛恩-因·伊兹·诺特·克恩菲格耶德·耶特. 普利兹·特瑞·阿格恩·雷特.",
-    "Enable IMAP for your mailbox. Gmail and Outlook use browser sign-in only; other providers may require a password or app password.": "诶内巴尔·艾麦普·佛·尤尔·喵博克斯. 吉梅尔·安德·奥特卢克·优斯·布饶泽·赛恩-因·昂利; 阿泽·普瑞外德兹·梅·瑞克歪尔·诶·派斯沃德·奥尔·诶普·派斯沃德."
+    "Enable IMAP for your mailbox. Gmail and Outlook use browser sign-in only; other providers may require a password or app password.": "诶内巴尔·艾麦普·佛·尤尔·喵博克斯. 吉梅尔·安德·奥特卢克·优斯·布饶泽·赛恩-因·昂利; 阿泽·普瑞外德兹·梅·瑞克歪尔·诶·派斯沃德·奥尔·诶普·派斯沃德.",
+    "开始前请阅读": "毕佛尤·毕甘",
+    "请先阅读隐私政策和服务条款。邮件小秘书会在你使用 AI 功能时，将相关邮件内容发送给你配置的 AI 服务；邮箱授权和 AI 数据使用由你分别控制。": "普利兹·瑞德泽·泽·派瑞瓦西·波利西·安德·瑟姆兹·奥弗·瑟维瑟. 温·尤·优兹·诶·艾·菲彻兹, 瑞勒文特·伊喵·康腾特·伊兹·森特·图·泽·诶·艾·瑟维瑟·尤·康菲格优尔德. 梅尔·诶克瑟斯·安德·诶·艾·德塔·优兹·阿尔·康特若尔德·瑟泼瑞特利.",
+    "阅读隐私政策": "瑞德·泽·派瑞瓦西·波利西",
+    "阅读服务条款": "瑞德·泽·瑟姆兹·奥弗·瑟维瑟",
+    "我已阅读并同意隐私政策和服务条款。": "艾·哈夫·瑞德·安德·阿格瑞·图·泽·派瑞瓦西·波利西·安德·瑟姆兹·奥弗·瑟维瑟.",
+    "同意并继续配置": "阿格瑞·安德·克恩提恩优·塞特普",
+    "无法保存同意记录：": "库德·诺特·塞夫·泽·康森特·瑞科尔德: "
   },
   "templates": [
     {

@@ -1089,7 +1089,14 @@
     "手动访问令牌": "Manual access token",
     "浏览器登录功能暂未配置，请稍后再试。": "Browser sign-in is not configured yet. Please try again later.",
     "请启用 IMAP，并按服务商要求填写客户端授权码或应用专用密码。": "Enable IMAP and enter the app password or authorization code required by your provider. Gmail and Outlook use browser sign-in.",
-    "请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。": "Enable IMAP for your mailbox. Gmail and Outlook use browser sign-in only; other providers may require a password or app password."
+    "请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。": "Enable IMAP for your mailbox. Gmail and Outlook use browser sign-in only; other providers may require a password or app password.",
+    "开始前请阅读": "Before you begin",
+    "请先阅读隐私政策和服务条款。邮件小秘书会在你使用 AI 功能时，将相关邮件内容发送给你配置的 AI 服务；邮箱授权和 AI 数据使用由你分别控制。": "Please review the Privacy Policy and Terms of Service first. When you use AI features, relevant email content is sent to the AI service you configured. Mailbox access and AI data use are controlled separately.",
+    "阅读隐私政策": "Read the Privacy Policy",
+    "阅读服务条款": "Read the Terms of Service",
+    "我已阅读并同意隐私政策和服务条款。": "I have read and agree to the Privacy Policy and Terms of Service.",
+    "同意并继续配置": "Agree and continue setup",
+    "无法保存同意记录：": "Could not save the consent record: "
   },
   "templates": [
     {

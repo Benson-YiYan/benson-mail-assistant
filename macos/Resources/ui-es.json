@@ -1089,7 +1089,14 @@
     "手动访问令牌": "Token de acceso manual",
     "浏览器登录功能暂未配置，请稍后再试。": "El inicio de sesión en el navegador aún no está configurado. Inténtalo más tarde.",
     "请启用 IMAP，并按服务商要求填写客户端授权码或应用专用密码。": "Activa IMAP e introduce la contraseña de aplicación o el código de autorización que requiera tu proveedor. Gmail y Outlook usan el navegador.",
-    "请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。": "Activa IMAP para tu buzón. Gmail y Outlook solo usan el inicio de sesión en el navegador; otros proveedores pueden requerir una contraseña o contraseña de aplicación."
+    "请启用邮箱的 IMAP 服务。Gmail 和 Outlook 只使用浏览器登录；其他邮箱按服务商要求使用密码或客户端授权码。": "Activa IMAP para tu buzón. Gmail y Outlook solo usan el inicio de sesión en el navegador; otros proveedores pueden requerir una contraseña o contraseña de aplicación.",
+    "开始前请阅读": "Antes de empezar",
+    "请先阅读隐私政策和服务条款。邮件小秘书会在你使用 AI 功能时，将相关邮件内容发送给你配置的 AI 服务；邮箱授权和 AI 数据使用由你分别控制。": "Lee primero la Política de privacidad y los Términos del servicio. Al usar funciones de IA, el contenido pertinente del correo se envía al servicio de IA que configuraste. El acceso al buzón y el uso de datos por la IA se controlan por separado.",
+    "阅读隐私政策": "Leer la Política de privacidad",
+    "阅读服务条款": "Leer los Términos del servicio",
+    "我已阅读并同意隐私政策和服务条款。": "He leído y acepto la Política de privacidad y los Términos del servicio.",
+    "同意并继续配置": "Aceptar y continuar",
+    "无法保存同意记录：": "No se pudo guardar el consentimiento: "
   },
   "templates": [
     {

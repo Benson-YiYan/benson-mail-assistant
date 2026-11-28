@@ -121,7 +121,7 @@ final class MailStore: ObservableObject {
         }
         if !isTest {
             mailAccount = settings.mailbox?.account ?? (settings.mailboxes == nil ? MailCredentials.account() ?? "" : "")
-            needsAccountSetup = mailAccount.isEmpty || (settings.ai_provider == "api" &&
+            needsAccountSetup = !settings.legal_documents_accepted || mailAccount.isEmpty || (settings.ai_provider == "api" &&
                 (settings.api_base.isEmpty || settings.api_model.isEmpty))
             // Start the bundled paused service on fresh installs as well.
             startWorker()
@@ -340,6 +340,14 @@ final class MailStore: ObservableObject {
     func completeAccountSetup() {
         settingsDraft.reload()
         needsAccountSetup = false
+    }
+    func acceptLegalDocuments() {
+        settings.legal_documents_accepted = true
+        do {
+            try save()
+            needsAccountSetup = mailAccount.isEmpty || (settings.ai_provider == "api" &&
+                (settings.api_base.isEmpty || settings.api_model.isEmpty))
+        } catch { settings.legal_documents_accepted = false; problem = "无法保存同意记录：\(error.localizedDescription)" }
     }
     var notificationsAllowed: Bool { settings.notifications_enabled && !settings.quiet_hours.contains() }
     func toggleNotifications() {

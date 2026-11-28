@@ -1102,7 +1102,14 @@
     "允许在 AI 功能中使用此 Gmail 邮件内容": "Allow this Gmail content to be used in AI features",
     "开启后，自动总结和你主动使用的邮件问答、回复草稿会把正文及可读取的附件文字发送给你配置的 AI；可随时关闭，关闭后停止后续发送。": "When enabled, automatic summaries, email questions, regenerated reports and reply drafts send message bodies and readable attachment text to your configured AI service. You can turn this off at any time to stop future transfers.",
     "允许": "Allow",
-    "不允许": "Do not allow"
+    "不允许": "Do not allow",
+    "开始前请阅读": "Before you begin",
+    "请先阅读隐私政策和服务条款。使用 AI 功能时，相关邮件内容会发送给你配置的 AI 服务；邮箱授权和 AI 数据使用由你分别控制。": "Please review the Privacy Policy and Terms of Service first. When you use AI features, relevant email content is sent to the AI service you configured. Mailbox access and AI data use are controlled separately.",
+    "阅读隐私政策": "Read the Privacy Policy",
+    "阅读服务条款": "Read the Terms of Service",
+    "我已阅读并同意隐私政策和服务条款。": "I have read and agree to the Privacy Policy and Terms of Service.",
+    "同意并继续配置": "Agree and continue setup",
+    "无法保存同意记录：": "Could not save the consent record: "
   },
   "templates": [
     {
